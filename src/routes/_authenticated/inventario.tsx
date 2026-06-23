@@ -48,8 +48,8 @@ function InventarioPage() {
           <p className="text-sm text-muted-foreground">Contagens registradas e seu status</p>
         </div>
         <div className="flex gap-2">
-          <Button asChild variant="outline"><Link to="/inventario/scanner"><ScanLine className="size-4 mr-1.5" /> Scanner</Link></Button>
-          <Button asChild><Link to="/inventario/contar"><ClipboardList className="size-4 mr-1.5" /> Nova contagem</Link></Button>
+          <Button asChild variant="outline"><Link to="/scanner"><ScanLine className="size-4 mr-1.5" /> Scanner</Link></Button>
+          <Button asChild><Link to="/contar"><ClipboardList className="size-4 mr-1.5" /> Nova contagem</Link></Button>
         </div>
       </div>
 
