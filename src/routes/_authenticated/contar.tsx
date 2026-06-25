@@ -1,20 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Search, Save, ScanLine, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Save, X, ScanLine, Eye, EyeOff, Loader2 } from "lucide-react";
 import { sounds } from "@/lib/audio";
+import { calcAcuracidade, acuracidadeColor, formatNum } from "@/lib/inventory";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { addPendingCount } from "@/lib/idb";
 import { syncPendingCounts } from "@/lib/sync";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 export const Route = createFileRoute("/_authenticated/contar")({
   component: ContarPage,
@@ -33,15 +34,13 @@ interface EstoqueItem {
   data_validade: string | null;
 }
 
+const TODOS = "__TODOS__";
+
 function ContarPage() {
   const qc = useQueryClient();
   const online = useOnlineStatus();
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<EstoqueItem | null>(null);
-  const [contado, setContado] = useState<string>("");
-  const [obs, setObs] = useState("");
-  const [saving, setSaving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [grupo, setGrupo] = useState<string>(TODOS);
+  const [sku, setSku] = useState<string>("");
 
   // Inventário cego
   const { data: cego } = useQuery({
@@ -51,198 +50,296 @@ function ContarPage() {
       return data?.valor === true || data?.valor === "true";
     },
   });
-
   const [showSistemico, setShowSistemico] = useState<boolean>(true);
   useEffect(() => { if (cego !== undefined) setShowSistemico(!cego); }, [cego]);
 
-  const { data: results } = useQuery({
-    queryKey: ["estoque-search", search],
-    enabled: search.trim().length >= 2,
-    queryFn: async (): Promise<EstoqueItem[]> => {
-      const term = search.trim();
+  // Lista de grupos distintos
+  const { data: grupos } = useQuery({
+    queryKey: ["grupos-distintos"],
+    queryFn: async () => {
+      const { data } = await supabase.from("grupo_produtos").select("grupo");
+      const set = new Set<string>((data ?? []).map((r: { grupo: string }) => r.grupo));
+      return Array.from(set).sort();
+    },
+  });
+
+  // SKUs do grupo selecionado
+  const { data: skus } = useQuery({
+    queryKey: ["skus-do-grupo", grupo],
+    enabled: grupo !== "",
+    queryFn: async () => {
+      if (grupo === TODOS) {
+        const { data } = await supabase.from("estoque_sistemico").select("id_produto, descricao").limit(2000);
+        const map = new Map<string, string>();
+        (data ?? []).forEach((r: { id_produto: string; descricao: string }) => map.set(r.id_produto, r.descricao));
+        return Array.from(map.entries()).map(([id_produto, descricao]) => ({ id_produto, descricao })).sort((a, b) => a.id_produto.localeCompare(b.id_produto));
+      }
+      const { data: gp } = await supabase.from("grupo_produtos").select("codigo_produto").eq("grupo", grupo);
+      const codes = (gp ?? []).map((r: { codigo_produto: string }) => r.codigo_produto);
+      if (codes.length === 0) return [];
+      const { data: est } = await supabase.from("estoque_sistemico").select("id_produto, descricao").in("id_produto", codes);
+      const map = new Map<string, string>();
+      (est ?? []).forEach((r: { id_produto: string; descricao: string }) => map.set(r.id_produto, r.descricao));
+      return Array.from(map.entries()).map(([id_produto, descricao]) => ({ id_produto, descricao })).sort((a, b) => a.id_produto.localeCompare(b.id_produto));
+    },
+  });
+
+  // Lotes do SKU
+  const { data: lotes } = useQuery({
+    queryKey: ["lotes-do-sku", sku],
+    enabled: !!sku,
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("estoque_sistemico")
         .select("*")
-        .or(`id_produto.ilike.%${term}%,lote.ilike.%${term}%,descricao.ilike.%${term}%`)
-        .limit(20);
+        .eq("id_produto", sku)
+        .order("lote");
       if (error) throw error;
       return (data ?? []) as EstoqueItem[];
     },
   });
 
-  // Verificar quantas contagens existem para sugerir número da contagem
-  const { data: contagensExistentes } = useQuery({
-    queryKey: ["contagens", selected?.id_produto, selected?.lote],
-    enabled: !!selected,
+  // Inventario existente
+  const { data: contagens } = useQuery({
+    queryKey: ["contagens-sku", sku],
+    enabled: !!sku,
     queryFn: async () => {
       const { data } = await supabase
         .from("inventario")
-        .select("contagem_numero")
-        .eq("id_produto", selected!.id_produto)
-        .eq("lote", selected!.lote)
-        .order("contagem_numero", { ascending: false })
-        .limit(1);
-      return data?.[0]?.contagem_numero ?? 0;
+        .select("id_produto, lote, quantidade_contada, status, acuracidade")
+        .eq("id_produto", sku);
+      const map: Record<string, { qtd: number; status: string; ac: number | null }> = {};
+      (data ?? []).forEach((r) => { map[r.lote ?? ""] = { qtd: Number(r.quantidade_contada), status: r.status, ac: r.acuracidade != null ? Number(r.acuracidade) : null }; });
+      return map;
     },
   });
 
-  const proximaContagem = useMemo(() => (contagensExistentes ?? 0) + 1, [contagensExistentes]);
-
-  async function handleSave() {
-    if (!selected) return;
-    const q = Number(contado.replace(",", "."));
-    if (Number.isNaN(q) || q < 0) { toast.error("Quantidade inválida"); sounds.error(); return; }
-    setSaving(true);
-    const userId = (await supabase.auth.getUser()).data.user?.id ?? "";
-    const payload = {
-      id_produto: selected.id_produto,
-      lote: selected.lote,
-      descricao: selected.descricao,
-      unidade: selected.unidade,
-      id_local: selected.id_local,
-      custo_unitario: Number(selected.custo_unitario),
-      saldo_sistemico: Number(selected.quantidade),
-      quantidade_contada: q,
-      data_validade: selected.data_validade,
-      contagem_numero: proximaContagem,
-      usuario: userId,
-      observacao: obs || null,
-      data_contagem: new Date().toISOString(),
-    };
-
-    if (online) {
-      const { error } = await supabase.from("inventario").insert(payload);
-      if (error) {
-        toast.error("Falha ao salvar online — salvando offline");
-        await addPendingCount({ ...payload, localId: crypto.randomUUID(), createdAt: Date.now() });
-      } else {
-        toast.success("Contagem salva");
-        sounds.success();
-      }
-    } else {
-      await addPendingCount({ ...payload, localId: crypto.randomUUID(), createdAt: Date.now() });
-      toast.success("Contagem salva offline");
-      sounds.success();
-    }
-
-    qc.invalidateQueries({ queryKey: ["inventario"] });
-    qc.invalidateQueries({ queryKey: ["pending-counts"] });
-    qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
-
-    setContado("");
-    setObs("");
-    setSelected(null);
-    setSearch("");
-    setSaving(false);
-    setTimeout(() => inputRef.current?.focus(), 50);
-    if (online) syncPendingCounts();
-  }
+  // Reset SKU quando grupo muda
+  useEffect(() => { setSku(""); }, [grupo]);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
+    <div className="max-w-7xl mx-auto space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Contagem Operacional</h1>
-          <p className="text-sm text-muted-foreground">Busque o produto e registre a quantidade contada</p>
+          <p className="text-sm text-muted-foreground">Selecione Grupo → SKU para listar os lotes disponíveis</p>
         </div>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" size="sm"><Link to="/scanner"><ScanLine className="size-4 mr-1.5" /> Scanner</Link></Button>
           <div className="flex items-center gap-2 text-xs">
             <Switch checked={showSistemico} onCheckedChange={setShowSistemico} id="cego" />
             <Label htmlFor="cego" className="cursor-pointer flex items-center gap-1">
-              {showSistemico ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
-              Exibir saldo
+              {showSistemico ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />} Exibir saldo
             </Label>
           </div>
         </div>
       </div>
 
-      {!selected && (
-        <Card>
-          <CardContent className="p-4">
-            <div className="relative">
-              <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                ref={inputRef}
-                autoFocus
-                placeholder="Buscar por código, lote ou descrição..."
-                className="pl-9 h-12 text-base"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            {results && results.length > 0 && (
-              <div className="mt-3 divide-y border rounded-lg overflow-hidden">
-                {results.map((r) => (
-                  <button
-                    key={r.id}
-                    onClick={() => { setSelected(r); setSearch(""); }}
-                    className="w-full text-left p-3 hover:bg-accent transition-colors flex items-center justify-between gap-3"
-                  >
-                    <div className="min-w-0">
-                      <div className="font-medium truncate">{r.descricao || r.id_produto}</div>
-                      <div className="text-xs text-muted-foreground font-mono">{r.id_produto} · Lote {r.lote || "—"} · {r.id_local || "—"}</div>
-                    </div>
-                    {showSistemico && <Badge variant="secondary" className="tabular-nums">{r.quantidade} {r.unidade}</Badge>}
-                  </button>
+      <Card>
+        <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label className="text-xs">Filtro Grupo</Label>
+            <Select value={grupo} onValueChange={setGrupo}>
+              <SelectTrigger><SelectValue placeholder="Selecione um grupo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS}>Todos</SelectItem>
+                {(grupos ?? []).map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Filtro SKU</Label>
+            <Select value={sku} onValueChange={setSku} disabled={!grupo}>
+              <SelectTrigger><SelectValue placeholder={grupo ? "Selecione um SKU" : "Selecione o grupo primeiro"} /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                {(skus ?? []).map((s) => (
+                  <SelectItem key={s.id_produto} value={s.id_produto}>
+                    {s.id_produto} — {s.descricao}
+                  </SelectItem>
                 ))}
-              </div>
-            )}
-            {search.length >= 2 && results?.length === 0 && (
-              <div className="text-sm text-muted-foreground text-center py-6">Nenhum produto encontrado</div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
-      {selected && (
-        <Card className="border-primary/30">
-          <CardHeader>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <CardTitle className="text-lg truncate">{selected.descricao || selected.id_produto}</CardTitle>
-                <div className="text-xs text-muted-foreground mt-1 font-mono">
-                  Cód: {selected.id_produto} · Lote: {selected.lote || "—"} · Local: {selected.id_local || "—"} · Un: {selected.unidade}
-                </div>
-                {selected.data_validade && <div className="text-xs text-muted-foreground">Validade: {selected.data_validade}</div>}
-              </div>
-              <Badge variant="outline">Contagem #{proximaContagem}</Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {showSistemico && (
-              <div className="bg-muted rounded-lg p-3 flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Saldo sistêmico</span>
-                <span className="text-xl font-bold tabular-nums">{Number(selected.quantidade).toLocaleString("pt-BR")} {selected.unidade}</span>
-              </div>
-            )}
-            <div>
-              <Label htmlFor="qtd" className="text-base">Quantidade contada</Label>
-              <Input
-                id="qtd"
-                type="number"
-                inputMode="decimal"
-                step="0.001"
-                min="0"
-                autoFocus
-                value={contado}
-                onChange={(e) => setContado(e.target.value)}
-                className="h-14 text-2xl text-center tabular-nums font-bold"
-              />
-            </div>
-            <div>
-              <Label htmlFor="obs">Observação (opcional)</Label>
-              <Textarea id="obs" value={obs} onChange={(e) => setObs(e.target.value)} rows={2} maxLength={500} />
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => { setSelected(null); setContado(""); setObs(""); }}>Cancelar</Button>
-              <Button className="flex-1" onClick={handleSave} disabled={saving || !contado}>
-                {saving ? <Loader2 className="size-4 animate-spin" /> : <><Save className="size-4 mr-1.5" /> Salvar</>}
-              </Button>
-            </div>
+      {sku && (
+        <Card>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Lote</TableHead>
+                  {showSistemico && <TableHead className="text-right">Saldo Sistema</TableHead>}
+                  <TableHead>Local</TableHead>
+                  <TableHead className="w-40">Contagem</TableHead>
+                  <TableHead className="w-28 text-right">Acuracidade</TableHead>
+                  <TableHead className="w-24">Status</TableHead>
+                  <TableHead className="w-44 text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(lotes ?? []).map((l) => (
+                  <LinhaContagem
+                    key={l.id}
+                    item={l}
+                    showSistemico={showSistemico}
+                    existente={contagens?.[l.lote ?? ""]}
+                    online={online}
+                    onSaved={() => {
+                      qc.invalidateQueries({ queryKey: ["contagens-sku", sku] });
+                      qc.invalidateQueries({ queryKey: ["inventario"] });
+                      qc.invalidateQueries({ queryKey: ["recontagem"] });
+                      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+                    }}
+                  />
+                ))}
+                {(lotes ?? []).length === 0 && (
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum lote encontrado</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       )}
     </div>
+  );
+}
+
+function LinhaContagem({
+  item, showSistemico, existente, online, onSaved,
+}: {
+  item: EstoqueItem;
+  showSistemico: boolean;
+  existente?: { qtd: number; status: string; ac: number | null };
+  online: boolean;
+  onSaved: () => void;
+}) {
+  const [contado, setContado] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+
+  const ac = useMemo(() => {
+    const v = Number((contado || "0").replace(",", "."));
+    if (contado === "" || Number.isNaN(v)) return null;
+    return calcAcuracidade(v, Number(item.quantidade));
+  }, [contado, item.quantidade]);
+
+  const cor = acuracidadeColor(ac);
+  const bloqueado = existente && existente.status !== "RECONTAGEM_OBRIGATORIA" && existente.status !== "RECONTAGEM_NECESSARIA";
+
+  async function salvar() {
+    const q = Number(contado.replace(",", "."));
+    if (contado === "" || Number.isNaN(q) || q < 0) { toast.error("Quantidade inválida"); sounds.error(); return; }
+
+    setSaving(true);
+    const userId = (await supabase.auth.getUser()).data.user?.id ?? "";
+
+    // Verificar duplicidade
+    const { data: existing } = await supabase
+      .from("inventario")
+      .select("id, status")
+      .eq("id_produto", item.id_produto)
+      .eq("lote", item.lote ?? "")
+      .maybeSingle();
+
+    if (existing && existing.status !== "RECONTAGEM_OBRIGATORIA" && existing.status !== "RECONTAGEM_NECESSARIA") {
+      toast.error("Este lote já foi inventariado.");
+      sounds.error();
+      setSaving(false);
+      return;
+    }
+
+    const payload = {
+      id_produto: item.id_produto,
+      lote: item.lote ?? "",
+      descricao: item.descricao ?? "",
+      unidade: item.unidade ?? "UN",
+      id_local: item.id_local ?? "",
+      custo_unitario: Number(item.custo_unitario),
+      saldo_sistemico: Number(item.quantidade),
+      quantidade_contada: q,
+      data_validade: item.data_validade,
+      contagem_numero: existing ? 2 : 1,
+      usuario: userId,
+      data_contagem: new Date().toISOString(),
+    };
+
+    if (!online) {
+      await addPendingCount({ ...payload, localId: crypto.randomUUID(), createdAt: Date.now() });
+      toast.success("Contagem salva offline");
+      sounds.success();
+      setSaving(false);
+      setContado("");
+      onSaved();
+      return;
+    }
+
+    let error;
+    if (existing) {
+      ({ error } = await supabase.from("inventario").update({
+        ...payload,
+        status: "PENDENTE",
+      }).eq("id", existing.id));
+    } else {
+      ({ error } = await supabase.from("inventario").insert(payload));
+    }
+
+    if (error) {
+      toast.error(error.message);
+      sounds.error();
+    } else {
+      toast.success("Contagem salva");
+      sounds.success();
+      setContado("");
+      await supabase.from("audit_logs").insert({
+        usuario: userId, acao: "SALVAR_CONTAGEM", entidade: "inventario",
+        payload: { id_produto: item.id_produto, lote: item.lote, quantidade_contada: q, acuracidade: ac },
+      });
+      onSaved();
+      if (online) syncPendingCounts();
+    }
+    setSaving(false);
+  }
+
+  return (
+    <TableRow>
+      <TableCell className="font-mono text-xs">{item.id_produto}</TableCell>
+      <TableCell className="max-w-xs truncate">{item.descricao}</TableCell>
+      <TableCell className="font-mono text-xs">{item.lote || "—"}</TableCell>
+      {showSistemico && <TableCell className="text-right tabular-nums">{formatNum(Number(item.quantidade))} {item.unidade}</TableCell>}
+      <TableCell className="text-xs">{item.id_local || "—"}</TableCell>
+      <TableCell>
+        <Input
+          type="number" inputMode="decimal" step="0.001" min="0"
+          value={contado}
+          disabled={bloqueado}
+          onChange={(e) => setContado(e.target.value)}
+          placeholder={existente ? `Atual: ${formatNum(existente.qtd)}` : "0"}
+          className="h-9 tabular-nums"
+        />
+      </TableCell>
+      <TableCell className="text-right">
+        {ac != null ? (
+          <span className={`inline-flex px-2 py-0.5 rounded font-semibold text-xs ${cor.bg} ${cor.text}`}>{cor.label}</span>
+        ) : existente?.ac != null ? (
+          <span className="text-xs text-muted-foreground tabular-nums">{Number(existente.ac).toFixed(2)}%</span>
+        ) : <span className="text-xs text-muted-foreground">—</span>}
+      </TableCell>
+      <TableCell>
+        {existente && <span className="text-[10px] uppercase font-medium tracking-wider text-muted-foreground">{existente.status}</span>}
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-1.5">
+          <Button size="sm" variant="ghost" onClick={() => setContado("")} disabled={!contado || saving}>
+            <X className="size-3.5" />
+          </Button>
+          <Button size="sm" onClick={salvar} disabled={saving || !contado || !!bloqueado}>
+            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <><Save className="size-3.5 mr-1" /> Salvar</>}
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
   );
 }
