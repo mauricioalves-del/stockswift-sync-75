@@ -84,8 +84,9 @@ function Dashboard() {
       });
 
       return {
-        totalContados, acurados, positivos, negativos, divFin,
-        acuracidadeGeral, concluido, totalPlanejado,
+        totalContados, acurados, aprovados, emRecontagem, totalRecontagens,
+        positivos, negativos, divFin,
+        acuracidadeGeral, acuracidadeMedia, taxaAprovacao, concluido, totalPlanejado,
         top10, locais, evolucao, pareto, porUser,
       };
     },
