@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Upload, ClipboardList, ScanLine, RotateCcw, FileBarChart2,
   Users as UsersIcon, ScrollText, Settings as SettingsIcon, LogOut, Menu, X,
-  Sun, Moon, Wifi, WifiOff, Boxes, RefreshCw,
+  Sun, Moon, Wifi, WifiOff, Boxes, RefreshCw, Layers,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -19,6 +19,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, role: "any" as const },
   { to: "/importar", label: "Importar Estoque", icon: Upload, role: "write" as const },
+  { to: "/grupos", label: "Grupos", icon: Layers, role: "write" as const },
   { to: "/inventario", label: "Inventário", icon: ClipboardList, role: "any" as const },
   { to: "/contar", label: "Contagem", icon: ClipboardList, role: "write" as const },
   { to: "/scanner", label: "Scanner", icon: ScanLine, role: "write" as const },

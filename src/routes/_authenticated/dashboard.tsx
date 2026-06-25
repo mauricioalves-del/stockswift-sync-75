@@ -8,7 +8,7 @@ import {
   LineChart, Line,
 } from "recharts";
 import {
-  Boxes, Target, TrendingUp, TrendingDown, Percent, DollarSign, CheckCircle2, ArrowUpRight,
+  Boxes, Target, TrendingUp, TrendingDown, Percent, DollarSign, CheckCircle2, ArrowUpRight, RotateCcw, Gauge, BadgeCheck,
 } from "lucide-react";
 import { formatBRL, formatNum } from "@/lib/inventory";
 import { cn } from "@/lib/utils";
@@ -22,19 +22,27 @@ function Dashboard() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
-      const [invRes, estRes] = await Promise.all([
+      const [invRes, estRes, recRes] = await Promise.all([
         supabase.from("inventario").select("id, status, acuracidade, divergencia, valor_divergencia, descricao, id_produto, id_local, data_contagem, usuario"),
         supabase.from("estoque_sistemico").select("id_produto, lote, quantidade"),
+        supabase.from("recontagem").select("id, status"),
       ]);
       const inv = invRes.data ?? [];
       const est = estRes.data ?? [];
+      const rec = recRes.data ?? [];
       const totalPlanejado = new Set(est.map((e) => `${e.id_produto}|${e.lote}`)).size || est.length;
       const totalContados = inv.length;
       const acurados = inv.filter((i) => i.acuracidade != null && i.acuracidade >= 97 && i.acuracidade <= 100).length;
+      const aprovados = inv.filter((i) => i.status === "APROVADO").length;
+      const emRecontagem = rec.filter((r) => r.status === "PENDENTE_RECONTAGEM" || r.status === "RECONTAGEM_OBRIGATORIA").length;
+      const totalRecontagens = rec.length;
       const positivos = inv.filter((i) => (i.divergencia ?? 0) > 0).length;
       const negativos = inv.filter((i) => (i.divergencia ?? 0) < 0).length;
       const divFin = inv.reduce((s, i) => s + (Number(i.valor_divergencia) || 0), 0);
       const acuracidadeGeral = totalContados > 0 ? (acurados / totalContados) * 100 : 0;
+      const acsValidas = inv.filter((i) => i.acuracidade != null).map((i) => Number(i.acuracidade));
+      const acuracidadeMedia = acsValidas.length ? acsValidas.reduce((a, b) => a + b, 0) / acsValidas.length : 0;
+      const taxaAprovacao = totalContados > 0 ? ((aprovados + acurados) / totalContados) * 100 : 0;
       const concluido = totalPlanejado > 0 ? (totalContados / totalPlanejado) * 100 : 0;
 
       // Top 10 divergências financeiras
@@ -76,8 +84,9 @@ function Dashboard() {
       });
 
       return {
-        totalContados, acurados, positivos, negativos, divFin,
-        acuracidadeGeral, concluido, totalPlanejado,
+        totalContados, acurados, aprovados, emRecontagem, totalRecontagens,
+        positivos, negativos, divFin,
+        acuracidadeGeral, acuracidadeMedia, taxaAprovacao, concluido, totalPlanejado,
         top10, locais, evolucao, pareto, porUser,
       };
     },
@@ -105,8 +114,12 @@ function Dashboard() {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         <Kpi icon={Boxes} label="Itens Inventariados" value={formatNum(stats.totalContados)} />
+        <Kpi icon={BadgeCheck} label="Itens Aprovados" value={formatNum(stats.aprovados)} tone="success" />
+        <Kpi icon={RotateCcw} label="Em Recontagem" value={formatNum(stats.emRecontagem)} tone="destructive" />
+        <Kpi icon={Gauge} label="Acuracidade Média" value={`${stats.acuracidadeMedia.toFixed(1)}%`} tone="info" />
+        <Kpi icon={RotateCcw} label="Qtd. Recontagens" value={formatNum(stats.totalRecontagens)} tone="warning" />
+        <Kpi icon={CheckCircle2} label="Taxa de Aprovação" value={`${stats.taxaAprovacao.toFixed(1)}%`} tone="success" />
         <Kpi icon={Target} label="Planejados" value={formatNum(stats.totalPlanejado)} sub={`${stats.concluido.toFixed(1)}% concluído`} />
-        <Kpi icon={CheckCircle2} label="Acurados" value={formatNum(stats.acurados)} tone="success" />
         <Kpi icon={Percent} label="Acuracidade Geral" value={`${stats.acuracidadeGeral.toFixed(1)}%`} tone="success" />
         <Kpi icon={TrendingUp} label="Divergência Positiva" value={formatNum(stats.positivos)} tone="warning" />
         <Kpi icon={TrendingDown} label="Divergência Negativa" value={formatNum(stats.negativos)} tone="destructive" />
