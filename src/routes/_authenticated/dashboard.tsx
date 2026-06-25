@@ -114,8 +114,12 @@ function Dashboard() {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         <Kpi icon={Boxes} label="Itens Inventariados" value={formatNum(stats.totalContados)} />
+        <Kpi icon={BadgeCheck} label="Itens Aprovados" value={formatNum(stats.aprovados)} tone="success" />
+        <Kpi icon={RotateCcw} label="Em Recontagem" value={formatNum(stats.emRecontagem)} tone="destructive" />
+        <Kpi icon={Gauge} label="Acuracidade Média" value={`${stats.acuracidadeMedia.toFixed(1)}%`} tone="info" />
+        <Kpi icon={RotateCcw} label="Qtd. Recontagens" value={formatNum(stats.totalRecontagens)} tone="warning" />
+        <Kpi icon={CheckCircle2} label="Taxa de Aprovação" value={`${stats.taxaAprovacao.toFixed(1)}%`} tone="success" />
         <Kpi icon={Target} label="Planejados" value={formatNum(stats.totalPlanejado)} sub={`${stats.concluido.toFixed(1)}% concluído`} />
-        <Kpi icon={CheckCircle2} label="Acurados" value={formatNum(stats.acurados)} tone="success" />
         <Kpi icon={Percent} label="Acuracidade Geral" value={`${stats.acuracidadeGeral.toFixed(1)}%`} tone="success" />
         <Kpi icon={TrendingUp} label="Divergência Positiva" value={formatNum(stats.positivos)} tone="warning" />
         <Kpi icon={TrendingDown} label="Divergência Negativa" value={formatNum(stats.negativos)} tone="destructive" />
