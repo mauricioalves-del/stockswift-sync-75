@@ -22,19 +22,27 @@ function Dashboard() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
-      const [invRes, estRes] = await Promise.all([
+      const [invRes, estRes, recRes] = await Promise.all([
         supabase.from("inventario").select("id, status, acuracidade, divergencia, valor_divergencia, descricao, id_produto, id_local, data_contagem, usuario"),
         supabase.from("estoque_sistemico").select("id_produto, lote, quantidade"),
+        supabase.from("recontagem").select("id, status"),
       ]);
       const inv = invRes.data ?? [];
       const est = estRes.data ?? [];
+      const rec = recRes.data ?? [];
       const totalPlanejado = new Set(est.map((e) => `${e.id_produto}|${e.lote}`)).size || est.length;
       const totalContados = inv.length;
       const acurados = inv.filter((i) => i.acuracidade != null && i.acuracidade >= 97 && i.acuracidade <= 100).length;
+      const aprovados = inv.filter((i) => i.status === "APROVADO").length;
+      const emRecontagem = rec.filter((r) => r.status === "PENDENTE_RECONTAGEM" || r.status === "RECONTAGEM_OBRIGATORIA").length;
+      const totalRecontagens = rec.length;
       const positivos = inv.filter((i) => (i.divergencia ?? 0) > 0).length;
       const negativos = inv.filter((i) => (i.divergencia ?? 0) < 0).length;
       const divFin = inv.reduce((s, i) => s + (Number(i.valor_divergencia) || 0), 0);
       const acuracidadeGeral = totalContados > 0 ? (acurados / totalContados) * 100 : 0;
+      const acsValidas = inv.filter((i) => i.acuracidade != null).map((i) => Number(i.acuracidade));
+      const acuracidadeMedia = acsValidas.length ? acsValidas.reduce((a, b) => a + b, 0) / acsValidas.length : 0;
+      const taxaAprovacao = totalContados > 0 ? ((aprovados + acurados) / totalContados) * 100 : 0;
       const concluido = totalPlanejado > 0 ? (totalContados / totalPlanejado) * 100 : 0;
 
       // Top 10 divergências financeiras
