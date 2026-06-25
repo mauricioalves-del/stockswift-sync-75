@@ -8,7 +8,7 @@ import {
   LineChart, Line,
 } from "recharts";
 import {
-  Boxes, Target, TrendingUp, TrendingDown, Percent, DollarSign, CheckCircle2, ArrowUpRight,
+  Boxes, Target, TrendingUp, TrendingDown, Percent, DollarSign, CheckCircle2, ArrowUpRight, RotateCcw, Gauge, BadgeCheck,
 } from "lucide-react";
 import { formatBRL, formatNum } from "@/lib/inventory";
 import { cn } from "@/lib/utils";
