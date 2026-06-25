@@ -110,6 +110,30 @@ export type Database = {
         }
         Relationships: []
       }
+      grupo_produtos: {
+        Row: {
+          codigo_produto: string
+          created_at: string
+          grupo: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          codigo_produto: string
+          created_at?: string
+          grupo: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          codigo_produto?: string
+          created_at?: string
+          grupo?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       inventario: {
         Row: {
           acuracidade: number | null
@@ -205,6 +229,71 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      recontagem: {
+        Row: {
+          acuracidade: number | null
+          aprovado_em: string | null
+          aprovado_por: string | null
+          codigo_produto: string
+          contagem: number
+          created_at: string
+          descricao: string
+          id: string
+          id_local: string
+          inventario_id: string | null
+          lote: string
+          motivo: string | null
+          saldo_sistema: number
+          status: string
+          updated_at: string
+          usuario: string | null
+        }
+        Insert: {
+          acuracidade?: number | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          codigo_produto: string
+          contagem?: number
+          created_at?: string
+          descricao?: string
+          id?: string
+          id_local?: string
+          inventario_id?: string | null
+          lote?: string
+          motivo?: string | null
+          saldo_sistema?: number
+          status?: string
+          updated_at?: string
+          usuario?: string | null
+        }
+        Update: {
+          acuracidade?: number | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          codigo_produto?: string
+          contagem?: number
+          created_at?: string
+          descricao?: string
+          id?: string
+          id_local?: string
+          inventario_id?: string | null
+          lote?: string
+          motivo?: string | null
+          saldo_sistema?: number
+          status?: string
+          updated_at?: string
+          usuario?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recontagem_inventario_id_fkey"
+            columns: ["inventario_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
