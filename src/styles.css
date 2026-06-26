@@ -5,9 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Sistema de Inventário — Design System Industrial
- * Paleta: verde #16a34a, vermelho #dc2626, amarelo #facc15, cinza #1f2937
+ * Mágio Chocolates — Inventário "Amazônia Premium"
+ * Verde Floresta #1B5E20 · Verde Folha #2E7D32 · Dourado Cacau #C9A227 · Marrom Cacau #5D4037 · Bege #F5F1E6
  */
+
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
