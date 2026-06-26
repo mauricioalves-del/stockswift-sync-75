@@ -132,12 +132,19 @@ function Dashboard() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
-      <div className="flex items-end justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard Operacional</h1>
-          <p className="text-sm text-muted-foreground">Visão executiva em tempo real</p>
+      {/* Header institucional Mágio */}
+      <div className="rounded-xl p-5 md:p-6 text-sidebar-foreground" style={{ background: "var(--gradient-amazon)" }}>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="size-12 rounded-lg flex items-center justify-center" style={{ background: "var(--gradient-gold)" }}>
+            <BadgeCheck className="size-6 text-sidebar-primary-foreground" />
+          </div>
+          <div className="flex-1 min-w-[260px]">
+            <h1 className="text-2xl font-bold tracking-tight">Mágio Chocolates · Dashboard Executivo</h1>
+            <p className="text-sm opacity-90 italic">"Controle, rastreabilidade e acuracidade inspirados na Amazônia."</p>
+          </div>
         </div>
       </div>
+
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
