@@ -89,10 +89,11 @@ function RecontagemPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Local</TableHead>
                 <TableHead>Código</TableHead>
-                <TableHead>Descrição</TableHead>
+                <TableHead>Produto</TableHead>
                 <TableHead>Lote</TableHead>
-                <TableHead className="text-right">Saldo Sistema</TableHead>
+                <TableHead className="text-right">Sistema</TableHead>
                 <TableHead className="text-right">Contagem</TableHead>
                 <TableHead className="text-right">Acuracidade</TableHead>
                 <TableHead>Status</TableHead>
@@ -101,12 +102,13 @@ function RecontagemPage() {
             </TableHeader>
             <TableBody>
               {data?.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">Nenhum item pendente de recontagem 🎉</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center py-12 text-muted-foreground">Nenhum item pendente de recontagem 🎉</TableCell></TableRow>
               )}
               {(data ?? []).map((r) => {
                 const cor = acuracidadeColor(r.acuracidade != null ? Number(r.acuracidade) : null);
                 return (
                   <TableRow key={r.id}>
+                    <TableCell className="text-xs">{r.id_local || "—"}</TableCell>
                     <TableCell className="font-mono text-xs">{r.codigo_produto}</TableCell>
                     <TableCell className="max-w-xs truncate">{r.descricao}</TableCell>
                     <TableCell className="font-mono text-xs">{r.lote || "—"}</TableCell>
@@ -140,3 +142,4 @@ function RecontagemPage() {
     </div>
   );
 }
+

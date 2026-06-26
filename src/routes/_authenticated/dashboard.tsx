@@ -22,14 +22,18 @@ function Dashboard() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
-      const [invRes, estRes, recRes] = await Promise.all([
+      const [invRes, estRes, recRes, gpRes, famRes] = await Promise.all([
         supabase.from("inventario").select("id, status, acuracidade, divergencia, valor_divergencia, descricao, id_produto, id_local, data_contagem, usuario"),
         supabase.from("estoque_sistemico").select("id_produto, lote, quantidade"),
         supabase.from("recontagem").select("id, status"),
+        supabase.from("grupo_produtos").select("codigo_produto, grupo"),
+        supabase.from("familias").select("codigo_produto, familia"),
       ]);
       const inv = invRes.data ?? [];
       const est = estRes.data ?? [];
       const rec = recRes.data ?? [];
+      const grupoMap = new Map<string, string>((gpRes.data ?? []).map((r) => [r.codigo_produto, r.grupo]));
+      const famMap = new Map<string, string>((famRes.data ?? []).map((r) => [r.codigo_produto, r.familia]));
       const totalPlanejado = new Set(est.map((e) => `${e.id_produto}|${e.lote}`)).size || est.length;
       const totalContados = inv.length;
       const acurados = inv.filter((i) => i.acuracidade != null && i.acuracidade >= 97 && i.acuracidade <= 100).length;
@@ -45,18 +49,13 @@ function Dashboard() {
       const taxaAprovacao = totalContados > 0 ? ((aprovados + acurados) / totalContados) * 100 : 0;
       const concluido = totalPlanejado > 0 ? (totalContados / totalPlanejado) * 100 : 0;
 
-      // Top 10 divergências financeiras
-      const top10 = [...inv]
-        .sort((a, b) => (Number(b.valor_divergencia) || 0) - (Number(a.valor_divergencia) || 0))
-        .slice(0, 10)
-        .map((i) => ({ nome: (i.descricao || i.id_produto).slice(0, 22), valor: Number(i.valor_divergencia) || 0 }));
+      const top10 = [...inv].sort((a, b) => (Number(b.valor_divergencia) || 0) - (Number(a.valor_divergencia) || 0))
+        .slice(0, 10).map((i) => ({ nome: (i.descricao || i.id_produto).slice(0, 22), valor: Number(i.valor_divergencia) || 0 }));
 
-      // Por local (heatmap simples como barras)
       const porLocal: Record<string, number> = {};
       inv.forEach((i) => { porLocal[i.id_local || "—"] = (porLocal[i.id_local || "—"] || 0) + (Number(i.valor_divergencia) || 0); });
       const locais = Object.entries(porLocal).map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor).slice(0, 8);
 
-      // Evolução por hora
       const porHora: Record<string, number> = {};
       inv.forEach((i) => {
         const d = new Date(i.data_contagem);
@@ -65,33 +64,62 @@ function Dashboard() {
       });
       const evolucao = Object.entries(porHora).sort().map(([hora, qtd]) => ({ hora, qtd }));
 
-      // Pareto
       const sortedTop = [...top10].sort((a, b) => b.valor - a.valor);
       const totalAbs = sortedTop.reduce((s, x) => s + x.valor, 0);
       let acc = 0;
-      const pareto = sortedTop.map((x) => {
-        acc += x.valor;
-        return { ...x, acumulado: totalAbs ? (acc / totalAbs) * 100 : 0 };
-      });
+      const pareto = sortedTop.map((x) => { acc += x.valor; return { ...x, acumulado: totalAbs ? (acc / totalAbs) * 100 : 0 }; });
 
-      // Ranking operadores
-      const porUser: Record<string, { qtd: number; div: number }> = {};
+      // ===== POR FAMÍLIA =====
+      const skusPorFamilia: Record<string, Set<string>> = {};
+      famMap.forEach((fam, cod) => { (skusPorFamilia[fam] = skusPorFamilia[fam] || new Set()).add(cod); });
+      const invPorFamilia: Record<string, { acs: number[]; div: number; feitos: Set<string> }> = {};
       inv.forEach((i) => {
-        const k = i.usuario || "—";
-        porUser[k] = porUser[k] || { qtd: 0, div: 0 };
-        porUser[k].qtd += 1;
-        porUser[k].div += Number(i.valor_divergencia) || 0;
+        const fam = famMap.get(i.id_produto);
+        if (!fam) return;
+        invPorFamilia[fam] = invPorFamilia[fam] || { acs: [], div: 0, feitos: new Set() };
+        if (i.acuracidade != null) invPorFamilia[fam].acs.push(Number(i.acuracidade));
+        invPorFamilia[fam].div += Number(i.valor_divergencia) || 0;
+        invPorFamilia[fam].feitos.add(i.id_produto);
       });
+      const familias = Object.keys(skusPorFamilia).map((fam) => {
+        const total = skusPorFamilia[fam].size;
+        const d = invPorFamilia[fam] || { acs: [], div: 0, feitos: new Set() };
+        const feitos = Array.from(d.feitos).filter((c) => skusPorFamilia[fam].has(c)).length;
+        const ac = d.acs.length ? d.acs.reduce((a, b) => a + b, 0) / d.acs.length : 0;
+        return { familia: fam, total, feitos, pctConcluido: total ? (feitos / total) * 100 : 0, acuracidade: ac, divergencia: d.div };
+      }).sort((a, b) => b.divergencia - a.divergencia);
+
+      // ===== POR GRUPO =====
+      const skusPorGrupo: Record<string, Set<string>> = {};
+      grupoMap.forEach((g, cod) => { (skusPorGrupo[g] = skusPorGrupo[g] || new Set()).add(cod); });
+      const invPorGrupo: Record<string, { acs: number[]; div: number; feitos: Set<string> }> = {};
+      inv.forEach((i) => {
+        const g = grupoMap.get(i.id_produto);
+        if (!g) return;
+        invPorGrupo[g] = invPorGrupo[g] || { acs: [], div: 0, feitos: new Set() };
+        if (i.acuracidade != null) invPorGrupo[g].acs.push(Number(i.acuracidade));
+        invPorGrupo[g].div += Number(i.valor_divergencia) || 0;
+        invPorGrupo[g].feitos.add(i.id_produto);
+      });
+      const grupos = Object.keys(skusPorGrupo).map((g) => {
+        const total = skusPorGrupo[g].size;
+        const d = invPorGrupo[g] || { acs: [], div: 0, feitos: new Set() };
+        const feitos = Array.from(d.feitos).filter((c) => skusPorGrupo[g].has(c)).length;
+        const ac = d.acs.length ? d.acs.reduce((a, b) => a + b, 0) / d.acs.length : 0;
+        return { grupo: g, total, feitos, pctConcluido: total ? (feitos / total) * 100 : 0, acuracidade: ac, divergencia: d.div };
+      }).sort((a, b) => b.divergencia - a.divergencia);
 
       return {
         totalContados, acurados, aprovados, emRecontagem, totalRecontagens,
         positivos, negativos, divFin,
         acuracidadeGeral, acuracidadeMedia, taxaAprovacao, concluido, totalPlanejado,
-        top10, locais, evolucao, pareto, porUser,
+        top10, locais, evolucao, pareto,
+        familias, grupos,
       };
     },
     refetchInterval: 15_000,
   });
+
 
   if (isLoading || !stats) return <div className="p-8 text-muted-foreground">Carregando dashboard...</div>;
 
@@ -104,12 +132,19 @@ function Dashboard() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
-      <div className="flex items-end justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard Operacional</h1>
-          <p className="text-sm text-muted-foreground">Visão executiva em tempo real</p>
+      {/* Header institucional Mágio */}
+      <div className="rounded-xl p-5 md:p-6 text-sidebar-foreground" style={{ background: "var(--gradient-amazon)" }}>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="size-12 rounded-lg flex items-center justify-center" style={{ background: "var(--gradient-gold)" }}>
+            <BadgeCheck className="size-6 text-sidebar-primary-foreground" />
+          </div>
+          <div className="flex-1 min-w-[260px]">
+            <h1 className="text-2xl font-bold tracking-tight">Mágio Chocolates · Dashboard Executivo</h1>
+            <p className="text-sm opacity-90 italic">"Controle, rastreabilidade e acuracidade inspirados na Amazônia."</p>
+          </div>
         </div>
       </div>
+
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -205,9 +240,119 @@ function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Por Família */}
+      {stats.familias.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Conclusão por Família</CardTitle></CardHeader>
+            <CardContent className="h-72">
+              <ResponsiveContainer>
+                <BarChart data={stats.familias.slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                  <YAxis type="category" dataKey="familia" width={130} tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
+                  <Bar dataKey="pctConcluido" fill="var(--chart-1)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-base">Acuracidade por Família</CardTitle></CardHeader>
+            <CardContent className="h-72">
+              <ResponsiveContainer>
+                <BarChart data={stats.familias.slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                  <YAxis type="category" dataKey="familia" width={130} tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
+                  <Bar dataKey="acuracidade" fill="var(--chart-2)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card className="lg:col-span-2">
+            <CardHeader><CardTitle className="text-base">Divergência Financeira por Família</CardTitle></CardHeader>
+            <CardContent className="h-72">
+              <ResponsiveContainer>
+                <BarChart data={stats.familias.slice(0, 12)}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="familia" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={70} />
+                  <YAxis />
+                  <Tooltip formatter={(v: number) => formatBRL(v)} />
+                  <Bar dataKey="divergencia" fill="var(--chart-3)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Indicadores por Família / Grupo */}
+      {stats.familias.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Indicadores por Família</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-muted-foreground text-xs uppercase tracking-wider">
+                <tr className="border-b border-border">
+                  <th className="text-left py-2">Família</th>
+                  <th className="text-right py-2">SKUs</th>
+                  <th className="text-right py-2">Acuracidade</th>
+                  <th className="text-right py-2">Concluído</th>
+                  <th className="text-right py-2">Divergência (R$)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.familias.map((f) => (
+                  <tr key={f.familia} className="border-b border-border/40">
+                    <td className="py-2">{f.familia}</td>
+                    <td className="text-right tabular-nums">{f.feitos}/{f.total}</td>
+                    <td className={cn("text-right tabular-nums font-medium", f.acuracidade >= 97 ? "text-success" : f.acuracidade >= 80 ? "text-warning-foreground" : "text-destructive")}>{f.acuracidade.toFixed(1)}%</td>
+                    <td className={cn("text-right tabular-nums font-medium", f.pctConcluido === 100 ? "text-success" : f.pctConcluido >= 80 ? "text-warning-foreground" : "text-destructive")}>{f.pctConcluido.toFixed(0)}%</td>
+                    <td className="text-right tabular-nums">{formatBRL(f.divergencia)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
+
+      {stats.grupos.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Indicadores por Grupo de Produto</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-muted-foreground text-xs uppercase tracking-wider">
+                <tr className="border-b border-border">
+                  <th className="text-left py-2">Grupo</th>
+                  <th className="text-right py-2">SKUs</th>
+                  <th className="text-right py-2">Acuracidade</th>
+                  <th className="text-right py-2">Concluído</th>
+                  <th className="text-right py-2">Divergência (R$)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.grupos.map((g) => (
+                  <tr key={g.grupo} className="border-b border-border/40">
+                    <td className="py-2 font-medium">{g.grupo}</td>
+                    <td className="text-right tabular-nums">{g.feitos}/{g.total}</td>
+                    <td className={cn("text-right tabular-nums font-medium", g.acuracidade >= 97 ? "text-success" : g.acuracidade >= 80 ? "text-warning-foreground" : "text-destructive")}>{g.acuracidade.toFixed(1)}%</td>
+                    <td className={cn("text-right tabular-nums font-medium", g.pctConcluido === 100 ? "text-success" : g.pctConcluido >= 80 ? "text-warning-foreground" : "text-destructive")}>{g.pctConcluido.toFixed(0)}%</td>
+                    <td className="text-right tabular-nums">{formatBRL(g.divergencia)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
+
 
 function Kpi({
   icon: Icon, label, value, sub, tone,
