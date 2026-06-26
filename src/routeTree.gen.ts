@@ -19,6 +19,7 @@ import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authentic
 import { Route as AuthenticatedRecontagemRouteImport } from './routes/_authenticated/recontagem'
 import { Route as AuthenticatedLogsRouteImport } from './routes/_authenticated/logs'
 import { Route as AuthenticatedInventarioRouteImport } from './routes/_authenticated/inventario'
+import { Route as AuthenticatedImportarFamiliasRouteImport } from './routes/_authenticated/importar-familias'
 import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticated/importar'
 import { Route as AuthenticatedGruposRouteImport } from './routes/_authenticated/grupos'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -74,6 +75,12 @@ const AuthenticatedInventarioRoute = AuthenticatedInventarioRouteImport.update({
   path: '/inventario',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedImportarFamiliasRoute =
+  AuthenticatedImportarFamiliasRouteImport.update({
+    id: '/importar-familias',
+    path: '/importar-familias',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedImportarRoute = AuthenticatedImportarRouteImport.update({
   id: '/importar',
   path: '/importar',
@@ -109,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/grupos': typeof AuthenticatedGruposRoute
   '/importar': typeof AuthenticatedImportarRoute
+  '/importar-familias': typeof AuthenticatedImportarFamiliasRoute
   '/inventario': typeof AuthenticatedInventarioRoute
   '/logs': typeof AuthenticatedLogsRoute
   '/recontagem': typeof AuthenticatedRecontagemRoute
@@ -125,6 +133,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/grupos': typeof AuthenticatedGruposRoute
   '/importar': typeof AuthenticatedImportarRoute
+  '/importar-familias': typeof AuthenticatedImportarFamiliasRoute
   '/inventario': typeof AuthenticatedInventarioRoute
   '/logs': typeof AuthenticatedLogsRoute
   '/recontagem': typeof AuthenticatedRecontagemRoute
@@ -143,6 +152,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/grupos': typeof AuthenticatedGruposRoute
   '/_authenticated/importar': typeof AuthenticatedImportarRoute
+  '/_authenticated/importar-familias': typeof AuthenticatedImportarFamiliasRoute
   '/_authenticated/inventario': typeof AuthenticatedInventarioRoute
   '/_authenticated/logs': typeof AuthenticatedLogsRoute
   '/_authenticated/recontagem': typeof AuthenticatedRecontagemRoute
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/grupos'
     | '/importar'
+    | '/importar-familias'
     | '/inventario'
     | '/logs'
     | '/recontagem'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/grupos'
     | '/importar'
+    | '/importar-familias'
     | '/inventario'
     | '/logs'
     | '/recontagem'
@@ -194,6 +206,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/grupos'
     | '/_authenticated/importar'
+    | '/_authenticated/importar-familias'
     | '/_authenticated/inventario'
     | '/_authenticated/logs'
     | '/_authenticated/recontagem'
@@ -281,6 +294,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInventarioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/importar-familias': {
+      id: '/_authenticated/importar-familias'
+      path: '/importar-familias'
+      fullPath: '/importar-familias'
+      preLoaderRoute: typeof AuthenticatedImportarFamiliasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/importar': {
       id: '/_authenticated/importar'
       path: '/importar'
@@ -325,6 +345,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedGruposRoute: typeof AuthenticatedGruposRoute
   AuthenticatedImportarRoute: typeof AuthenticatedImportarRoute
+  AuthenticatedImportarFamiliasRoute: typeof AuthenticatedImportarFamiliasRoute
   AuthenticatedInventarioRoute: typeof AuthenticatedInventarioRoute
   AuthenticatedLogsRoute: typeof AuthenticatedLogsRoute
   AuthenticatedRecontagemRoute: typeof AuthenticatedRecontagemRoute
@@ -339,6 +360,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedGruposRoute: AuthenticatedGruposRoute,
   AuthenticatedImportarRoute: AuthenticatedImportarRoute,
+  AuthenticatedImportarFamiliasRoute: AuthenticatedImportarFamiliasRoute,
   AuthenticatedInventarioRoute: AuthenticatedInventarioRoute,
   AuthenticatedLogsRoute: AuthenticatedLogsRoute,
   AuthenticatedRecontagemRoute: AuthenticatedRecontagemRoute,
