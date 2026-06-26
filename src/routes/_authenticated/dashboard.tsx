@@ -240,9 +240,119 @@ function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Por Família */}
+      {stats.familias.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Conclusão por Família</CardTitle></CardHeader>
+            <CardContent className="h-72">
+              <ResponsiveContainer>
+                <BarChart data={stats.familias.slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                  <YAxis type="category" dataKey="familia" width={130} tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
+                  <Bar dataKey="pctConcluido" fill="var(--chart-1)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-base">Acuracidade por Família</CardTitle></CardHeader>
+            <CardContent className="h-72">
+              <ResponsiveContainer>
+                <BarChart data={stats.familias.slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                  <YAxis type="category" dataKey="familia" width={130} tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
+                  <Bar dataKey="acuracidade" fill="var(--chart-2)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card className="lg:col-span-2">
+            <CardHeader><CardTitle className="text-base">Divergência Financeira por Família</CardTitle></CardHeader>
+            <CardContent className="h-72">
+              <ResponsiveContainer>
+                <BarChart data={stats.familias.slice(0, 12)}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="familia" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={70} />
+                  <YAxis />
+                  <Tooltip formatter={(v: number) => formatBRL(v)} />
+                  <Bar dataKey="divergencia" fill="var(--chart-3)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Indicadores por Família / Grupo */}
+      {stats.familias.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Indicadores por Família</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-muted-foreground text-xs uppercase tracking-wider">
+                <tr className="border-b border-border">
+                  <th className="text-left py-2">Família</th>
+                  <th className="text-right py-2">SKUs</th>
+                  <th className="text-right py-2">Acuracidade</th>
+                  <th className="text-right py-2">Concluído</th>
+                  <th className="text-right py-2">Divergência (R$)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.familias.map((f) => (
+                  <tr key={f.familia} className="border-b border-border/40">
+                    <td className="py-2">{f.familia}</td>
+                    <td className="text-right tabular-nums">{f.feitos}/{f.total}</td>
+                    <td className={cn("text-right tabular-nums font-medium", f.acuracidade >= 97 ? "text-success" : f.acuracidade >= 80 ? "text-warning-foreground" : "text-destructive")}>{f.acuracidade.toFixed(1)}%</td>
+                    <td className={cn("text-right tabular-nums font-medium", f.pctConcluido === 100 ? "text-success" : f.pctConcluido >= 80 ? "text-warning-foreground" : "text-destructive")}>{f.pctConcluido.toFixed(0)}%</td>
+                    <td className="text-right tabular-nums">{formatBRL(f.divergencia)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
+
+      {stats.grupos.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Indicadores por Grupo de Produto</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-muted-foreground text-xs uppercase tracking-wider">
+                <tr className="border-b border-border">
+                  <th className="text-left py-2">Grupo</th>
+                  <th className="text-right py-2">SKUs</th>
+                  <th className="text-right py-2">Acuracidade</th>
+                  <th className="text-right py-2">Concluído</th>
+                  <th className="text-right py-2">Divergência (R$)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.grupos.map((g) => (
+                  <tr key={g.grupo} className="border-b border-border/40">
+                    <td className="py-2 font-medium">{g.grupo}</td>
+                    <td className="text-right tabular-nums">{g.feitos}/{g.total}</td>
+                    <td className={cn("text-right tabular-nums font-medium", g.acuracidade >= 97 ? "text-success" : g.acuracidade >= 80 ? "text-warning-foreground" : "text-destructive")}>{g.acuracidade.toFixed(1)}%</td>
+                    <td className={cn("text-right tabular-nums font-medium", g.pctConcluido === 100 ? "text-success" : g.pctConcluido >= 80 ? "text-warning-foreground" : "text-destructive")}>{g.pctConcluido.toFixed(0)}%</td>
+                    <td className="text-right tabular-nums">{formatBRL(g.divergencia)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
+
 
 function Kpi({
   icon: Icon, label, value, sub, tone,
