@@ -67,17 +67,19 @@ function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-secondary to-background">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "var(--gradient-amazon)" }}>
       <div className="w-full max-w-md">
-        <div className="flex items-center justify-center gap-3 mb-6">
-          <div className="size-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg">
-            <Boxes className="size-6" />
+        <div className="flex flex-col items-center text-center gap-3 mb-6 text-sidebar-foreground">
+          <div className="size-14 rounded-2xl flex items-center justify-center shadow-xl" style={{ background: "var(--gradient-gold)" }}>
+            <Leaf className="size-7 text-sidebar-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Inventário Cloud</h1>
-            <p className="text-xs text-muted-foreground">Operação industrial em nuvem</p>
+            <h1 className="text-3xl font-bold tracking-tight">Mágio Chocolates</h1>
+            <p className="text-xs uppercase tracking-[0.2em] opacity-80 mt-1">Inventário · Amazônia Premium</p>
+            <p className="text-sm italic opacity-90 mt-3 max-w-xs mx-auto">"Controle, rastreabilidade e acuracidade inspirados na Amazônia."</p>
           </div>
         </div>
+
 
         <Card className="shadow-xl">
           <CardHeader>
