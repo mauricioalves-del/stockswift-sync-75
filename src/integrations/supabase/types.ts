@@ -110,6 +110,33 @@ export type Database = {
         }
         Relationships: []
       }
+      familias: {
+        Row: {
+          codigo_produto: string
+          created_at: string
+          descricao_produto: string | null
+          familia: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          codigo_produto: string
+          created_at?: string
+          descricao_produto?: string | null
+          familia: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          codigo_produto?: string
+          created_at?: string
+          descricao_produto?: string | null
+          familia?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       grupo_produtos: {
         Row: {
           codigo_produto: string
@@ -203,6 +230,30 @@ export type Database = {
           unidade?: string
           usuario?: string | null
           valor_divergencia?: number | null
+        }
+        Relationships: []
+      }
+      locais: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          updated_at?: string
         }
         Relationships: []
       }
