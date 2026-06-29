@@ -65,6 +65,113 @@ export type Database = {
         }
         Relationships: []
       }
+      baixa_operacional: {
+        Row: {
+          aprovador_id: string | null
+          codigo_produto: string
+          comentario_aprovacao: string | null
+          created_at: string
+          custo_unitario: number
+          data_aprovacao: string | null
+          data_execucao: string | null
+          data_solicitacao: string
+          descricao: string
+          foto_url: string | null
+          id: string
+          id_local: string | null
+          lote: string | null
+          motivo_baixa_id: string | null
+          observacao: string | null
+          quantidade: number
+          solicitante_id: string
+          status_fluxo: string
+          unidade: string | null
+          updated_at: string
+          valor_total: number
+        }
+        Insert: {
+          aprovador_id?: string | null
+          codigo_produto: string
+          comentario_aprovacao?: string | null
+          created_at?: string
+          custo_unitario?: number
+          data_aprovacao?: string | null
+          data_execucao?: string | null
+          data_solicitacao?: string
+          descricao: string
+          foto_url?: string | null
+          id?: string
+          id_local?: string | null
+          lote?: string | null
+          motivo_baixa_id?: string | null
+          observacao?: string | null
+          quantidade: number
+          solicitante_id?: string
+          status_fluxo?: string
+          unidade?: string | null
+          updated_at?: string
+          valor_total?: number
+        }
+        Update: {
+          aprovador_id?: string | null
+          codigo_produto?: string
+          comentario_aprovacao?: string | null
+          created_at?: string
+          custo_unitario?: number
+          data_aprovacao?: string | null
+          data_execucao?: string | null
+          data_solicitacao?: string
+          descricao?: string
+          foto_url?: string | null
+          id?: string
+          id_local?: string | null
+          lote?: string | null
+          motivo_baixa_id?: string | null
+          observacao?: string | null
+          quantidade?: number
+          solicitante_id?: string
+          status_fluxo?: string
+          unidade?: string | null
+          updated_at?: string
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "baixa_operacional_motivo_baixa_id_fkey"
+            columns: ["motivo_baixa_id"]
+            isOneToOne: false
+            referencedRelation: "motivo_baixa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classificacao_abc: {
+        Row: {
+          classe: string
+          codigo_produto: string
+          created_at: string
+          proxima_contagem: string | null
+          ultima_contagem: string | null
+          updated_at: string
+        }
+        Insert: {
+          classe: string
+          codigo_produto: string
+          created_at?: string
+          proxima_contagem?: string | null
+          ultima_contagem?: string | null
+          updated_at?: string
+        }
+        Update: {
+          classe?: string
+          codigo_produto?: string
+          created_at?: string
+          proxima_contagem?: string | null
+          ultima_contagem?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       estoque_sistemico: {
         Row: {
           cliente: string
@@ -257,6 +364,125 @@ export type Database = {
         }
         Relationships: []
       }
+      missoes: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          data_execucao: string | null
+          descricao: string | null
+          familia: string | null
+          grupo: string | null
+          id: string
+          id_local: string | null
+          responsavel_id: string | null
+          status: string
+          tipo: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          data_execucao?: string | null
+          descricao?: string | null
+          familia?: string | null
+          grupo?: string | null
+          id?: string
+          id_local?: string | null
+          responsavel_id?: string | null
+          status?: string
+          tipo?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          data_execucao?: string | null
+          descricao?: string | null
+          familia?: string | null
+          grupo?: string | null
+          id?: string
+          id_local?: string | null
+          responsavel_id?: string | null
+          status?: string
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      missoes_itens: {
+        Row: {
+          codigo_produto: string
+          created_at: string
+          descricao: string | null
+          id: string
+          lote: string | null
+          missao_id: string
+          quantidade_contada: number | null
+          quantidade_prevista: number | null
+          status_item: string
+          updated_at: string
+        }
+        Insert: {
+          codigo_produto: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          lote?: string | null
+          missao_id: string
+          quantidade_contada?: number | null
+          quantidade_prevista?: number | null
+          status_item?: string
+          updated_at?: string
+        }
+        Update: {
+          codigo_produto?: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          lote?: string | null
+          missao_id?: string
+          quantidade_contada?: number | null
+          quantidade_prevista?: number | null
+          status_item?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "missoes_itens_missao_id_fkey"
+            columns: ["missao_id"]
+            isOneToOne: false
+            referencedRelation: "missoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      motivo_baixa: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -346,6 +572,30 @@ export type Database = {
           },
         ]
       }
+      status_baixa: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -383,6 +633,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_gestor: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role:
