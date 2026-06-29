@@ -17,6 +17,7 @@ import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedScannerRouteImport } from './routes/_authenticated/scanner'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedRecontagemRouteImport } from './routes/_authenticated/recontagem'
+import { Route as AuthenticatedMissoesRouteImport } from './routes/_authenticated/missoes'
 import { Route as AuthenticatedLogsRouteImport } from './routes/_authenticated/logs'
 import { Route as AuthenticatedInventarioRouteImport } from './routes/_authenticated/inventario'
 import { Route as AuthenticatedImportarFamiliasRouteImport } from './routes/_authenticated/importar-familias'
@@ -25,6 +26,8 @@ import { Route as AuthenticatedGruposRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedContarRouteImport } from './routes/_authenticated/contar'
 import { Route as AuthenticatedConfigRouteImport } from './routes/_authenticated/config'
+import { Route as AuthenticatedBaixasRouteImport } from './routes/_authenticated/baixas'
+import { Route as AuthenticatedAbcRouteImport } from './routes/_authenticated/abc'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -63,6 +66,11 @@ const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
 const AuthenticatedRecontagemRoute = AuthenticatedRecontagemRouteImport.update({
   id: '/recontagem',
   path: '/recontagem',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMissoesRoute = AuthenticatedMissoesRouteImport.update({
+  id: '/missoes',
+  path: '/missoes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedLogsRoute = AuthenticatedLogsRouteImport.update({
@@ -106,11 +114,23 @@ const AuthenticatedConfigRoute = AuthenticatedConfigRouteImport.update({
   path: '/config',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBaixasRoute = AuthenticatedBaixasRouteImport.update({
+  id: '/baixas',
+  path: '/baixas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAbcRoute = AuthenticatedAbcRouteImport.update({
+  id: '/abc',
+  path: '/abc',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/abc': typeof AuthenticatedAbcRoute
+  '/baixas': typeof AuthenticatedBaixasRoute
   '/config': typeof AuthenticatedConfigRoute
   '/contar': typeof AuthenticatedContarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -119,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/importar-familias': typeof AuthenticatedImportarFamiliasRoute
   '/inventario': typeof AuthenticatedInventarioRoute
   '/logs': typeof AuthenticatedLogsRoute
+  '/missoes': typeof AuthenticatedMissoesRoute
   '/recontagem': typeof AuthenticatedRecontagemRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/scanner': typeof AuthenticatedScannerRoute
@@ -128,6 +149,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/abc': typeof AuthenticatedAbcRoute
+  '/baixas': typeof AuthenticatedBaixasRoute
   '/config': typeof AuthenticatedConfigRoute
   '/contar': typeof AuthenticatedContarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -136,6 +159,7 @@ export interface FileRoutesByTo {
   '/importar-familias': typeof AuthenticatedImportarFamiliasRoute
   '/inventario': typeof AuthenticatedInventarioRoute
   '/logs': typeof AuthenticatedLogsRoute
+  '/missoes': typeof AuthenticatedMissoesRoute
   '/recontagem': typeof AuthenticatedRecontagemRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/scanner': typeof AuthenticatedScannerRoute
@@ -147,6 +171,8 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/abc': typeof AuthenticatedAbcRoute
+  '/_authenticated/baixas': typeof AuthenticatedBaixasRoute
   '/_authenticated/config': typeof AuthenticatedConfigRoute
   '/_authenticated/contar': typeof AuthenticatedContarRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -155,6 +181,7 @@ export interface FileRoutesById {
   '/_authenticated/importar-familias': typeof AuthenticatedImportarFamiliasRoute
   '/_authenticated/inventario': typeof AuthenticatedInventarioRoute
   '/_authenticated/logs': typeof AuthenticatedLogsRoute
+  '/_authenticated/missoes': typeof AuthenticatedMissoesRoute
   '/_authenticated/recontagem': typeof AuthenticatedRecontagemRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/scanner': typeof AuthenticatedScannerRoute
@@ -166,6 +193,8 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/abc'
+    | '/baixas'
     | '/config'
     | '/contar'
     | '/dashboard'
@@ -174,6 +203,7 @@ export interface FileRouteTypes {
     | '/importar-familias'
     | '/inventario'
     | '/logs'
+    | '/missoes'
     | '/recontagem'
     | '/relatorios'
     | '/scanner'
@@ -183,6 +213,8 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/abc'
+    | '/baixas'
     | '/config'
     | '/contar'
     | '/dashboard'
@@ -191,6 +223,7 @@ export interface FileRouteTypes {
     | '/importar-familias'
     | '/inventario'
     | '/logs'
+    | '/missoes'
     | '/recontagem'
     | '/relatorios'
     | '/scanner'
@@ -201,6 +234,8 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
+    | '/_authenticated/abc'
+    | '/_authenticated/baixas'
     | '/_authenticated/config'
     | '/_authenticated/contar'
     | '/_authenticated/dashboard'
@@ -209,6 +244,7 @@ export interface FileRouteTypes {
     | '/_authenticated/importar-familias'
     | '/_authenticated/inventario'
     | '/_authenticated/logs'
+    | '/_authenticated/missoes'
     | '/_authenticated/recontagem'
     | '/_authenticated/relatorios'
     | '/_authenticated/scanner'
@@ -280,6 +316,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRecontagemRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/missoes': {
+      id: '/_authenticated/missoes'
+      path: '/missoes'
+      fullPath: '/missoes'
+      preLoaderRoute: typeof AuthenticatedMissoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/logs': {
       id: '/_authenticated/logs'
       path: '/logs'
@@ -336,10 +379,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfigRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/baixas': {
+      id: '/_authenticated/baixas'
+      path: '/baixas'
+      fullPath: '/baixas'
+      preLoaderRoute: typeof AuthenticatedBaixasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/abc': {
+      id: '/_authenticated/abc'
+      path: '/abc'
+      fullPath: '/abc'
+      preLoaderRoute: typeof AuthenticatedAbcRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAbcRoute: typeof AuthenticatedAbcRoute
+  AuthenticatedBaixasRoute: typeof AuthenticatedBaixasRoute
   AuthenticatedConfigRoute: typeof AuthenticatedConfigRoute
   AuthenticatedContarRoute: typeof AuthenticatedContarRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -348,6 +407,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedImportarFamiliasRoute: typeof AuthenticatedImportarFamiliasRoute
   AuthenticatedInventarioRoute: typeof AuthenticatedInventarioRoute
   AuthenticatedLogsRoute: typeof AuthenticatedLogsRoute
+  AuthenticatedMissoesRoute: typeof AuthenticatedMissoesRoute
   AuthenticatedRecontagemRoute: typeof AuthenticatedRecontagemRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedScannerRoute: typeof AuthenticatedScannerRoute
@@ -355,6 +415,8 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAbcRoute: AuthenticatedAbcRoute,
+  AuthenticatedBaixasRoute: AuthenticatedBaixasRoute,
   AuthenticatedConfigRoute: AuthenticatedConfigRoute,
   AuthenticatedContarRoute: AuthenticatedContarRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
@@ -363,6 +425,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedImportarFamiliasRoute: AuthenticatedImportarFamiliasRoute,
   AuthenticatedInventarioRoute: AuthenticatedInventarioRoute,
   AuthenticatedLogsRoute: AuthenticatedLogsRoute,
+  AuthenticatedMissoesRoute: AuthenticatedMissoesRoute,
   AuthenticatedRecontagemRoute: AuthenticatedRecontagemRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedScannerRoute: AuthenticatedScannerRoute,
@@ -381,13 +444,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

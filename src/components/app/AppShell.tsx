@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Upload, ClipboardList, ScanLine, RotateCcw, FileBarChart2,
   Users as UsersIcon, ScrollText, Settings as SettingsIcon, LogOut, Menu, X,
   Sun, Moon, Wifi, WifiOff, RefreshCw, Layers, FolderTree, Package, BarChart3,
-  Leaf, ChevronDown, ChevronRight,
+  Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -37,6 +37,14 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/contar", label: "Contagem", icon: ClipboardList, role: "write" },
       { to: "/scanner", label: "Scanner", icon: ScanLine, role: "write" },
       { to: "/recontagem", label: "Recontagem", icon: RotateCcw, role: "write" },
+      { to: "/baixas", label: "Baixas Operacionais", icon: PackageMinus, role: "write" },
+    ],
+  },
+  {
+    id: "gestao", label: "Gestão", icon: TrendingUp, role: "admin",
+    items: [
+      { to: "/missoes", label: "Missões", icon: Target, role: "admin" },
+      { to: "/abc", label: "Classificação ABC", icon: BarChart3, role: "admin" },
     ],
   },
   {
