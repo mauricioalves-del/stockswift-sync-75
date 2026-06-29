@@ -27,6 +27,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedContarRouteImport } from './routes/_authenticated/contar'
 import { Route as AuthenticatedConfigRouteImport } from './routes/_authenticated/config'
 import { Route as AuthenticatedBaixasRouteImport } from './routes/_authenticated/baixas'
+import { Route as AuthenticatedAbcRouteImport } from './routes/_authenticated/abc'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -118,11 +119,17 @@ const AuthenticatedBaixasRoute = AuthenticatedBaixasRouteImport.update({
   path: '/baixas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAbcRoute = AuthenticatedAbcRouteImport.update({
+  id: '/abc',
+  path: '/abc',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/abc': typeof AuthenticatedAbcRoute
   '/baixas': typeof AuthenticatedBaixasRoute
   '/config': typeof AuthenticatedConfigRoute
   '/contar': typeof AuthenticatedContarRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/abc': typeof AuthenticatedAbcRoute
   '/baixas': typeof AuthenticatedBaixasRoute
   '/config': typeof AuthenticatedConfigRoute
   '/contar': typeof AuthenticatedContarRoute
@@ -163,6 +171,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/abc': typeof AuthenticatedAbcRoute
   '/_authenticated/baixas': typeof AuthenticatedBaixasRoute
   '/_authenticated/config': typeof AuthenticatedConfigRoute
   '/_authenticated/contar': typeof AuthenticatedContarRoute
@@ -184,6 +193,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/abc'
     | '/baixas'
     | '/config'
     | '/contar'
@@ -203,6 +213,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/abc'
     | '/baixas'
     | '/config'
     | '/contar'
@@ -223,6 +234,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
+    | '/_authenticated/abc'
     | '/_authenticated/baixas'
     | '/_authenticated/config'
     | '/_authenticated/contar'
@@ -374,10 +386,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBaixasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/abc': {
+      id: '/_authenticated/abc'
+      path: '/abc'
+      fullPath: '/abc'
+      preLoaderRoute: typeof AuthenticatedAbcRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAbcRoute: typeof AuthenticatedAbcRoute
   AuthenticatedBaixasRoute: typeof AuthenticatedBaixasRoute
   AuthenticatedConfigRoute: typeof AuthenticatedConfigRoute
   AuthenticatedContarRoute: typeof AuthenticatedContarRoute
@@ -395,6 +415,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAbcRoute: AuthenticatedAbcRoute,
   AuthenticatedBaixasRoute: AuthenticatedBaixasRoute,
   AuthenticatedConfigRoute: AuthenticatedConfigRoute,
   AuthenticatedContarRoute: AuthenticatedContarRoute,
