@@ -29,6 +29,7 @@ async function insertCount(p: PendingCount) {
     descricao: p.descricao,
     unidade: p.unidade,
     id_local: p.id_local,
+    origem: p.origem ?? "",
     custo_unitario: p.custo_unitario,
     saldo_sistemico: p.saldo_sistemico,
     quantidade_contada: p.quantidade_contada,

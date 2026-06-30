@@ -17,6 +17,7 @@ import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedScannerRouteImport } from './routes/_authenticated/scanner'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedRecontagemRouteImport } from './routes/_authenticated/recontagem'
+import { Route as AuthenticatedOrigensRouteImport } from './routes/_authenticated/origens'
 import { Route as AuthenticatedMissoesRouteImport } from './routes/_authenticated/missoes'
 import { Route as AuthenticatedLogsRouteImport } from './routes/_authenticated/logs'
 import { Route as AuthenticatedInventarioRouteImport } from './routes/_authenticated/inventario'
@@ -66,6 +67,11 @@ const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
 const AuthenticatedRecontagemRoute = AuthenticatedRecontagemRouteImport.update({
   id: '/recontagem',
   path: '/recontagem',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedOrigensRoute = AuthenticatedOrigensRouteImport.update({
+  id: '/origens',
+  path: '/origens',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMissoesRoute = AuthenticatedMissoesRouteImport.update({
@@ -140,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/inventario': typeof AuthenticatedInventarioRoute
   '/logs': typeof AuthenticatedLogsRoute
   '/missoes': typeof AuthenticatedMissoesRoute
+  '/origens': typeof AuthenticatedOrigensRoute
   '/recontagem': typeof AuthenticatedRecontagemRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/scanner': typeof AuthenticatedScannerRoute
@@ -160,6 +167,7 @@ export interface FileRoutesByTo {
   '/inventario': typeof AuthenticatedInventarioRoute
   '/logs': typeof AuthenticatedLogsRoute
   '/missoes': typeof AuthenticatedMissoesRoute
+  '/origens': typeof AuthenticatedOrigensRoute
   '/recontagem': typeof AuthenticatedRecontagemRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/scanner': typeof AuthenticatedScannerRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/_authenticated/inventario': typeof AuthenticatedInventarioRoute
   '/_authenticated/logs': typeof AuthenticatedLogsRoute
   '/_authenticated/missoes': typeof AuthenticatedMissoesRoute
+  '/_authenticated/origens': typeof AuthenticatedOrigensRoute
   '/_authenticated/recontagem': typeof AuthenticatedRecontagemRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/scanner': typeof AuthenticatedScannerRoute
@@ -204,6 +213,7 @@ export interface FileRouteTypes {
     | '/inventario'
     | '/logs'
     | '/missoes'
+    | '/origens'
     | '/recontagem'
     | '/relatorios'
     | '/scanner'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
     | '/inventario'
     | '/logs'
     | '/missoes'
+    | '/origens'
     | '/recontagem'
     | '/relatorios'
     | '/scanner'
@@ -245,6 +256,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inventario'
     | '/_authenticated/logs'
     | '/_authenticated/missoes'
+    | '/_authenticated/origens'
     | '/_authenticated/recontagem'
     | '/_authenticated/relatorios'
     | '/_authenticated/scanner'
@@ -314,6 +326,13 @@ declare module '@tanstack/react-router' {
       path: '/recontagem'
       fullPath: '/recontagem'
       preLoaderRoute: typeof AuthenticatedRecontagemRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/origens': {
+      id: '/_authenticated/origens'
+      path: '/origens'
+      fullPath: '/origens'
+      preLoaderRoute: typeof AuthenticatedOrigensRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/missoes': {
@@ -408,6 +427,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInventarioRoute: typeof AuthenticatedInventarioRoute
   AuthenticatedLogsRoute: typeof AuthenticatedLogsRoute
   AuthenticatedMissoesRoute: typeof AuthenticatedMissoesRoute
+  AuthenticatedOrigensRoute: typeof AuthenticatedOrigensRoute
   AuthenticatedRecontagemRoute: typeof AuthenticatedRecontagemRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedScannerRoute: typeof AuthenticatedScannerRoute
@@ -426,6 +446,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInventarioRoute: AuthenticatedInventarioRoute,
   AuthenticatedLogsRoute: AuthenticatedLogsRoute,
   AuthenticatedMissoesRoute: AuthenticatedMissoesRoute,
+  AuthenticatedOrigensRoute: AuthenticatedOrigensRoute,
   AuthenticatedRecontagemRoute: AuthenticatedRecontagemRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedScannerRoute: AuthenticatedScannerRoute,

@@ -30,6 +30,7 @@ interface EstoqueItem {
   descricao: string;
   unidade: string;
   id_local: string;
+  origem: string;
   quantidade: number;
   custo_unitario: number;
   data_validade: string | null;
@@ -42,6 +43,7 @@ const GRUPOS_COM_FAMILIA = new Set(["Produto Acabado", "Mercadoria para Revenda"
 function ContarPage() {
   const qc = useQueryClient();
   const online = useOnlineStatus();
+  const [origem, setOrigem] = useState<string>(TODOS);
   const [grupo, setGrupo] = useState<string>(TODOS);
   const [familia, setFamilia] = useState<string>(TODOS);
   const [sku, setSku] = useState<string>("");
@@ -56,6 +58,15 @@ function ContarPage() {
   });
   const [showSistemico, setShowSistemico] = useState<boolean>(true);
   useEffect(() => { if (cego !== undefined) setShowSistemico(!cego); }, [cego]);
+
+  // Origens ativas
+  const { data: origens } = useQuery({
+    queryKey: ["origens-ativas"],
+    queryFn: async () => {
+      const { data } = await supabase.from("origens").select("codigo_origem, descricao").eq("ativo", true).order("codigo_origem");
+      return data ?? [];
+    },
+  });
 
   // Locais (combobox)
   const { data: locais } = useQuery({
@@ -114,9 +125,9 @@ function ContarPage() {
     },
   });
 
-  // SKUs filtrados por grupo + família opcional
+  // SKUs filtrados por origem + grupo + família opcional
   const { data: skus } = useQuery({
-    queryKey: ["skus-filtrados", grupo, familia, codigosDoGrupo],
+    queryKey: ["skus-filtrados", origem, grupo, familia, codigosDoGrupo],
     enabled: grupo !== "" && (grupo === TODOS || !!codigosDoGrupo),
     queryFn: async () => {
       let codes: string[] | null = null;
@@ -125,12 +136,13 @@ function ContarPage() {
         const { data: fam } = await supabase.from("familias").select("codigo_produto").eq("familia", familia).in("codigo_produto", codes);
         codes = (fam ?? []).map((f) => f.codigo_produto);
       }
-      let query = supabase.from("estoque_sistemico").select("id_produto, descricao").limit(2000);
+      let q = supabase.from("estoque_sistemico").select("id_produto, descricao").limit(2000);
       if (codes !== null) {
         if (codes.length === 0) return [];
-        query = supabase.from("estoque_sistemico").select("id_produto, descricao").in("id_produto", codes);
+        q = supabase.from("estoque_sistemico").select("id_produto, descricao").in("id_produto", codes);
       }
-      const { data } = await query;
+      if (origem !== TODOS) q = q.eq("origem", origem);
+      const { data } = await q;
       const map = new Map<string, string>();
       (data ?? []).forEach((r) => map.set(r.id_produto, r.descricao));
       return Array.from(map.entries()).map(([id_produto, descricao]) => ({ id_produto, descricao }))
@@ -138,12 +150,14 @@ function ContarPage() {
     },
   });
 
-  // Lotes do SKU
+  // Lotes do SKU (filtrados por origem)
   const { data: lotes } = useQuery({
-    queryKey: ["lotes-do-sku", sku],
+    queryKey: ["lotes-do-sku", sku, origem],
     enabled: !!sku,
     queryFn: async () => {
-      const { data, error } = await supabase.from("estoque_sistemico").select("*").eq("id_produto", sku).order("lote");
+      let q = supabase.from("estoque_sistemico").select("*").eq("id_produto", sku);
+      if (origem !== TODOS) q = q.eq("origem", origem);
+      const { data, error } = await q.order("lote");
       if (error) throw error;
       return (data ?? []) as EstoqueItem[];
     },
@@ -164,17 +178,20 @@ function ContarPage() {
   });
 
   // Reset cascata
+  useEffect(() => { setGrupo(TODOS); setFamilia(TODOS); setSku(""); }, [origem]);
   useEffect(() => { setFamilia(TODOS); setSku(""); }, [grupo]);
   useEffect(() => { setSku(""); }, [familia]);
 
   const familiaCorPct = (p: number) => p === 100 ? "text-success" : p >= 80 ? "text-warning-foreground" : "text-destructive";
+
+  const cols = usaFamilia ? "md:grid-cols-4" : "md:grid-cols-3";
 
   return (
     <div className="max-w-7xl mx-auto space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Contagem Operacional</h1>
-          <p className="text-sm text-muted-foreground">Hierarquia: Grupo → {usaFamilia ? "Família → " : ""}SKU → Lote</p>
+          <p className="text-sm text-muted-foreground">Hierarquia: Origem → Grupo → {usaFamilia ? "Família → " : ""}SKU → Lote</p>
         </div>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" size="sm"><Link to="/scanner"><ScanLine className="size-4 mr-1.5" /> Scanner</Link></Button>
@@ -188,7 +205,20 @@ function ContarPage() {
       </div>
 
       <Card>
-        <CardContent className={cn("p-4 grid grid-cols-1 gap-4", usaFamilia ? "md:grid-cols-3" : "md:grid-cols-2")}>
+        <CardContent className={cn("p-4 grid grid-cols-1 gap-4", cols)}>
+          <div>
+            <Label className="text-xs">Origem / Almoxarifado</Label>
+            <Select value={origem} onValueChange={setOrigem}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS}>Todas</SelectItem>
+                {(origens ?? []).map((o) => (
+                  <SelectItem key={o.codigo_origem} value={o.codigo_origem}>{o.descricao || o.codigo_origem}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div>
             <Label className="text-xs">Grupo de Produto</Label>
             <Select value={grupo} onValueChange={setGrupo}>
@@ -354,6 +384,7 @@ function LinhaContagem({
       descricao: item.descricao ?? "",
       unidade: item.unidade ?? "UN",
       id_local: local,
+      origem: item.origem ?? "",
       custo_unitario: Number(item.custo_unitario),
       saldo_sistemico: Number(item.quantidade),
       quantidade_contada: q,

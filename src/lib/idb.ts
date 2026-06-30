@@ -11,6 +11,7 @@ export interface PendingCount {
   descricao: string;
   unidade: string;
   id_local: string;
+  origem?: string;
   custo_unitario: number;
   saldo_sistemico: number;
   quantidade_contada: number;

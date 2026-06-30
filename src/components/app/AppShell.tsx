@@ -1,10 +1,10 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  LayoutDashboard, Upload, ClipboardList, ScanLine, RotateCcw, FileBarChart2,
+  LayoutDashboard, ClipboardList, ScanLine, RotateCcw, FileBarChart2,
   Users as UsersIcon, ScrollText, Settings as SettingsIcon, LogOut, Menu, X,
   Sun, Moon, Wifi, WifiOff, RefreshCw, Layers, FolderTree, Package, BarChart3,
-  Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp,
+  Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp, Warehouse,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -26,7 +26,8 @@ const NAV: (NavItem | NavGroup)[] = [
   {
     id: "cadastro", label: "Cadastro", icon: FolderTree, role: "write",
     items: [
-      { to: "/importar", label: "Importador de Estoque", icon: Upload, role: "write" },
+      { to: "/origens", label: "Origens / Almoxarifados", icon: Warehouse, role: "write" },
+      { to: "/importar", label: "Sincronização de Estoque", icon: RefreshCw, role: "write" },
       { to: "/importar-familias", label: "Importador de Famílias", icon: Leaf, role: "write" },
       { to: "/grupos", label: "Importador de Grupos", icon: Layers, role: "write" },
     ],
