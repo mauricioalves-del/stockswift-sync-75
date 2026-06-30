@@ -384,6 +384,7 @@ function LinhaContagem({
       descricao: item.descricao ?? "",
       unidade: item.unidade ?? "UN",
       id_local: local,
+      origem: item.origem ?? "",
       custo_unitario: Number(item.custo_unitario),
       saldo_sistemico: Number(item.quantidade),
       quantidade_contada: q,
