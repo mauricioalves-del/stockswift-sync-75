@@ -82,6 +82,7 @@ export type Database = {
           lote: string | null
           motivo_baixa_id: string | null
           observacao: string | null
+          origem: string | null
           quantidade: number
           solicitante_id: string
           status_fluxo: string
@@ -105,6 +106,7 @@ export type Database = {
           lote?: string | null
           motivo_baixa_id?: string | null
           observacao?: string | null
+          origem?: string | null
           quantidade: number
           solicitante_id?: string
           status_fluxo?: string
@@ -128,6 +130,7 @@ export type Database = {
           lote?: string | null
           motivo_baixa_id?: string | null
           observacao?: string | null
+          origem?: string | null
           quantidade?: number
           solicitante_id?: string
           status_fluxo?: string
@@ -184,6 +187,7 @@ export type Database = {
           id_produto: string
           importado_por: string | null
           lote: string
+          origem: string
           quantidade: number
           unidade: string
         }
@@ -198,6 +202,7 @@ export type Database = {
           id_produto: string
           importado_por?: string | null
           lote?: string
+          origem?: string
           quantidade?: number
           unidade?: string
         }
@@ -212,6 +217,7 @@ export type Database = {
           id_produto?: string
           importado_por?: string | null
           lote?: string
+          origem?: string
           quantidade?: number
           unidade?: string
         }
@@ -268,6 +274,45 @@ export type Database = {
         }
         Relationships: []
       }
+      importacoes_estoque: {
+        Row: {
+          arquivo: string
+          atualizados: number
+          created_at: string
+          data_importacao: string
+          detalhes: Json | null
+          erros: number
+          id: string
+          novos: number
+          registros_processados: number
+          usuario: string | null
+        }
+        Insert: {
+          arquivo?: string
+          atualizados?: number
+          created_at?: string
+          data_importacao?: string
+          detalhes?: Json | null
+          erros?: number
+          id?: string
+          novos?: number
+          registros_processados?: number
+          usuario?: string | null
+        }
+        Update: {
+          arquivo?: string
+          atualizados?: number
+          created_at?: string
+          data_importacao?: string
+          detalhes?: Json | null
+          erros?: number
+          id?: string
+          novos?: number
+          registros_processados?: number
+          usuario?: string | null
+        }
+        Relationships: []
+      }
       inventario: {
         Row: {
           acuracidade: number | null
@@ -284,6 +329,7 @@ export type Database = {
           id_produto: string
           lote: string
           observacao: string | null
+          origem: string
           quantidade_contada: number
           saldo_sistemico: number
           sincronizado: boolean
@@ -307,6 +353,7 @@ export type Database = {
           id_produto: string
           lote?: string
           observacao?: string | null
+          origem?: string
           quantidade_contada?: number
           saldo_sistemico?: number
           sincronizado?: boolean
@@ -330,6 +377,7 @@ export type Database = {
           id_produto?: string
           lote?: string
           observacao?: string | null
+          origem?: string
           quantidade_contada?: number
           saldo_sistemico?: number
           sincronizado?: boolean
@@ -346,6 +394,7 @@ export type Database = {
           created_at: string
           id: string
           nome: string
+          origem: string | null
           updated_at: string
         }
         Insert: {
@@ -353,6 +402,7 @@ export type Database = {
           created_at?: string
           id?: string
           nome: string
+          origem?: string | null
           updated_at?: string
         }
         Update: {
@@ -360,6 +410,7 @@ export type Database = {
           created_at?: string
           id?: string
           nome?: string
+          origem?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -374,6 +425,7 @@ export type Database = {
           grupo: string | null
           id: string
           id_local: string | null
+          origem: string | null
           responsavel_id: string | null
           status: string
           tipo: string
@@ -389,6 +441,7 @@ export type Database = {
           grupo?: string | null
           id?: string
           id_local?: string | null
+          origem?: string | null
           responsavel_id?: string | null
           status?: string
           tipo?: string
@@ -404,6 +457,7 @@ export type Database = {
           grupo?: string | null
           id?: string
           id_local?: string | null
+          origem?: string | null
           responsavel_id?: string | null
           status?: string
           tipo?: string
@@ -483,6 +537,33 @@ export type Database = {
         }
         Relationships: []
       }
+      origens: {
+        Row: {
+          ativo: boolean
+          codigo_origem: string
+          created_at: string
+          descricao: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo_origem: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo_origem?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -521,6 +602,7 @@ export type Database = {
           inventario_id: string | null
           lote: string
           motivo: string | null
+          origem: string
           saldo_sistema: number
           status: string
           updated_at: string
@@ -539,6 +621,7 @@ export type Database = {
           inventario_id?: string | null
           lote?: string
           motivo?: string | null
+          origem?: string
           saldo_sistema?: number
           status?: string
           updated_at?: string
@@ -557,6 +640,7 @@ export type Database = {
           inventario_id?: string | null
           lote?: string
           motivo?: string | null
+          origem?: string
           saldo_sistema?: number
           status?: string
           updated_at?: string
