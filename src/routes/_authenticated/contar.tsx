@@ -58,6 +58,15 @@ function ContarPage() {
   const [showSistemico, setShowSistemico] = useState<boolean>(true);
   useEffect(() => { if (cego !== undefined) setShowSistemico(!cego); }, [cego]);
 
+  // Origens ativas
+  const { data: origens } = useQuery({
+    queryKey: ["origens-ativas"],
+    queryFn: async () => {
+      const { data } = await supabase.from("origens").select("codigo_origem, descricao").eq("ativo", true).order("codigo_origem");
+      return data ?? [];
+    },
+  });
+
   // Locais (combobox)
   const { data: locais } = useQuery({
     queryKey: ["locais-ativos"],
