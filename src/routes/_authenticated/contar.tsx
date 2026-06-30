@@ -42,6 +42,7 @@ const GRUPOS_COM_FAMILIA = new Set(["Produto Acabado", "Mercadoria para Revenda"
 function ContarPage() {
   const qc = useQueryClient();
   const online = useOnlineStatus();
+  const [origem, setOrigem] = useState<string>(TODOS);
   const [grupo, setGrupo] = useState<string>(TODOS);
   const [familia, setFamilia] = useState<string>(TODOS);
   const [sku, setSku] = useState<string>("");
