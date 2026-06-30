@@ -124,9 +124,9 @@ function ContarPage() {
     },
   });
 
-  // SKUs filtrados por grupo + família opcional
+  // SKUs filtrados por origem + grupo + família opcional
   const { data: skus } = useQuery({
-    queryKey: ["skus-filtrados", grupo, familia, codigosDoGrupo],
+    queryKey: ["skus-filtrados", origem, grupo, familia, codigosDoGrupo],
     enabled: grupo !== "" && (grupo === TODOS || !!codigosDoGrupo),
     queryFn: async () => {
       let codes: string[] | null = null;
@@ -135,12 +135,13 @@ function ContarPage() {
         const { data: fam } = await supabase.from("familias").select("codigo_produto").eq("familia", familia).in("codigo_produto", codes);
         codes = (fam ?? []).map((f) => f.codigo_produto);
       }
-      let query = supabase.from("estoque_sistemico").select("id_produto, descricao").limit(2000);
+      let q = supabase.from("estoque_sistemico").select("id_produto, descricao").limit(2000);
       if (codes !== null) {
         if (codes.length === 0) return [];
-        query = supabase.from("estoque_sistemico").select("id_produto, descricao").in("id_produto", codes);
+        q = supabase.from("estoque_sistemico").select("id_produto, descricao").in("id_produto", codes);
       }
-      const { data } = await query;
+      if (origem !== TODOS) q = q.eq("origem", origem);
+      const { data } = await q;
       const map = new Map<string, string>();
       (data ?? []).forEach((r) => map.set(r.id_produto, r.descricao));
       return Array.from(map.entries()).map(([id_produto, descricao]) => ({ id_produto, descricao }))
@@ -148,12 +149,14 @@ function ContarPage() {
     },
   });
 
-  // Lotes do SKU
+  // Lotes do SKU (filtrados por origem)
   const { data: lotes } = useQuery({
-    queryKey: ["lotes-do-sku", sku],
+    queryKey: ["lotes-do-sku", sku, origem],
     enabled: !!sku,
     queryFn: async () => {
-      const { data, error } = await supabase.from("estoque_sistemico").select("*").eq("id_produto", sku).order("lote");
+      let q = supabase.from("estoque_sistemico").select("*").eq("id_produto", sku);
+      if (origem !== TODOS) q = q.eq("origem", origem);
+      const { data, error } = await q.order("lote");
       if (error) throw error;
       return (data ?? []) as EstoqueItem[];
     },
