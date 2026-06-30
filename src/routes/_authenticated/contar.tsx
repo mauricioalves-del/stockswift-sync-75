@@ -177,17 +177,20 @@ function ContarPage() {
   });
 
   // Reset cascata
+  useEffect(() => { setGrupo(TODOS); setFamilia(TODOS); setSku(""); }, [origem]);
   useEffect(() => { setFamilia(TODOS); setSku(""); }, [grupo]);
   useEffect(() => { setSku(""); }, [familia]);
 
   const familiaCorPct = (p: number) => p === 100 ? "text-success" : p >= 80 ? "text-warning-foreground" : "text-destructive";
+
+  const cols = usaFamilia ? "md:grid-cols-4" : "md:grid-cols-3";
 
   return (
     <div className="max-w-7xl mx-auto space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Contagem Operacional</h1>
-          <p className="text-sm text-muted-foreground">Hierarquia: Grupo → {usaFamilia ? "Família → " : ""}SKU → Lote</p>
+          <p className="text-sm text-muted-foreground">Hierarquia: Origem → Grupo → {usaFamilia ? "Família → " : ""}SKU → Lote</p>
         </div>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" size="sm"><Link to="/scanner"><ScanLine className="size-4 mr-1.5" /> Scanner</Link></Button>
@@ -201,7 +204,20 @@ function ContarPage() {
       </div>
 
       <Card>
-        <CardContent className={cn("p-4 grid grid-cols-1 gap-4", usaFamilia ? "md:grid-cols-3" : "md:grid-cols-2")}>
+        <CardContent className={cn("p-4 grid grid-cols-1 gap-4", cols)}>
+          <div>
+            <Label className="text-xs">Origem / Almoxarifado</Label>
+            <Select value={origem} onValueChange={setOrigem}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS}>Todas</SelectItem>
+                {(origens ?? []).map((o) => (
+                  <SelectItem key={o.codigo_origem} value={o.codigo_origem}>{o.descricao || o.codigo_origem}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div>
             <Label className="text-xs">Grupo de Produto</Label>
             <Select value={grupo} onValueChange={setGrupo}>
