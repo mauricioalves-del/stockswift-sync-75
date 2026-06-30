@@ -30,6 +30,7 @@ interface EstoqueItem {
   descricao: string;
   unidade: string;
   id_local: string;
+  origem: string;
   quantidade: number;
   custo_unitario: number;
   data_validade: string | null;
