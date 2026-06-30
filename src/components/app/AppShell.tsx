@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Upload, ClipboardList, ScanLine, RotateCcw, FileBarChart2,
   Users as UsersIcon, ScrollText, Settings as SettingsIcon, LogOut, Menu, X,
   Sun, Moon, Wifi, WifiOff, RefreshCw, Layers, FolderTree, Package, BarChart3,
-  Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp,
+  Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp, Warehouse,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
