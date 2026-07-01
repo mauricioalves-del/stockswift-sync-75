@@ -43,7 +43,7 @@ function OrigensPage() {
     setSaving(false);
     if (error) toast.error(error.message);
     else {
-      toast.success("Origem cadastrada");
+      toast.success("Almox cadastrado");
       setCodigo(""); setDescricao("");
       qc.invalidateQueries({ queryKey: ["origens-all"] });
       qc.invalidateQueries({ queryKey: ["origens-ativas"] });
