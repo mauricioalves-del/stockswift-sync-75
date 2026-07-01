@@ -224,7 +224,7 @@ function ImportarPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base">Preview ({rows.length} registros)</CardTitle>
-              <CardDescription>Origens detectadas: {Array.from(new Set(rows.map((r) => r.origem))).join(", ")}</CardDescription>
+              <CardDescription>Almox detectados: {Array.from(new Set(rows.map((r) => r.origem))).join(", ")}</CardDescription>
             </div>
             <Button onClick={sincronizar} disabled={importing}>
               {importing ? <><Loader2 className="size-4 animate-spin mr-2" /> Sincronizando...</> : <><RefreshCw className="size-4 mr-2" /> Sincronizar Estoque</>}
