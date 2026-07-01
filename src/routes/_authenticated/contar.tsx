@@ -192,11 +192,25 @@ function ContarPage() {
         <div>
           <h1 className="text-2xl font-bold">Contagem Operacional</h1>
           <p className="text-sm text-muted-foreground">Hierarquia: Almox → Grupo → {usaFamilia ? "Família → " : ""}SKU → Lote</p>
-...
+        </div>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm"><Link to="/scanner"><ScanLine className="size-4 mr-1.5" /> Scanner</Link></Button>
+          <div className="flex items-center gap-2 text-xs">
+            <Switch checked={showSistemico} onCheckedChange={setShowSistemico} id="cego" />
+            <Label htmlFor="cego" className="cursor-pointer flex items-center gap-1">
+              {showSistemico ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />} Exibir saldo
+            </Label>
+          </div>
+        </div>
+      </div>
+
+      <Card>
+        <CardContent className={cn("p-4 grid grid-cols-1 gap-4", cols)}>
+          <div>
             <Label className="text-xs">Almox</Label>
             <Select value={origem} onValueChange={setOrigem}>
-
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+
               <SelectContent>
                 <SelectItem value={TODOS}>Todas</SelectItem>
                 {(origens ?? []).map((o) => (
