@@ -176,7 +176,7 @@ function ImportarPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><RefreshCw className="size-6" /> Sincronização de Estoque</h1>
         <p className="text-sm text-muted-foreground">
-          Fonte oficial: planilha <b>Lote_Sistema</b>. Chave única <b>Id_produto + Lote</b>. Origens novas são cadastradas automaticamente.
+          Fonte oficial: planilha <b>Lote_Sistema</b>. Chave única <b>Id_produto + Lote</b>. Almox novos são cadastrados automaticamente.
         </p>
       </div>
 
