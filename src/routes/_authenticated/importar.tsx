@@ -141,7 +141,7 @@ function ImportarPage() {
     const CHUNK = 500;
     for (let i = 0; i < payload.length; i += CHUNK) {
       const slice = payload.slice(i, i + CHUNK);
-      const { error } = await supabase.from("estoque_sistemico").upsert(slice, { onConflict: "id_produto,lote" });
+      const { error } = await supabase.from("estoque_sistemico").upsert(slice, { onConflict: "id_produto,lote,origem" });
       if (error) { fail += slice.length; console.error(error); }
       else ok += slice.length;
     }
