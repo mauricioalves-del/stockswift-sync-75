@@ -14,7 +14,7 @@ import { useRole } from "@/hooks/useRole";
 
 export const Route = createFileRoute("/_authenticated/origens")({
   component: OrigensPage,
-  head: () => ({ meta: [{ title: "Origens / Almoxarifados" }] }),
+  head: () => ({ meta: [{ title: "Almox" }] }),
 });
 
 function OrigensPage() {
@@ -43,7 +43,7 @@ function OrigensPage() {
     setSaving(false);
     if (error) toast.error(error.message);
     else {
-      toast.success("Origem cadastrada");
+      toast.success("Almox cadastrado");
       setCodigo(""); setDescricao("");
       qc.invalidateQueries({ queryKey: ["origens-all"] });
       qc.invalidateQueries({ queryKey: ["origens-ativas"] });
@@ -59,15 +59,15 @@ function OrigensPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-4">
       <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Warehouse className="size-6" /> Origens / Almoxarifados</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Warehouse className="size-6" /> Almox</h1>
         <p className="text-sm text-muted-foreground">
-          Dimensão principal do sistema. Origens novas detectadas na sincronização são cadastradas automaticamente.
+          Dimensão principal do sistema. Almox novos detectados na sincronização são cadastrados automaticamente.
         </p>
       </div>
 
       {isAdmin && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Nova Origem</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Novo Almox</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-[200px_1fr_auto] gap-3 items-end">
             <div>
               <Label className="text-xs">Código</Label>

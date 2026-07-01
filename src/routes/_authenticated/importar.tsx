@@ -75,7 +75,7 @@ function ImportarPage() {
         const origem = pick(r, "Origem", "origem");
         if (!id) { errs.push(`Linha ${idx + 2}: Id_produto vazio`); return; }
         if (Number.isNaN(qtd)) { errs.push(`Linha ${idx + 2}: Qtd inválida`); return; }
-        if (!origem) { errs.push(`Linha ${idx + 2}: Origem vazia`); return; }
+        if (!origem) { errs.push(`Linha ${idx + 2}: Almox vazio`); return; }
         parsed.push({
           ativo: pick(r, "Ativo"),
           tipo_material: pick(r, "TipoMaterial", "Tipo Material"),
@@ -176,7 +176,7 @@ function ImportarPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><RefreshCw className="size-6" /> Sincronização de Estoque</h1>
         <p className="text-sm text-muted-foreground">
-          Fonte oficial: planilha <b>Lote_Sistema</b>. Chave única <b>Id_produto + Lote</b>. Origens novas são cadastradas automaticamente.
+          Fonte oficial: planilha <b>Lote_Sistema</b>. Chave única <b>Id_produto + Lote</b>. Almox novos são cadastrados automaticamente.
         </p>
       </div>
 
@@ -213,7 +213,7 @@ function ImportarPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-success text-base"><CheckCircle2 className="size-4" /> Sincronização concluída</CardTitle>
             <CardDescription>
-              {result.ok} processados · {result.novos} novos · {result.atualizados} atualizados · {result.fail} falhas · {result.origens} origens cadastradas · {result.when}
+              {result.ok} processados · {result.novos} novos · {result.atualizados} atualizados · {result.fail} falhas · {result.origens} almox cadastrados · {result.when}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -224,7 +224,7 @@ function ImportarPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base">Preview ({rows.length} registros)</CardTitle>
-              <CardDescription>Origens detectadas: {Array.from(new Set(rows.map((r) => r.origem))).join(", ")}</CardDescription>
+              <CardDescription>Almox detectados: {Array.from(new Set(rows.map((r) => r.origem))).join(", ")}</CardDescription>
             </div>
             <Button onClick={sincronizar} disabled={importing}>
               {importing ? <><Loader2 className="size-4 animate-spin mr-2" /> Sincronizando...</> : <><RefreshCw className="size-4 mr-2" /> Sincronizar Estoque</>}
@@ -235,7 +235,7 @@ function ImportarPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Origem</TableHead>
+                    <TableHead>Almox</TableHead>
                     <TableHead>Local</TableHead>
                     <TableHead>Grupo</TableHead>
                     <TableHead>SKU</TableHead>

@@ -191,7 +191,7 @@ function ContarPage() {
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Contagem Operacional</h1>
-          <p className="text-sm text-muted-foreground">Hierarquia: Origem → Grupo → {usaFamilia ? "Família → " : ""}SKU → Lote</p>
+          <p className="text-sm text-muted-foreground">Hierarquia: Almox → Grupo → {usaFamilia ? "Família → " : ""}SKU → Lote</p>
         </div>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" size="sm"><Link to="/scanner"><ScanLine className="size-4 mr-1.5" /> Scanner</Link></Button>
@@ -207,9 +207,10 @@ function ContarPage() {
       <Card>
         <CardContent className={cn("p-4 grid grid-cols-1 gap-4", cols)}>
           <div>
-            <Label className="text-xs">Origem / Almoxarifado</Label>
+            <Label className="text-xs">Almox</Label>
             <Select value={origem} onValueChange={setOrigem}>
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+
               <SelectContent>
                 <SelectItem value={TODOS}>Todas</SelectItem>
                 {(origens ?? []).map((o) => (
