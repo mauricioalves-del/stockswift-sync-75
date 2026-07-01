@@ -75,7 +75,7 @@ function ImportarPage() {
         const origem = pick(r, "Origem", "origem");
         if (!id) { errs.push(`Linha ${idx + 2}: Id_produto vazio`); return; }
         if (Number.isNaN(qtd)) { errs.push(`Linha ${idx + 2}: Qtd inválida`); return; }
-        if (!origem) { errs.push(`Linha ${idx + 2}: Origem vazia`); return; }
+        if (!origem) { errs.push(`Linha ${idx + 2}: Almox vazio`); return; }
         parsed.push({
           ativo: pick(r, "Ativo"),
           tipo_material: pick(r, "TipoMaterial", "Tipo Material"),
