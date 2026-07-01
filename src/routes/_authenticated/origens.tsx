@@ -14,7 +14,7 @@ import { useRole } from "@/hooks/useRole";
 
 export const Route = createFileRoute("/_authenticated/origens")({
   component: OrigensPage,
-  head: () => ({ meta: [{ title: "Origens / Almoxarifados" }] }),
+  head: () => ({ meta: [{ title: "Almox" }] }),
 });
 
 function OrigensPage() {
