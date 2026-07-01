@@ -113,11 +113,11 @@ function ImportarPage() {
       await supabase.from("origens").insert(novasOrigens);
     }
 
-    // 2. Contar quantos já existem (para diferenciar novos x atualizados)
-    const chaves = rows.map((r) => `${r.id_produto}|${r.lote}`);
+    // 2. Contar quantos já existem (para diferenciar novos x atualizados) — chave = SKU+Lote+Almox
+    const chaves = rows.map((r) => `${r.id_produto}|${r.lote}|${r.origem}`);
     const skus = Array.from(new Set(rows.map((r) => r.id_produto)));
-    const { data: jaExistem } = await supabase.from("estoque_sistemico").select("id_produto, lote").in("id_produto", skus);
-    const setJa = new Set((jaExistem ?? []).map((e) => `${e.id_produto}|${e.lote ?? ""}`));
+    const { data: jaExistem } = await supabase.from("estoque_sistemico").select("id_produto, lote, origem").in("id_produto", skus);
+    const setJa = new Set((jaExistem ?? []).map((e) => `${e.id_produto}|${e.lote ?? ""}|${e.origem ?? ""}`));
     const novos = chaves.filter((k) => !setJa.has(k)).length;
     const atualizados = rows.length - novos;
 
@@ -141,7 +141,7 @@ function ImportarPage() {
     const CHUNK = 500;
     for (let i = 0; i < payload.length; i += CHUNK) {
       const slice = payload.slice(i, i + CHUNK);
-      const { error } = await supabase.from("estoque_sistemico").upsert(slice, { onConflict: "id_produto,lote" });
+      const { error } = await supabase.from("estoque_sistemico").upsert(slice, { onConflict: "id_produto,lote,origem" });
       if (error) { fail += slice.length; console.error(error); }
       else ok += slice.length;
     }
