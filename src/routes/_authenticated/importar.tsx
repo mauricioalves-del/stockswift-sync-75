@@ -122,19 +122,34 @@ function ImportarPage() {
     const atualizados = rows.length - novos;
 
     // 3. Upsert estoque
-    const payload = rows.map((r) => ({
-      id_produto: r.id_produto,
-      lote: r.lote || "",
-      descricao: r.descricao,
-      unidade: r.um,
-      quantidade: r.qtd,
-      custo_unitario: r.custo_vlr,
-      id_local: r.unidade || "",
-      origem: r.origem,
-      cliente: "",
-      data_validade: r.data_validade || null,
-      importado_por: userId,
-    }));
+    // Deduplicar por (SKU + Lote + Almox) somando quantidades — evita "ON CONFLICT affect row a second time"
+    const agg = new Map<string, {
+      id_produto: string; lote: string; descricao: string; unidade: string; quantidade: number;
+      custo_unitario: number; id_local: string; origem: string; cliente: string;
+      data_validade: string | null; importado_por: string | undefined;
+    }>();
+    for (const r of rows) {
+      const key = `${r.id_produto}|${r.lote || ""}|${r.origem}`;
+      const prev = agg.get(key);
+      if (prev) {
+        prev.quantidade += r.qtd;
+      } else {
+        agg.set(key, {
+          id_produto: r.id_produto,
+          lote: r.lote || "",
+          descricao: r.descricao,
+          unidade: r.um,
+          quantidade: r.qtd,
+          custo_unitario: r.custo_vlr,
+          id_local: r.unidade || "",
+          origem: r.origem,
+          cliente: "",
+          data_validade: r.data_validade || null,
+          importado_por: userId,
+        });
+      }
+    }
+    const payload = Array.from(agg.values());
 
     let ok = 0;
     let fail = 0;
