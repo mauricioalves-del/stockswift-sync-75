@@ -235,7 +235,7 @@ function ImportarPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Origem</TableHead>
+                    <TableHead>Almox</TableHead>
                     <TableHead>Local</TableHead>
                     <TableHead>Grupo</TableHead>
                     <TableHead>SKU</TableHead>
