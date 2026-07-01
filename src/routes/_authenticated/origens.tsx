@@ -59,9 +59,9 @@ function OrigensPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-4">
       <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Warehouse className="size-6" /> Origens / Almoxarifados</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Warehouse className="size-6" /> Almox</h1>
         <p className="text-sm text-muted-foreground">
-          Dimensão principal do sistema. Origens novas detectadas na sincronização são cadastradas automaticamente.
+          Dimensão principal do sistema. Almox novos detectados na sincronização são cadastrados automaticamente.
         </p>
       </div>
 
