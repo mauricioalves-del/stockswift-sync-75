@@ -213,7 +213,7 @@ function ImportarPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-success text-base"><CheckCircle2 className="size-4" /> Sincronização concluída</CardTitle>
             <CardDescription>
-              {result.ok} processados · {result.novos} novos · {result.atualizados} atualizados · {result.fail} falhas · {result.origens} origens cadastradas · {result.when}
+              {result.ok} processados · {result.novos} novos · {result.atualizados} atualizados · {result.fail} falhas · {result.origens} almox cadastrados · {result.when}
             </CardDescription>
           </CardHeader>
         </Card>
