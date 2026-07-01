@@ -67,7 +67,7 @@ function OrigensPage() {
 
       {isAdmin && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Nova Origem</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Novo Almox</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-[200px_1fr_auto] gap-3 items-end">
             <div>
               <Label className="text-xs">Código</Label>
