@@ -38,12 +38,12 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/contar", label: "Contagem", icon: ClipboardList, role: "write" },
       { to: "/scanner", label: "Scanner", icon: ScanLine, role: "write" },
       { to: "/recontagem", label: "Recontagem", icon: RotateCcw, role: "write" },
-      { to: "/baixas", label: "Baixas Operacionais", icon: PackageMinus, role: "write" },
     ],
   },
   {
     id: "gestao", label: "Gestão", icon: TrendingUp, role: "admin",
     items: [
+      { to: "/baixas", label: "Baixas Operacionais", icon: PackageMinus, role: "write" },
       { to: "/missoes", label: "Missões", icon: Target, role: "admin" },
       { to: "/abc", label: "Classificação ABC", icon: BarChart3, role: "admin" },
     ],
