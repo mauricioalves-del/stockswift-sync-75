@@ -62,10 +62,16 @@ function BaixasPage() {
 function NovaBaixaForm() {
   const qc = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({
-    codigo_produto: "", descricao: "", lote: "", unidade: "UN", id_local: "",
-    quantidade: "", custo_unitario: "", motivo_baixa_id: "", observacao: "",
-  });
+  const [ean, setEan] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [produto, setProduto] = useState<{
+    id_produto: string; descricao: string; unidade: string;
+  } | null>(null);
+  const [origem, setOrigem] = useState("");
+  const [loteSel, setLoteSel] = useState("");
+  const [quantidade, setQuantidade] = useState("");
+  const [motivoId, setMotivoId] = useState("");
+  const [observacao, setObservacao] = useState("");
   const [foto, setFoto] = useState<File | null>(null);
 
   const motivosQ = useQuery({
@@ -77,70 +83,102 @@ function NovaBaixaForm() {
     },
   });
 
-  const qtd = Number(form.quantidade || 0);
-  const custo = Number(form.custo_unitario || 0);
-  const valorTotal = qtd * custo;
+  // Todas as linhas de estoque do produto selecionado (todas origens/lotes)
+  const estoqueQ = useQuery({
+    queryKey: ["estoque-por-produto", produto?.id_produto],
+    enabled: !!produto?.id_produto,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("estoque_sistemico")
+        .select("id, id_produto, descricao, unidade, lote, origem, quantidade, custo_unitario, data_validade")
+        .eq("id_produto", produto!.id_produto);
+      if (error) throw error;
+      return data as Array<{
+        id: string; id_produto: string; descricao: string; unidade: string;
+        lote: string; origem: string; quantidade: number; custo_unitario: number; data_validade: string | null;
+      }>;
+    },
+  });
 
-  async function buscarProduto() {
-    if (!form.codigo_produto) return;
-    const q = (supabase as any)
+  const origensDisponiveis = useMemo(() => {
+    const set = new Set((estoqueQ.data ?? []).map((e) => e.origem).filter(Boolean));
+    return Array.from(set).sort();
+  }, [estoqueQ.data]);
+
+  const lotesDisponiveis = useMemo(() => {
+    if (!origem) return [];
+    return (estoqueQ.data ?? [])
+      .filter((e) => e.origem === origem && Number(e.quantidade) > 0)
+      .sort((a, b) => (a.lote ?? "").localeCompare(b.lote ?? ""));
+  }, [estoqueQ.data, origem]);
+
+  const linhaSelecionada = useMemo(() => {
+    return (estoqueQ.data ?? []).find((e) => e.origem === origem && (e.lote ?? "") === loteSel) ?? null;
+  }, [estoqueQ.data, origem, loteSel]);
+
+  // Reset em cascata
+  useEffect(() => { setOrigem(""); setLoteSel(""); }, [produto?.id_produto]);
+  useEffect(() => { setLoteSel(""); }, [origem]);
+
+  const qtd = Number(quantidade || 0);
+  const custo = Number(linhaSelecionada?.custo_unitario ?? 0);
+  const valorTotal = qtd * custo;
+  const saldo = Number(linhaSelecionada?.quantidade ?? 0);
+
+  async function buscarPorEAN(codigo: string) {
+    const code = codigo.trim();
+    if (!code) return;
+    setEan(code);
+    const { data, error } = await (supabase as any)
       .from("estoque_sistemico")
-      .select("descricao, unidade, id_local, custo_unitario, lote")
-      .eq("id_produto", form.codigo_produto);
-    if (form.lote) q.eq("lote", form.lote);
-    const { data } = await q.limit(1).maybeSingle();
-    if (data) {
-      setForm((f) => ({
-        ...f,
-        descricao: data.descricao ?? f.descricao,
-        unidade: data.unidade ?? f.unidade,
-        id_local: data.id_local ?? f.id_local,
-        custo_unitario: data.custo_unitario != null ? String(data.custo_unitario) : f.custo_unitario,
-      }));
-    } else {
-      toast.message("Produto não encontrado no estoque sistêmico — preencha manualmente.");
+      .select("id_produto, descricao, unidade")
+      .eq("ean", code)
+      .limit(1)
+      .maybeSingle();
+    if (error) return toast.error(error.message);
+    if (!data) {
+      setProduto(null);
+      return toast.error(`EAN ${code} não encontrado na base de estoque`);
     }
+    setProduto({ id_produto: data.id_produto, descricao: data.descricao, unidade: data.unidade });
+    toast.success(`Produto localizado: ${data.id_produto}`);
+  }
+
+  function limpar() {
+    setEan(""); setProduto(null); setOrigem(""); setLoteSel("");
+    setQuantidade(""); setMotivoId(""); setObservacao(""); setFoto(null);
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!produto) return toast.error("Escaneie ou informe um EAN válido");
+    if (!origem) return toast.error("Selecione a Origem");
+    if (!linhaSelecionada) return toast.error("Selecione o Lote");
+    if (!qtd || qtd <= 0) return toast.error("Informe a quantidade");
+    if (qtd > saldo) return toast.error("Quantidade solicitada maior que saldo disponível.");
+    if (!motivoId) return toast.error("Selecione o motivo");
     if (!foto) return toast.error("Foto é obrigatória");
     if (!["image/jpeg", "image/png", "image/jpg"].includes(foto.type)) return toast.error("Use JPG ou PNG");
     if (foto.size > MAX_BYTES) return toast.error("Foto excede 10MB");
-    if (!form.codigo_produto || !form.descricao || !qtd) return toast.error("Preencha código, descrição e quantidade");
-    if (!form.motivo_baixa_id) return toast.error("Selecione o motivo");
 
     setSubmitting(true);
     try {
       const user = (await supabase.auth.getUser()).data.user!;
-      // bloqueia estoque negativo
-      const { data: saldo } = await (supabase as any)
-        .from("estoque_sistemico")
-        .select("quantidade")
-        .eq("id_produto", form.codigo_produto)
-        .eq("lote", form.lote || "")
-        .maybeSingle();
-      if (saldo && Number(saldo.quantidade) < qtd) {
-        setSubmitting(false);
-        return toast.error(`Estoque insuficiente. Saldo atual: ${saldo.quantidade}`);
-      }
-
-      // upload foto
       const ext = foto.name.split(".").pop() ?? "jpg";
       const path = `${user.id}/${Date.now()}.${ext}`;
       const up = await supabase.storage.from("baixas-fotos").upload(path, foto, { contentType: foto.type });
       if (up.error) throw up.error;
 
       const { error } = await (supabase as any).from("baixa_operacional").insert({
-        codigo_produto: form.codigo_produto,
-        descricao: form.descricao,
-        lote: form.lote || null,
-        unidade: form.unidade || null,
-        id_local: form.id_local || null,
+        codigo_produto: produto.id_produto,
+        descricao: produto.descricao,
+        lote: linhaSelecionada.lote || null,
+        unidade: produto.unidade || null,
+        id_local: origem,
         quantidade: qtd,
         custo_unitario: custo,
-        motivo_baixa_id: form.motivo_baixa_id,
-        observacao: form.observacao || null,
+        motivo_baixa_id: motivoId,
+        observacao: observacao || null,
         foto_url: path,
         solicitante_id: user.id,
         status_fluxo: "PENDENTE",
@@ -149,12 +187,14 @@ function NovaBaixaForm() {
 
       await (supabase as any).from("audit_logs").insert({
         usuario: user.id, acao: "CRIAR_BAIXA", entidade: "baixa_operacional",
-        payload: { codigo_produto: form.codigo_produto, lote: form.lote, quantidade: qtd, valor_total: valorTotal },
+        payload: {
+          ean, codigo_produto: produto.id_produto, origem, lote: linhaSelecionada.lote,
+          quantidade: qtd, custo_unitario: custo, valor_total: valorTotal, motivo_baixa_id: motivoId,
+        },
       });
 
       toast.success("Solicitação de baixa criada");
-      setForm({ codigo_produto: "", descricao: "", lote: "", unidade: "UN", id_local: "", quantidade: "", custo_unitario: "", motivo_baixa_id: "", observacao: "" });
-      setFoto(null);
+      limpar();
       qc.invalidateQueries({ queryKey: ["baixas"] });
     } catch (err: any) {
       toast.error(err.message ?? "Falha ao registrar baixa");
@@ -164,74 +204,132 @@ function NovaBaixaForm() {
   }
 
   return (
-    <Card>
-      <CardHeader><CardTitle>Nova Solicitação de Baixa</CardTitle></CardHeader>
-      <CardContent>
-        <form onSubmit={onSubmit} className="grid md:grid-cols-2 gap-4">
-          <div>
-            <Label>Código do Produto *</Label>
-            <div className="flex gap-2">
-              <Input value={form.codigo_produto} onChange={(e) => setForm({ ...form, codigo_produto: e.target.value })} onBlur={buscarProduto} />
-              <Button type="button" variant="outline" onClick={buscarProduto}>Buscar</Button>
+    <>
+      <Card>
+        <CardHeader><CardTitle>Nova Solicitação de Baixa</CardTitle></CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="grid md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <Label>Código de Barras (EAN) *</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={ean}
+                  onChange={(e) => setEan(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); buscarPorEAN(ean); } }}
+                  placeholder="Escaneie ou digite o EAN e pressione Enter"
+                />
+                <Button type="button" variant="outline" onClick={() => buscarPorEAN(ean)}>Buscar</Button>
+                <Button type="button" onClick={() => setScannerOpen(true)} className="gap-2">
+                  <ScanBarcode className="size-4" /> Escanear
+                </Button>
+              </div>
             </div>
-          </div>
-          <div>
-            <Label>Lote</Label>
-            <Input value={form.lote} onChange={(e) => setForm({ ...form, lote: e.target.value })} onBlur={buscarProduto} />
-          </div>
-          <div className="md:col-span-2">
-            <Label>Descrição *</Label>
-            <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
-          </div>
-          <div>
-            <Label>Unidade</Label>
-            <Input value={form.unidade} onChange={(e) => setForm({ ...form, unidade: e.target.value })} />
-          </div>
-          <div>
-            <Label>Local</Label>
-            <Input value={form.id_local} onChange={(e) => setForm({ ...form, id_local: e.target.value })} />
-          </div>
-          <div>
-            <Label>Quantidade *</Label>
-            <Input type="number" step="0.001" value={form.quantidade} onChange={(e) => setForm({ ...form, quantidade: e.target.value })} />
-          </div>
-          <div>
-            <Label>Custo Unitário</Label>
-            <Input type="number" step="0.01" value={form.custo_unitario} onChange={(e) => setForm({ ...form, custo_unitario: e.target.value })} />
-          </div>
-          <div>
-            <Label>Motivo *</Label>
-            <Select value={form.motivo_baixa_id} onValueChange={(v) => setForm({ ...form, motivo_baixa_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>
-                {(motivosQ.data ?? []).map((m) => <SelectItem key={m.id} value={m.id}>{m.descricao}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Valor Total (calculado)</Label>
-            <Input value={formatBRL(valorTotal)} readOnly className="bg-muted" />
-          </div>
-          <div className="md:col-span-2">
-            <Label>Observação</Label>
-            <Textarea value={form.observacao} onChange={(e) => setForm({ ...form, observacao: e.target.value })} />
-          </div>
-          <div className="md:col-span-2">
-            <Label>Foto * (JPG/PNG, máx 10MB)</Label>
-            <Input type="file" accept="image/jpeg,image/png,image/jpg" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
-            {foto && <div className="mt-2 text-xs text-muted-foreground">{foto.name} — {(foto.size / 1024).toFixed(0)} KB</div>}
-          </div>
-          <div className="md:col-span-2 flex justify-end">
-            <Button type="submit" disabled={submitting} className="gap-2">
-              {submitting ? <Loader2 className="size-4 animate-spin" /> : <PackageMinus className="size-4" />}
-              Solicitar Baixa
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+
+            <div>
+              <Label>SKU</Label>
+              <Input value={produto?.id_produto ?? ""} readOnly className="bg-muted font-mono" />
+            </div>
+            <div>
+              <Label>Unidade</Label>
+              <Input value={produto?.unidade ?? ""} readOnly className="bg-muted" />
+            </div>
+            <div className="md:col-span-2">
+              <Label>Descrição</Label>
+              <Input value={produto?.descricao ?? ""} readOnly className="bg-muted" />
+            </div>
+
+            <div>
+              <Label>Origem (Almoxarifado) *</Label>
+              <Select value={origem} onValueChange={setOrigem} disabled={!produto || origensDisponiveis.length === 0}>
+                <SelectTrigger><SelectValue placeholder={produto ? "Selecione" : "Escaneie o produto primeiro"} /></SelectTrigger>
+                <SelectContent>
+                  {origensDisponiveis.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Lote *</Label>
+              <Select value={loteSel} onValueChange={setLoteSel} disabled={!origem || lotesDisponiveis.length === 0}>
+                <SelectTrigger><SelectValue placeholder={origem ? "Selecione o lote" : "Selecione a origem"} /></SelectTrigger>
+                <SelectContent>
+                  {lotesDisponiveis.map((l) => (
+                    <SelectItem key={l.id} value={l.lote ?? ""}>
+                      {l.lote || "(sem lote)"} — saldo {formatNum(Number(l.quantidade))}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {linhaSelecionada && (
+              <div className="md:col-span-2 rounded-lg border bg-muted/40 p-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div><div className="text-xs text-muted-foreground">SKU</div><div className="font-mono">{produto?.id_produto}</div></div>
+                <div className="col-span-2"><div className="text-xs text-muted-foreground">Produto</div><div className="truncate">{produto?.descricao}</div></div>
+                <div><div className="text-xs text-muted-foreground">Origem</div><div>{origem}</div></div>
+                <div><div className="text-xs text-muted-foreground">Lote</div><div className="font-mono">{linhaSelecionada.lote || "—"}</div></div>
+                <div><div className="text-xs text-muted-foreground">Saldo</div><div className="font-semibold">{formatNum(saldo)}</div></div>
+                <div><div className="text-xs text-muted-foreground">Validade</div><div>{linhaSelecionada.data_validade ? new Date(linhaSelecionada.data_validade).toLocaleDateString("pt-BR") : "—"}</div></div>
+                <div><div className="text-xs text-muted-foreground">Custo Unitário</div><div>{formatBRL(custo)}</div></div>
+              </div>
+            )}
+
+            <div>
+              <Label>Quantidade a Baixar *</Label>
+              <Input
+                type="number" step="0.001" min="0"
+                value={quantidade}
+                onChange={(e) => setQuantidade(e.target.value)}
+                disabled={!linhaSelecionada}
+              />
+              {qtd > saldo && linhaSelecionada && (
+                <div className="text-xs text-destructive mt-1">Quantidade solicitada maior que saldo disponível.</div>
+              )}
+            </div>
+            <div>
+              <Label>Valor Total</Label>
+              <Input value={formatBRL(valorTotal)} readOnly className="bg-muted" />
+            </div>
+
+            <div>
+              <Label>Motivo *</Label>
+              <Select value={motivoId} onValueChange={setMotivoId}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {(motivosQ.data ?? []).map((m) => <SelectItem key={m.id} value={m.id}>{m.descricao}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Foto Evidência * (JPG/PNG, máx 10MB)</Label>
+              <Input type="file" accept="image/jpeg,image/png,image/jpg" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
+              {foto && <div className="mt-1 text-xs text-muted-foreground">{foto.name} — {(foto.size / 1024).toFixed(0)} KB</div>}
+            </div>
+
+            <div className="md:col-span-2">
+              <Label>Observação</Label>
+              <Textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} />
+            </div>
+
+            <div className="md:col-span-2 flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={limpar}>Limpar</Button>
+              <Button type="submit" disabled={submitting} className="gap-2">
+                {submitting ? <Loader2 className="size-4 animate-spin" /> : <PackageMinus className="size-4" />}
+                Solicitar Baixa
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <BarcodeScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onDetected={(code) => { setScannerOpen(false); buscarPorEAN(code); }}
+      />
+    </>
   );
 }
+
 
 function useBaixas(statuses: string[]) {
   return useQuery({
