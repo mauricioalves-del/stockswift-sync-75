@@ -377,14 +377,16 @@ function FilaAprovacao() {
     if (!confirm(`Executar baixa de ${b.quantidade} ${b.unidade ?? ""} do produto ${b.codigo_produto}?`)) return;
     const user = (await supabase.auth.getUser()).data.user!;
 
-    // Re-checa estoque e atualiza
+    // Re-checa estoque e atualiza (chave: produto + lote + origem)
     const { data: est } = await (supabase as any)
       .from("estoque_sistemico")
       .select("id, quantidade")
       .eq("id_produto", b.codigo_produto)
       .eq("lote", b.lote ?? "")
+      .eq("origem", b.id_local ?? "")
       .maybeSingle();
-    if (!est) return toast.error("Estoque do produto/lote não encontrado");
+    if (!est) return toast.error("Estoque do produto/lote/origem não encontrado");
+
     const novo = Number(est.quantidade) - Number(b.quantidade);
     if (novo < 0) return toast.error("Estoque negativo bloqueado");
 
