@@ -126,13 +126,14 @@ function ImportarPage() {
     const agg = new Map<string, {
       id_produto: string; lote: string; descricao: string; unidade: string; quantidade: number;
       custo_unitario: number; id_local: string; origem: string; cliente: string;
-      data_validade: string | null; importado_por: string | undefined;
+      data_validade: string | null; importado_por: string | undefined; ean: string | null;
     }>();
     for (const r of rows) {
       const key = `${r.id_produto}|${r.lote || ""}|${r.origem}`;
       const prev = agg.get(key);
       if (prev) {
         prev.quantidade += r.qtd;
+        if (!prev.ean && r.ean) prev.ean = r.ean;
       } else {
         agg.set(key, {
           id_produto: r.id_produto,
@@ -146,10 +147,12 @@ function ImportarPage() {
           cliente: "",
           data_validade: r.data_validade || null,
           importado_por: userId,
+          ean: r.ean || null,
         });
       }
     }
     const payload = Array.from(agg.values());
+
 
     let ok = 0;
     let fail = 0;
