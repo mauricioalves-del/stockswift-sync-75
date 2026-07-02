@@ -182,6 +182,7 @@ export type Database = {
           data_importacao: string
           data_validade: string | null
           descricao: string
+          ean: string | null
           id: string
           id_local: string
           id_produto: string
@@ -197,6 +198,7 @@ export type Database = {
           data_importacao?: string
           data_validade?: string | null
           descricao?: string
+          ean?: string | null
           id?: string
           id_local?: string
           id_produto: string
@@ -212,6 +214,7 @@ export type Database = {
           data_importacao?: string
           data_validade?: string | null
           descricao?: string
+          ean?: string | null
           id?: string
           id_local?: string
           id_produto?: string
