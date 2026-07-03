@@ -297,7 +297,7 @@ function PlanejamentoPage() {
                       <TableCell className="text-xs font-medium">{l.origem_abastecimento}</TableCell>
                       <TableCell className="text-right tabular-nums">{formatNum(l.estoque)}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.cmd.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">{l.ruptura ? <Badge className="bg-destructive text-destructive-foreground">RUPTURA</Badge> : <CoberturaBadge dias={l.cobertura_atual} />}</TableCell>
+                      <TableCell className="text-right"><CoberturaBadge dias={l.cobertura_atual} /></TableCell>
                       <TableCell className="text-right tabular-nums">{l.cobertura_alvo}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.demanda_extra > 0 ? `+${formatNum(l.demanda_extra)}` : "—"}</TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">{formatNum(l.sugestao)}</TableCell>
