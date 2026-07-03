@@ -45,7 +45,7 @@ type ProdutoRep = {
 };
 
 
-type EstoqueRow = { id_produto: string; origem: string; quantidade: number; custo_unitario: number };
+type EstoqueRow = { id_produto: string; origem: string; quantidade: number; custo_unitario: number; descricao: string | null };
 
 type ImportRow = { id_produto: string; descricao: string; unidade: string; custo_referencia: number; cobertura_dias: number; estoque_minimo: number; estoque_ideal: number; estoque_maximo: number };
 
