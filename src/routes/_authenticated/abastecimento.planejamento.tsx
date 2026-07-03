@@ -255,16 +255,26 @@ function PlanejamentoPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><Compass className="size-6" /> Planejamento de Cobertura</h1>
           <p className="text-sm text-muted-foreground">
-            Cobertura = Estoque ÷ CMD · Sugestão = (CMD × Cobertura Alvo + Demanda Extra) − Estoque
+            {metodo === "COBERTURA"
+              ? "Cobertura = Estoque ÷ CMD · Sugestão = (CMD × Cob. Alvo + Demanda Extra) − Estoque"
+              : "Se Estoque < Mín ⇒ Sugestão = Ideal − Estoque (limitado ao Máx)"}
           </p>
         </div>
-        <Button
-          onClick={() => gerarPedido.mutate()}
-          disabled={sugeridosCount === 0 || gerarPedido.isPending}
-        >
-          {gerarPedido.isPending ? <Loader2 className="size-4 mr-1 animate-spin" /> : <FileText className="size-4 mr-1" />}
-          Gerar Pedido de Abastecimento{sugeridosCount > 0 ? ` (${sugeridosCount})` : ""}
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+          <Tabs value={metodo} onValueChange={(v) => setMetodo(v as Metodo)}>
+            <TabsList>
+              <TabsTrigger value="COBERTURA">Por Demanda (Cobertura)</TabsTrigger>
+              <TabsTrigger value="MINMAX">Mín / Ideal / Máx</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Button
+            onClick={() => gerarPedido.mutate()}
+            disabled={sugeridosCount === 0 || gerarPedido.isPending}
+          >
+            {gerarPedido.isPending ? <Loader2 className="size-4 mr-1 animate-spin" /> : <FileText className="size-4 mr-1" />}
+            Gerar Pedido{sugeridosCount > 0 ? ` (${sugeridosCount})` : ""}
+          </Button>
+        </div>
       </div>
 
 
@@ -279,9 +289,19 @@ function PlanejamentoPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <KPI label="SKUs" value={String(kpis.total)} />
-        <KPI label="Abaixo da cobertura" value={String(kpis.abaixo)} tone="warning" />
-        <KPI label="Cobertura < 3 dias" value={String(kpis.criticos)} tone="danger" />
-        <KPI label="Cobertura média" value={`${kpis.cobMedia.toFixed(1)} d`} />
+        {metodo === "COBERTURA" ? (
+          <>
+            <KPI label="Abaixo da cobertura" value={String(kpis.abaixo)} tone="warning" />
+            <KPI label="Cobertura < 3 dias" value={String(kpis.criticos)} tone="danger" />
+            <KPI label="Cobertura média" value={`${kpis.cobMedia.toFixed(1)} d`} />
+          </>
+        ) : (
+          <>
+            <KPI label="Abaixo do mínimo" value={String(kpis.abaixoMin)} tone="danger" />
+            <KPI label="Acima do máximo" value={String(kpis.acimaMax)} tone="warning" />
+            <KPI label="A repor" value={String(sugeridosCount)} />
+          </>
+        )}
         <KPI label="Valor reposição" value={`R$ ${formatNum(kpis.valor)}`} />
       </div>
 
@@ -309,11 +329,16 @@ function PlanejamentoPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="size-4" /> Cobertura por SKU</CardTitle>
-          <CardDescription>Ordenado pelos mais críticos.</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2">
+            <TrendingUp className="size-4" />
+            {metodo === "COBERTURA" ? "Cobertura por SKU" : "Mín / Ideal / Máx por SKU"}
+          </CardTitle>
+          <CardDescription>
+            {metodo === "COBERTURA" ? "Ordenado pelos mais críticos." : "Vermelho: abaixo do mínimo · Amarelo: entre mín e ideal · Verde: ok · Azul: excesso"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? <Loader2 className="animate-spin" /> : (
+          {loading ? <Loader2 className="animate-spin" /> : metodo === "COBERTURA" ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow>
@@ -358,11 +383,48 @@ function PlanejamentoPage() {
                 </div>
               )}
             </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Produto</TableHead>
+                  <TableHead>Destino</TableHead>
+                  <TableHead className="text-right">Estoque</TableHead>
+                  <TableHead className="text-right">Mín</TableHead>
+                  <TableHead className="text-right">Ideal</TableHead>
+                  <TableHead className="text-right">Máx</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Sugestão</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {linhasFiltradas.slice(0, 500).map((l) => (
+                    <TableRow key={`${l.origem}|${l.sku}`}>
+                      <TableCell className="font-mono text-xs">{l.sku}</TableCell>
+                      <TableCell className="text-xs max-w-xs truncate">{l.produto}</TableCell>
+                      <TableCell className="text-xs">{l.origem}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatNum(l.estoque)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{formatNum(l.minimo)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{formatNum(l.ideal)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{formatNum(l.maximo)}</TableCell>
+                      <TableCell><MinMaxBadge estoque={l.estoque} min={l.minimo} ideal={l.ideal} max={l.maximo} /></TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums">{l.sugestao_minmax > 0 ? formatNum(l.sugestao_minmax) : "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                  {linhasFiltradas.length === 0 && (
+                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground text-sm py-6">
+                      Sem dados.
+                    </TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
     </div>
   );
+
 }
 
 function CoberturaBadge({ dias }: { dias: number }) {
