@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,10 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Settings2, Plus, Loader2, Save } from "lucide-react";
+import { Settings2, Plus, Loader2, Save, Upload, FileSpreadsheet, Trash2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { formatNum, formatBRL } from "@/lib/inventory";
 
 export const Route = createFileRoute("/_authenticated/abastecimento/parametros")({
   component: ParametrosPage,
@@ -27,6 +30,20 @@ type Parametro = {
   frequencia_abastecimento: string;
   ativo: boolean;
 };
+
+type ProdutoRep = {
+  id: string;
+  id_produto: string;
+  descricao: string;
+  unidade: string;
+  custo_referencia: number;
+  cobertura_dias: number;
+  ativo: boolean;
+};
+
+type EstoqueRow = { id_produto: string; origem: string; quantidade: number; custo_unitario: number };
+
+type ImportRow = { id_produto: string; descricao: string; unidade: string; custo_referencia: number; cobertura_dias: number };
 
 function ParametrosPage() {
   const { canWrite } = useRole();
@@ -91,7 +108,7 @@ function ParametrosPage() {
   const origensLivres = (origensQ.data ?? []).filter((o) => !origensExistentes.has(o));
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4">
+    <div className="max-w-6xl mx-auto space-y-4">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Settings2 className="size-6" /> Parâmetros de Abastecimento
@@ -155,6 +172,8 @@ function ParametrosPage() {
           )}
         </CardContent>
       </Card>
+
+      <ProdutosReposicaoCard />
     </div>
   );
 }
@@ -200,5 +219,241 @@ function LinhaParam({ p, onSalvar, origens }: { p: Parametro; onSalvar: (p: Para
         <Button size="sm" onClick={() => onSalvar(local)}><Save className="size-3.5" /></Button>
       </TableCell>
     </TableRow>
+  );
+}
+
+function pick(r: Record<string, unknown>, ...keys: string[]): string {
+  for (const k of keys) {
+    const v = r[k];
+    if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
+  }
+  return "";
+}
+
+function ProdutosReposicaoCard() {
+  const qc = useQueryClient();
+  const [preview, setPreview] = useState<ImportRow[]>([]);
+  const [filename, setFilename] = useState("");
+  const [errors, setErrors] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [busca, setBusca] = useState("");
+
+  const produtosQ = useQuery({
+    queryKey: ["produtos_reposicao"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("produtos_reposicao" as never)
+        .select("*").order("id_produto");
+      if (error) throw error;
+      return (data ?? []) as unknown as ProdutoRep[];
+    },
+  });
+
+  const skus = (produtosQ.data ?? []).map((p) => p.id_produto);
+
+  const estoqueQ = useQuery({
+    queryKey: ["produtos_reposicao_estoque", skus.join(",")],
+    enabled: skus.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("estoque_sistemico")
+        .select("id_produto, origem, quantidade, custo_unitario")
+        .in("id_produto", skus);
+      if (error) throw error;
+      return (data ?? []) as unknown as EstoqueRow[];
+    },
+  });
+
+  const saldoPorSku = useMemo(() => {
+    const m = new Map<string, { qtd: number; custo: number; almox: Set<string> }>();
+    for (const e of (estoqueQ.data ?? [])) {
+      const prev = m.get(e.id_produto) ?? { qtd: 0, custo: 0, almox: new Set() };
+      prev.qtd += Number(e.quantidade);
+      if (Number(e.custo_unitario) > 0) prev.custo = Number(e.custo_unitario);
+      if (e.origem) prev.almox.add(e.origem);
+      m.set(e.id_produto, prev);
+    }
+    return m;
+  }, [estoqueQ.data]);
+
+  const filtrados = (produtosQ.data ?? []).filter((p) => {
+    if (!busca) return true;
+    const t = busca.toLowerCase();
+    return p.id_produto.toLowerCase().includes(t) || p.descricao.toLowerCase().includes(t);
+  });
+
+  async function handleFile(f: File) {
+    setFilename(f.name);
+    setPreview([]);
+    setErrors([]);
+    try {
+      const buf = await f.arrayBuffer();
+      const wb = XLSX.read(buf);
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+      if (data.length === 0) { setErrors(["Planilha vazia"]); return; }
+
+      const errs: string[] = [];
+      const rows: ImportRow[] = [];
+      data.forEach((r, idx) => {
+        const id = pick(r, "Id_produto", "id_produto", "SKU", "sku", "Codigo", "Código");
+        if (!id) { errs.push(`Linha ${idx + 2}: SKU vazio`); return; }
+        rows.push({
+          id_produto: id,
+          descricao: pick(r, "descricao", "Descricao", "Descrição", "descricao_produto"),
+          unidade: pick(r, "UM", "um", "Unidade", "unidade") || "UN",
+          custo_referencia: Number(String(r["Custo"] ?? r["custo"] ?? r["Custo_Vlr"] ?? 0).replace(",", ".")) || 0,
+          cobertura_dias: Number(String(r["Cobertura"] ?? r["cobertura"] ?? r["Cobertura_Dias"] ?? 8).replace(",", ".")) || 8,
+        });
+      });
+      setPreview(rows);
+      setErrors(errs);
+    } catch (e) {
+      setErrors([(e as Error).message]);
+    }
+  }
+
+  async function importar() {
+    if (preview.length === 0) return;
+    setImporting(true);
+    const uid = (await supabase.auth.getUser()).data.user?.id;
+    const payload = preview.map((r) => ({ ...r, ativo: true, importado_por: uid }));
+
+    let ok = 0, fail = 0;
+    const CHUNK = 500;
+    for (let i = 0; i < payload.length; i += CHUNK) {
+      const slice = payload.slice(i, i + CHUNK);
+      const { error } = await supabase.from("produtos_reposicao" as never)
+        .upsert(slice as never, { onConflict: "id_produto" });
+      if (error) { fail += slice.length; console.error(error); }
+      else ok += slice.length;
+    }
+    setImporting(false);
+    if (fail === 0) toast.success(`${ok} produtos importados`);
+    else toast.error(`${fail} falhas na importação`);
+    setPreview([]);
+    setFilename("");
+    qc.invalidateQueries({ queryKey: ["produtos_reposicao"] });
+  }
+
+  async function toggleAtivo(p: ProdutoRep, ativo: boolean) {
+    await supabase.from("produtos_reposicao" as never).update({ ativo } as never).eq("id", p.id);
+    qc.invalidateQueries({ queryKey: ["produtos_reposicao"] });
+  }
+
+  async function remover(p: ProdutoRep) {
+    if (!confirm(`Remover ${p.id_produto}?`)) return;
+    await supabase.from("produtos_reposicao" as never).delete().eq("id", p.id);
+    qc.invalidateQueries({ queryKey: ["produtos_reposicao"] });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <FileSpreadsheet className="size-4" /> Produtos para Reposição
+        </CardTitle>
+        <CardDescription>
+          Importe a lista de SKUs monitorados. O saldo é atualizado automaticamente conforme sincronização do estoque.
+          Colunas aceitas: <b>Id_produto</b>, descricao, UM, Custo, Cobertura.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg p-6 cursor-pointer hover:bg-accent/30 transition-colors">
+          <Upload className="size-7 text-primary" />
+          <div className="text-center text-sm">
+            <div className="font-medium">Selecione a planilha de produtos</div>
+            <div className="text-xs text-muted-foreground">.xlsx / .xls</div>
+          </div>
+          <input type="file" accept=".xlsx,.xls" className="hidden"
+            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+          {filename && <div className="text-xs text-muted-foreground flex items-center gap-1.5"><FileSpreadsheet className="size-3.5" />{filename}</div>}
+        </label>
+
+        {errors.length > 0 && (
+          <div className="text-xs text-destructive flex items-start gap-2 p-3 border border-destructive/40 rounded-md">
+            <AlertCircle className="size-4 mt-0.5" />
+            <div>
+              <div className="font-semibold mb-1">{errors.length} erro(s)</div>
+              <ul className="space-y-0.5 max-h-32 overflow-y-auto">
+                {errors.slice(0, 20).map((e, i) => <li key={i}>• {e}</li>)}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {preview.length > 0 && (
+          <div className="border rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="text-sm">Preview: <b>{preview.length}</b> registros</div>
+              <Button size="sm" onClick={importar} disabled={importing}>
+                {importing ? <><Loader2 className="size-3.5 animate-spin mr-1" /> Importando…</> : <><Upload className="size-3.5 mr-1" /> Confirmar importação</>}
+              </Button>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Exemplos: {preview.slice(0, 3).map((p) => p.id_produto).join(", ")}{preview.length > 3 ? "…" : ""}
+            </div>
+          </div>
+        )}
+
+        <div>
+          <Label className="text-xs">Buscar</Label>
+          <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="SKU ou descrição…" />
+        </div>
+
+        {produtosQ.isLoading ? <Loader2 className="animate-spin" /> : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>SKU</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead>UM</TableHead>
+                <TableHead className="text-right">Cob. (d)</TableHead>
+                <TableHead className="text-right">Custo Ref.</TableHead>
+                <TableHead className="text-right">Saldo Atual</TableHead>
+                <TableHead className="text-right">Almox</TableHead>
+                <TableHead className="w-20">Ativo</TableHead>
+                <TableHead className="w-12"></TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {filtrados.slice(0, 500).map((p) => {
+                  const s = saldoPorSku.get(p.id_produto);
+                  const qtd = s?.qtd ?? 0;
+                  return (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-mono text-xs">{p.id_produto}</TableCell>
+                      <TableCell className="text-xs max-w-xs truncate">{p.descricao}</TableCell>
+                      <TableCell className="text-xs">{p.unidade}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{p.cobertura_dias}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{formatBRL(p.custo_referencia)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">
+                        {qtd > 0
+                          ? formatNum(qtd)
+                          : <Badge className="bg-destructive/15 text-destructive border-destructive/30">Sem saldo</Badge>}
+                      </TableCell>
+                      <TableCell className="text-right text-xs">{s?.almox.size ?? 0}</TableCell>
+                      <TableCell><Switch checked={p.ativo} onCheckedChange={(v) => toggleAtivo(p, v)} /></TableCell>
+                      <TableCell>
+                        <Button size="icon" variant="ghost" onClick={() => remover(p)}>
+                          <Trash2 className="size-3.5 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {filtrados.length === 0 && (
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground text-sm py-6">
+                    Nenhum produto cadastrado. Importe uma planilha acima.
+                  </TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+            {filtrados.length > 500 && (
+              <div className="text-xs text-muted-foreground p-2 text-center">
+                … exibindo 500 de {filtrados.length}.
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -732,6 +732,45 @@ export type Database = {
         }
         Relationships: []
       }
+      produtos_reposicao: {
+        Row: {
+          ativo: boolean
+          cobertura_dias: number
+          created_at: string
+          custo_referencia: number
+          descricao: string
+          id: string
+          id_produto: string
+          importado_por: string | null
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cobertura_dias?: number
+          created_at?: string
+          custo_referencia?: number
+          descricao?: string
+          id?: string
+          id_produto: string
+          importado_por?: string | null
+          unidade?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cobertura_dias?: number
+          created_at?: string
+          custo_referencia?: number
+          descricao?: string
+          id?: string
+          id_produto?: string
+          importado_por?: string | null
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
