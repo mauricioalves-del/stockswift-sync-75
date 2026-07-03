@@ -252,20 +252,66 @@ function NovaBaixaForm() {
         <CardContent>
           <form onSubmit={onSubmit} className="grid md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <Label>Código de Barras (EAN) *</Label>
-              <div className="flex gap-2">
+              <Label>Código do Produto / QR / EAN *</Label>
+              <div className="flex flex-wrap gap-2">
                 <Input
                   value={ean}
                   onChange={(e) => setEan(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); buscarPorCodigo(ean); } }}
-                  placeholder="Escaneie ou digite o EAN e pressione Enter"
+                  placeholder="Escaneie o QR/código de barras ou digite o Código do Produto"
+                  className="flex-1 min-w-[220px]"
                 />
                 <Button type="button" variant="outline" onClick={() => buscarPorCodigo(ean)}>Buscar</Button>
                 <Button type="button" onClick={() => setScannerOpen(true)} className="gap-2">
                   <ScanBarcode className="size-4" /> Escanear
                 </Button>
+                <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="secondary" className="gap-2">
+                      <List className="size-4" /> Lista de Produtos
+                      <ChevronsUpDown className="size-3 opacity-60" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[420px] p-0" align="end">
+                    <Command
+                      filter={(value, search) => {
+                        const s = search.toLowerCase();
+                        return value.toLowerCase().includes(s) ? 1 : 0;
+                      }}
+                    >
+                      <CommandInput placeholder="Buscar por código ou descrição..." />
+                      <CommandList>
+                        <CommandEmpty>
+                          {produtosQ.isLoading ? "Carregando..." : "Nenhum produto encontrado"}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {(produtosQ.data ?? []).map((p) => {
+                            const selected = produto?.id_produto === p.id_produto;
+                            return (
+                              <CommandItem
+                                key={p.id_produto}
+                                value={`${p.id_produto} ${p.descricao}`}
+                                onSelect={() => selecionarProdutoManual(p)}
+                              >
+                                <Check className={cn("mr-2 size-4", selected ? "opacity-100" : "opacity-0")} />
+                                <div className="flex flex-col">
+                                  <span className="font-mono text-xs">{p.id_produto}</span>
+                                  <span className="text-sm truncate">{p.descricao || "—"}</span>
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                QR de rastreabilidade: apenas o valor numérico é considerado. A busca é feita pelo Código do Produto (Id_Produto).
+              </p>
             </div>
+
 
             <div>
               <Label>SKU</Label>
