@@ -189,7 +189,7 @@ function PlanejamentoPage() {
   const semParams = (paramsQ.data ?? []).length === 0;
 
   const nav = useNavigate();
-  const nav = useNavigate();
+
   const gerarPedido = useMutation({
     mutationFn: async () => {
       const sugeridos = linhasFiltradas
