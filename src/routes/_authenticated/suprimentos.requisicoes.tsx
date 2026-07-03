@@ -225,8 +225,8 @@ function NovaRequisicaoDialog({ open, onClose, onCreated }: { open: boolean; onC
   const origensQ = useQuery({
     queryKey: ["origens_req"],
     queryFn: async () => {
-      const { data } = await supabase.from("origens").select("codigo").order("codigo");
-      return (data ?? []).map((o: { codigo: string }) => o.codigo);
+      const { data } = await supabase.from("origens").select("codigo_origem").eq("ativo", true).order("codigo_origem");
+      return (data ?? []).map((o) => o.codigo_origem as string);
     },
     enabled: open,
   });
