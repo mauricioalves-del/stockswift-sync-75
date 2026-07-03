@@ -17,7 +17,7 @@ import { useRole } from "@/hooks/useRole";
 import { formatBRL } from "@/lib/inventory";
 import { SepararRequisicaoDialog } from "@/components/suprimentos/SepararRequisicaoDialog";
 
-export const Route = createFileRoute("/_authenticated/suprimentos/requisicoes")({
+export const Route = createFileRoute("/_authenticated/suprimentos/requisicoes/")({
   component: RequisicoesPage,
   head: () => ({ meta: [{ title: "Requisições" }] }),
 });
