@@ -248,7 +248,7 @@ function PlanejamentoPage() {
         <CardHeader>
           <CardTitle className="text-base">Filtros</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <Label className="text-xs">Origem</Label>
             <Select value={origemF} onValueChange={setOrigemF}>
@@ -256,16 +256,6 @@ function PlanejamentoPage() {
               <SelectContent>
                 <SelectItem value="__all">Todos os almox</SelectItem>
                 {origensAtivas.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Grupo de produto</Label>
-            <Select value={grupoF} onValueChange={setGrupoF}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__default">Elegíveis (Acabado + Revenda)</SelectItem>
-                {(gruposDisponiveisQ.data ?? []).map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
