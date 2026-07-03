@@ -5,7 +5,7 @@ import {
   Users as UsersIcon, ScrollText, Settings as SettingsIcon, LogOut, Menu, X,
   Sun, Moon, Wifi, WifiOff, RefreshCw, Layers, FolderTree, Package, BarChart3,
   Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp, Warehouse,
-  Compass, Sparkles, Settings2,
+  Compass, Sparkles, Settings2, Boxes, Truck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -42,12 +42,17 @@ const NAV: (NavItem | NavGroup)[] = [
     ],
   },
   {
-    id: "gestao", label: "Gestão", icon: TrendingUp, role: "admin",
+    id: "suprimentos", label: "Suprimentos", icon: Truck, role: "any",
     items: [
       { to: "/abastecimento/planejamento", label: "Planejamento de Cobertura", icon: Compass, role: "write" },
       { to: "/abastecimento/demandas", label: "Demandas Extras", icon: Sparkles, role: "write" },
       { to: "/abastecimento/consumo", label: "Importar Consumo", icon: TrendingUp, role: "write" },
       { to: "/abastecimento/parametros", label: "Parâmetros Abastecimento", icon: Settings2, role: "admin" },
+    ],
+  },
+  {
+    id: "gestao", label: "Gestão", icon: TrendingUp, role: "admin",
+    items: [
       { to: "/baixas", label: "Baixas Operacionais", icon: PackageMinus, role: "write" },
       { to: "/missoes", label: "Missões", icon: Target, role: "admin" },
       { to: "/abc", label: "Classificação ABC", icon: BarChart3, role: "admin" },
