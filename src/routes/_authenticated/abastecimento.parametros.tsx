@@ -131,7 +131,8 @@ function ParametrosPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Origem</TableHead>
+                    <TableHead>Origem (Destino)</TableHead>
+                    <TableHead className="w-56">Origem de Abastecimento</TableHead>
                     <TableHead className="w-32">Cobertura (dias)</TableHead>
                     <TableHead className="w-32">Segurança (dias)</TableHead>
                     <TableHead className="w-40">Frequência</TableHead>
@@ -141,10 +142,10 @@ function ParametrosPage() {
                 </TableHeader>
                 <TableBody>
                   {(paramsQ.data ?? []).map((p) => (
-                    <LinhaParam key={p.id} p={p} onSalvar={salvar} />
+                    <LinhaParam key={p.id} p={p} onSalvar={salvar} origens={origensQ.data ?? []} />
                   ))}
                   {(paramsQ.data ?? []).length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground text-sm py-6">
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground text-sm py-6">
                       Nenhum almox habilitado.
                     </TableCell></TableRow>
                   )}
