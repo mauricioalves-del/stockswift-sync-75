@@ -9,9 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Compass, Loader2, AlertTriangle, TrendingUp, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { formatNum } from "@/lib/inventory";
+
 
 
 export const Route = createFileRoute("/_authenticated/abastecimento/planejamento")({
