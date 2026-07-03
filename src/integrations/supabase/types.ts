@@ -870,11 +870,17 @@ export type Database = {
           descricao: string
           id: string
           id_produto: string
+          lotes_separados: Json
+          motivo_nao_separacao: string | null
           observacao: string | null
           quantidade_aprovada: number | null
           quantidade_atendida: number | null
+          quantidade_separada: number
           quantidade_solicitada: number
           requisicao_id: string
+          separado_em: string | null
+          separado_por: string | null
+          status_item: string
           unidade: string
           updated_at: string
           valor_total: number
@@ -885,11 +891,17 @@ export type Database = {
           descricao: string
           id?: string
           id_produto: string
+          lotes_separados?: Json
+          motivo_nao_separacao?: string | null
           observacao?: string | null
           quantidade_aprovada?: number | null
           quantidade_atendida?: number | null
+          quantidade_separada?: number
           quantidade_solicitada?: number
           requisicao_id: string
+          separado_em?: string | null
+          separado_por?: string | null
+          status_item?: string
           unidade?: string
           updated_at?: string
           valor_total?: number
@@ -900,11 +912,17 @@ export type Database = {
           descricao?: string
           id?: string
           id_produto?: string
+          lotes_separados?: Json
+          motivo_nao_separacao?: string | null
           observacao?: string | null
           quantidade_aprovada?: number | null
           quantidade_atendida?: number | null
+          quantidade_separada?: number
           quantidade_solicitada?: number
           requisicao_id?: string
+          separado_em?: string | null
+          separado_por?: string | null
+          status_item?: string
           unidade?: string
           updated_at?: string
           valor_total?: number
