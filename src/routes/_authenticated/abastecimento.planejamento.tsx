@@ -236,7 +236,7 @@ function PlanejamentoPage() {
                     </TableRow>
                   ))}
                   {linhasFiltradas.length === 0 && (
-                    <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground text-sm py-6">
+                    <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground text-sm py-6">
                       Sem dados. Cadastre parâmetros e importe consumo.
                     </TableCell></TableRow>
                   )}
