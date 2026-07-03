@@ -44,6 +44,9 @@ const NAV: (NavItem | NavGroup)[] = [
   {
     id: "suprimentos", label: "Suprimentos", icon: Truck, role: "any",
     items: [
+      { to: "/suprimentos/dashboard", label: "Dashboard Suprimentos", icon: LayoutDashboard, role: "any" },
+      { to: "/suprimentos/estoque", label: "Posição de Estoque", icon: Boxes, role: "any" },
+      { to: "/suprimentos/requisicoes", label: "Requisições", icon: ClipboardList, role: "write" },
       { to: "/abastecimento/planejamento", label: "Planejamento de Cobertura", icon: Compass, role: "write" },
       { to: "/abastecimento/demandas", label: "Demandas Extras", icon: Sparkles, role: "write" },
       { to: "/abastecimento/consumo", label: "Importar Consumo", icon: TrendingUp, role: "write" },
