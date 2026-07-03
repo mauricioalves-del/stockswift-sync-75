@@ -210,12 +210,22 @@ function PlanejamentoPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Compass className="size-6" /> Planejamento de Cobertura</h1>
-        <p className="text-sm text-muted-foreground">
-          Cobertura = Estoque ÷ CMD · Sugestão = (CMD × Cobertura Alvo + Demanda Extra) − Estoque
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Compass className="size-6" /> Planejamento de Cobertura</h1>
+          <p className="text-sm text-muted-foreground">
+            Cobertura = Estoque ÷ CMD · Sugestão = (CMD × Cobertura Alvo + Demanda Extra) − Estoque
+          </p>
+        </div>
+        <Button
+          onClick={() => gerarPedido.mutate()}
+          disabled={sugeridosCount === 0 || gerarPedido.isPending}
+        >
+          {gerarPedido.isPending ? <Loader2 className="size-4 mr-1 animate-spin" /> : <FileText className="size-4 mr-1" />}
+          Gerar Pedido de Abastecimento{sugeridosCount > 0 ? ` (${sugeridosCount})` : ""}
+        </Button>
       </div>
+
 
       {semParams && !loading && (
         <Card className="border-warning/40">
