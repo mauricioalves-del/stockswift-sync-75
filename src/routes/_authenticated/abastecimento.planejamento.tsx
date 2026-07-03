@@ -204,7 +204,7 @@ function PlanejamentoPage() {
     return { total, abaixo, rupturas, valor, cobMedia };
   }, [linhasFiltradas]);
 
-  const loading = paramsQ.isLoading || estoqueQ.isLoading;
+  const loading = paramsQ.isLoading || produtosQ.isLoading || estoqueQ.isLoading;
   const semParams = (paramsQ.data ?? []).length === 0;
 
   const nav = useNavigate();
