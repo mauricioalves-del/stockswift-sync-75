@@ -175,6 +175,66 @@ export type Database = {
         }
         Relationships: []
       }
+      demanda_extra: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          created_at: string
+          data_fim: string
+          data_inicio: string
+          familia: string | null
+          grupo_produto: string | null
+          id: string
+          motivo: string
+          observacao: string | null
+          origem: string
+          produto: string
+          quantidade_extra: number
+          responsavel: string | null
+          sku: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string
+          data_fim?: string
+          data_inicio?: string
+          familia?: string | null
+          grupo_produto?: string | null
+          id?: string
+          motivo?: string
+          observacao?: string | null
+          origem: string
+          produto?: string
+          quantidade_extra?: number
+          responsavel?: string | null
+          sku: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string
+          data_fim?: string
+          data_inicio?: string
+          familia?: string | null
+          grupo_produto?: string | null
+          id?: string
+          motivo?: string
+          observacao?: string | null
+          origem?: string
+          produto?: string
+          quantidade_extra?: number
+          responsavel?: string | null
+          sku?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       estoque_sistemico: {
         Row: {
           cliente: string
@@ -274,6 +334,39 @@ export type Database = {
           grupo?: string
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      historico_consumo: {
+        Row: {
+          created_at: string
+          data_movimento: string
+          descricao: string | null
+          id: string
+          importado_por: string | null
+          origem: string
+          quantidade: number
+          sku: string
+        }
+        Insert: {
+          created_at?: string
+          data_movimento: string
+          descricao?: string | null
+          id?: string
+          importado_por?: string | null
+          origem: string
+          quantidade?: number
+          sku: string
+        }
+        Update: {
+          created_at?: string
+          data_movimento?: string
+          descricao?: string | null
+          id?: string
+          importado_por?: string | null
+          origem?: string
+          quantidade?: number
+          sku?: string
         }
         Relationships: []
       }
@@ -563,6 +656,39 @@ export type Database = {
           created_at?: string
           descricao?: string
           id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      parametros_abastecimento: {
+        Row: {
+          ativo: boolean
+          cobertura_dias: number
+          created_at: string
+          dias_seguranca: number
+          frequencia_abastecimento: string
+          id: string
+          origem: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cobertura_dias?: number
+          created_at?: string
+          dias_seguranca?: number
+          frequencia_abastecimento?: string
+          id?: string
+          origem: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cobertura_dias?: number
+          created_at?: string
+          dias_seguranca?: number
+          frequencia_abastecimento?: string
+          id?: string
+          origem?: string
           updated_at?: string
         }
         Relationships: []
