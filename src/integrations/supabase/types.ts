@@ -669,6 +669,7 @@ export type Database = {
           frequencia_abastecimento: string
           id: string
           origem: string
+          origem_abastecimento: string
           updated_at: string
         }
         Insert: {
@@ -679,6 +680,7 @@ export type Database = {
           frequencia_abastecimento?: string
           id?: string
           origem: string
+          origem_abastecimento?: string
           updated_at?: string
         }
         Update: {
@@ -689,6 +691,7 @@ export type Database = {
           frequencia_abastecimento?: string
           id?: string
           origem?: string
+          origem_abastecimento?: string
           updated_at?: string
         }
         Relationships: []

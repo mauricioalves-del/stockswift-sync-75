@@ -21,6 +21,7 @@ export const Route = createFileRoute("/_authenticated/abastecimento/parametros")
 type Parametro = {
   id: string;
   origem: string;
+  origem_abastecimento: string;
   cobertura_dias: number;
   dias_seguranca: number;
   frequencia_abastecimento: string;
@@ -56,6 +57,7 @@ function ParametrosPage() {
     if (!novaOrigem) return;
     const { error } = await supabase.from("parametros_abastecimento" as never).insert({
       origem: novaOrigem,
+      origem_abastecimento: "Alm_SP_Fabrica",
       cobertura_dias: 8,
       dias_seguranca: 1,
       frequencia_abastecimento: "SEMANAL",
@@ -71,6 +73,7 @@ function ParametrosPage() {
     const { error } = await supabase
       .from("parametros_abastecimento" as never)
       .update({
+        origem_abastecimento: p.origem_abastecimento,
         cobertura_dias: p.cobertura_dias,
         dias_seguranca: p.dias_seguranca,
         frequencia_abastecimento: p.frequencia_abastecimento,
@@ -128,7 +131,8 @@ function ParametrosPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Origem</TableHead>
+                    <TableHead>Origem (Destino)</TableHead>
+                    <TableHead className="w-56">Origem de Abastecimento</TableHead>
                     <TableHead className="w-32">Cobertura (dias)</TableHead>
                     <TableHead className="w-32">Segurança (dias)</TableHead>
                     <TableHead className="w-40">Frequência</TableHead>
@@ -138,10 +142,10 @@ function ParametrosPage() {
                 </TableHeader>
                 <TableBody>
                   {(paramsQ.data ?? []).map((p) => (
-                    <LinhaParam key={p.id} p={p} onSalvar={salvar} />
+                    <LinhaParam key={p.id} p={p} onSalvar={salvar} origens={origensQ.data ?? []} />
                   ))}
                   {(paramsQ.data ?? []).length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground text-sm py-6">
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground text-sm py-6">
                       Nenhum almox habilitado.
                     </TableCell></TableRow>
                   )}
@@ -155,11 +159,21 @@ function ParametrosPage() {
   );
 }
 
-function LinhaParam({ p, onSalvar }: { p: Parametro; onSalvar: (p: Parametro) => void }) {
+function LinhaParam({ p, onSalvar, origens }: { p: Parametro; onSalvar: (p: Parametro) => void; origens: string[] }) {
   const [local, setLocal] = useState(p);
   return (
     <TableRow>
       <TableCell className="font-medium">{p.origem}</TableCell>
+      <TableCell>
+        <Select value={local.origem_abastecimento} onValueChange={(v) => setLocal({ ...local, origem_abastecimento: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {origens.filter((o) => o !== p.origem).map((o) => (
+              <SelectItem key={o} value={o}>{o}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
       <TableCell>
         <Input type="number" min={1} value={local.cobertura_dias}
           onChange={(e) => setLocal({ ...local, cobertura_dias: Number(e.target.value) })} />

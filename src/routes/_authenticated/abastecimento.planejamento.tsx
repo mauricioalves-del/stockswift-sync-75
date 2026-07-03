@@ -16,13 +16,13 @@ export const Route = createFileRoute("/_authenticated/abastecimento/planejamento
   head: () => ({ meta: [{ title: "Planejamento de Cobertura" }] }),
 });
 
-type Param = { origem: string; cobertura_dias: number; dias_seguranca: number; ativo: boolean };
+type Param = { origem: string; origem_abastecimento: string; cobertura_dias: number; dias_seguranca: number; ativo: boolean };
 type Estoque = { id_produto: string; descricao: string; quantidade: number; custo_unitario: number; origem: string };
 type Consumo = { origem: string; sku: string; quantidade: number; data_movimento: string };
 type Demanda = { origem: string; sku: string; quantidade_extra: number; status: string; data_inicio: string; data_fim: string };
 
 type Linha = {
-  sku: string; produto: string; origem: string;
+  sku: string; produto: string; origem: string; origem_abastecimento: string;
   estoque: number; cmd: number; cobertura_atual: number; cobertura_alvo: number;
   demanda_extra: number; necessidade: number; sugestao: number; custo_unitario: number; valor_reposicao: number;
 };
@@ -119,7 +119,7 @@ function PlanejamentoPage() {
       const necessidade = necessidade_base + demanda_extra;
       const sugestao = Math.max(0, necessidade - s.qtd);
       out.push({
-        sku: s.id_produto, produto: s.descricao, origem: s.origem,
+        sku: s.id_produto, produto: s.descricao, origem: s.origem, origem_abastecimento: p.origem_abastecimento,
         estoque: s.qtd, cmd, cobertura_atual, cobertura_alvo,
         demanda_extra, necessidade, sugestao,
         custo_unitario: Number(s.custo_unitario), valor_reposicao: sugestao * Number(s.custo_unitario),
@@ -209,7 +209,8 @@ function PlanejamentoPage() {
                 <TableHeader><TableRow>
                   <TableHead>SKU</TableHead>
                   <TableHead>Produto</TableHead>
-                  <TableHead>Origem</TableHead>
+                  <TableHead>Destino</TableHead>
+                  <TableHead>Abastecido por</TableHead>
                   <TableHead className="text-right">Estoque</TableHead>
                   <TableHead className="text-right">CMD</TableHead>
                   <TableHead className="text-right">Cob. Atual</TableHead>
@@ -224,6 +225,7 @@ function PlanejamentoPage() {
                       <TableCell className="font-mono text-xs">{l.sku}</TableCell>
                       <TableCell className="text-xs max-w-xs truncate">{l.produto}</TableCell>
                       <TableCell className="text-xs">{l.origem}</TableCell>
+                      <TableCell className="text-xs font-medium">{l.origem_abastecimento}</TableCell>
                       <TableCell className="text-right tabular-nums">{formatNum(l.estoque)}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.cmd.toFixed(2)}</TableCell>
                       <TableCell className="text-right"><CoberturaBadge dias={l.cobertura_atual} /></TableCell>
@@ -234,7 +236,7 @@ function PlanejamentoPage() {
                     </TableRow>
                   ))}
                   {linhasFiltradas.length === 0 && (
-                    <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground text-sm py-6">
+                    <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground text-sm py-6">
                       Sem dados. Cadastre parâmetros e importe consumo.
                     </TableCell></TableRow>
                   )}
