@@ -159,11 +159,21 @@ function ParametrosPage() {
   );
 }
 
-function LinhaParam({ p, onSalvar }: { p: Parametro; onSalvar: (p: Parametro) => void }) {
+function LinhaParam({ p, onSalvar, origens }: { p: Parametro; onSalvar: (p: Parametro) => void; origens: string[] }) {
   const [local, setLocal] = useState(p);
   return (
     <TableRow>
       <TableCell className="font-medium">{p.origem}</TableCell>
+      <TableCell>
+        <Select value={local.origem_abastecimento} onValueChange={(v) => setLocal({ ...local, origem_abastecimento: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {origens.filter((o) => o !== p.origem).map((o) => (
+              <SelectItem key={o} value={o}>{o}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
       <TableCell>
         <Input type="number" min={1} value={local.cobertura_dias}
           onChange={(e) => setLocal({ ...local, cobertura_dias: Number(e.target.value) })} />
