@@ -411,43 +411,27 @@ function ProdutosReposicaoCard() {
                 <TableHead>Descrição</TableHead>
                 <TableHead>UM</TableHead>
                 <TableHead className="text-right">Cob. (d)</TableHead>
+                <TableHead className="text-right w-20">Mín</TableHead>
+                <TableHead className="text-right w-20">Ideal</TableHead>
+                <TableHead className="text-right w-20">Máx</TableHead>
                 <TableHead className="text-right">Custo Ref.</TableHead>
                 <TableHead className="text-right">Saldo Atual</TableHead>
                 <TableHead className="text-right">Almox</TableHead>
                 <TableHead className="w-20">Ativo</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-16"></TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {filtrados.slice(0, 500).map((p) => {
                   const s = saldoPorSku.get(p.id_produto);
                   const qtd = s?.qtd ?? 0;
-                  return (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-mono text-xs">{p.id_produto}</TableCell>
-                      <TableCell className="text-xs max-w-xs truncate">{p.descricao}</TableCell>
-                      <TableCell className="text-xs">{p.unidade}</TableCell>
-                      <TableCell className="text-right tabular-nums text-xs">{p.cobertura_dias}</TableCell>
-                      <TableCell className="text-right tabular-nums text-xs">{formatBRL(p.custo_referencia)}</TableCell>
-                      <TableCell className="text-right tabular-nums text-xs">
-                        {qtd > 0
-                          ? formatNum(qtd)
-                          : <Badge className="bg-destructive/15 text-destructive border-destructive/30">Sem saldo</Badge>}
-                      </TableCell>
-                      <TableCell className="text-right text-xs">{s?.almox.size ?? 0}</TableCell>
-                      <TableCell><Switch checked={p.ativo} onCheckedChange={(v) => toggleAtivo(p, v)} /></TableCell>
-                      <TableCell>
-                        <Button size="icon" variant="ghost" onClick={() => remover(p)}>
-                          <Trash2 className="size-3.5 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
+                  return <LinhaProduto key={p.id} p={p} qtd={qtd} almox={s?.almox.size ?? 0} onToggle={toggleAtivo} onRemover={remover} onQc={() => qc.invalidateQueries({ queryKey: ["produtos_reposicao"] })} />;
                 })}
                 {filtrados.length === 0 && (
-                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground text-sm py-6">
+                  <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground text-sm py-6">
                     Nenhum produto cadastrado. Importe uma planilha acima.
                   </TableCell></TableRow>
                 )}
+
               </TableBody>
             </Table>
             {filtrados.length > 500 && (
