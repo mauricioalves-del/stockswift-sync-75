@@ -37,7 +37,7 @@ function EstoquePosicaoPage() {
 
   const origens = useMemo(() => {
     const s = new Set<string>();
-    (q.data ?? []).forEach((r) => s.add(r.origem));
+    (q.data ?? []).forEach((r) => { if (r.origem) s.add(r.origem); });
     return Array.from(s).sort();
   }, [q.data]);
 
