@@ -362,7 +362,7 @@ function ProdutosReposicaoCard() {
         </CardTitle>
         <CardDescription>
           Importe a lista de SKUs monitorados. O saldo é atualizado automaticamente conforme sincronização do estoque.
-          Colunas aceitas: <b>Id_produto</b>, descricao, UM, Custo, Cobertura.
+          Colunas aceitas: <b>Id_produto</b>, Descricao, UM, Custo, Cobertura, <b>Minimo</b>, <b>Ideal</b>, <b>Maximo</b>.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
