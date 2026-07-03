@@ -294,7 +294,7 @@ function PlanejamentoPage() {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <KPI label="SKUs" value={String(kpis.total)} />
         <KPI label="Abaixo da cobertura" value={String(kpis.abaixo)} tone="warning" />
-        <KPI label="Em ruptura (<3d)" value={String(kpis.rupturas)} tone="danger" />
+        <KPI label="Em ruptura" value={String(kpis.rupturas)} tone="danger" />
         <KPI label="Cobertura média" value={`${kpis.cobMedia.toFixed(1)} d`} />
         <KPI label="Valor reposição" value={`R$ ${formatNum(kpis.valor)}`} />
       </div>
