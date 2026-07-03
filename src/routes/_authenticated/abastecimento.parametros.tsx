@@ -45,9 +45,9 @@ type ProdutoRep = {
 };
 
 
-type EstoqueRow = { id_produto: string; origem: string; quantidade: number; custo_unitario: number };
+type EstoqueRow = { id_produto: string; origem: string; quantidade: number; custo_unitario: number; descricao: string | null };
 
-type ImportRow = { id_produto: string; descricao: string; unidade: string; custo_referencia: number; cobertura_dias: number };
+type ImportRow = { id_produto: string; descricao: string; unidade: string; custo_referencia: number; cobertura_dias: number; estoque_minimo: number; estoque_ideal: number; estoque_maximo: number };
 
 function ParametrosPage() {
   const { canWrite } = useRole();
@@ -259,7 +259,7 @@ function ProdutosReposicaoCard() {
     enabled: skus.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase.from("estoque_sistemico")
-        .select("id_produto, origem, quantidade, custo_unitario")
+        .select("id_produto, origem, quantidade, custo_unitario, descricao")
         .in("id_produto", skus);
       if (error) throw error;
       return (data ?? []) as unknown as EstoqueRow[];
@@ -267,12 +267,13 @@ function ProdutosReposicaoCard() {
   });
 
   const saldoPorSku = useMemo(() => {
-    const m = new Map<string, { qtd: number; custo: number; almox: Set<string> }>();
+    const m = new Map<string, { qtd: number; custo: number; almox: Set<string>; descricao: string }>();
     for (const e of (estoqueQ.data ?? [])) {
-      const prev = m.get(e.id_produto) ?? { qtd: 0, custo: 0, almox: new Set() };
+      const prev = m.get(e.id_produto) ?? { qtd: 0, custo: 0, almox: new Set(), descricao: "" };
       prev.qtd += Number(e.quantidade);
       if (Number(e.custo_unitario) > 0) prev.custo = Number(e.custo_unitario);
       if (e.origem) prev.almox.add(e.origem);
+      if (!prev.descricao && e.descricao) prev.descricao = e.descricao;
       m.set(e.id_produto, prev);
     }
     return m;
@@ -298,14 +299,18 @@ function ProdutosReposicaoCard() {
       const errs: string[] = [];
       const rows: ImportRow[] = [];
       data.forEach((r, idx) => {
-        const id = pick(r, "Id_produto", "id_produto", "SKU", "sku", "Codigo", "Código");
+        const id = pick(r, "Id_produto", "id_produto", "SKU", "sku", "Codigo", "Código", "codigo");
         if (!id) { errs.push(`Linha ${idx + 2}: SKU vazio`); return; }
+        const num = (v: unknown) => Number(String(v ?? 0).replace(",", ".")) || 0;
         rows.push({
           id_produto: id,
-          descricao: pick(r, "descricao", "Descricao", "Descrição", "descricao_produto"),
-          unidade: pick(r, "UM", "um", "Unidade", "unidade") || "UN",
-          custo_referencia: Number(String(r["Custo"] ?? r["custo"] ?? r["Custo_Vlr"] ?? 0).replace(",", ".")) || 0,
-          cobertura_dias: Number(String(r["Cobertura"] ?? r["cobertura"] ?? r["Cobertura_Dias"] ?? 8).replace(",", ".")) || 8,
+          descricao: pick(r, "descricao", "Descricao", "Descrição", "descricao_produto", "Descricao_Produto", "Produto", "produto", "Nome", "nome", "Nome_Produto"),
+          unidade: pick(r, "UM", "um", "Unidade", "unidade", "UN") || "UN",
+          custo_referencia: num(r["Custo"] ?? r["custo"] ?? r["Custo_Vlr"] ?? r["custo_referencia"] ?? r["Custo Referencia"]),
+          cobertura_dias: num(r["Cobertura"] ?? r["cobertura"] ?? r["Cobertura_Dias"] ?? r["cobertura_dias"]) || 8,
+          estoque_minimo: num(r["Minimo"] ?? r["minimo"] ?? r["Mínimo"] ?? r["mínimo"] ?? r["estoque_minimo"] ?? r["Estoque_Minimo"] ?? r["Estoque Mínimo"] ?? r["Min"] ?? r["min"]),
+          estoque_ideal: num(r["Ideal"] ?? r["ideal"] ?? r["estoque_ideal"] ?? r["Estoque_Ideal"] ?? r["Estoque Ideal"]),
+          estoque_maximo: num(r["Maximo"] ?? r["maximo"] ?? r["Máximo"] ?? r["máximo"] ?? r["estoque_maximo"] ?? r["Estoque_Maximo"] ?? r["Estoque Máximo"] ?? r["Max"] ?? r["max"]),
         });
       });
       setPreview(rows);
@@ -357,7 +362,7 @@ function ProdutosReposicaoCard() {
         </CardTitle>
         <CardDescription>
           Importe a lista de SKUs monitorados. O saldo é atualizado automaticamente conforme sincronização do estoque.
-          Colunas aceitas: <b>Id_produto</b>, descricao, UM, Custo, Cobertura.
+          Colunas aceitas: <b>Id_produto</b>, Descricao, UM, Custo, Cobertura, <b>Minimo</b>, <b>Ideal</b>, <b>Maximo</b>.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -424,7 +429,7 @@ function ProdutosReposicaoCard() {
                 {filtrados.slice(0, 500).map((p) => {
                   const s = saldoPorSku.get(p.id_produto);
                   const qtd = s?.qtd ?? 0;
-                  return <LinhaProduto key={p.id} p={p} qtd={qtd} almox={s?.almox.size ?? 0} onToggle={toggleAtivo} onRemover={remover} onQc={() => qc.invalidateQueries({ queryKey: ["produtos_reposicao"] })} />;
+                  return <LinhaProduto key={p.id} p={p} qtd={qtd} almox={s?.almox.size ?? 0} descricaoFallback={s?.descricao ?? ""} onToggle={toggleAtivo} onRemover={remover} onQc={() => qc.invalidateQueries({ queryKey: ["produtos_reposicao"] })} />;
                 })}
                 {filtrados.length === 0 && (
                   <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground text-sm py-6">
@@ -446,8 +451,8 @@ function ProdutosReposicaoCard() {
   );
 }
 
-function LinhaProduto({ p, qtd, almox, onToggle, onRemover, onQc }: {
-  p: ProdutoRep; qtd: number; almox: number;
+function LinhaProduto({ p, qtd, almox, descricaoFallback, onToggle, onRemover, onQc }: {
+  p: ProdutoRep; qtd: number; almox: number; descricaoFallback: string;
   onToggle: (p: ProdutoRep, ativo: boolean) => void;
   onRemover: (p: ProdutoRep) => void;
   onQc: () => void;
@@ -471,10 +476,11 @@ function LinhaProduto({ p, qtd, almox, onToggle, onRemover, onQc }: {
     onQc();
   }
 
+  const descricao = p.descricao?.trim() || descricaoFallback || "—";
   return (
     <TableRow>
       <TableCell className="font-mono text-xs">{p.id_produto}</TableCell>
-      <TableCell className="text-xs max-w-xs truncate">{p.descricao}</TableCell>
+      <TableCell className="text-xs max-w-xs truncate" title={descricao}>{descricao}</TableCell>
       <TableCell className="text-xs">{p.unidade}</TableCell>
       <TableCell className="text-right tabular-nums text-xs">{p.cobertura_dias}</TableCell>
       <TableCell><Input className="h-7 text-right text-xs" type="number" min={0} value={minV} onChange={(e) => setMinV(e.target.value)} /></TableCell>
