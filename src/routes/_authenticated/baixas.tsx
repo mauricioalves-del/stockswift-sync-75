@@ -87,6 +87,25 @@ function NovaBaixaForm() {
     },
   });
 
+  // Lista de produtos distintos para seleção manual (fallback ao scanner)
+  const produtosQ = useQuery({
+    queryKey: ["produtos-distintos"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("estoque_sistemico")
+        .select("id_produto, descricao, unidade")
+        .order("id_produto");
+      if (error) throw error;
+      const map = new Map<string, { id_produto: string; descricao: string; unidade: string }>();
+      for (const r of (data ?? []) as any[]) {
+        if (r.id_produto && !map.has(r.id_produto)) {
+          map.set(r.id_produto, { id_produto: r.id_produto, descricao: r.descricao ?? "", unidade: r.unidade ?? "" });
+        }
+      }
+      return Array.from(map.values());
+    },
+  });
+
   // Todas as linhas de estoque do produto selecionado (todas origens/lotes)
   const estoqueQ = useQuery({
     queryKey: ["estoque-por-produto", produto?.id_produto],
