@@ -16,8 +16,11 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatBRL, formatNum } from "@/lib/inventory";
-import { CheckCircle2, XCircle, MessageSquareWarning, PackageMinus, Loader2, ScanBarcode } from "lucide-react";
+import { CheckCircle2, XCircle, MessageSquareWarning, PackageMinus, Loader2, ScanBarcode, Check, ChevronsUpDown, List } from "lucide-react";
 import { BarcodeScanner } from "@/components/app/BarcodeScanner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 
 export const Route = createFileRoute("/_authenticated/baixas")({
@@ -64,6 +67,7 @@ function NovaBaixaForm() {
   const [submitting, setSubmitting] = useState(false);
   const [ean, setEan] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [produto, setProduto] = useState<{
     id_produto: string; descricao: string; unidade: string;
   } | null>(null);
@@ -80,6 +84,25 @@ function NovaBaixaForm() {
       const { data, error } = await (supabase as any).from("motivo_baixa").select("*").eq("ativo", true).order("descricao");
       if (error) throw error;
       return data as Array<{ id: string; descricao: string }>;
+    },
+  });
+
+  // Lista de produtos distintos para seleção manual (fallback ao scanner)
+  const produtosQ = useQuery({
+    queryKey: ["produtos-distintos"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("estoque_sistemico")
+        .select("id_produto, descricao, unidade")
+        .order("id_produto");
+      if (error) throw error;
+      const map = new Map<string, { id_produto: string; descricao: string; unidade: string }>();
+      for (const r of (data ?? []) as any[]) {
+        if (r.id_produto && !map.has(r.id_produto)) {
+          map.set(r.id_produto, { id_produto: r.id_produto, descricao: r.descricao ?? "", unidade: r.unidade ?? "" });
+        }
+      }
+      return Array.from(map.values());
     },
   });
 
@@ -125,23 +148,42 @@ function NovaBaixaForm() {
   const valorTotal = qtd * custo;
   const saldo = Number(linhaSelecionada?.quantidade ?? 0);
 
-  async function buscarPorEAN(codigo: string) {
-    const code = codigo.trim();
-    if (!code) return;
-    setEan(code);
+  // Extrai apenas os dígitos do conteúdo lido (QR Code de rastreabilidade pode conter URL/texto).
+  function extrairCodigoNumerico(raw: string): string {
+    const s = (raw ?? "").trim();
+    if (!s) return "";
+    // Se houver URL/querystring, extrai o maior número presente (geralmente o SKU/EAN).
+    const nums: string[] = s.match(/\d+/g) ?? [];
+    if (nums.length === 0) return "";
+    // Prioriza o maior bloco numérico (evita datas/porcentagens curtas).
+    return nums.reduce((a, b) => (b.length >= a.length ? b : a));
+  }
+
+  async function buscarPorCodigo(codigo: string) {
+    const numeric = extrairCodigoNumerico(codigo);
+    if (!numeric) return toast.error("Nenhum código numérico identificado");
+    setEan(numeric);
+    // Busca pelo Código do Produto (id_produto) na base de estoque
     const { data, error } = await (supabase as any)
       .from("estoque_sistemico")
       .select("id_produto, descricao, unidade")
-      .eq("ean", code)
+      .eq("id_produto", numeric)
       .limit(1)
       .maybeSingle();
     if (error) return toast.error(error.message);
     if (!data) {
       setProduto(null);
-      return toast.error(`EAN ${code} não encontrado na base de estoque`);
+      return toast.error(`Código ${numeric} não encontrado na base de estoque`);
     }
     setProduto({ id_produto: data.id_produto, descricao: data.descricao, unidade: data.unidade });
     toast.success(`Produto localizado: ${data.id_produto}`);
+  }
+
+  function selecionarProdutoManual(p: { id_produto: string; descricao: string; unidade: string }) {
+    setEan(p.id_produto);
+    setProduto(p);
+    setPickerOpen(false);
+    toast.success(`Produto selecionado: ${p.id_produto}`);
   }
 
   function limpar() {
@@ -210,20 +252,66 @@ function NovaBaixaForm() {
         <CardContent>
           <form onSubmit={onSubmit} className="grid md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <Label>Código de Barras (EAN) *</Label>
-              <div className="flex gap-2">
+              <Label>Código do Produto / QR / EAN *</Label>
+              <div className="flex flex-wrap gap-2">
                 <Input
                   value={ean}
                   onChange={(e) => setEan(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); buscarPorEAN(ean); } }}
-                  placeholder="Escaneie ou digite o EAN e pressione Enter"
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); buscarPorCodigo(ean); } }}
+                  placeholder="Escaneie o QR/código de barras ou digite o Código do Produto"
+                  className="flex-1 min-w-[220px]"
                 />
-                <Button type="button" variant="outline" onClick={() => buscarPorEAN(ean)}>Buscar</Button>
+                <Button type="button" variant="outline" onClick={() => buscarPorCodigo(ean)}>Buscar</Button>
                 <Button type="button" onClick={() => setScannerOpen(true)} className="gap-2">
                   <ScanBarcode className="size-4" /> Escanear
                 </Button>
+                <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="secondary" className="gap-2">
+                      <List className="size-4" /> Lista de Produtos
+                      <ChevronsUpDown className="size-3 opacity-60" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[420px] p-0" align="end">
+                    <Command
+                      filter={(value, search) => {
+                        const s = search.toLowerCase();
+                        return value.toLowerCase().includes(s) ? 1 : 0;
+                      }}
+                    >
+                      <CommandInput placeholder="Buscar por código ou descrição..." />
+                      <CommandList>
+                        <CommandEmpty>
+                          {produtosQ.isLoading ? "Carregando..." : "Nenhum produto encontrado"}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {(produtosQ.data ?? []).map((p) => {
+                            const selected = produto?.id_produto === p.id_produto;
+                            return (
+                              <CommandItem
+                                key={p.id_produto}
+                                value={`${p.id_produto} ${p.descricao}`}
+                                onSelect={() => selecionarProdutoManual(p)}
+                              >
+                                <Check className={cn("mr-2 size-4", selected ? "opacity-100" : "opacity-0")} />
+                                <div className="flex flex-col">
+                                  <span className="font-mono text-xs">{p.id_produto}</span>
+                                  <span className="text-sm truncate">{p.descricao || "—"}</span>
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                QR de rastreabilidade: apenas o valor numérico é considerado. A busca é feita pelo Código do Produto (Id_Produto).
+              </p>
             </div>
+
 
             <div>
               <Label>SKU</Label>
@@ -324,7 +412,7 @@ function NovaBaixaForm() {
       <BarcodeScanner
         open={scannerOpen}
         onClose={() => setScannerOpen(false)}
-        onDetected={(code) => { setScannerOpen(false); buscarPorEAN(code); }}
+        onDetected={(code) => { setScannerOpen(false); buscarPorCodigo(code); }}
       />
     </>
   );
