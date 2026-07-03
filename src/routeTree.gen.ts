@@ -31,6 +31,7 @@ import { Route as AuthenticatedBaixasRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedAbcRouteImport } from './routes/_authenticated/abc'
 import { Route as AuthenticatedSuprimentosRequisicoesRouteImport } from './routes/_authenticated/suprimentos.requisicoes'
 import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_authenticated/suprimentos.estoque'
+import { Route as AuthenticatedSuprimentosDashboardRouteImport } from './routes/_authenticated/suprimentos.dashboard'
 import { Route as AuthenticatedAbastecimentoPlanejamentoRouteImport } from './routes/_authenticated/abastecimento.planejamento'
 import { Route as AuthenticatedAbastecimentoParametrosRouteImport } from './routes/_authenticated/abastecimento.parametros'
 import { Route as AuthenticatedAbastecimentoDemandasRouteImport } from './routes/_authenticated/abastecimento.demandas'
@@ -149,6 +150,12 @@ const AuthenticatedSuprimentosEstoqueRoute =
     path: '/suprimentos/estoque',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSuprimentosDashboardRoute =
+  AuthenticatedSuprimentosDashboardRouteImport.update({
+    id: '/suprimentos/dashboard',
+    path: '/suprimentos/dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAbastecimentoPlanejamentoRoute =
   AuthenticatedAbastecimentoPlanejamentoRouteImport.update({
     id: '/abastecimento/planejamento',
@@ -204,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/suprimentos/requisicoes': typeof AuthenticatedSuprimentosRequisicoesRouteWithChildren
   '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRoute
@@ -232,6 +240,7 @@ export interface FileRoutesByTo {
   '/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/suprimentos/requisicoes': typeof AuthenticatedSuprimentosRequisicoesRouteWithChildren
   '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRoute
@@ -262,6 +271,7 @@ export interface FileRoutesById {
   '/_authenticated/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
   '/_authenticated/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/_authenticated/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/_authenticated/suprimentos/requisicoes': typeof AuthenticatedSuprimentosRequisicoesRouteWithChildren
   '/_authenticated/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRoute
@@ -292,6 +302,7 @@ export interface FileRouteTypes {
     | '/abastecimento/demandas'
     | '/abastecimento/parametros'
     | '/abastecimento/planejamento'
+    | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
     | '/suprimentos/requisicoes'
     | '/suprimentos/requisicoes/$id'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/abastecimento/demandas'
     | '/abastecimento/parametros'
     | '/abastecimento/planejamento'
+    | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
     | '/suprimentos/requisicoes'
     | '/suprimentos/requisicoes/$id'
@@ -349,6 +361,7 @@ export interface FileRouteTypes {
     | '/_authenticated/abastecimento/demandas'
     | '/_authenticated/abastecimento/parametros'
     | '/_authenticated/abastecimento/planejamento'
+    | '/_authenticated/suprimentos/dashboard'
     | '/_authenticated/suprimentos/estoque'
     | '/_authenticated/suprimentos/requisicoes'
     | '/_authenticated/suprimentos/requisicoes/$id'
@@ -517,6 +530,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSuprimentosEstoqueRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/suprimentos/dashboard': {
+      id: '/_authenticated/suprimentos/dashboard'
+      path: '/suprimentos/dashboard'
+      fullPath: '/suprimentos/dashboard'
+      preLoaderRoute: typeof AuthenticatedSuprimentosDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/abastecimento/planejamento': {
       id: '/_authenticated/abastecimento/planejamento'
       path: '/abastecimento/planejamento'
@@ -591,6 +611,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbastecimentoDemandasRoute: typeof AuthenticatedAbastecimentoDemandasRoute
   AuthenticatedAbastecimentoParametrosRoute: typeof AuthenticatedAbastecimentoParametrosRoute
   AuthenticatedAbastecimentoPlanejamentoRoute: typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  AuthenticatedSuprimentosDashboardRoute: typeof AuthenticatedSuprimentosDashboardRoute
   AuthenticatedSuprimentosEstoqueRoute: typeof AuthenticatedSuprimentosEstoqueRoute
   AuthenticatedSuprimentosRequisicoesRoute: typeof AuthenticatedSuprimentosRequisicoesRouteWithChildren
 }
@@ -620,6 +641,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedAbastecimentoParametrosRoute,
   AuthenticatedAbastecimentoPlanejamentoRoute:
     AuthenticatedAbastecimentoPlanejamentoRoute,
+  AuthenticatedSuprimentosDashboardRoute:
+    AuthenticatedSuprimentosDashboardRoute,
   AuthenticatedSuprimentosEstoqueRoute: AuthenticatedSuprimentosEstoqueRoute,
   AuthenticatedSuprimentosRequisicoesRoute:
     AuthenticatedSuprimentosRequisicoesRouteWithChildren,
