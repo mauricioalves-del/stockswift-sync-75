@@ -218,6 +218,7 @@ function RequisicoesPage() {
 }
 
 function NovaRequisicaoDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
+  const nav = useNavigate();
   const [origemSolic, setOrigemSolic] = useState("");
   const [origemForn, setOrigemForn] = useState("");
   const [tipo, setTipo] = useState("NORMAL");
@@ -236,19 +237,22 @@ function NovaRequisicaoDialog({ open, onClose, onCreated }: { open: boolean; onC
     mutationFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       const numero = `REQ-${Date.now().toString().slice(-8)}`;
-      const { error } = await supabase.from("requisicoes" as never).insert({
+      const { data, error } = await supabase.from("requisicoes" as never).insert({
         numero, origem_solicitante: origemSolic, origem_fornecedora: origemForn,
         solicitante: u.user?.id, tipo, status: "RASCUNHO", observacao: obs || null,
-      } as never);
+      } as never).select("id").single();
       if (error) throw error;
+      return data as unknown as { id: string };
     },
-    onSuccess: () => {
-      toast.success("Requisição criada");
+    onSuccess: (row) => {
+      toast.success("Requisição criada — adicione os itens");
       setOrigemSolic(""); setOrigemForn(""); setObs("");
       onCreated(); onClose();
+      if (row?.id) nav({ to: "/suprimentos/requisicoes/$id", params: { id: row.id } });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
