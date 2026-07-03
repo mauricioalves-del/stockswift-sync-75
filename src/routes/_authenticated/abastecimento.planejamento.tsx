@@ -209,7 +209,8 @@ function PlanejamentoPage() {
                 <TableHeader><TableRow>
                   <TableHead>SKU</TableHead>
                   <TableHead>Produto</TableHead>
-                  <TableHead>Origem</TableHead>
+                  <TableHead>Destino</TableHead>
+                  <TableHead>Abastecido por</TableHead>
                   <TableHead className="text-right">Estoque</TableHead>
                   <TableHead className="text-right">CMD</TableHead>
                   <TableHead className="text-right">Cob. Atual</TableHead>
