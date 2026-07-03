@@ -65,6 +65,42 @@ export type Database = {
         }
         Relationships: []
       }
+      auditoria: {
+        Row: {
+          acao: string
+          created_at: string
+          dados_antes: Json | null
+          dados_depois: Json | null
+          entidade: string
+          entidade_id: string | null
+          id: string
+          observacao: string | null
+          usuario: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          dados_antes?: Json | null
+          dados_depois?: Json | null
+          entidade: string
+          entidade_id?: string | null
+          id?: string
+          observacao?: string | null
+          usuario?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          dados_antes?: Json | null
+          dados_depois?: Json | null
+          entidade?: string
+          entidade_id?: string | null
+          id?: string
+          observacao?: string | null
+          usuario?: string | null
+        }
+        Relationships: []
+      }
       baixa_operacional: {
         Row: {
           aprovador_id: string | null
@@ -787,6 +823,113 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      requisicao_itens: {
+        Row: {
+          created_at: string
+          custo_unitario: number
+          descricao: string
+          id: string
+          id_produto: string
+          observacao: string | null
+          quantidade_aprovada: number | null
+          quantidade_atendida: number | null
+          quantidade_solicitada: number
+          requisicao_id: string
+          unidade: string
+          updated_at: string
+          valor_total: number
+        }
+        Insert: {
+          created_at?: string
+          custo_unitario?: number
+          descricao: string
+          id?: string
+          id_produto: string
+          observacao?: string | null
+          quantidade_aprovada?: number | null
+          quantidade_atendida?: number | null
+          quantidade_solicitada?: number
+          requisicao_id: string
+          unidade?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Update: {
+          created_at?: string
+          custo_unitario?: number
+          descricao?: string
+          id?: string
+          id_produto?: string
+          observacao?: string | null
+          quantidade_aprovada?: number | null
+          quantidade_atendida?: number | null
+          quantidade_solicitada?: number
+          requisicao_id?: string
+          unidade?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requisicao_itens_requisicao_id_fkey"
+            columns: ["requisicao_id"]
+            isOneToOne: false
+            referencedRelation: "requisicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requisicoes: {
+        Row: {
+          aprovador: string | null
+          created_at: string
+          data_aprovacao: string | null
+          id: string
+          motivo_rejeicao: string | null
+          numero: string
+          observacao: string | null
+          origem_fornecedora: string
+          origem_solicitante: string
+          solicitante: string
+          status: string
+          tipo: string
+          updated_at: string
+          valor_total: number
+        }
+        Insert: {
+          aprovador?: string | null
+          created_at?: string
+          data_aprovacao?: string | null
+          id?: string
+          motivo_rejeicao?: string | null
+          numero: string
+          observacao?: string | null
+          origem_fornecedora: string
+          origem_solicitante: string
+          solicitante: string
+          status?: string
+          tipo?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Update: {
+          aprovador?: string | null
+          created_at?: string
+          data_aprovacao?: string | null
+          id?: string
+          motivo_rejeicao?: string | null
+          numero?: string
+          observacao?: string | null
+          origem_fornecedora?: string
+          origem_solicitante?: string
+          solicitante?: string
+          status?: string
+          tipo?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Relationships: []
       }
       status_baixa: {
         Row: {
