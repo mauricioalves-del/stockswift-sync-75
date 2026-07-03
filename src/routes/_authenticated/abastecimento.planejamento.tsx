@@ -22,7 +22,7 @@ type Consumo = { origem: string; sku: string; quantidade: number; data_movimento
 type Demanda = { origem: string; sku: string; quantidade_extra: number; status: string; data_inicio: string; data_fim: string };
 
 type Linha = {
-  sku: string; produto: string; origem: string;
+  sku: string; produto: string; origem: string; origem_abastecimento: string;
   estoque: number; cmd: number; cobertura_atual: number; cobertura_alvo: number;
   demanda_extra: number; necessidade: number; sugestao: number; custo_unitario: number; valor_reposicao: number;
 };
