@@ -57,6 +57,7 @@ function ParametrosPage() {
     if (!novaOrigem) return;
     const { error } = await supabase.from("parametros_abastecimento" as never).insert({
       origem: novaOrigem,
+      origem_abastecimento: "Alm_SP_Fabrica",
       cobertura_dias: 8,
       dias_seguranca: 1,
       frequencia_abastecimento: "SEMANAL",
