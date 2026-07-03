@@ -37,6 +37,7 @@ import { Route as AuthenticatedAbastecimentoParametrosRouteImport } from './rout
 import { Route as AuthenticatedAbastecimentoDemandasRouteImport } from './routes/_authenticated/abastecimento.demandas'
 import { Route as AuthenticatedAbastecimentoConsumoRouteImport } from './routes/_authenticated/abastecimento.consumo'
 import { Route as AuthenticatedSuprimentosRequisicoesIdRouteImport } from './routes/_authenticated/suprimentos.requisicoes.$id'
+import { Route as AuthenticatedSuprimentosRequisicoesIdFichaRouteImport } from './routes/_authenticated/suprimentos.requisicoes.$id.ficha'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -186,6 +187,12 @@ const AuthenticatedSuprimentosRequisicoesIdRoute =
     path: '/$id',
     getParentRoute: () => AuthenticatedSuprimentosRequisicoesRoute,
   } as any)
+const AuthenticatedSuprimentosRequisicoesIdFichaRoute =
+  AuthenticatedSuprimentosRequisicoesIdFichaRouteImport.update({
+    id: '/ficha',
+    path: '/ficha',
+    getParentRoute: () => AuthenticatedSuprimentosRequisicoesIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -214,7 +221,8 @@ export interface FileRoutesByFullPath {
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/suprimentos/requisicoes': typeof AuthenticatedSuprimentosRequisicoesRouteWithChildren
-  '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRoute
+  '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
+  '/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -243,7 +251,8 @@ export interface FileRoutesByTo {
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/suprimentos/requisicoes': typeof AuthenticatedSuprimentosRequisicoesRouteWithChildren
-  '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRoute
+  '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
+  '/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -274,7 +283,8 @@ export interface FileRoutesById {
   '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/_authenticated/suprimentos/requisicoes': typeof AuthenticatedSuprimentosRequisicoesRouteWithChildren
-  '/_authenticated/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRoute
+  '/_authenticated/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
+  '/_authenticated/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -306,6 +316,7 @@ export interface FileRouteTypes {
     | '/suprimentos/estoque'
     | '/suprimentos/requisicoes'
     | '/suprimentos/requisicoes/$id'
+    | '/suprimentos/requisicoes/$id/ficha'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -335,6 +346,7 @@ export interface FileRouteTypes {
     | '/suprimentos/estoque'
     | '/suprimentos/requisicoes'
     | '/suprimentos/requisicoes/$id'
+    | '/suprimentos/requisicoes/$id/ficha'
   id:
     | '__root__'
     | '/'
@@ -365,6 +377,7 @@ export interface FileRouteTypes {
     | '/_authenticated/suprimentos/estoque'
     | '/_authenticated/suprimentos/requisicoes'
     | '/_authenticated/suprimentos/requisicoes/$id'
+    | '/_authenticated/suprimentos/requisicoes/$id/ficha'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -572,17 +585,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSuprimentosRequisicoesIdRouteImport
       parentRoute: typeof AuthenticatedSuprimentosRequisicoesRoute
     }
+    '/_authenticated/suprimentos/requisicoes/$id/ficha': {
+      id: '/_authenticated/suprimentos/requisicoes/$id/ficha'
+      path: '/ficha'
+      fullPath: '/suprimentos/requisicoes/$id/ficha'
+      preLoaderRoute: typeof AuthenticatedSuprimentosRequisicoesIdFichaRouteImport
+      parentRoute: typeof AuthenticatedSuprimentosRequisicoesIdRoute
+    }
   }
 }
 
+interface AuthenticatedSuprimentosRequisicoesIdRouteChildren {
+  AuthenticatedSuprimentosRequisicoesIdFichaRoute: typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
+}
+
+const AuthenticatedSuprimentosRequisicoesIdRouteChildren: AuthenticatedSuprimentosRequisicoesIdRouteChildren =
+  {
+    AuthenticatedSuprimentosRequisicoesIdFichaRoute:
+      AuthenticatedSuprimentosRequisicoesIdFichaRoute,
+  }
+
+const AuthenticatedSuprimentosRequisicoesIdRouteWithChildren =
+  AuthenticatedSuprimentosRequisicoesIdRoute._addFileChildren(
+    AuthenticatedSuprimentosRequisicoesIdRouteChildren,
+  )
+
 interface AuthenticatedSuprimentosRequisicoesRouteChildren {
-  AuthenticatedSuprimentosRequisicoesIdRoute: typeof AuthenticatedSuprimentosRequisicoesIdRoute
+  AuthenticatedSuprimentosRequisicoesIdRoute: typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
 }
 
 const AuthenticatedSuprimentosRequisicoesRouteChildren: AuthenticatedSuprimentosRequisicoesRouteChildren =
   {
     AuthenticatedSuprimentosRequisicoesIdRoute:
-      AuthenticatedSuprimentosRequisicoesIdRoute,
+      AuthenticatedSuprimentosRequisicoesIdRouteWithChildren,
   }
 
 const AuthenticatedSuprimentosRequisicoesRouteWithChildren =

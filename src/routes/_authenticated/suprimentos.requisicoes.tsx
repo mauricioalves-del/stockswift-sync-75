@@ -11,10 +11,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardList, Plus, Loader2, Check, X, Trash2 } from "lucide-react";
+import { ClipboardList, Plus, Loader2, Check, X, Trash2, PackageCheck, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { useRole } from "@/hooks/useRole";
 import { formatBRL } from "@/lib/inventory";
+import { SepararRequisicaoDialog } from "@/components/suprimentos/SepararRequisicaoDialog";
 
 export const Route = createFileRoute("/_authenticated/suprimentos/requisicoes")({
   component: RequisicoesPage,
@@ -32,18 +33,25 @@ const STATUS_COLORS: Record<string, string> = {
   ENVIADA: "bg-info/15 text-info",
   APROVADA: "bg-success/15 text-success",
   REJEITADA: "bg-destructive/15 text-destructive",
+  AGUARDANDO_SEPARACAO: "bg-warning/20 text-warning-foreground",
   EM_SEPARACAO: "bg-warning/20 text-warning-foreground",
+  SEPARADA_TOTAL: "bg-success/15 text-success",
+  SEPARADA_PARCIAL: "bg-warning/20 text-warning-foreground",
+  NAO_ATENDIDA: "bg-destructive/15 text-destructive",
   ATENDIDA: "bg-success/15 text-success",
   CANCELADA: "bg-muted text-muted-foreground",
 };
 
+const STATUS_SEPARAVEL = new Set(["ENVIADA", "APROVADA", "AGUARDANDO_SEPARACAO", "EM_SEPARACAO", "SEPARADA_PARCIAL"]);
+
 function RequisicoesPage() {
-  const { isAdmin } = useRole();
+  const { isAdmin, canWrite } = useRole();
   const qc = useQueryClient();
   const [statusF, setStatusF] = useState<string>("__all");
   const [novoOpen, setNovoOpen] = useState(false);
   const [rejeitarOpen, setRejeitarOpen] = useState<Req | null>(null);
   const [motivoRej, setMotivoRej] = useState("");
+  const [separarOpen, setSepararOpen] = useState<Req | null>(null);
 
   const q = useQuery({
     queryKey: ["requisicoes", statusF],
@@ -175,6 +183,19 @@ function RequisicoesPage() {
                               </Button>
                             </>
                           )}
+                          {canWrite && STATUS_SEPARAVEL.has(r.status) && (
+                            <Button size="sm" variant="ghost" onClick={() => setSepararOpen(r)} title="Separar (FEFO)">
+                              <PackageCheck className="size-4 text-info" />
+                            </Button>
+                          )}
+                          {STATUS_SEPARAVEL.has(r.status) && (
+                            <Button
+                              size="sm" variant="ghost" title="Imprimir ficha de separação"
+                              onClick={() => window.open(`/suprimentos/requisicoes/${r.id}/ficha`, "_blank")}
+                            >
+                              <Printer className="size-4 text-muted-foreground" />
+                            </Button>
+                          )}
                           {(r.status === "RASCUNHO" || r.status === "ENVIADA") && (
                             <Button size="sm" variant="ghost" onClick={() => cancelar.mutate(r)} title="Cancelar">
                               <Trash2 className="size-4 text-muted-foreground" />
@@ -198,6 +219,13 @@ function RequisicoesPage() {
       </Card>
 
       <NovaRequisicaoDialog open={novoOpen} onClose={() => setNovoOpen(false)} onCreated={() => qc.invalidateQueries({ queryKey: ["requisicoes"] })} />
+
+      <SepararRequisicaoDialog
+        requisicao={separarOpen}
+        open={!!separarOpen}
+        onClose={() => setSepararOpen(null)}
+      />
+
 
 
       <Dialog open={!!rejeitarOpen} onOpenChange={(o) => { if (!o) { setRejeitarOpen(null); setMotivoRej(""); } }}>
