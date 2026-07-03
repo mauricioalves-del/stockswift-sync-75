@@ -153,10 +153,10 @@ function NovaBaixaForm() {
     const s = (raw ?? "").trim();
     if (!s) return "";
     // Se houver URL/querystring, extrai o maior número presente (geralmente o SKU/EAN).
-    const nums = s.match(/\d+/g) ?? [];
+    const nums: string[] = s.match(/\d+/g) ?? [];
     if (nums.length === 0) return "";
     // Prioriza o maior bloco numérico (evita datas/porcentagens curtas).
-    return nums.reduce((a, b) => (b.length >= a.length ? b : a), nums[0]);
+    return nums.reduce((a, b) => (b.length >= a.length ? b : a));
   }
 
   async function buscarPorCodigo(codigo: string) {
