@@ -33,10 +33,16 @@ const STATUS_COLORS: Record<string, string> = {
   ENVIADA: "bg-info/15 text-info",
   APROVADA: "bg-success/15 text-success",
   REJEITADA: "bg-destructive/15 text-destructive",
+  AGUARDANDO_SEPARACAO: "bg-warning/20 text-warning-foreground",
   EM_SEPARACAO: "bg-warning/20 text-warning-foreground",
+  SEPARADA_TOTAL: "bg-success/15 text-success",
+  SEPARADA_PARCIAL: "bg-warning/20 text-warning-foreground",
+  NAO_ATENDIDA: "bg-destructive/15 text-destructive",
   ATENDIDA: "bg-success/15 text-success",
   CANCELADA: "bg-muted text-muted-foreground",
 };
+
+const STATUS_SEPARAVEL = new Set(["ENVIADA", "APROVADA", "AGUARDANDO_SEPARACAO", "EM_SEPARACAO", "SEPARADA_PARCIAL"]);
 
 function RequisicoesPage() {
   const { isAdmin } = useRole();
