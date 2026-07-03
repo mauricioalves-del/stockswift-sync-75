@@ -199,6 +199,7 @@ function RequisicoesPage() {
 
       <NovaRequisicaoDialog open={novoOpen} onClose={() => setNovoOpen(false)} onCreated={() => qc.invalidateQueries({ queryKey: ["requisicoes"] })} />
 
+
       <Dialog open={!!rejeitarOpen} onOpenChange={(o) => { if (!o) { setRejeitarOpen(null); setMotivoRej(""); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Rejeitar requisição {rejeitarOpen?.numero}</DialogTitle></DialogHeader>
