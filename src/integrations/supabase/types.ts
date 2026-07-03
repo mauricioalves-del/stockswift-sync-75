@@ -739,6 +739,9 @@ export type Database = {
           created_at: string
           custo_referencia: number
           descricao: string
+          estoque_ideal: number
+          estoque_maximo: number
+          estoque_minimo: number
           id: string
           id_produto: string
           importado_por: string | null
@@ -751,6 +754,9 @@ export type Database = {
           created_at?: string
           custo_referencia?: number
           descricao?: string
+          estoque_ideal?: number
+          estoque_maximo?: number
+          estoque_minimo?: number
           id?: string
           id_produto: string
           importado_por?: string | null
@@ -763,6 +769,9 @@ export type Database = {
           created_at?: string
           custo_referencia?: number
           descricao?: string
+          estoque_ideal?: number
+          estoque_maximo?: number
+          estoque_minimo?: number
           id?: string
           id_produto?: string
           importado_por?: string | null
@@ -943,6 +952,7 @@ export type Database = {
           created_at: string
           data_aprovacao: string | null
           id: string
+          metodo_utilizado: string | null
           motivo_rejeicao: string | null
           numero: string
           observacao: string | null
@@ -959,6 +969,7 @@ export type Database = {
           created_at?: string
           data_aprovacao?: string | null
           id?: string
+          metodo_utilizado?: string | null
           motivo_rejeicao?: string | null
           numero: string
           observacao?: string | null
@@ -975,6 +986,7 @@ export type Database = {
           created_at?: string
           data_aprovacao?: string | null
           id?: string
+          metodo_utilizado?: string | null
           motivo_rejeicao?: string | null
           numero?: string
           observacao?: string | null
