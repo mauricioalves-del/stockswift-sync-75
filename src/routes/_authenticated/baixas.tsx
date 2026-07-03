@@ -257,10 +257,10 @@ function NovaBaixaForm() {
                 <Input
                   value={ean}
                   onChange={(e) => setEan(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); buscarPorEAN(ean); } }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); buscarPorCodigo(ean); } }}
                   placeholder="Escaneie ou digite o EAN e pressione Enter"
                 />
-                <Button type="button" variant="outline" onClick={() => buscarPorEAN(ean)}>Buscar</Button>
+                <Button type="button" variant="outline" onClick={() => buscarPorCodigo(ean)}>Buscar</Button>
                 <Button type="button" onClick={() => setScannerOpen(true)} className="gap-2">
                   <ScanBarcode className="size-4" /> Escanear
                 </Button>
@@ -366,7 +366,7 @@ function NovaBaixaForm() {
       <BarcodeScanner
         open={scannerOpen}
         onClose={() => setScannerOpen(false)}
-        onDetected={(code) => { setScannerOpen(false); buscarPorEAN(code); }}
+        onDetected={(code) => { setScannerOpen(false); buscarPorCodigo(code); }}
       />
     </>
   );
