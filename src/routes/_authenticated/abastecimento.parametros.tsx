@@ -298,14 +298,18 @@ function ProdutosReposicaoCard() {
       const errs: string[] = [];
       const rows: ImportRow[] = [];
       data.forEach((r, idx) => {
-        const id = pick(r, "Id_produto", "id_produto", "SKU", "sku", "Codigo", "Código");
+        const id = pick(r, "Id_produto", "id_produto", "SKU", "sku", "Codigo", "Código", "codigo");
         if (!id) { errs.push(`Linha ${idx + 2}: SKU vazio`); return; }
+        const num = (v: unknown) => Number(String(v ?? 0).replace(",", ".")) || 0;
         rows.push({
           id_produto: id,
-          descricao: pick(r, "descricao", "Descricao", "Descrição", "descricao_produto"),
-          unidade: pick(r, "UM", "um", "Unidade", "unidade") || "UN",
-          custo_referencia: Number(String(r["Custo"] ?? r["custo"] ?? r["Custo_Vlr"] ?? 0).replace(",", ".")) || 0,
-          cobertura_dias: Number(String(r["Cobertura"] ?? r["cobertura"] ?? r["Cobertura_Dias"] ?? 8).replace(",", ".")) || 8,
+          descricao: pick(r, "descricao", "Descricao", "Descrição", "descricao_produto", "Descricao_Produto", "Produto", "produto", "Nome", "nome", "Nome_Produto"),
+          unidade: pick(r, "UM", "um", "Unidade", "unidade", "UN") || "UN",
+          custo_referencia: num(r["Custo"] ?? r["custo"] ?? r["Custo_Vlr"] ?? r["custo_referencia"] ?? r["Custo Referencia"]),
+          cobertura_dias: num(r["Cobertura"] ?? r["cobertura"] ?? r["Cobertura_Dias"] ?? r["cobertura_dias"]) || 8,
+          estoque_minimo: num(r["Minimo"] ?? r["minimo"] ?? r["Mínimo"] ?? r["mínimo"] ?? r["estoque_minimo"] ?? r["Estoque_Minimo"] ?? r["Estoque Mínimo"] ?? r["Min"] ?? r["min"]),
+          estoque_ideal: num(r["Ideal"] ?? r["ideal"] ?? r["estoque_ideal"] ?? r["Estoque_Ideal"] ?? r["Estoque Ideal"]),
+          estoque_maximo: num(r["Maximo"] ?? r["maximo"] ?? r["Máximo"] ?? r["máximo"] ?? r["estoque_maximo"] ?? r["Estoque_Maximo"] ?? r["Estoque Máximo"] ?? r["Max"] ?? r["max"]),
         });
       });
       setPreview(rows);
