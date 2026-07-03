@@ -11,10 +11,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardList, Plus, Loader2, Check, X, Trash2 } from "lucide-react";
+import { ClipboardList, Plus, Loader2, Check, X, Trash2, PackageCheck, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { useRole } from "@/hooks/useRole";
 import { formatBRL } from "@/lib/inventory";
+import { SepararRequisicaoDialog } from "@/components/suprimentos/SepararRequisicaoDialog";
 
 export const Route = createFileRoute("/_authenticated/suprimentos/requisicoes")({
   component: RequisicoesPage,
