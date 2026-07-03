@@ -38,8 +38,12 @@ type ProdutoRep = {
   unidade: string;
   custo_referencia: number;
   cobertura_dias: number;
+  estoque_minimo: number;
+  estoque_ideal: number;
+  estoque_maximo: number;
   ativo: boolean;
 };
+
 
 type EstoqueRow = { id_produto: string; origem: string; quantidade: number; custo_unitario: number };
 
