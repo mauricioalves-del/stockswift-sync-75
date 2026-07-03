@@ -177,10 +177,13 @@ function PlanejamentoPage() {
     const total = linhasFiltradas.length;
     const abaixo = linhasFiltradas.filter((l) => l.cobertura_atual < l.cobertura_alvo).length;
     const criticos = linhasFiltradas.filter((l) => l.cobertura_atual < 3).length;
-    const valor = linhasFiltradas.reduce((s, l) => s + l.valor_reposicao, 0);
+    const abaixoMin = linhasFiltradas.filter((l) => l.minimo > 0 && l.estoque < l.minimo).length;
+    const acimaMax = linhasFiltradas.filter((l) => l.maximo > 0 && l.estoque > l.maximo).length;
+    const valor = linhasFiltradas.reduce((s, l) => s + (metodo === "MINMAX" ? l.sugestao_minmax * l.custo_unitario : l.valor_reposicao), 0);
     const cobMedia = total ? linhasFiltradas.reduce((s, l) => s + Math.min(l.cobertura_atual, 60), 0) / total : 0;
-    return { total, abaixo, criticos, valor, cobMedia };
-  }, [linhasFiltradas]);
+    return { total, abaixo, criticos, valor, cobMedia, abaixoMin, acimaMax };
+  }, [linhasFiltradas, metodo]);
+
 
   const loading = paramsQ.isLoading || estoqueQ.isLoading;
   const semParams = (paramsQ.data ?? []).length === 0;
