@@ -354,16 +354,35 @@ function ProdutosReposicaoCard() {
     qc.invalidateQueries({ queryKey: ["produtos_reposicao"] });
   }
 
+  async function limparTudo() {
+    const produtos = produtosQ.data ?? [];
+    if (produtos.length === 0) { toast.info("Nenhum produto para remover"); return; }
+    if (!confirm(`Tem certeza que deseja remover todos os ${produtos.length} produtos cadastrados?\n\nEsta ação não pode ser desfeita.`)) return;
+    const { error } = await supabase.from("produtos_reposicao" as never).delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    if (error) { toast.error(error.message); return; }
+    toast.success(`${produtos.length} produtos removidos`);
+    qc.invalidateQueries({ queryKey: ["produtos_reposicao"] });
+  }
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <FileSpreadsheet className="size-4" /> Produtos para Reposição
-        </CardTitle>
-        <CardDescription>
-          Importe a lista de SKUs monitorados. O saldo é atualizado automaticamente conforme sincronização do estoque.
-          Colunas aceitas: <b>Id_produto</b>, Descricao, UM, Custo, Cobertura, <b>Minimo</b>, <b>Ideal</b>, <b>Maximo</b>.
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileSpreadsheet className="size-4" /> Produtos para Reposição
+            </CardTitle>
+            <CardDescription>
+              Importe a lista de SKUs monitorados. O saldo é atualizado automaticamente conforme sincronização do estoque.
+              Colunas aceitas: <b>Id_produto</b>, Descricao, UM, Custo, Cobertura, <b>Minimo</b>, <b>Ideal</b>, <b>Maximo</b>.
+            </CardDescription>
+          </div>
+          {(produtosQ.data ?? []).length > 0 && (
+            <Button variant="outline" size="sm" onClick={limparTudo}>
+              <Trash2 className="size-3.5 mr-1.5 text-destructive" /> Limpar tudo
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg p-6 cursor-pointer hover:bg-accent/30 transition-colors">
