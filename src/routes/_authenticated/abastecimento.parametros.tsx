@@ -73,6 +73,7 @@ function ParametrosPage() {
     const { error } = await supabase
       .from("parametros_abastecimento" as never)
       .update({
+        origem_abastecimento: p.origem_abastecimento,
         cobertura_dias: p.cobertura_dias,
         dias_seguranca: p.dias_seguranca,
         frequencia_abastecimento: p.frequencia_abastecimento,
