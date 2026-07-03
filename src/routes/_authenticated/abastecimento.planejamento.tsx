@@ -1,15 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Compass, Loader2, AlertTriangle, TrendingUp } from "lucide-react";
+import { Compass, Loader2, AlertTriangle, TrendingUp, FileText } from "lucide-react";
+import { toast } from "sonner";
 import { formatNum } from "@/lib/inventory";
+
 
 export const Route = createFileRoute("/_authenticated/abastecimento/planejamento")({
   component: PlanejamentoPage,
@@ -149,14 +152,80 @@ function PlanejamentoPage() {
   const loading = paramsQ.isLoading || estoqueQ.isLoading;
   const semParams = (paramsQ.data ?? []).length === 0;
 
+  const nav = useNavigate();
+  const gerarPedido = useMutation({
+    mutationFn: async () => {
+      const sugeridos = linhasFiltradas.filter((l) => l.sugestao > 0);
+      if (sugeridos.length === 0) throw new Error("Nenhum item com sugestão de reposição.");
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u.user?.id;
+      if (!uid) throw new Error("Sessão expirada.");
+
+      // Agrupa por (destino=origem_solicitante, fornecedor=origem_abastecimento)
+      const grupos = new Map<string, typeof sugeridos>();
+      for (const l of sugeridos) {
+        const key = `${l.origem}|${l.origem_abastecimento}`;
+        const arr = grupos.get(key) ?? [];
+        arr.push(l);
+        grupos.set(key, arr);
+      }
+
+      const criadas: { id: string; numero: string }[] = [];
+      let seq = 0;
+      for (const [key, itens] of grupos) {
+        const [destino, fornecedor] = key.split("|");
+        const numero = `REQ-${Date.now().toString().slice(-8)}-${seq++}`;
+        const { data: req, error: e1 } = await supabase.from("requisicoes" as never).insert({
+          numero, origem_solicitante: destino, origem_fornecedora: fornecedor,
+          solicitante: uid, tipo: "NORMAL", status: "RASCUNHO",
+          observacao: `Gerado pelo Planejamento de Cobertura (${itens.length} itens).`,
+        } as never).select("id, numero").single();
+        if (e1) throw e1;
+        const r = req as unknown as { id: string; numero: string };
+        const rows = itens.map((i) => ({
+          requisicao_id: r.id, id_produto: i.sku, descricao: i.produto,
+          unidade: "UN", quantidade_solicitada: Number(i.sugestao.toFixed(3)),
+          custo_unitario: Number(i.custo_unitario ?? 0),
+        }));
+        const { error: e2 } = await supabase.from("requisicao_itens" as never).insert(rows as never);
+        if (e2) throw e2;
+        criadas.push(r);
+      }
+      return criadas;
+    },
+    onSuccess: (criadas) => {
+      if (criadas.length === 1) {
+        toast.success(`Requisição ${criadas[0].numero} criada`);
+        nav({ to: "/suprimentos/requisicoes/$id", params: { id: criadas[0].id } });
+      } else {
+        toast.success(`${criadas.length} requisições criadas: ${criadas.map((c) => c.numero).join(", ")}`);
+        nav({ to: "/suprimentos/requisicoes" });
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const sugeridosCount = linhasFiltradas.filter((l) => l.sugestao > 0).length;
+
+
   return (
     <div className="max-w-7xl mx-auto space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Compass className="size-6" /> Planejamento de Cobertura</h1>
-        <p className="text-sm text-muted-foreground">
-          Cobertura = Estoque ÷ CMD · Sugestão = (CMD × Cobertura Alvo + Demanda Extra) − Estoque
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Compass className="size-6" /> Planejamento de Cobertura</h1>
+          <p className="text-sm text-muted-foreground">
+            Cobertura = Estoque ÷ CMD · Sugestão = (CMD × Cobertura Alvo + Demanda Extra) − Estoque
+          </p>
+        </div>
+        <Button
+          onClick={() => gerarPedido.mutate()}
+          disabled={sugeridosCount === 0 || gerarPedido.isPending}
+        >
+          {gerarPedido.isPending ? <Loader2 className="size-4 mr-1 animate-spin" /> : <FileText className="size-4 mr-1" />}
+          Gerar Pedido de Abastecimento{sugeridosCount > 0 ? ` (${sugeridosCount})` : ""}
+        </Button>
       </div>
+
 
       {semParams && !loading && (
         <Card className="border-warning/40">
