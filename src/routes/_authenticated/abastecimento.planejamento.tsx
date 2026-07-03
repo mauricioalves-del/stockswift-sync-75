@@ -25,12 +25,17 @@ type Param = { origem: string; origem_abastecimento: string; cobertura_dias: num
 type Estoque = { id_produto: string; descricao: string; quantidade: number; custo_unitario: number; origem: string };
 type Consumo = { origem: string; sku: string; quantidade: number; data_movimento: string };
 type Demanda = { origem: string; sku: string; quantidade_extra: number; status: string; data_inicio: string; data_fim: string };
+type ProdRep = { id_produto: string; estoque_minimo: number; estoque_ideal: number; estoque_maximo: number; ativo: boolean };
+
+type Metodo = "COBERTURA" | "MINMAX";
 
 type Linha = {
   sku: string; produto: string; origem: string; origem_abastecimento: string;
   estoque: number; cmd: number; cobertura_atual: number; cobertura_alvo: number;
   demanda_extra: number; necessidade: number; sugestao: number; custo_unitario: number; valor_reposicao: number;
+  minimo: number; ideal: number; maximo: number; sugestao_minmax: number;
 };
+
 
 function PlanejamentoPage() {
   const [origemF, setOrigemF] = useState<string>("__all");
