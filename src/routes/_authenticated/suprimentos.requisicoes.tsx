@@ -220,6 +220,13 @@ function RequisicoesPage() {
 
       <NovaRequisicaoDialog open={novoOpen} onClose={() => setNovoOpen(false)} onCreated={() => qc.invalidateQueries({ queryKey: ["requisicoes"] })} />
 
+      <SepararRequisicaoDialog
+        requisicao={separarOpen}
+        open={!!separarOpen}
+        onClose={() => setSepararOpen(null)}
+      />
+
+
 
       <Dialog open={!!rejeitarOpen} onOpenChange={(o) => { if (!o) { setRejeitarOpen(null); setMotivoRej(""); } }}>
         <DialogContent>
