@@ -14,14 +14,29 @@ export const Route = createFileRoute("/_authenticated/suprimentos/requisicoes/$i
 type Req = {
   id: string; numero: string; origem_solicitante: string; origem_fornecedora: string;
   tipo: string; status: string; solicitante: string | null; created_at: string;
+  metodo_utilizado: string | null;
 };
 type Item = {
   id: string; id_produto: string; descricao: string; unidade: string;
   quantidade_solicitada: number; quantidade_separada: number;
+  custo_unitario: number;
   status_item: string; motivo_nao_separacao: string | null;
   lotes_separados: Array<{ lote: string; data_validade: string | null; quantidade: number }>;
 };
 type Lote = { id_produto: string; lote: string; data_validade: string | null; quantidade: number };
+type LoteSug = { lote: string; data_validade: string | null; quantidade: number };
+
+function alocarFEFO(lotes: Lote[], qtd: number): { alocacoes: LoteSug[]; faltou: number } {
+  const sorted = [...lotes].sort((a, b) => (a.data_validade ?? "9999-12-31").localeCompare(b.data_validade ?? "9999-12-31"));
+  const out: LoteSug[] = [];
+  let rest = qtd;
+  for (const l of sorted) {
+    if (rest <= 0) break;
+    const usar = Math.min(Number(l.quantidade), rest);
+    if (usar > 0) { out.push({ lote: l.lote, data_validade: l.data_validade, quantidade: usar }); rest -= usar; }
+  }
+  return { alocacoes: out, faltou: Math.max(0, rest) };
+}
 
 function FichaSeparacaoPage() {
   const { id } = Route.useParams();
@@ -47,24 +62,21 @@ function FichaSeparacaoPage() {
     queryKey: ["ficha-lotes", id, reqQ.data?.origem_fornecedora, itensQ.data?.length ?? 0],
     queryFn: async () => {
       const skus = (itensQ.data ?? []).map((i) => i.id_produto);
-      if (!reqQ.data || skus.length === 0) return {} as Record<string, Lote>;
+      if (!reqQ.data || skus.length === 0) return {} as Record<string, Lote[]>;
       const { data } = await supabase.from("estoque_sistemico")
         .select("id_produto, lote, data_validade, quantidade")
         .eq("origem", reqQ.data.origem_fornecedora)
         .in("id_produto", skus)
         .gt("quantidade", 0);
-      const map: Record<string, Lote> = {};
+      const map: Record<string, Lote[]> = {};
       for (const r of data ?? []) {
-        const cur = map[r.id_produto];
-        const rowV = r.data_validade ?? "9999-12-31";
-        if (!cur || (cur.data_validade ?? "9999-12-31") > rowV) {
-          map[r.id_produto] = r as Lote;
-        }
+        (map[r.id_produto] ??= []).push(r as Lote);
       }
       return map;
     },
     enabled: !!reqQ.data && !!itensQ.data,
   });
+
 
   const solicQ = useQuery({
     queryKey: ["ficha-solic", reqQ.data?.solicitante],
