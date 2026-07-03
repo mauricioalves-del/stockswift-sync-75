@@ -183,6 +183,19 @@ function RequisicoesPage() {
                               </Button>
                             </>
                           )}
+                          {canWrite && STATUS_SEPARAVEL.has(r.status) && (
+                            <Button size="sm" variant="ghost" onClick={() => setSepararOpen(r)} title="Separar (FEFO)">
+                              <PackageCheck className="size-4 text-info" />
+                            </Button>
+                          )}
+                          {STATUS_SEPARAVEL.has(r.status) && (
+                            <Button
+                              size="sm" variant="ghost" title="Imprimir ficha de separação"
+                              onClick={() => window.open(`/suprimentos/requisicoes/${r.id}/ficha`, "_blank")}
+                            >
+                              <Printer className="size-4 text-muted-foreground" />
+                            </Button>
+                          )}
                           {(r.status === "RASCUNHO" || r.status === "ENVIADA") && (
                             <Button size="sm" variant="ghost" onClick={() => cancelar.mutate(r)} title="Cancelar">
                               <Trash2 className="size-4 text-muted-foreground" />
