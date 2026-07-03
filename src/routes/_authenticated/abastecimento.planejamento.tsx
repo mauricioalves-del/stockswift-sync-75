@@ -23,16 +23,22 @@ type Param = { origem: string; origem_abastecimento: string; cobertura_dias: num
 type Estoque = { id_produto: string; descricao: string; quantidade: number; custo_unitario: number; origem: string };
 type Consumo = { origem: string; sku: string; quantidade: number; data_movimento: string };
 type Demanda = { origem: string; sku: string; quantidade_extra: number; status: string; data_inicio: string; data_fim: string };
+type GrupoProd = { grupo: string; codigo_produto: string };
+type Familia = { codigo_produto: string; descricao_produto: string; familia: string };
 
 type Linha = {
-  sku: string; produto: string; origem: string; origem_abastecimento: string;
+  sku: string; produto: string; grupo: string; origem: string; origem_abastecimento: string;
   estoque: number; cmd: number; cobertura_atual: number; cobertura_alvo: number;
   demanda_extra: number; necessidade: number; sugestao: number; custo_unitario: number; valor_reposicao: number;
+  ruptura: boolean;
 };
+
+const GRUPOS_ELEGIVEIS_DEFAULT = ["Produto Acabado", "Mercadoria de Revenda"];
 
 function PlanejamentoPage() {
   const [origemF, setOrigemF] = useState<string>("__all");
   const [buscaF, setBuscaF] = useState("");
+  const [grupoF, setGrupoF] = useState<string>("__default");
 
   const paramsQ = useQuery({
     queryKey: ["parametros_ativos_plan"],
@@ -43,6 +49,37 @@ function PlanejamentoPage() {
   });
 
   const origensAtivas = (paramsQ.data ?? []).map((p) => p.origem);
+
+  const gruposAlvo = grupoF === "__default" ? GRUPOS_ELEGIVEIS_DEFAULT : [grupoF];
+
+  const produtosQ = useQuery({
+    queryKey: ["planejamento_produtos", gruposAlvo.join(",")],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("grupo_produtos")
+        .select("grupo, codigo_produto")
+        .in("grupo", gruposAlvo);
+      if (error) throw error;
+      return (data ?? []) as unknown as GrupoProd[];
+    },
+  });
+
+  const familiasQ = useQuery({
+    queryKey: ["planejamento_familias"],
+    queryFn: async () => {
+      const { data } = await supabase.from("familias").select("codigo_produto, descricao_produto, familia");
+      return (data ?? []) as unknown as Familia[];
+    },
+  });
+
+  const gruposDisponiveisQ = useQuery({
+    queryKey: ["planejamento_grupos_disp"],
+    queryFn: async () => {
+      const { data } = await supabase.from("grupo_produtos").select("grupo");
+      const s = new Set<string>();
+      (data ?? []).forEach((r: { grupo: string }) => { if (r.grupo) s.add(r.grupo); });
+      return Array.from(s).sort();
+    },
+  });
 
   const estoqueQ = useQuery({
     queryKey: ["planejamento_estoque", origensAtivas.join(",")],
@@ -84,16 +121,25 @@ function PlanejamentoPage() {
   });
 
   const linhas: Linha[] = useMemo(() => {
-    if (!paramsQ.data || !estoqueQ.data) return [];
+    if (!paramsQ.data || !produtosQ.data) return [];
     const paramsMap = new Map(paramsQ.data.map((p) => [p.origem, p]));
 
-    // Agregar estoque por SKU+origem
-    const stockMap = new Map<string, Estoque & { qtd: number }>();
-    for (const e of estoqueQ.data) {
+    // Catálogo de produtos elegíveis (grupo alvo)
+    const produtoGrupo = new Map<string, string>();
+    for (const g of produtosQ.data) produtoGrupo.set(g.codigo_produto, g.grupo);
+
+    // Descrições/custos por SKU (familias + fallback estoque)
+    const descMap = new Map<string, string>();
+    for (const f of (familiasQ.data ?? [])) descMap.set(f.codigo_produto, f.descricao_produto);
+
+    // Saldo consolidado por origem+SKU e custo médio simples
+    const stockMap = new Map<string, number>();
+    const custoMap = new Map<string, number>();
+    for (const e of (estoqueQ.data ?? [])) {
       const key = `${e.origem}|${e.id_produto}`;
-      const prev = stockMap.get(key);
-      if (prev) prev.qtd += Number(e.quantidade);
-      else stockMap.set(key, { ...e, qtd: Number(e.quantidade) });
+      stockMap.set(key, (stockMap.get(key) ?? 0) + Number(e.quantidade));
+      if (!descMap.has(e.id_produto) && e.descricao) descMap.set(e.id_produto, e.descricao);
+      if (Number(e.custo_unitario) > 0) custoMap.set(e.id_produto, Number(e.custo_unitario));
     }
 
     // Consumo 30 dias
@@ -110,26 +156,35 @@ function PlanejamentoPage() {
       demandaMap.set(key, (demandaMap.get(key) ?? 0) + Number(d.quantidade_extra));
     }
 
+    // LEFT JOIN produtos × origens ativas × saldo
     const out: Linha[] = [];
-    for (const [key, s] of stockMap) {
-      const p = paramsMap.get(s.origem); if (!p) continue;
-      const consumo30 = consumoMap.get(key) ?? 0;
-      const cmd = consumo30 / 30;
-      const cobertura_atual = cmd > 0 ? s.qtd / cmd : (s.qtd > 0 ? 999 : 0);
-      const cobertura_alvo = p.cobertura_dias;
-      const necessidade_base = cmd * cobertura_alvo;
-      const demanda_extra = demandaMap.get(key) ?? 0;
-      const necessidade = necessidade_base + demanda_extra;
-      const sugestao = Math.max(0, necessidade - s.qtd);
-      out.push({
-        sku: s.id_produto, produto: s.descricao, origem: s.origem, origem_abastecimento: p.origem_abastecimento,
-        estoque: s.qtd, cmd, cobertura_atual, cobertura_alvo,
-        demanda_extra, necessidade, sugestao,
-        custo_unitario: Number(s.custo_unitario), valor_reposicao: sugestao * Number(s.custo_unitario),
-      });
+    for (const [sku, grupo] of produtoGrupo) {
+      for (const p of paramsQ.data) {
+        const key = `${p.origem}|${sku}`;
+        const estoque = stockMap.get(key) ?? 0;
+        const consumo30 = consumoMap.get(key) ?? 0;
+        const cmd = consumo30 / 30;
+        const cobertura_atual = estoque <= 0 ? 0 : (cmd > 0 ? estoque / cmd : 999);
+        const cobertura_alvo = p.cobertura_dias;
+        const demanda_extra = demandaMap.get(key) ?? 0;
+        const necessidade = cmd * cobertura_alvo + demanda_extra;
+        const sugestao = Math.max(0, necessidade - estoque);
+        const custo_unitario = custoMap.get(sku) ?? 0;
+        const ruptura = estoque <= 0;
+        // Só exibe se houver saldo, consumo, demanda ou for produto elegível sempre visível.
+        // Regra: produtos sem saldo TAMBÉM aparecem (LEFT JOIN) → sempre incluir.
+        out.push({
+          sku, produto: descMap.get(sku) ?? sku, grupo,
+          origem: p.origem, origem_abastecimento: p.origem_abastecimento,
+          estoque, cmd, cobertura_atual, cobertura_alvo,
+          demanda_extra, necessidade, sugestao,
+          custo_unitario, valor_reposicao: sugestao * custo_unitario,
+          ruptura,
+        });
+      }
     }
-    return out.sort((a, b) => a.cobertura_atual - b.cobertura_atual);
-  }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data]);
+    return out.sort((a, b) => Number(b.ruptura) - Number(a.ruptura) || a.cobertura_atual - b.cobertura_atual);
+  }, [paramsQ.data, produtosQ.data, familiasQ.data, estoqueQ.data, consumoQ.data, demandasQ.data]);
 
   const linhasFiltradas = linhas.filter((l) => {
     if (origemF !== "__all" && l.origem !== origemF) return false;
@@ -143,13 +198,13 @@ function PlanejamentoPage() {
   const kpis = useMemo(() => {
     const total = linhasFiltradas.length;
     const abaixo = linhasFiltradas.filter((l) => l.cobertura_atual < l.cobertura_alvo).length;
-    const rupturas = linhasFiltradas.filter((l) => l.cobertura_atual < 3).length;
+    const rupturas = linhasFiltradas.filter((l) => l.ruptura).length;
     const valor = linhasFiltradas.reduce((s, l) => s + l.valor_reposicao, 0);
     const cobMedia = total ? linhasFiltradas.reduce((s, l) => s + Math.min(l.cobertura_atual, 60), 0) / total : 0;
     return { total, abaixo, rupturas, valor, cobMedia };
   }, [linhasFiltradas]);
 
-  const loading = paramsQ.isLoading || estoqueQ.isLoading;
+  const loading = paramsQ.isLoading || produtosQ.isLoading || estoqueQ.isLoading;
   const semParams = (paramsQ.data ?? []).length === 0;
 
   const nav = useNavigate();
@@ -239,7 +294,7 @@ function PlanejamentoPage() {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <KPI label="SKUs" value={String(kpis.total)} />
         <KPI label="Abaixo da cobertura" value={String(kpis.abaixo)} tone="warning" />
-        <KPI label="Em ruptura (<3d)" value={String(kpis.rupturas)} tone="danger" />
+        <KPI label="Em ruptura" value={String(kpis.rupturas)} tone="danger" />
         <KPI label="Cobertura média" value={`${kpis.cobMedia.toFixed(1)} d`} />
         <KPI label="Valor reposição" value={`R$ ${formatNum(kpis.valor)}`} />
       </div>
@@ -248,7 +303,7 @@ function PlanejamentoPage() {
         <CardHeader>
           <CardTitle className="text-base">Filtros</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div>
             <Label className="text-xs">Origem</Label>
             <Select value={origemF} onValueChange={setOrigemF}>
@@ -256,6 +311,16 @@ function PlanejamentoPage() {
               <SelectContent>
                 <SelectItem value="__all">Todos os almox</SelectItem>
                 {origensAtivas.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Grupo de produto</Label>
+            <Select value={grupoF} onValueChange={setGrupoF}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__default">Elegíveis (Acabado + Revenda)</SelectItem>
+                {(gruposDisponiveisQ.data ?? []).map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -297,7 +362,7 @@ function PlanejamentoPage() {
                       <TableCell className="text-xs font-medium">{l.origem_abastecimento}</TableCell>
                       <TableCell className="text-right tabular-nums">{formatNum(l.estoque)}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.cmd.toFixed(2)}</TableCell>
-                      <TableCell className="text-right"><CoberturaBadge dias={l.cobertura_atual} /></TableCell>
+                      <TableCell className="text-right">{l.ruptura ? <Badge className="bg-destructive text-destructive-foreground">RUPTURA</Badge> : <CoberturaBadge dias={l.cobertura_atual} />}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.cobertura_alvo}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.demanda_extra > 0 ? `+${formatNum(l.demanda_extra)}` : "—"}</TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">{formatNum(l.sugestao)}</TableCell>
