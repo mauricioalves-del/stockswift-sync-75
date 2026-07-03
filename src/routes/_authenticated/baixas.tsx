@@ -67,6 +67,7 @@ function NovaBaixaForm() {
   const [submitting, setSubmitting] = useState(false);
   const [ean, setEan] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [produto, setProduto] = useState<{
     id_produto: string; descricao: string; unidade: string;
   } | null>(null);
