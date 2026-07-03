@@ -45,12 +45,13 @@ const STATUS_COLORS: Record<string, string> = {
 const STATUS_SEPARAVEL = new Set(["ENVIADA", "APROVADA", "AGUARDANDO_SEPARACAO", "EM_SEPARACAO", "SEPARADA_PARCIAL"]);
 
 function RequisicoesPage() {
-  const { isAdmin } = useRole();
+  const { isAdmin, canWrite } = useRole();
   const qc = useQueryClient();
   const [statusF, setStatusF] = useState<string>("__all");
   const [novoOpen, setNovoOpen] = useState(false);
   const [rejeitarOpen, setRejeitarOpen] = useState<Req | null>(null);
   const [motivoRej, setMotivoRej] = useState("");
+  const [separarOpen, setSepararOpen] = useState<Req | null>(null);
 
   const q = useQuery({
     queryKey: ["requisicoes", statusF],
