@@ -259,7 +259,7 @@ function ProdutosReposicaoCard() {
     enabled: skus.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase.from("estoque_sistemico")
-        .select("id_produto, origem, quantidade, custo_unitario")
+        .select("id_produto, origem, quantidade, custo_unitario, descricao")
         .in("id_produto", skus);
       if (error) throw error;
       return (data ?? []) as unknown as EstoqueRow[];
@@ -267,12 +267,13 @@ function ProdutosReposicaoCard() {
   });
 
   const saldoPorSku = useMemo(() => {
-    const m = new Map<string, { qtd: number; custo: number; almox: Set<string> }>();
+    const m = new Map<string, { qtd: number; custo: number; almox: Set<string>; descricao: string }>();
     for (const e of (estoqueQ.data ?? [])) {
-      const prev = m.get(e.id_produto) ?? { qtd: 0, custo: 0, almox: new Set() };
+      const prev = m.get(e.id_produto) ?? { qtd: 0, custo: 0, almox: new Set(), descricao: "" };
       prev.qtd += Number(e.quantidade);
       if (Number(e.custo_unitario) > 0) prev.custo = Number(e.custo_unitario);
       if (e.origem) prev.almox.add(e.origem);
+      if (!prev.descricao && e.descricao) prev.descricao = e.descricao;
       m.set(e.id_produto, prev);
     }
     return m;
