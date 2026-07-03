@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_authenticated/abastecimento/planejamento
   head: () => ({ meta: [{ title: "Planejamento de Cobertura" }] }),
 });
 
-type Param = { origem: string; cobertura_dias: number; dias_seguranca: number; ativo: boolean };
+type Param = { origem: string; origem_abastecimento: string; cobertura_dias: number; dias_seguranca: number; ativo: boolean };
 type Estoque = { id_produto: string; descricao: string; quantidade: number; custo_unitario: number; origem: string };
 type Consumo = { origem: string; sku: string; quantidade: number; data_movimento: string };
 type Demanda = { origem: string; sku: string; quantidade_extra: number; status: string; data_inicio: string; data_fim: string };
