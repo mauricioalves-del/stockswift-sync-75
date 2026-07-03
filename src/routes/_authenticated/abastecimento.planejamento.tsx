@@ -119,7 +119,7 @@ function PlanejamentoPage() {
       const necessidade = necessidade_base + demanda_extra;
       const sugestao = Math.max(0, necessidade - s.qtd);
       out.push({
-        sku: s.id_produto, produto: s.descricao, origem: s.origem,
+        sku: s.id_produto, produto: s.descricao, origem: s.origem, origem_abastecimento: p.origem_abastecimento,
         estoque: s.qtd, cmd, cobertura_atual, cobertura_alvo,
         demanda_extra, necessidade, sugestao,
         custo_unitario: Number(s.custo_unitario), valor_reposicao: sugestao * Number(s.custo_unitario),
