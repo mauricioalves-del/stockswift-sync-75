@@ -148,23 +148,42 @@ function NovaBaixaForm() {
   const valorTotal = qtd * custo;
   const saldo = Number(linhaSelecionada?.quantidade ?? 0);
 
-  async function buscarPorEAN(codigo: string) {
-    const code = codigo.trim();
-    if (!code) return;
-    setEan(code);
+  // Extrai apenas os dígitos do conteúdo lido (QR Code de rastreabilidade pode conter URL/texto).
+  function extrairCodigoNumerico(raw: string): string {
+    const s = (raw ?? "").trim();
+    if (!s) return "";
+    // Se houver URL/querystring, extrai o maior número presente (geralmente o SKU/EAN).
+    const nums = s.match(/\d+/g) ?? [];
+    if (nums.length === 0) return "";
+    // Prioriza o maior bloco numérico (evita datas/porcentagens curtas).
+    return nums.reduce((a, b) => (b.length >= a.length ? b : a), nums[0]);
+  }
+
+  async function buscarPorCodigo(codigo: string) {
+    const numeric = extrairCodigoNumerico(codigo);
+    if (!numeric) return toast.error("Nenhum código numérico identificado");
+    setEan(numeric);
+    // Busca pelo Código do Produto (id_produto) na base de estoque
     const { data, error } = await (supabase as any)
       .from("estoque_sistemico")
       .select("id_produto, descricao, unidade")
-      .eq("ean", code)
+      .eq("id_produto", numeric)
       .limit(1)
       .maybeSingle();
     if (error) return toast.error(error.message);
     if (!data) {
       setProduto(null);
-      return toast.error(`EAN ${code} não encontrado na base de estoque`);
+      return toast.error(`Código ${numeric} não encontrado na base de estoque`);
     }
     setProduto({ id_produto: data.id_produto, descricao: data.descricao, unidade: data.unidade });
     toast.success(`Produto localizado: ${data.id_produto}`);
+  }
+
+  function selecionarProdutoManual(p: { id_produto: string; descricao: string; unidade: string }) {
+    setEan(p.id_produto);
+    setProduto(p);
+    setPickerOpen(false);
+    toast.success(`Produto selecionado: ${p.id_produto}`);
   }
 
   function limpar() {
