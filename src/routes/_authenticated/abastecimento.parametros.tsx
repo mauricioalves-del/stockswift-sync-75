@@ -451,8 +451,8 @@ function ProdutosReposicaoCard() {
   );
 }
 
-function LinhaProduto({ p, qtd, almox, onToggle, onRemover, onQc }: {
-  p: ProdutoRep; qtd: number; almox: number;
+function LinhaProduto({ p, qtd, almox, descricaoFallback, onToggle, onRemover, onQc }: {
+  p: ProdutoRep; qtd: number; almox: number; descricaoFallback: string;
   onToggle: (p: ProdutoRep, ativo: boolean) => void;
   onRemover: (p: ProdutoRep) => void;
   onQc: () => void;
@@ -476,10 +476,11 @@ function LinhaProduto({ p, qtd, almox, onToggle, onRemover, onQc }: {
     onQc();
   }
 
+  const descricao = p.descricao?.trim() || descricaoFallback || "—";
   return (
     <TableRow>
       <TableCell className="font-mono text-xs">{p.id_produto}</TableCell>
-      <TableCell className="text-xs max-w-xs truncate">{p.descricao}</TableCell>
+      <TableCell className="text-xs max-w-xs truncate" title={descricao}>{descricao}</TableCell>
       <TableCell className="text-xs">{p.unidade}</TableCell>
       <TableCell className="text-right tabular-nums text-xs">{p.cobertura_dias}</TableCell>
       <TableCell><Input className="h-7 text-right text-xs" type="number" min={0} value={minV} onChange={(e) => setMinV(e.target.value)} /></TableCell>
