@@ -90,9 +90,19 @@ function PlanejamentoPage() {
     },
   });
 
+  const prodRepQ = useQuery({
+    queryKey: ["planejamento_prod_rep"],
+    queryFn: async () => {
+      const { data } = await supabase.from("produtos_reposicao" as never)
+        .select("id_produto, estoque_minimo, estoque_ideal, estoque_maximo, ativo");
+      return (data ?? []) as unknown as ProdRep[];
+    },
+  });
+
   const linhas: Linha[] = useMemo(() => {
     if (!paramsQ.data) return [];
     const paramsMap = new Map(paramsQ.data.map((p) => [p.origem, p]));
+    const prodMap = new Map((prodRepQ.data ?? []).map((p) => [p.id_produto, p]));
 
     // Saldo consolidado por origem+SKU e custo médio simples
     const stockMap = new Map<string, { qtd: number; desc: string; custo: number }>();
@@ -127,16 +137,30 @@ function PlanejamentoPage() {
       const demanda_extra = demandaMap.get(key) ?? 0;
       const necessidade = cmd * cobertura_alvo + demanda_extra;
       const sugestao = Math.max(0, necessidade - s.qtd);
+
+      const pr = prodMap.get(sku);
+      const minimo = Number(pr?.estoque_minimo ?? 0);
+      const ideal = Number(pr?.estoque_ideal ?? 0);
+      const maximo = Number(pr?.estoque_maximo ?? 0);
+      let sugestao_minmax = 0;
+      if (minimo > 0 && s.qtd < minimo && ideal > 0) {
+        sugestao_minmax = ideal - s.qtd;
+        if (maximo > 0) sugestao_minmax = Math.min(sugestao_minmax, Math.max(0, maximo - s.qtd));
+        sugestao_minmax = Math.max(0, sugestao_minmax);
+      }
+
       out.push({
         sku, produto: s.desc,
         origem, origem_abastecimento: p.origem_abastecimento,
         estoque: s.qtd, cmd, cobertura_atual, cobertura_alvo,
         demanda_extra, necessidade, sugestao,
         custo_unitario: s.custo, valor_reposicao: sugestao * s.custo,
+        minimo, ideal, maximo, sugestao_minmax,
       });
     }
     return out.sort((a, b) => a.cobertura_atual - b.cobertura_atual);
-  }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data]);
+  }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data, prodRepQ.data]);
+
 
   const linhasFiltradas = linhas.filter((l) => {
     if (origemF !== "__all" && l.origem !== origemF) return false;
