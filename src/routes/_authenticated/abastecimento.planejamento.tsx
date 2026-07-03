@@ -225,6 +225,7 @@ function PlanejamentoPage() {
                       <TableCell className="font-mono text-xs">{l.sku}</TableCell>
                       <TableCell className="text-xs max-w-xs truncate">{l.produto}</TableCell>
                       <TableCell className="text-xs">{l.origem}</TableCell>
+                      <TableCell className="text-xs font-medium">{l.origem_abastecimento}</TableCell>
                       <TableCell className="text-right tabular-nums">{formatNum(l.estoque)}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.cmd.toFixed(2)}</TableCell>
                       <TableCell className="text-right"><CoberturaBadge dias={l.cobertura_atual} /></TableCell>
