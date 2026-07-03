@@ -429,7 +429,7 @@ function ProdutosReposicaoCard() {
                 {filtrados.slice(0, 500).map((p) => {
                   const s = saldoPorSku.get(p.id_produto);
                   const qtd = s?.qtd ?? 0;
-                  return <LinhaProduto key={p.id} p={p} qtd={qtd} almox={s?.almox.size ?? 0} onToggle={toggleAtivo} onRemover={remover} onQc={() => qc.invalidateQueries({ queryKey: ["produtos_reposicao"] })} />;
+                  return <LinhaProduto key={p.id} p={p} qtd={qtd} almox={s?.almox.size ?? 0} descricaoFallback={s?.descricao ?? ""} onToggle={toggleAtivo} onRemover={remover} onQc={() => qc.invalidateQueries({ queryKey: ["produtos_reposicao"] })} />;
                 })}
                 {filtrados.length === 0 && (
                   <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground text-sm py-6">
