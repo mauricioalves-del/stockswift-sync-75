@@ -38,8 +38,12 @@ type ProdutoRep = {
   unidade: string;
   custo_referencia: number;
   cobertura_dias: number;
+  estoque_minimo: number;
+  estoque_ideal: number;
+  estoque_maximo: number;
   ativo: boolean;
 };
+
 
 type EstoqueRow = { id_produto: string; origem: string; quantidade: number; custo_unitario: number };
 
@@ -407,43 +411,27 @@ function ProdutosReposicaoCard() {
                 <TableHead>Descrição</TableHead>
                 <TableHead>UM</TableHead>
                 <TableHead className="text-right">Cob. (d)</TableHead>
+                <TableHead className="text-right w-20">Mín</TableHead>
+                <TableHead className="text-right w-20">Ideal</TableHead>
+                <TableHead className="text-right w-20">Máx</TableHead>
                 <TableHead className="text-right">Custo Ref.</TableHead>
                 <TableHead className="text-right">Saldo Atual</TableHead>
                 <TableHead className="text-right">Almox</TableHead>
                 <TableHead className="w-20">Ativo</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-16"></TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {filtrados.slice(0, 500).map((p) => {
                   const s = saldoPorSku.get(p.id_produto);
                   const qtd = s?.qtd ?? 0;
-                  return (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-mono text-xs">{p.id_produto}</TableCell>
-                      <TableCell className="text-xs max-w-xs truncate">{p.descricao}</TableCell>
-                      <TableCell className="text-xs">{p.unidade}</TableCell>
-                      <TableCell className="text-right tabular-nums text-xs">{p.cobertura_dias}</TableCell>
-                      <TableCell className="text-right tabular-nums text-xs">{formatBRL(p.custo_referencia)}</TableCell>
-                      <TableCell className="text-right tabular-nums text-xs">
-                        {qtd > 0
-                          ? formatNum(qtd)
-                          : <Badge className="bg-destructive/15 text-destructive border-destructive/30">Sem saldo</Badge>}
-                      </TableCell>
-                      <TableCell className="text-right text-xs">{s?.almox.size ?? 0}</TableCell>
-                      <TableCell><Switch checked={p.ativo} onCheckedChange={(v) => toggleAtivo(p, v)} /></TableCell>
-                      <TableCell>
-                        <Button size="icon" variant="ghost" onClick={() => remover(p)}>
-                          <Trash2 className="size-3.5 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
+                  return <LinhaProduto key={p.id} p={p} qtd={qtd} almox={s?.almox.size ?? 0} onToggle={toggleAtivo} onRemover={remover} onQc={() => qc.invalidateQueries({ queryKey: ["produtos_reposicao"] })} />;
                 })}
                 {filtrados.length === 0 && (
-                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground text-sm py-6">
+                  <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground text-sm py-6">
                     Nenhum produto cadastrado. Importe uma planilha acima.
                   </TableCell></TableRow>
                 )}
+
               </TableBody>
             </Table>
             {filtrados.length > 500 && (
@@ -457,3 +445,59 @@ function ProdutosReposicaoCard() {
     </Card>
   );
 }
+
+function LinhaProduto({ p, qtd, almox, onToggle, onRemover, onQc }: {
+  p: ProdutoRep; qtd: number; almox: number;
+  onToggle: (p: ProdutoRep, ativo: boolean) => void;
+  onRemover: (p: ProdutoRep) => void;
+  onQc: () => void;
+}) {
+  const [minV, setMinV] = useState(String(p.estoque_minimo ?? 0));
+  const [idealV, setIdealV] = useState(String(p.estoque_ideal ?? 0));
+  const [maxV, setMaxV] = useState(String(p.estoque_maximo ?? 0));
+  const dirty =
+    Number(minV) !== Number(p.estoque_minimo ?? 0) ||
+    Number(idealV) !== Number(p.estoque_ideal ?? 0) ||
+    Number(maxV) !== Number(p.estoque_maximo ?? 0);
+
+  async function salvar() {
+    const { error } = await supabase.from("produtos_reposicao" as never).update({
+      estoque_minimo: Number(minV) || 0,
+      estoque_ideal: Number(idealV) || 0,
+      estoque_maximo: Number(maxV) || 0,
+    } as never).eq("id", p.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Parâmetros atualizados");
+    onQc();
+  }
+
+  return (
+    <TableRow>
+      <TableCell className="font-mono text-xs">{p.id_produto}</TableCell>
+      <TableCell className="text-xs max-w-xs truncate">{p.descricao}</TableCell>
+      <TableCell className="text-xs">{p.unidade}</TableCell>
+      <TableCell className="text-right tabular-nums text-xs">{p.cobertura_dias}</TableCell>
+      <TableCell><Input className="h-7 text-right text-xs" type="number" min={0} value={minV} onChange={(e) => setMinV(e.target.value)} /></TableCell>
+      <TableCell><Input className="h-7 text-right text-xs" type="number" min={0} value={idealV} onChange={(e) => setIdealV(e.target.value)} /></TableCell>
+      <TableCell><Input className="h-7 text-right text-xs" type="number" min={0} value={maxV} onChange={(e) => setMaxV(e.target.value)} /></TableCell>
+      <TableCell className="text-right tabular-nums text-xs">{formatBRL(p.custo_referencia)}</TableCell>
+      <TableCell className="text-right tabular-nums text-xs">
+        {qtd > 0 ? formatNum(qtd)
+          : <Badge className="bg-destructive/15 text-destructive border-destructive/30">Sem saldo</Badge>}
+      </TableCell>
+      <TableCell className="text-right text-xs">{almox}</TableCell>
+      <TableCell><Switch checked={p.ativo} onCheckedChange={(v) => onToggle(p, v)} /></TableCell>
+      <TableCell className="flex gap-1">
+        {dirty && (
+          <Button size="icon" variant="ghost" onClick={salvar} title="Salvar mín/ideal/máx">
+            <Save className="size-3.5 text-primary" />
+          </Button>
+        )}
+        <Button size="icon" variant="ghost" onClick={() => onRemover(p)}>
+          <Trash2 className="size-3.5 text-destructive" />
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+}
+

@@ -9,9 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Compass, Loader2, AlertTriangle, TrendingUp, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { formatNum } from "@/lib/inventory";
+
 
 
 export const Route = createFileRoute("/_authenticated/abastecimento/planejamento")({
@@ -23,16 +25,23 @@ type Param = { origem: string; origem_abastecimento: string; cobertura_dias: num
 type Estoque = { id_produto: string; descricao: string; quantidade: number; custo_unitario: number; origem: string };
 type Consumo = { origem: string; sku: string; quantidade: number; data_movimento: string };
 type Demanda = { origem: string; sku: string; quantidade_extra: number; status: string; data_inicio: string; data_fim: string };
+type ProdRep = { id_produto: string; estoque_minimo: number; estoque_ideal: number; estoque_maximo: number; ativo: boolean };
+
+type Metodo = "COBERTURA" | "MINMAX";
 
 type Linha = {
   sku: string; produto: string; origem: string; origem_abastecimento: string;
   estoque: number; cmd: number; cobertura_atual: number; cobertura_alvo: number;
   demanda_extra: number; necessidade: number; sugestao: number; custo_unitario: number; valor_reposicao: number;
+  minimo: number; ideal: number; maximo: number; sugestao_minmax: number;
 };
+
 
 function PlanejamentoPage() {
   const [origemF, setOrigemF] = useState<string>("__all");
   const [buscaF, setBuscaF] = useState("");
+  const [metodo, setMetodo] = useState<Metodo>("COBERTURA");
+
 
   const paramsQ = useQuery({
     queryKey: ["parametros_ativos_plan"],
@@ -83,9 +92,19 @@ function PlanejamentoPage() {
     },
   });
 
+  const prodRepQ = useQuery({
+    queryKey: ["planejamento_prod_rep"],
+    queryFn: async () => {
+      const { data } = await supabase.from("produtos_reposicao" as never)
+        .select("id_produto, estoque_minimo, estoque_ideal, estoque_maximo, ativo");
+      return (data ?? []) as unknown as ProdRep[];
+    },
+  });
+
   const linhas: Linha[] = useMemo(() => {
     if (!paramsQ.data) return [];
     const paramsMap = new Map(paramsQ.data.map((p) => [p.origem, p]));
+    const prodMap = new Map((prodRepQ.data ?? []).map((p) => [p.id_produto, p]));
 
     // Saldo consolidado por origem+SKU e custo médio simples
     const stockMap = new Map<string, { qtd: number; desc: string; custo: number }>();
@@ -120,16 +139,30 @@ function PlanejamentoPage() {
       const demanda_extra = demandaMap.get(key) ?? 0;
       const necessidade = cmd * cobertura_alvo + demanda_extra;
       const sugestao = Math.max(0, necessidade - s.qtd);
+
+      const pr = prodMap.get(sku);
+      const minimo = Number(pr?.estoque_minimo ?? 0);
+      const ideal = Number(pr?.estoque_ideal ?? 0);
+      const maximo = Number(pr?.estoque_maximo ?? 0);
+      let sugestao_minmax = 0;
+      if (minimo > 0 && s.qtd < minimo && ideal > 0) {
+        sugestao_minmax = ideal - s.qtd;
+        if (maximo > 0) sugestao_minmax = Math.min(sugestao_minmax, Math.max(0, maximo - s.qtd));
+        sugestao_minmax = Math.max(0, sugestao_minmax);
+      }
+
       out.push({
         sku, produto: s.desc,
         origem, origem_abastecimento: p.origem_abastecimento,
         estoque: s.qtd, cmd, cobertura_atual, cobertura_alvo,
         demanda_extra, necessidade, sugestao,
         custo_unitario: s.custo, valor_reposicao: sugestao * s.custo,
+        minimo, ideal, maximo, sugestao_minmax,
       });
     }
     return out.sort((a, b) => a.cobertura_atual - b.cobertura_atual);
-  }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data]);
+  }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data, prodRepQ.data]);
+
 
   const linhasFiltradas = linhas.filter((l) => {
     if (origemF !== "__all" && l.origem !== origemF) return false;
@@ -144,24 +177,29 @@ function PlanejamentoPage() {
     const total = linhasFiltradas.length;
     const abaixo = linhasFiltradas.filter((l) => l.cobertura_atual < l.cobertura_alvo).length;
     const criticos = linhasFiltradas.filter((l) => l.cobertura_atual < 3).length;
-    const valor = linhasFiltradas.reduce((s, l) => s + l.valor_reposicao, 0);
+    const abaixoMin = linhasFiltradas.filter((l) => l.minimo > 0 && l.estoque < l.minimo).length;
+    const acimaMax = linhasFiltradas.filter((l) => l.maximo > 0 && l.estoque > l.maximo).length;
+    const valor = linhasFiltradas.reduce((s, l) => s + (metodo === "MINMAX" ? l.sugestao_minmax * l.custo_unitario : l.valor_reposicao), 0);
     const cobMedia = total ? linhasFiltradas.reduce((s, l) => s + Math.min(l.cobertura_atual, 60), 0) / total : 0;
-    return { total, abaixo, criticos, valor, cobMedia };
-  }, [linhasFiltradas]);
+    return { total, abaixo, criticos, valor, cobMedia, abaixoMin, acimaMax };
+  }, [linhasFiltradas, metodo]);
+
 
   const loading = paramsQ.isLoading || estoqueQ.isLoading;
   const semParams = (paramsQ.data ?? []).length === 0;
 
   const nav = useNavigate();
+
   const gerarPedido = useMutation({
     mutationFn: async () => {
-      const sugeridos = linhasFiltradas.filter((l) => l.sugestao > 0);
+      const sugeridos = linhasFiltradas
+        .map((l) => ({ ...l, _sug: metodo === "MINMAX" ? l.sugestao_minmax : l.sugestao }))
+        .filter((l) => l._sug > 0);
       if (sugeridos.length === 0) throw new Error("Nenhum item com sugestão de reposição.");
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id;
       if (!uid) throw new Error("Sessão expirada.");
 
-      // Agrupa por (destino=origem_solicitante, fornecedor=origem_abastecimento)
       const grupos = new Map<string, typeof sugeridos>();
       for (const l of sugeridos) {
         const key = `${l.origem}|${l.origem_abastecimento}`;
@@ -172,19 +210,21 @@ function PlanejamentoPage() {
 
       const criadas: { id: string; numero: string }[] = [];
       let seq = 0;
+      const metodoLabel = metodo === "MINMAX" ? "MinMax" : "Cobertura";
       for (const [key, itens] of grupos) {
         const [destino, fornecedor] = key.split("|");
         const numero = `REQ-${Date.now().toString().slice(-8)}-${seq++}`;
         const { data: req, error: e1 } = await supabase.from("requisicoes" as never).insert({
           numero, origem_solicitante: destino, origem_fornecedora: fornecedor,
           solicitante: uid, tipo: "NORMAL", status: "RASCUNHO",
-          observacao: `Gerado pelo Planejamento de Cobertura (${itens.length} itens).`,
+          metodo_utilizado: metodoLabel,
+          observacao: `Gerado pelo Planejamento de Cobertura (${metodoLabel}) — ${itens.length} itens.`,
         } as never).select("id, numero").single();
         if (e1) throw e1;
         const r = req as unknown as { id: string; numero: string };
         const rows = itens.map((i) => ({
           requisicao_id: r.id, id_produto: i.sku, descricao: i.produto,
-          unidade: "UN", quantidade_solicitada: Number(i.sugestao.toFixed(3)),
+          unidade: "UN", quantidade_solicitada: Number(i._sug.toFixed(3)),
           custo_unitario: Number(i.custo_unitario ?? 0),
         }));
         const { error: e2 } = await supabase.from("requisicao_itens" as never).insert(rows as never);
@@ -205,7 +245,8 @@ function PlanejamentoPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const sugeridosCount = linhasFiltradas.filter((l) => l.sugestao > 0).length;
+  const sugeridosCount = linhasFiltradas.filter((l) => (metodo === "MINMAX" ? l.sugestao_minmax : l.sugestao) > 0).length;
+
 
 
   return (
@@ -214,16 +255,26 @@ function PlanejamentoPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><Compass className="size-6" /> Planejamento de Cobertura</h1>
           <p className="text-sm text-muted-foreground">
-            Cobertura = Estoque ÷ CMD · Sugestão = (CMD × Cobertura Alvo + Demanda Extra) − Estoque
+            {metodo === "COBERTURA"
+              ? "Cobertura = Estoque ÷ CMD · Sugestão = (CMD × Cob. Alvo + Demanda Extra) − Estoque"
+              : "Se Estoque < Mín ⇒ Sugestão = Ideal − Estoque (limitado ao Máx)"}
           </p>
         </div>
-        <Button
-          onClick={() => gerarPedido.mutate()}
-          disabled={sugeridosCount === 0 || gerarPedido.isPending}
-        >
-          {gerarPedido.isPending ? <Loader2 className="size-4 mr-1 animate-spin" /> : <FileText className="size-4 mr-1" />}
-          Gerar Pedido de Abastecimento{sugeridosCount > 0 ? ` (${sugeridosCount})` : ""}
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+          <Tabs value={metodo} onValueChange={(v) => setMetodo(v as Metodo)}>
+            <TabsList>
+              <TabsTrigger value="COBERTURA">Por Demanda (Cobertura)</TabsTrigger>
+              <TabsTrigger value="MINMAX">Mín / Ideal / Máx</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Button
+            onClick={() => gerarPedido.mutate()}
+            disabled={sugeridosCount === 0 || gerarPedido.isPending}
+          >
+            {gerarPedido.isPending ? <Loader2 className="size-4 mr-1 animate-spin" /> : <FileText className="size-4 mr-1" />}
+            Gerar Pedido{sugeridosCount > 0 ? ` (${sugeridosCount})` : ""}
+          </Button>
+        </div>
       </div>
 
 
@@ -238,9 +289,19 @@ function PlanejamentoPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <KPI label="SKUs" value={String(kpis.total)} />
-        <KPI label="Abaixo da cobertura" value={String(kpis.abaixo)} tone="warning" />
-        <KPI label="Cobertura < 3 dias" value={String(kpis.criticos)} tone="danger" />
-        <KPI label="Cobertura média" value={`${kpis.cobMedia.toFixed(1)} d`} />
+        {metodo === "COBERTURA" ? (
+          <>
+            <KPI label="Abaixo da cobertura" value={String(kpis.abaixo)} tone="warning" />
+            <KPI label="Cobertura < 3 dias" value={String(kpis.criticos)} tone="danger" />
+            <KPI label="Cobertura média" value={`${kpis.cobMedia.toFixed(1)} d`} />
+          </>
+        ) : (
+          <>
+            <KPI label="Abaixo do mínimo" value={String(kpis.abaixoMin)} tone="danger" />
+            <KPI label="Acima do máximo" value={String(kpis.acimaMax)} tone="warning" />
+            <KPI label="A repor" value={String(sugeridosCount)} />
+          </>
+        )}
         <KPI label="Valor reposição" value={`R$ ${formatNum(kpis.valor)}`} />
       </div>
 
@@ -268,11 +329,16 @@ function PlanejamentoPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="size-4" /> Cobertura por SKU</CardTitle>
-          <CardDescription>Ordenado pelos mais críticos.</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2">
+            <TrendingUp className="size-4" />
+            {metodo === "COBERTURA" ? "Cobertura por SKU" : "Mín / Ideal / Máx por SKU"}
+          </CardTitle>
+          <CardDescription>
+            {metodo === "COBERTURA" ? "Ordenado pelos mais críticos." : "Vermelho: abaixo do mínimo · Amarelo: entre mín e ideal · Verde: ok · Azul: excesso"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? <Loader2 className="animate-spin" /> : (
+          {loading ? <Loader2 className="animate-spin" /> : metodo === "COBERTURA" ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow>
@@ -317,11 +383,48 @@ function PlanejamentoPage() {
                 </div>
               )}
             </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Produto</TableHead>
+                  <TableHead>Destino</TableHead>
+                  <TableHead className="text-right">Estoque</TableHead>
+                  <TableHead className="text-right">Mín</TableHead>
+                  <TableHead className="text-right">Ideal</TableHead>
+                  <TableHead className="text-right">Máx</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Sugestão</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {linhasFiltradas.slice(0, 500).map((l) => (
+                    <TableRow key={`${l.origem}|${l.sku}`}>
+                      <TableCell className="font-mono text-xs">{l.sku}</TableCell>
+                      <TableCell className="text-xs max-w-xs truncate">{l.produto}</TableCell>
+                      <TableCell className="text-xs">{l.origem}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatNum(l.estoque)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{formatNum(l.minimo)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{formatNum(l.ideal)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{formatNum(l.maximo)}</TableCell>
+                      <TableCell><MinMaxBadge estoque={l.estoque} min={l.minimo} ideal={l.ideal} max={l.maximo} /></TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums">{l.sugestao_minmax > 0 ? formatNum(l.sugestao_minmax) : "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                  {linhasFiltradas.length === 0 && (
+                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground text-sm py-6">
+                      Sem dados.
+                    </TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
     </div>
   );
+
 }
 
 function CoberturaBadge({ dias }: { dias: number }) {
@@ -341,3 +444,12 @@ function KPI({ label, value, tone }: { label: string; value: string; tone?: "war
     </CardContent></Card>
   );
 }
+
+function MinMaxBadge({ estoque, min, ideal, max }: { estoque: number; min: number; ideal: number; max: number }) {
+  if (min === 0 && ideal === 0 && max === 0) return <Badge variant="outline" className="text-xs">Sem parâmetros</Badge>;
+  if (min > 0 && estoque < min) return <Badge className="bg-destructive/15 text-destructive">🔴 Abaixo do mín</Badge>;
+  if (max > 0 && estoque > max) return <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400">🔵 Excesso</Badge>;
+  if (ideal > 0 && estoque >= ideal) return <Badge className="bg-success/15 text-success">🟢 OK</Badge>;
+  return <Badge className="bg-warning/20 text-warning-foreground">🟡 Atenção</Badge>;
+}
+

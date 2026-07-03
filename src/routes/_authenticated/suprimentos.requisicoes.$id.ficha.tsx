@@ -14,14 +14,29 @@ export const Route = createFileRoute("/_authenticated/suprimentos/requisicoes/$i
 type Req = {
   id: string; numero: string; origem_solicitante: string; origem_fornecedora: string;
   tipo: string; status: string; solicitante: string | null; created_at: string;
+  metodo_utilizado: string | null;
 };
 type Item = {
   id: string; id_produto: string; descricao: string; unidade: string;
   quantidade_solicitada: number; quantidade_separada: number;
+  custo_unitario: number;
   status_item: string; motivo_nao_separacao: string | null;
   lotes_separados: Array<{ lote: string; data_validade: string | null; quantidade: number }>;
 };
 type Lote = { id_produto: string; lote: string; data_validade: string | null; quantidade: number };
+type LoteSug = { lote: string; data_validade: string | null; quantidade: number };
+
+function alocarFEFO(lotes: Lote[], qtd: number): { alocacoes: LoteSug[]; faltou: number } {
+  const sorted = [...lotes].sort((a, b) => (a.data_validade ?? "9999-12-31").localeCompare(b.data_validade ?? "9999-12-31"));
+  const out: LoteSug[] = [];
+  let rest = qtd;
+  for (const l of sorted) {
+    if (rest <= 0) break;
+    const usar = Math.min(Number(l.quantidade), rest);
+    if (usar > 0) { out.push({ lote: l.lote, data_validade: l.data_validade, quantidade: usar }); rest -= usar; }
+  }
+  return { alocacoes: out, faltou: Math.max(0, rest) };
+}
 
 function FichaSeparacaoPage() {
   const { id } = Route.useParams();
@@ -47,24 +62,21 @@ function FichaSeparacaoPage() {
     queryKey: ["ficha-lotes", id, reqQ.data?.origem_fornecedora, itensQ.data?.length ?? 0],
     queryFn: async () => {
       const skus = (itensQ.data ?? []).map((i) => i.id_produto);
-      if (!reqQ.data || skus.length === 0) return {} as Record<string, Lote>;
+      if (!reqQ.data || skus.length === 0) return {} as Record<string, Lote[]>;
       const { data } = await supabase.from("estoque_sistemico")
         .select("id_produto, lote, data_validade, quantidade")
         .eq("origem", reqQ.data.origem_fornecedora)
         .in("id_produto", skus)
         .gt("quantidade", 0);
-      const map: Record<string, Lote> = {};
+      const map: Record<string, Lote[]> = {};
       for (const r of data ?? []) {
-        const cur = map[r.id_produto];
-        const rowV = r.data_validade ?? "9999-12-31";
-        if (!cur || (cur.data_validade ?? "9999-12-31") > rowV) {
-          map[r.id_produto] = r as Lote;
-        }
+        (map[r.id_produto] ??= []).push(r as Lote);
       }
       return map;
     },
     enabled: !!reqQ.data && !!itensQ.data,
   });
+
 
   const solicQ = useQuery({
     queryKey: ["ficha-solic", reqQ.data?.solicitante],
@@ -113,11 +125,14 @@ function FichaSeparacaoPage() {
       <div className="ficha max-w-[210mm] mx-auto bg-white text-black p-6" style={{ fontFamily: "system-ui, sans-serif" }}>
         <div style={{ borderBottom: "2px solid #000", paddingBottom: 8, marginBottom: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <h1 style={{ fontSize: "18pt", fontWeight: 700, margin: 0 }}>Ficha de Separação</h1>
+            <h1 style={{ fontSize: "18pt", fontWeight: 700, margin: 0 }}>
+              {finalizada ? "Ficha de Separação" : "Pedido de Abastecimento"}
+            </h1>
             <div style={{ fontSize: "13pt", fontWeight: 600 }}>{r.numero}</div>
           </div>
           <div style={{ fontSize: "10pt", color: "#444" }}>
             Emitida em {new Date().toLocaleString("pt-BR")}
+            {r.metodo_utilizado ? ` · Método: ${r.metodo_utilizado}` : ""}
           </div>
         </div>
 
@@ -146,65 +161,65 @@ function FichaSeparacaoPage() {
           <thead>
             <tr>
               <th className="check">☐</th>
-              <th style={{ width: "18%" }}>SKU</th>
+              <th style={{ width: "14%" }}>SKU</th>
               <th>Produto</th>
-              <th style={{ width: "8%" }} className="num">Solic.</th>
-              <th style={{ width: "6%" }}>Un.</th>
-              <th style={{ width: "12%" }}>Lote sugerido</th>
-              <th style={{ width: "10%" }}>Validade</th>
-              {finalizada ? (
-                <>
-                  <th style={{ width: "9%" }} className="num">Separado</th>
-                  <th style={{ width: "12%" }}>Status / Motivo</th>
-                </>
-              ) : (
-                <th style={{ width: "12%" }}>Qtd separada</th>
-              )}
+              <th style={{ width: "12%" }}>Lote (FEFO)</th>
+              <th style={{ width: "9%" }}>Validade</th>
+              <th style={{ width: "8%" }} className="num">Qtd</th>
+              <th style={{ width: "5%" }}>Un.</th>
+              <th style={{ width: "9%" }} className="num">Custo</th>
+              <th style={{ width: "10%" }} className="num">Valor</th>
+              {finalizada && <th style={{ width: "10%" }}>Status</th>}
             </tr>
           </thead>
           <tbody>
-            {(itensQ.data ?? []).map((i) => {
-              const sug = lotesQ.data?.[i.id_produto];
+            {(itensQ.data ?? []).flatMap((i) => {
+              const cu = Number(i.custo_unitario ?? 0);
+              // Se finalizada, usa lotes efetivamente separados; senão, sugere FEFO em cascata a partir do estoque
               const lotesReg = i.lotes_separados ?? [];
-              const primeiroReg = lotesReg[0];
-              return (
-                <tr key={i.id}>
+              const linhas: Array<{ lote: string; validade: string | null; qtd: number }> = finalizada
+                ? lotesReg.map((l) => ({ lote: l.lote, validade: l.data_validade, qtd: Number(l.quantidade) }))
+                : (() => {
+                    const disp = lotesQ.data?.[i.id_produto] ?? [];
+                    const { alocacoes, faltou } = alocarFEFO(disp, Number(i.quantidade_solicitada));
+                    const rows = alocacoes.map((a) => ({ lote: a.lote, validade: a.data_validade, qtd: a.quantidade }));
+                    if (faltou > 0) rows.push({ lote: "SEM LOTE", validade: null, qtd: faltou });
+                    if (rows.length === 0) rows.push({ lote: "—", validade: null, qtd: Number(i.quantidade_solicitada) });
+                    return rows;
+                  })();
+
+              return linhas.map((ln, idx) => (
+                <tr key={`${i.id}-${idx}`}>
                   <td className="check">☐</td>
-                  <td style={{ fontFamily: "monospace", fontSize: "10pt" }}>{i.id_produto}</td>
-                  <td>{i.descricao}</td>
-                  <td className="num">{formatNum(i.quantidade_solicitada)}</td>
-                  <td>{i.unidade}</td>
-                  <td style={{ fontFamily: "monospace", fontSize: "10pt" }}>
-                    {finalizada
-                      ? (primeiroReg?.lote ?? "—") + (lotesReg.length > 1 ? ` (+${lotesReg.length - 1})` : "")
-                      : (sug?.lote ?? "—")}
-                  </td>
-                  <td>
-                    {finalizada
-                      ? (primeiroReg?.data_validade ? new Date(primeiroReg.data_validade).toLocaleDateString("pt-BR") : "—")
-                      : (sug?.data_validade ? new Date(sug.data_validade).toLocaleDateString("pt-BR") : "—")}
-                  </td>
-                  {finalizada ? (
-                    <>
-                      <td className="num">{formatNum(i.quantidade_separada)}</td>
-                      <td style={{ fontSize: "10pt" }}>
-                        {i.status_item === "SEPARADO" && "Separado"}
-                        {i.status_item === "SEPARADO_PARCIAL" && `Parcial — ${i.motivo_nao_separacao ?? ""}`}
-                        {i.status_item === "NAO_SEPARADO" && `Não separado — ${i.motivo_nao_separacao ?? ""}`}
-                        {i.status_item === "PENDENTE" && "Pendente"}
-                      </td>
-                    </>
-                  ) : (
-                    <td>&nbsp;</td>
+                  <td style={{ fontFamily: "monospace", fontSize: "10pt" }}>{idx === 0 ? i.id_produto : ""}</td>
+                  <td>{idx === 0 ? i.descricao : ""}</td>
+                  <td style={{ fontFamily: "monospace", fontSize: "10pt" }}>{ln.lote}</td>
+                  <td>{ln.validade ? new Date(ln.validade).toLocaleDateString("pt-BR") : "—"}</td>
+                  <td className="num">{formatNum(ln.qtd)}</td>
+                  <td>{idx === 0 ? i.unidade : ""}</td>
+                  <td className="num">R$ {formatNum(cu)}</td>
+                  <td className="num">R$ {formatNum(ln.qtd * cu)}</td>
+                  {finalizada && (
+                    <td style={{ fontSize: "10pt" }}>
+                      {idx === 0 && (
+                        <>
+                          {i.status_item === "SEPARADO" && "Separado"}
+                          {i.status_item === "SEPARADO_PARCIAL" && `Parcial — ${i.motivo_nao_separacao ?? ""}`}
+                          {i.status_item === "NAO_SEPARADO" && `Não sep. — ${i.motivo_nao_separacao ?? ""}`}
+                          {i.status_item === "PENDENTE" && "Pendente"}
+                        </>
+                      )}
+                    </td>
                   )}
                 </tr>
-              );
+              ));
             })}
             {(itensQ.data ?? []).length === 0 && (
-              <tr><td colSpan={finalizada ? 9 : 8} style={{ textAlign: "center", padding: 20 }}>Nenhum item.</td></tr>
+              <tr><td colSpan={finalizada ? 10 : 9} style={{ textAlign: "center", padding: 20 }}>Nenhum item.</td></tr>
             )}
           </tbody>
         </table>
+
 
         <div style={{ marginTop: 40, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, fontSize: "11pt" }}>
           <div>
