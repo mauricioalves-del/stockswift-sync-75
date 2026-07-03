@@ -444,3 +444,12 @@ function KPI({ label, value, tone }: { label: string; value: string; tone?: "war
     </CardContent></Card>
   );
 }
+
+function MinMaxBadge({ estoque, min, ideal, max }: { estoque: number; min: number; ideal: number; max: number }) {
+  if (min === 0 && ideal === 0 && max === 0) return <Badge variant="outline" className="text-xs">Sem parâmetros</Badge>;
+  if (min > 0 && estoque < min) return <Badge className="bg-destructive/15 text-destructive">🔴 Abaixo do mín</Badge>;
+  if (max > 0 && estoque > max) return <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400">🔵 Excesso</Badge>;
+  if (ideal > 0 && estoque >= ideal) return <Badge className="bg-success/15 text-success">🟢 OK</Badge>;
+  return <Badge className="bg-warning/20 text-warning-foreground">🟡 Atenção</Badge>;
+}
+
