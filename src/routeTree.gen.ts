@@ -29,6 +29,7 @@ import { Route as AuthenticatedContarRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedConfigRouteImport } from './routes/_authenticated/config'
 import { Route as AuthenticatedBaixasRouteImport } from './routes/_authenticated/baixas'
 import { Route as AuthenticatedAbcRouteImport } from './routes/_authenticated/abc'
+import { Route as AuthenticatedSuprimentosRequisicoesRouteImport } from './routes/_authenticated/suprimentos.requisicoes'
 import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_authenticated/suprimentos.estoque'
 import { Route as AuthenticatedAbastecimentoPlanejamentoRouteImport } from './routes/_authenticated/abastecimento.planejamento'
 import { Route as AuthenticatedAbastecimentoParametrosRouteImport } from './routes/_authenticated/abastecimento.parametros'
@@ -135,6 +136,12 @@ const AuthenticatedAbcRoute = AuthenticatedAbcRouteImport.update({
   path: '/abc',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSuprimentosRequisicoesRoute =
+  AuthenticatedSuprimentosRequisicoesRouteImport.update({
+    id: '/suprimentos/requisicoes',
+    path: '/suprimentos/requisicoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSuprimentosEstoqueRoute =
   AuthenticatedSuprimentosEstoqueRouteImport.update({
     id: '/suprimentos/estoque',
@@ -191,6 +198,7 @@ export interface FileRoutesByFullPath {
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/suprimentos/requisicoes': typeof AuthenticatedSuprimentosRequisicoesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -217,6 +225,7 @@ export interface FileRoutesByTo {
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/suprimentos/requisicoes': typeof AuthenticatedSuprimentosRequisicoesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -245,6 +254,7 @@ export interface FileRoutesById {
   '/_authenticated/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/_authenticated/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/_authenticated/suprimentos/requisicoes': typeof AuthenticatedSuprimentosRequisicoesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -273,6 +283,7 @@ export interface FileRouteTypes {
     | '/abastecimento/parametros'
     | '/abastecimento/planejamento'
     | '/suprimentos/estoque'
+    | '/suprimentos/requisicoes'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -299,6 +310,7 @@ export interface FileRouteTypes {
     | '/abastecimento/parametros'
     | '/abastecimento/planejamento'
     | '/suprimentos/estoque'
+    | '/suprimentos/requisicoes'
   id:
     | '__root__'
     | '/'
@@ -326,6 +338,7 @@ export interface FileRouteTypes {
     | '/_authenticated/abastecimento/parametros'
     | '/_authenticated/abastecimento/planejamento'
     | '/_authenticated/suprimentos/estoque'
+    | '/_authenticated/suprimentos/requisicoes'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -477,6 +490,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAbcRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/suprimentos/requisicoes': {
+      id: '/_authenticated/suprimentos/requisicoes'
+      path: '/suprimentos/requisicoes'
+      fullPath: '/suprimentos/requisicoes'
+      preLoaderRoute: typeof AuthenticatedSuprimentosRequisicoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/suprimentos/estoque': {
       id: '/_authenticated/suprimentos/estoque'
       path: '/suprimentos/estoque'
@@ -537,6 +557,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbastecimentoParametrosRoute: typeof AuthenticatedAbastecimentoParametrosRoute
   AuthenticatedAbastecimentoPlanejamentoRoute: typeof AuthenticatedAbastecimentoPlanejamentoRoute
   AuthenticatedSuprimentosEstoqueRoute: typeof AuthenticatedSuprimentosEstoqueRoute
+  AuthenticatedSuprimentosRequisicoesRoute: typeof AuthenticatedSuprimentosRequisicoesRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -565,6 +586,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAbastecimentoPlanejamentoRoute:
     AuthenticatedAbastecimentoPlanejamentoRoute,
   AuthenticatedSuprimentosEstoqueRoute: AuthenticatedSuprimentosEstoqueRoute,
+  AuthenticatedSuprimentosRequisicoesRoute:
+    AuthenticatedSuprimentosRequisicoesRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
