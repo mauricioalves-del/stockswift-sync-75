@@ -21,6 +21,7 @@ export const Route = createFileRoute("/_authenticated/abastecimento/parametros")
 type Parametro = {
   id: string;
   origem: string;
+  origem_abastecimento: string;
   cobertura_dias: number;
   dias_seguranca: number;
   frequencia_abastecimento: string;
