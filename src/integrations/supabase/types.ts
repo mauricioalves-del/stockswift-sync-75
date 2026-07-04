@@ -184,30 +184,90 @@ export type Database = {
           },
         ]
       }
+      checklist_execucao: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          marcado: boolean
+          marcado_em: string | null
+          marcado_por: string | null
+          observacao: string | null
+          tarefa_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          marcado?: boolean
+          marcado_em?: string | null
+          marcado_por?: string | null
+          observacao?: string | null
+          tarefa_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          marcado?: boolean
+          marcado_em?: string | null
+          marcado_por?: string | null
+          observacao?: string | null
+          tarefa_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_execucao_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "modelos_checklist_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_execucao_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefas_operacionais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classificacao_abc: {
         Row: {
+          calculado_em: string | null
           classe: string
           codigo_produto: string
           created_at: string
+          percentual_acumulado: number | null
+          periodo_dias: number | null
           proxima_contagem: string | null
           ultima_contagem: string | null
           updated_at: string
+          valor_movimentado: number
         }
         Insert: {
+          calculado_em?: string | null
           classe: string
           codigo_produto: string
           created_at?: string
+          percentual_acumulado?: number | null
+          periodo_dias?: number | null
           proxima_contagem?: string | null
           ultima_contagem?: string | null
           updated_at?: string
+          valor_movimentado?: number
         }
         Update: {
+          calculado_em?: string | null
           classe?: string
           codigo_produto?: string
           created_at?: string
+          percentual_acumulado?: number | null
+          periodo_dias?: number | null
           proxima_contagem?: string | null
           ultima_contagem?: string | null
           updated_at?: string
+          valor_movimentado?: number
         }
         Relationships: []
       }
@@ -645,6 +705,73 @@ export type Database = {
           },
         ]
       }
+      modelos_checklist: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+          tipo_tarefa_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          tipo_tarefa_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          tipo_tarefa_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "modelos_checklist_tipo_tarefa_id_fkey"
+            columns: ["tipo_tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_tarefa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      modelos_checklist_itens: {
+        Row: {
+          created_at: string
+          descricao_item: string
+          id: string
+          modelo_id: string
+          ordem: number
+        }
+        Insert: {
+          created_at?: string
+          descricao_item: string
+          id?: string
+          modelo_id: string
+          ordem?: number
+        }
+        Update: {
+          created_at?: string
+          descricao_item?: string
+          id?: string
+          modelo_id?: string
+          ordem?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "modelos_checklist_itens_modelo_id_fkey"
+            columns: ["modelo_id"]
+            isOneToOne: false
+            referencedRelation: "modelos_checklist"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       motivo_baixa: {
         Row: {
           ativo: boolean
@@ -1020,6 +1147,152 @@ export type Database = {
           created_at?: string
           descricao?: string
           id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tarefas_operacionais: {
+        Row: {
+          checklist_modelo_id: string | null
+          concluido_em: string | null
+          concluido_por: string | null
+          created_at: string
+          criado_por: string | null
+          data_prevista: string | null
+          descricao: string | null
+          evidencia_url: string | null
+          familia: string | null
+          grupo_produto: string | null
+          id: string
+          loja_setor: string | null
+          missao_id: string | null
+          observacao: string | null
+          prioridade: string
+          recorrencia: string
+          responsavel_id: string | null
+          responsavel_label: string | null
+          responsavel_tipo: string
+          sku_ou_local: string | null
+          status: string
+          tarefa_origem_id: string | null
+          tipo_id: string | null
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          checklist_modelo_id?: string | null
+          concluido_em?: string | null
+          concluido_por?: string | null
+          created_at?: string
+          criado_por?: string | null
+          data_prevista?: string | null
+          descricao?: string | null
+          evidencia_url?: string | null
+          familia?: string | null
+          grupo_produto?: string | null
+          id?: string
+          loja_setor?: string | null
+          missao_id?: string | null
+          observacao?: string | null
+          prioridade?: string
+          recorrencia?: string
+          responsavel_id?: string | null
+          responsavel_label?: string | null
+          responsavel_tipo?: string
+          sku_ou_local?: string | null
+          status?: string
+          tarefa_origem_id?: string | null
+          tipo_id?: string | null
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          checklist_modelo_id?: string | null
+          concluido_em?: string | null
+          concluido_por?: string | null
+          created_at?: string
+          criado_por?: string | null
+          data_prevista?: string | null
+          descricao?: string | null
+          evidencia_url?: string | null
+          familia?: string | null
+          grupo_produto?: string | null
+          id?: string
+          loja_setor?: string | null
+          missao_id?: string | null
+          observacao?: string | null
+          prioridade?: string
+          recorrencia?: string
+          responsavel_id?: string | null
+          responsavel_label?: string | null
+          responsavel_tipo?: string
+          sku_ou_local?: string | null
+          status?: string
+          tarefa_origem_id?: string | null
+          tipo_id?: string | null
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefas_operacionais_checklist_modelo_id_fkey"
+            columns: ["checklist_modelo_id"]
+            isOneToOne: false
+            referencedRelation: "modelos_checklist"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefas_operacionais_missao_id_fkey"
+            columns: ["missao_id"]
+            isOneToOne: false
+            referencedRelation: "missoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefas_operacionais_tarefa_origem_id_fkey"
+            columns: ["tarefa_origem_id"]
+            isOneToOne: false
+            referencedRelation: "tarefas_operacionais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefas_operacionais_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_tarefa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tipos_tarefa: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          integra_com: string | null
+          nome: string
+          ordem: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          integra_com?: string | null
+          nome: string
+          ordem?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          integra_com?: string | null
+          nome?: string
+          ordem?: number
           updated_at?: string
         }
         Relationships: []
