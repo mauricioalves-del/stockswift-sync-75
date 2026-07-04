@@ -32,6 +32,7 @@ import { Route as AuthenticatedAbcRouteImport } from './routes/_authenticated/ab
 import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_authenticated/suprimentos.estoque'
 import { Route as AuthenticatedSuprimentosDashboardRouteImport } from './routes/_authenticated/suprimentos.dashboard'
 import { Route as AuthenticatedGestaoPlanejamentoRouteImport } from './routes/_authenticated/gestao.planejamento'
+import { Route as AuthenticatedGestaoModelosChecklistRouteImport } from './routes/_authenticated/gestao.modelos-checklist'
 import { Route as AuthenticatedGestaoMinhasTarefasRouteImport } from './routes/_authenticated/gestao.minhas-tarefas'
 import { Route as AuthenticatedAbastecimentoPlanejamentoRouteImport } from './routes/_authenticated/abastecimento.planejamento'
 import { Route as AuthenticatedAbastecimentoParametrosRouteImport } from './routes/_authenticated/abastecimento.parametros'
@@ -159,6 +160,12 @@ const AuthenticatedGestaoPlanejamentoRoute =
     path: '/gestao/planejamento',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedGestaoModelosChecklistRoute =
+  AuthenticatedGestaoModelosChecklistRouteImport.update({
+    id: '/gestao/modelos-checklist',
+    path: '/gestao/modelos-checklist',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedGestaoMinhasTarefasRoute =
   AuthenticatedGestaoMinhasTarefasRouteImport.update({
     id: '/gestao/minhas-tarefas',
@@ -233,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
   '/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
+  '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
@@ -265,6 +273,7 @@ export interface FileRoutesByTo {
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
   '/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
+  '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
@@ -299,6 +308,7 @@ export interface FileRoutesById {
   '/_authenticated/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/_authenticated/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
   '/_authenticated/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
+  '/_authenticated/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/_authenticated/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
@@ -333,6 +343,7 @@ export interface FileRouteTypes {
     | '/abastecimento/parametros'
     | '/abastecimento/planejamento'
     | '/gestao/minhas-tarefas'
+    | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
@@ -365,6 +376,7 @@ export interface FileRouteTypes {
     | '/abastecimento/parametros'
     | '/abastecimento/planejamento'
     | '/gestao/minhas-tarefas'
+    | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
@@ -398,6 +410,7 @@ export interface FileRouteTypes {
     | '/_authenticated/abastecimento/parametros'
     | '/_authenticated/abastecimento/planejamento'
     | '/_authenticated/gestao/minhas-tarefas'
+    | '/_authenticated/gestao/modelos-checklist'
     | '/_authenticated/gestao/planejamento'
     | '/_authenticated/suprimentos/dashboard'
     | '/_authenticated/suprimentos/estoque'
@@ -576,6 +589,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGestaoPlanejamentoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/gestao/modelos-checklist': {
+      id: '/_authenticated/gestao/modelos-checklist'
+      path: '/gestao/modelos-checklist'
+      fullPath: '/gestao/modelos-checklist'
+      preLoaderRoute: typeof AuthenticatedGestaoModelosChecklistRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/gestao/minhas-tarefas': {
       id: '/_authenticated/gestao/minhas-tarefas'
       path: '/gestao/minhas-tarefas'
@@ -672,6 +692,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbastecimentoParametrosRoute: typeof AuthenticatedAbastecimentoParametrosRoute
   AuthenticatedAbastecimentoPlanejamentoRoute: typeof AuthenticatedAbastecimentoPlanejamentoRoute
   AuthenticatedGestaoMinhasTarefasRoute: typeof AuthenticatedGestaoMinhasTarefasRoute
+  AuthenticatedGestaoModelosChecklistRoute: typeof AuthenticatedGestaoModelosChecklistRoute
   AuthenticatedGestaoPlanejamentoRoute: typeof AuthenticatedGestaoPlanejamentoRoute
   AuthenticatedSuprimentosDashboardRoute: typeof AuthenticatedSuprimentosDashboardRoute
   AuthenticatedSuprimentosEstoqueRoute: typeof AuthenticatedSuprimentosEstoqueRoute
@@ -705,6 +726,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAbastecimentoPlanejamentoRoute:
     AuthenticatedAbastecimentoPlanejamentoRoute,
   AuthenticatedGestaoMinhasTarefasRoute: AuthenticatedGestaoMinhasTarefasRoute,
+  AuthenticatedGestaoModelosChecklistRoute:
+    AuthenticatedGestaoModelosChecklistRoute,
   AuthenticatedGestaoPlanejamentoRoute: AuthenticatedGestaoPlanejamentoRoute,
   AuthenticatedSuprimentosDashboardRoute:
     AuthenticatedSuprimentosDashboardRoute,

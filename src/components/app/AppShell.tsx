@@ -54,10 +54,13 @@ const NAV: (NavItem | NavGroup)[] = [
     ],
   },
   {
-    id: "gestao", label: "Gestão", icon: TrendingUp, role: "admin",
+    id: "gestao", label: "Gestão", icon: TrendingUp, role: "any",
     items: [
+      { to: "/gestao/minhas-tarefas", label: "Minhas Tarefas", icon: ClipboardList, role: "any" },
+      { to: "/gestao/planejamento", label: "Planejamento", icon: Target, role: "write" },
+      { to: "/gestao/modelos-checklist", label: "Modelos de Checklist", icon: FolderTree, role: "write" },
       { to: "/baixas", label: "Baixas Operacionais", icon: PackageMinus, role: "write" },
-      { to: "/missoes", label: "Missões", icon: Target, role: "admin" },
+      { to: "/missoes", label: "Missões de Inventário", icon: Target, role: "admin" },
       { to: "/abc", label: "Classificação ABC", icon: BarChart3, role: "admin" },
     ],
   },
