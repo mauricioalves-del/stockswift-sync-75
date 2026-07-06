@@ -187,6 +187,7 @@ function PlanejamentoPage() {
 
   const linhasFiltradas = linhas.filter((l) => {
     if (origemF !== "__all" && l.origem !== origemF) return false;
+    if (skusDoGrupo && !skusDoGrupo.has(l.sku)) return false;
     if (buscaF) {
       const t = buscaF.toLowerCase();
       if (!l.sku.toLowerCase().includes(t) && !l.produto.toLowerCase().includes(t)) return false;
