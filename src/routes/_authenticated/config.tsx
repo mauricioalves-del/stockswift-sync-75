@@ -1,12 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
-import { EyeOff } from "lucide-react";
+import { EyeOff, Shield, ChevronRight } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/config")({
   component: ConfigPage,
@@ -14,8 +15,9 @@ export const Route = createFileRoute("/_authenticated/config")({
 });
 
 function ConfigPage() {
-  const { isAdmin } = useRole();
+  const { isAdmin, role } = useRole();
   const [cego, setCego] = useState(false);
+  const isCoord = role === "COORDENADOR_CONTROLE";
 
   useEffect(() => {
     supabase.from("app_config").select("valor").eq("chave", "inventario_cego").maybeSingle()
@@ -30,7 +32,7 @@ function ConfigPage() {
     toast.success(v ? "Inventário cego ativado" : "Saldo sistêmico será exibido");
   }
 
-  if (!isAdmin) return <div className="p-8 text-center text-muted-foreground">Acesso restrito a administradores.</div>;
+  if (!isAdmin && !isCoord) return <div className="p-8 text-center text-muted-foreground">Acesso restrito.</div>;
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
@@ -39,18 +41,35 @@ function ConfigPage() {
         <p className="text-sm text-muted-foreground">Parâmetros globais da operação</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base"><EyeOff className="size-4" /> Inventário Cego</CardTitle>
-          <CardDescription>Quando ativado, oculta o saldo sistêmico do operador durante a contagem.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <Label htmlFor="cego-switch">Ocultar saldo sistêmico</Label>
-            <Switch id="cego-switch" checked={cego} onCheckedChange={toggle} />
-          </div>
-        </CardContent>
-      </Card>
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base"><EyeOff className="size-4" /> Inventário Cego</CardTitle>
+            <CardDescription>Quando ativado, oculta o saldo sistêmico do operador durante a contagem.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="cego-switch">Ocultar saldo sistêmico</Label>
+              <Switch id="cego-switch" checked={cego} onCheckedChange={toggle} />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isCoord && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base"><Shield className="size-4" /> Perfis e Permissões</CardTitle>
+            <CardDescription>Matriz de acesso por perfil e módulo. Restrito ao Coordenador de Controle.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline" className="w-full justify-between">
+              <Link to="/config/perfis">Abrir matriz de permissões <ChevronRight className="size-4" /></Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
+
