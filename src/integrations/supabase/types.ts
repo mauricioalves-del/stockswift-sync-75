@@ -987,6 +987,36 @@ export type Database = {
         }
         Relationships: []
       }
+      parametros_inventario: {
+        Row: {
+          almoxarifado_id: string
+          ativo: boolean
+          created_at: string
+          id: string
+          referencia_id: string
+          tipo_escopo: string
+          updated_at: string
+        }
+        Insert: {
+          almoxarifado_id: string
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          referencia_id: string
+          tipo_escopo: string
+          updated_at?: string
+        }
+        Update: {
+          almoxarifado_id?: string
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          referencia_id?: string
+          tipo_escopo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       perfis: {
         Row: {
           ativo: boolean
