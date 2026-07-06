@@ -18,6 +18,7 @@ function ConfigPage() {
   const { isAdmin, role } = useRole();
   const [cego, setCego] = useState(false);
   const isCoord = role === "COORDENADOR_CONTROLE";
+  const podeGerirInv = isAdmin || role === "GERENTE" || isCoord;
 
   useEffect(() => {
     supabase.from("app_config").select("valor").eq("chave", "inventario_cego").maybeSingle()
