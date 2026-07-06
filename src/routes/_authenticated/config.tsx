@@ -70,6 +70,20 @@ function ConfigPage() {
           </CardContent>
         </Card>
       )}
+
+      {podeGerirInv && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base"><Warehouse className="size-4" /> Parâmetros de Inventário</CardTitle>
+            <CardDescription>Almoxarifado padrão por usuário — usado na contagem quando a missão não define um.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline" className="w-full justify-between">
+              <Link to="/config/inventario">Configurar almoxarifado padrão <ChevronRight className="size-4" /></Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
