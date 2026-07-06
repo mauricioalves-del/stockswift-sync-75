@@ -13,6 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { addPendingCount } from "@/lib/idb";
 import { syncPendingCounts } from "@/lib/sync";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { extrairCodigoNumericoQR } from "@/lib/qr-estoque";
 
 export const Route = createFileRoute("/_authenticated/scanner")({
   ssr: false,
