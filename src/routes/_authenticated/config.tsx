@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
-import { EyeOff, Shield, ChevronRight } from "lucide-react";
+import { EyeOff, Shield, ChevronRight, Warehouse } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/config")({
   component: ConfigPage,
