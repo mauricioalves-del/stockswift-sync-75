@@ -21,6 +21,7 @@ import { BarcodeScanner } from "@/components/app/BarcodeScanner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { extrairCodigoNumericoQR } from "@/lib/qr-estoque";
 
 
 export const Route = createFileRoute("/_authenticated/baixas")({
@@ -148,16 +149,8 @@ function NovaBaixaForm() {
   const valorTotal = qtd * custo;
   const saldo = Number(linhaSelecionada?.quantidade ?? 0);
 
-  // Extrai apenas os dígitos do conteúdo lido (QR Code de rastreabilidade pode conter URL/texto).
-  function extrairCodigoNumerico(raw: string): string {
-    const s = (raw ?? "").trim();
-    if (!s) return "";
-    // Se houver URL/querystring, extrai o maior número presente (geralmente o SKU/EAN).
-    const nums: string[] = s.match(/\d+/g) ?? [];
-    if (nums.length === 0) return "";
-    // Prioriza o maior bloco numérico (evita datas/porcentagens curtas).
-    return nums.reduce((a, b) => (b.length >= a.length ? b : a));
-  }
+  // Parse do QR Code de rastreabilidade — lógica compartilhada com o scanner de Contagem.
+  const extrairCodigoNumerico = extrairCodigoNumericoQR;
 
   async function buscarPorCodigo(codigo: string) {
     const numeric = extrairCodigoNumerico(codigo);
