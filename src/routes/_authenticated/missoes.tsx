@@ -136,6 +136,7 @@ function NovaMissao() {
       // gerar itens
       let q = (supabase as any).from("estoque_sistemico").select("id_produto, descricao, lote, quantidade");
       if (form.id_local) q = q.eq("id_local", form.id_local);
+      if (form.origem) q = q.eq("origem", form.origem);
       if (form.grupo) {
         const { data: codigos } = await (supabase as any).from("grupo_produtos").select("codigo_produto").eq("grupo", form.grupo);
         const lista = (codigos ?? []).map((c: any) => c.codigo_produto);
