@@ -18,7 +18,7 @@ import { formatNum } from "@/lib/inventory";
 
 export const Route = createFileRoute("/_authenticated/abastecimento/planejamento")({
   component: PlanejamentoPage,
-  head: () => ({ meta: [{ title: "Planejamento de Cobertura" }] }),
+  head: () => ({ meta: [{ title: "Abastecimento" }] }),
 });
 
 type Param = { origem: string; origem_abastecimento: string; cobertura_dias: number; dias_seguranca: number; ativo: boolean };
@@ -218,7 +218,7 @@ function PlanejamentoPage() {
           numero, origem_solicitante: destino, origem_fornecedora: fornecedor,
           solicitante: uid, tipo: "NORMAL", status: "RASCUNHO",
           metodo_utilizado: metodoLabel,
-          observacao: `Gerado pelo Planejamento de Cobertura (${metodoLabel}) — ${itens.length} itens.`,
+          observacao: `Gerado pelo Abastecimento (${metodoLabel}) — ${itens.length} itens.`,
         } as never).select("id, numero").single();
         if (e1) throw e1;
         const r = req as unknown as { id: string; numero: string };
@@ -253,7 +253,7 @@ function PlanejamentoPage() {
     <div className="max-w-7xl mx-auto space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Compass className="size-6" /> Planejamento de Cobertura</h1>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Compass className="size-6" /> Abastecimento</h1>
           <p className="text-sm text-muted-foreground">
             {metodo === "COBERTURA"
               ? "Cobertura = Estoque ÷ CMD · Sugestão = (CMD × Cob. Alvo + Demanda Extra) − Estoque"

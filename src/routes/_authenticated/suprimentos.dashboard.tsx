@@ -83,7 +83,7 @@ function SuprimentosDashboard() {
           <CardContent className="grid grid-cols-2 gap-2 text-sm">
             <Atalho to="/suprimentos/estoque" label="Posição de Estoque" icon={Boxes} />
             <Atalho to="/suprimentos/requisicoes" label="Requisições" icon={ClipboardList} />
-            <Atalho to="/abastecimento/planejamento" label="Planejamento de Cobertura" icon={Compass} />
+            <Atalho to="/abastecimento/planejamento" label="Abastecimento" icon={Compass} />
             <Atalho to="/abastecimento/demandas" label="Demandas Extras" icon={Sparkles} />
           </CardContent>
         </Card>
