@@ -102,6 +102,23 @@ function PlanejamentoPage() {
     },
   });
 
+  const gruposQ = useQuery({
+    queryKey: ["planejamento_grupos"],
+    queryFn: async () => {
+      const { data } = await (supabase as never as { from: (t: string) => { select: (c: string) => Promise<{ data: { grupo: string; codigo_produto: string }[] | null }> } })
+        .from("grupo_produtos").select("grupo, codigo_produto");
+      return (data ?? []) as { grupo: string; codigo_produto: string }[];
+    },
+  });
+  const gruposDistintos = useMemo(
+    () => Array.from(new Set((gruposQ.data ?? []).map((g) => g.grupo).filter(Boolean))).sort(),
+    [gruposQ.data]
+  );
+  const skusDoGrupo = useMemo(() => {
+    if (grupoF === "__all") return null;
+    return new Set((gruposQ.data ?? []).filter((g) => g.grupo === grupoF).map((g) => g.codigo_produto));
+  }, [gruposQ.data, grupoF]);
+
   const linhas: Linha[] = useMemo(() => {
     if (!paramsQ.data) return [];
     const paramsMap = new Map(paramsQ.data.map((p) => [p.origem, p]));
