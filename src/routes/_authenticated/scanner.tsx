@@ -108,11 +108,12 @@ function ScannerPage() {
       setTimeout(() => setLastCode(""), 1500);
       return;
     }
-    const { data } = await supabase
+    let query = supabase
       .from("estoque_sistemico")
       .select("*")
-      .or(`id_produto.eq.${numeric},lote.eq.${numeric}`)
-      .limit(20);
+      .or(`id_produto.eq.${numeric},lote.eq.${numeric}`);
+    if (almoxInfo?.almox) query = query.eq("origem", almoxInfo.almox);
+    const { data } = await query.limit(20);
     const list = (data ?? []) as Hit[];
     if (list.length === 0) {
       toast.error(`Produto ${numeric} não encontrado`);
