@@ -97,14 +97,21 @@ function ScannerPage() {
     if (code === lastCode) return;
     setLastCode(code);
     sounds.scan();
+    const numeric = extrairCodigoNumericoQR(code);
+    if (!numeric) {
+      toast.error("Nenhum código numérico identificado no QR");
+      sounds.error();
+      setTimeout(() => setLastCode(""), 1500);
+      return;
+    }
     const { data } = await supabase
       .from("estoque_sistemico")
       .select("*")
-      .or(`id_produto.eq.${code},lote.eq.${code}`)
+      .or(`id_produto.eq.${numeric},lote.eq.${numeric}`)
       .limit(20);
     const list = (data ?? []) as Hit[];
     if (list.length === 0) {
-      toast.error(`Produto ${code} não encontrado`);
+      toast.error(`Produto ${numeric} não encontrado`);
       sounds.error();
       setTimeout(() => setLastCode(""), 1500);
       return;
