@@ -19,6 +19,9 @@ import { syncPendingCounts } from "@/lib/sync";
 import { cn } from "@/lib/utils";
 import { useRole } from "@/hooks/useRole";
 import { LimparContagemDialog } from "@/components/inventario/LimparContagemDialog";
+import { useAlmoxAtivo } from "@/lib/almox-inventario";
+import { Warehouse, AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/contar")({
   component: ContarPage,
