@@ -14,6 +14,8 @@ import { addPendingCount } from "@/lib/idb";
 import { syncPendingCounts } from "@/lib/sync";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { extrairCodigoNumericoQR } from "@/lib/qr-estoque";
+import { useAlmoxAtivo } from "@/lib/almox-inventario";
+import { AlertTriangle, Warehouse } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/scanner")({
   ssr: false,
