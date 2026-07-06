@@ -53,6 +53,13 @@ function ContarPage() {
   const [grupo, setGrupo] = useState<string>(TODOS);
   const [familia, setFamilia] = useState<string>(TODOS);
   const [sku, setSku] = useState<string>("");
+  const { data: almoxInfo } = useAlmoxAtivo();
+
+  // Aplica almoxarifado ativo (missão ou padrão do usuário) como default do filtro
+  useEffect(() => {
+    if (almoxInfo?.almox && origem === TODOS) setOrigem(almoxInfo.almox);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [almoxInfo?.almox]);
 
   // Inventário cego
   const { data: cego } = useQuery({
