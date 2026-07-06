@@ -14,6 +14,8 @@ import { addPendingCount } from "@/lib/idb";
 import { syncPendingCounts } from "@/lib/sync";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { extrairCodigoNumericoQR } from "@/lib/qr-estoque";
+import { useAlmoxAtivo } from "@/lib/almox-inventario";
+import { AlertTriangle, Warehouse } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/scanner")({
   ssr: false,
@@ -46,6 +48,7 @@ function ScannerPage() {
   const [contado, setContado] = useState("");
   const [saving, setSaving] = useState(false);
   const [lastCode, setLastCode] = useState<string>("");
+  const { data: almoxInfo } = useAlmoxAtivo();
 
   useEffect(() => {
     return () => {
@@ -105,11 +108,12 @@ function ScannerPage() {
       setTimeout(() => setLastCode(""), 1500);
       return;
     }
-    const { data } = await supabase
+    let query = supabase
       .from("estoque_sistemico")
       .select("*")
-      .or(`id_produto.eq.${numeric},lote.eq.${numeric}`)
-      .limit(20);
+      .or(`id_produto.eq.${numeric},lote.eq.${numeric}`);
+    if (almoxInfo?.almox) query = query.eq("origem", almoxInfo.almox);
+    const { data } = await query.limit(20);
     const list = (data ?? []) as Hit[];
     if (list.length === 0) {
       toast.error(`Produto ${numeric} não encontrado`);
@@ -171,6 +175,21 @@ function ScannerPage() {
         <h1 className="text-2xl font-bold">Scanner de Código de Barras</h1>
         <p className="text-sm text-muted-foreground">EAN13, CODE128, QR e Datamatrix</p>
       </div>
+
+      {almoxInfo?.almox ? (
+        <div className="flex items-center gap-2 rounded-md border bg-primary/5 px-3 py-2 text-sm">
+          <Warehouse className="size-4 text-primary" />
+          <span>Contagem no almoxarifado <strong>{almoxInfo.almox}</strong></span>
+          <Badge variant="outline" className="ml-auto text-[10px]">
+            {almoxInfo.source === "Missao" ? `Missão: ${almoxInfo.missaoTitulo ?? ""}` : "Padrão do usuário"}
+          </Badge>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+          <AlertTriangle className="size-4 text-warning-foreground" />
+          <span className="text-warning-foreground">Almoxarifado não configurado para esta contagem — buscando em todos.</span>
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-4 space-y-3">

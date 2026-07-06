@@ -97,8 +97,18 @@ function NovaMissao() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     titulo: "", descricao: "", tipo: "EXTRAORDINARIA",
-    grupo: "", familia: "", id_local: "", data_execucao: new Date().toISOString().slice(0, 10),
+    grupo: "", familia: "", id_local: "", origem: "",
+    data_execucao: new Date().toISOString().slice(0, 10),
     criterio_abc: "",
+  });
+
+  const origensQ = useQuery({
+    queryKey: ["origens-ativas-nova-missao"],
+    queryFn: async () => {
+      const { data } = await supabase.from("origens").select("codigo_origem, descricao")
+        .eq("ativo", true).order("codigo_origem");
+      return data ?? [];
+    },
   });
 
   const gruposQ = useQuery({
@@ -118,6 +128,7 @@ function NovaMissao() {
       const { data: m, error } = await (supabase as any).from("missoes").insert({
         titulo: form.titulo, descricao: form.descricao, tipo: form.tipo,
         grupo: form.grupo || null, familia: form.familia || null, id_local: form.id_local || null,
+        origem: form.origem || null,
         data_execucao: form.data_execucao, criado_por: user.id,
       }).select().single();
       if (error) throw error;
@@ -125,6 +136,7 @@ function NovaMissao() {
       // gerar itens
       let q = (supabase as any).from("estoque_sistemico").select("id_produto, descricao, lote, quantidade");
       if (form.id_local) q = q.eq("id_local", form.id_local);
+      if (form.origem) q = q.eq("origem", form.origem);
       if (form.grupo) {
         const { data: codigos } = await (supabase as any).from("grupo_produtos").select("codigo_produto").eq("grupo", form.grupo);
         const lista = (codigos ?? []).map((c: any) => c.codigo_produto);
@@ -206,6 +218,18 @@ function NovaMissao() {
         <div>
           <Label>Local (id_local)</Label>
           <Input value={form.id_local} onChange={(e) => setForm({ ...form, id_local: e.target.value })} />
+        </div>
+        <div>
+          <Label>Almoxarifado</Label>
+          <Select value={form.origem || "__all__"} onValueChange={(v) => setForm({ ...form, origem: v === "__all__" ? "" : v })}>
+            <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos</SelectItem>
+              {(origensQ.data ?? []).map((o) => (
+                <SelectItem key={o.codigo_origem} value={o.codigo_origem}>{o.descricao || o.codigo_origem}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <Label>Critério ABC</Label>

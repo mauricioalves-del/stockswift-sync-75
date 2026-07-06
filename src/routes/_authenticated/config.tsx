@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
-import { EyeOff, Shield, ChevronRight } from "lucide-react";
+import { EyeOff, Shield, ChevronRight, Warehouse } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/config")({
   component: ConfigPage,
@@ -18,6 +18,7 @@ function ConfigPage() {
   const { isAdmin, role } = useRole();
   const [cego, setCego] = useState(false);
   const isCoord = role === "COORDENADOR_CONTROLE";
+  const podeGerirInv = isAdmin || role === "GERENTE" || isCoord;
 
   useEffect(() => {
     supabase.from("app_config").select("valor").eq("chave", "inventario_cego").maybeSingle()
@@ -65,6 +66,20 @@ function ConfigPage() {
           <CardContent>
             <Button asChild variant="outline" className="w-full justify-between">
               <Link to="/config/perfis">Abrir matriz de permissões <ChevronRight className="size-4" /></Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {podeGerirInv && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base"><Warehouse className="size-4" /> Parâmetros de Inventário</CardTitle>
+            <CardDescription>Almoxarifado padrão por usuário — usado na contagem quando a missão não define um.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline" className="w-full justify-between">
+              <Link to="/config/inventario">Configurar almoxarifado padrão <ChevronRight className="size-4" /></Link>
             </Button>
           </CardContent>
         </Card>

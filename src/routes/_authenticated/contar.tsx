@@ -19,6 +19,9 @@ import { syncPendingCounts } from "@/lib/sync";
 import { cn } from "@/lib/utils";
 import { useRole } from "@/hooks/useRole";
 import { LimparContagemDialog } from "@/components/inventario/LimparContagemDialog";
+import { useAlmoxAtivo } from "@/lib/almox-inventario";
+import { Warehouse, AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/contar")({
   component: ContarPage,
@@ -50,6 +53,13 @@ function ContarPage() {
   const [grupo, setGrupo] = useState<string>(TODOS);
   const [familia, setFamilia] = useState<string>(TODOS);
   const [sku, setSku] = useState<string>("");
+  const { data: almoxInfo } = useAlmoxAtivo();
+
+  // Aplica almoxarifado ativo (missão ou padrão do usuário) como default do filtro
+  useEffect(() => {
+    if (almoxInfo?.almox && origem === TODOS) setOrigem(almoxInfo.almox);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [almoxInfo?.almox]);
 
   // Inventário cego
   const { data: cego } = useQuery({
@@ -207,6 +217,23 @@ function ContarPage() {
           </div>
         </div>
       </div>
+
+      {almoxInfo?.almox ? (
+        <div className="flex items-center gap-2 rounded-md border bg-primary/5 px-3 py-2 text-sm">
+          <Warehouse className="size-4 text-primary" />
+          <span>Contagem restrita ao almoxarifado <strong>{almoxInfo.almox}</strong></span>
+          <Badge variant="outline" className="ml-auto text-[10px]">
+            {almoxInfo.source === "Missao" ? `Missão: ${almoxInfo.missaoTitulo ?? ""}` : "Padrão do usuário"}
+          </Badge>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+          <AlertTriangle className="size-4 text-warning-foreground" />
+          <span className="text-warning-foreground">Almoxarifado não configurado — mostrando todos.</span>
+        </div>
+      )}
+
+
 
       <Card>
         <CardContent className={cn("p-4 grid grid-cols-1 gap-4", cols)}>
