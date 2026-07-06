@@ -128,6 +128,7 @@ function NovaMissao() {
       const { data: m, error } = await (supabase as any).from("missoes").insert({
         titulo: form.titulo, descricao: form.descricao, tipo: form.tipo,
         grupo: form.grupo || null, familia: form.familia || null, id_local: form.id_local || null,
+        origem: form.origem || null,
         data_execucao: form.data_execucao, criado_por: user.id,
       }).select().single();
       if (error) throw error;
