@@ -580,6 +580,96 @@ export type Database = {
         }
         Relationships: []
       }
+      inventario_arquivado: {
+        Row: {
+          acuracidade: number | null
+          aprovado_em: string | null
+          aprovado_por: string | null
+          arquivado_em: string
+          arquivado_por: string | null
+          contagem_numero: number
+          custo_unitario: number
+          data_contagem: string
+          data_validade: string | null
+          descricao: string
+          divergencia: number | null
+          escopo_lote: string | null
+          id: string
+          id_local: string
+          id_produto: string
+          inventario_id: string | null
+          lote: string
+          motivo_arquivamento: string | null
+          observacao: string | null
+          origem: string
+          quantidade_contada: number
+          saldo_sistemico: number
+          sincronizado: boolean
+          status: string
+          unidade: string
+          usuario: string | null
+          valor_divergencia: number | null
+        }
+        Insert: {
+          acuracidade?: number | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          arquivado_em?: string
+          arquivado_por?: string | null
+          contagem_numero: number
+          custo_unitario: number
+          data_contagem: string
+          data_validade?: string | null
+          descricao: string
+          divergencia?: number | null
+          escopo_lote?: string | null
+          id?: string
+          id_local: string
+          id_produto: string
+          inventario_id?: string | null
+          lote: string
+          motivo_arquivamento?: string | null
+          observacao?: string | null
+          origem: string
+          quantidade_contada: number
+          saldo_sistemico: number
+          sincronizado?: boolean
+          status: string
+          unidade: string
+          usuario?: string | null
+          valor_divergencia?: number | null
+        }
+        Update: {
+          acuracidade?: number | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          arquivado_em?: string
+          arquivado_por?: string | null
+          contagem_numero?: number
+          custo_unitario?: number
+          data_contagem?: string
+          data_validade?: string | null
+          descricao?: string
+          divergencia?: number | null
+          escopo_lote?: string | null
+          id?: string
+          id_local?: string
+          id_produto?: string
+          inventario_id?: string | null
+          lote?: string
+          motivo_arquivamento?: string | null
+          observacao?: string | null
+          origem?: string
+          quantidade_contada?: number
+          saldo_sistemico?: number
+          sincronizado?: boolean
+          status?: string
+          unidade?: string
+          usuario?: string | null
+          valor_divergencia?: number | null
+        }
+        Relationships: []
+      }
       locais: {
         Row: {
           ativo: boolean
@@ -772,6 +862,44 @@ export type Database = {
           },
         ]
       }
+      modulos_sistema: {
+        Row: {
+          chave: string
+          created_at: string
+          id: string
+          modulo_pai_id: string | null
+          nome: string
+          ordem: number
+          rota: string | null
+        }
+        Insert: {
+          chave: string
+          created_at?: string
+          id?: string
+          modulo_pai_id?: string | null
+          nome: string
+          ordem?: number
+          rota?: string | null
+        }
+        Update: {
+          chave?: string
+          created_at?: string
+          id?: string
+          modulo_pai_id?: string | null
+          nome?: string
+          ordem?: number
+          rota?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "modulos_sistema_modulo_pai_id_fkey"
+            columns: ["modulo_pai_id"]
+            isOneToOne: false
+            referencedRelation: "modulos_sistema"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       motivo_baixa: {
         Row: {
           ativo: boolean
@@ -859,6 +987,87 @@ export type Database = {
         }
         Relationships: []
       }
+      perfis: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          role_key: Database["public"]["Enums"]["app_role"] | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          role_key?: Database["public"]["Enums"]["app_role"] | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          role_key?: Database["public"]["Enums"]["app_role"] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      permissoes: {
+        Row: {
+          id: string
+          modulo_id: string
+          perfil_id: string
+          pode_aprovar: boolean
+          pode_criar: boolean
+          pode_editar: boolean
+          pode_excluir: boolean
+          pode_visualizar: boolean
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          modulo_id: string
+          perfil_id: string
+          pode_aprovar?: boolean
+          pode_criar?: boolean
+          pode_editar?: boolean
+          pode_excluir?: boolean
+          pode_visualizar?: boolean
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          modulo_id?: string
+          perfil_id?: string
+          pode_aprovar?: boolean
+          pode_criar?: boolean
+          pode_editar?: boolean
+          pode_excluir?: boolean
+          pode_visualizar?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permissoes_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "modulos_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permissoes_perfil_id_fkey"
+            columns: ["perfil_id"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       produtos_reposicao: {
         Row: {
           ativo: boolean
@@ -913,6 +1122,7 @@ export type Database = {
           email: string
           id: string
           nome: string
+          perfil_id: string | null
           updated_at: string
         }
         Insert: {
@@ -920,6 +1130,7 @@ export type Database = {
           email: string
           id: string
           nome?: string
+          perfil_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -927,9 +1138,18 @@ export type Database = {
           email?: string
           id?: string
           nome?: string
+          perfil_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_perfil_id_fkey"
+            columns: ["perfil_id"]
+            isOneToOne: false
+            referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       recontagem: {
         Row: {
@@ -998,6 +1218,75 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      recontagem_arquivada: {
+        Row: {
+          acuracidade: number | null
+          aprovado_em: string | null
+          aprovado_por: string | null
+          arquivado_em: string
+          arquivado_por: string | null
+          codigo_produto: string
+          contagem: number
+          descricao: string
+          escopo_lote: string | null
+          id: string
+          id_local: string
+          inventario_id: string | null
+          lote: string
+          motivo: string | null
+          motivo_arquivamento: string | null
+          origem: string
+          recontagem_id: string | null
+          saldo_sistema: number
+          status: string
+          usuario: string | null
+        }
+        Insert: {
+          acuracidade?: number | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          arquivado_em?: string
+          arquivado_por?: string | null
+          codigo_produto: string
+          contagem: number
+          descricao: string
+          escopo_lote?: string | null
+          id?: string
+          id_local: string
+          inventario_id?: string | null
+          lote: string
+          motivo?: string | null
+          motivo_arquivamento?: string | null
+          origem: string
+          recontagem_id?: string | null
+          saldo_sistema: number
+          status: string
+          usuario?: string | null
+        }
+        Update: {
+          acuracidade?: number | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          arquivado_em?: string
+          arquivado_por?: string | null
+          codigo_produto?: string
+          contagem?: number
+          descricao?: string
+          escopo_lote?: string | null
+          id?: string
+          id_local?: string
+          inventario_id?: string | null
+          lote?: string
+          motivo?: string | null
+          motivo_arquivamento?: string | null
+          origem?: string
+          recontagem_id?: string | null
+          saldo_sistema?: number
+          status?: string
+          usuario?: string | null
+        }
+        Relationships: []
       }
       requisicao_itens: {
         Row: {
