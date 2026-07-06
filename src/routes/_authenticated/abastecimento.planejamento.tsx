@@ -40,6 +40,7 @@ type Linha = {
 function PlanejamentoPage() {
   const [origemF, setOrigemF] = useState<string>("__all");
   const [buscaF, setBuscaF] = useState("");
+  const [grupoF, setGrupoF] = useState<string>("__all");
   const [metodo, setMetodo] = useState<Metodo>("COBERTURA");
 
 
@@ -101,6 +102,23 @@ function PlanejamentoPage() {
     },
   });
 
+  const gruposQ = useQuery({
+    queryKey: ["planejamento_grupos"],
+    queryFn: async () => {
+      const { data } = await (supabase as never as { from: (t: string) => { select: (c: string) => Promise<{ data: { grupo: string; codigo_produto: string }[] | null }> } })
+        .from("grupo_produtos").select("grupo, codigo_produto");
+      return (data ?? []) as { grupo: string; codigo_produto: string }[];
+    },
+  });
+  const gruposDistintos = useMemo(
+    () => Array.from(new Set((gruposQ.data ?? []).map((g) => g.grupo).filter(Boolean))).sort(),
+    [gruposQ.data]
+  );
+  const skusDoGrupo = useMemo(() => {
+    if (grupoF === "__all") return null;
+    return new Set((gruposQ.data ?? []).filter((g) => g.grupo === grupoF).map((g) => g.codigo_produto));
+  }, [gruposQ.data, grupoF]);
+
   const linhas: Linha[] = useMemo(() => {
     if (!paramsQ.data) return [];
     const paramsMap = new Map(paramsQ.data.map((p) => [p.origem, p]));
@@ -151,13 +169,16 @@ function PlanejamentoPage() {
         sugestao_minmax = Math.max(0, sugestao_minmax);
       }
 
+      const sugestaoCeil = Math.ceil(Math.max(0, sugestao));
+      const sugestaoMinMaxCeil = Math.ceil(Math.max(0, sugestao_minmax));
+
       out.push({
         sku, produto: s.desc,
         origem, origem_abastecimento: p.origem_abastecimento,
         estoque: s.qtd, cmd, cobertura_atual, cobertura_alvo,
-        demanda_extra, necessidade, sugestao,
-        custo_unitario: s.custo, valor_reposicao: sugestao * s.custo,
-        minimo, ideal, maximo, sugestao_minmax,
+        demanda_extra, necessidade, sugestao: sugestaoCeil,
+        custo_unitario: s.custo, valor_reposicao: sugestaoCeil * s.custo,
+        minimo, ideal, maximo, sugestao_minmax: sugestaoMinMaxCeil,
       });
     }
     return out.sort((a, b) => a.cobertura_atual - b.cobertura_atual);
@@ -166,6 +187,7 @@ function PlanejamentoPage() {
 
   const linhasFiltradas = linhas.filter((l) => {
     if (origemF !== "__all" && l.origem !== origemF) return false;
+    if (skusDoGrupo && !skusDoGrupo.has(l.sku)) return false;
     if (buscaF) {
       const t = buscaF.toLowerCase();
       if (!l.sku.toLowerCase().includes(t) && !l.produto.toLowerCase().includes(t)) return false;
@@ -320,7 +342,17 @@ function PlanejamentoPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="sm:col-span-2">
+          <div>
+            <Label className="text-xs">Grupo de Produto</Label>
+            <Select value={grupoF} onValueChange={setGrupoF}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all">Todos os grupos</SelectItem>
+                {gruposDistintos.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
             <Label className="text-xs">Buscar SKU ou descrição</Label>
             <Input value={buscaF} onChange={(e) => setBuscaF(e.target.value)} placeholder="digite…" />
           </div>
