@@ -97,8 +97,18 @@ function NovaMissao() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     titulo: "", descricao: "", tipo: "EXTRAORDINARIA",
-    grupo: "", familia: "", id_local: "", data_execucao: new Date().toISOString().slice(0, 10),
+    grupo: "", familia: "", id_local: "", origem: "",
+    data_execucao: new Date().toISOString().slice(0, 10),
     criterio_abc: "",
+  });
+
+  const origensQ = useQuery({
+    queryKey: ["origens-ativas-nova-missao"],
+    queryFn: async () => {
+      const { data } = await supabase.from("origens").select("codigo_origem, descricao")
+        .eq("ativo", true).order("codigo_origem");
+      return data ?? [];
+    },
   });
 
   const gruposQ = useQuery({
