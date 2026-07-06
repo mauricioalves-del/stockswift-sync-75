@@ -34,6 +34,7 @@ import { Route as AuthenticatedSuprimentosDashboardRouteImport } from './routes/
 import { Route as AuthenticatedGestaoPlanejamentoRouteImport } from './routes/_authenticated/gestao.planejamento'
 import { Route as AuthenticatedGestaoModelosChecklistRouteImport } from './routes/_authenticated/gestao.modelos-checklist'
 import { Route as AuthenticatedGestaoMinhasTarefasRouteImport } from './routes/_authenticated/gestao.minhas-tarefas'
+import { Route as AuthenticatedConfigPerfisRouteImport } from './routes/_authenticated/config.perfis'
 import { Route as AuthenticatedAbastecimentoPlanejamentoRouteImport } from './routes/_authenticated/abastecimento.planejamento'
 import { Route as AuthenticatedAbastecimentoParametrosRouteImport } from './routes/_authenticated/abastecimento.parametros'
 import { Route as AuthenticatedAbastecimentoDemandasRouteImport } from './routes/_authenticated/abastecimento.demandas'
@@ -172,6 +173,12 @@ const AuthenticatedGestaoMinhasTarefasRoute =
     path: '/gestao/minhas-tarefas',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedConfigPerfisRoute =
+  AuthenticatedConfigPerfisRouteImport.update({
+    id: '/perfis',
+    path: '/perfis',
+    getParentRoute: () => AuthenticatedConfigRoute,
+  } as any)
 const AuthenticatedAbastecimentoPlanejamentoRoute =
   AuthenticatedAbastecimentoPlanejamentoRouteImport.update({
     id: '/abastecimento/planejamento',
@@ -221,7 +228,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/abc': typeof AuthenticatedAbcRoute
   '/baixas': typeof AuthenticatedBaixasRoute
-  '/config': typeof AuthenticatedConfigRoute
+  '/config': typeof AuthenticatedConfigRouteWithChildren
   '/contar': typeof AuthenticatedContarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/grupos': typeof AuthenticatedGruposRoute
@@ -239,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  '/config/perfis': typeof AuthenticatedConfigPerfisRoute
   '/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
@@ -254,7 +262,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/abc': typeof AuthenticatedAbcRoute
   '/baixas': typeof AuthenticatedBaixasRoute
-  '/config': typeof AuthenticatedConfigRoute
+  '/config': typeof AuthenticatedConfigRouteWithChildren
   '/contar': typeof AuthenticatedContarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/grupos': typeof AuthenticatedGruposRoute
@@ -272,6 +280,7 @@ export interface FileRoutesByTo {
   '/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  '/config/perfis': typeof AuthenticatedConfigPerfisRoute
   '/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
@@ -289,7 +298,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/abc': typeof AuthenticatedAbcRoute
   '/_authenticated/baixas': typeof AuthenticatedBaixasRoute
-  '/_authenticated/config': typeof AuthenticatedConfigRoute
+  '/_authenticated/config': typeof AuthenticatedConfigRouteWithChildren
   '/_authenticated/contar': typeof AuthenticatedContarRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/grupos': typeof AuthenticatedGruposRoute
@@ -307,6 +316,7 @@ export interface FileRoutesById {
   '/_authenticated/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
   '/_authenticated/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/_authenticated/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  '/_authenticated/config/perfis': typeof AuthenticatedConfigPerfisRoute
   '/_authenticated/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
   '/_authenticated/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/_authenticated/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
@@ -342,6 +352,7 @@ export interface FileRouteTypes {
     | '/abastecimento/demandas'
     | '/abastecimento/parametros'
     | '/abastecimento/planejamento'
+    | '/config/perfis'
     | '/gestao/minhas-tarefas'
     | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
@@ -375,6 +386,7 @@ export interface FileRouteTypes {
     | '/abastecimento/demandas'
     | '/abastecimento/parametros'
     | '/abastecimento/planejamento'
+    | '/config/perfis'
     | '/gestao/minhas-tarefas'
     | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
@@ -409,6 +421,7 @@ export interface FileRouteTypes {
     | '/_authenticated/abastecimento/demandas'
     | '/_authenticated/abastecimento/parametros'
     | '/_authenticated/abastecimento/planejamento'
+    | '/_authenticated/config/perfis'
     | '/_authenticated/gestao/minhas-tarefas'
     | '/_authenticated/gestao/modelos-checklist'
     | '/_authenticated/gestao/planejamento'
@@ -603,6 +616,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGestaoMinhasTarefasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/config/perfis': {
+      id: '/_authenticated/config/perfis'
+      path: '/perfis'
+      fullPath: '/config/perfis'
+      preLoaderRoute: typeof AuthenticatedConfigPerfisRouteImport
+      parentRoute: typeof AuthenticatedConfigRoute
+    }
     '/_authenticated/abastecimento/planejamento': {
       id: '/_authenticated/abastecimento/planejamento'
       path: '/abastecimento/planejamento'
@@ -655,6 +675,17 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedConfigRouteChildren {
+  AuthenticatedConfigPerfisRoute: typeof AuthenticatedConfigPerfisRoute
+}
+
+const AuthenticatedConfigRouteChildren: AuthenticatedConfigRouteChildren = {
+  AuthenticatedConfigPerfisRoute: AuthenticatedConfigPerfisRoute,
+}
+
+const AuthenticatedConfigRouteWithChildren =
+  AuthenticatedConfigRoute._addFileChildren(AuthenticatedConfigRouteChildren)
+
 interface AuthenticatedSuprimentosRequisicoesIdRouteChildren {
   AuthenticatedSuprimentosRequisicoesIdFichaRoute: typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
 }
@@ -673,7 +704,7 @@ const AuthenticatedSuprimentosRequisicoesIdRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbcRoute: typeof AuthenticatedAbcRoute
   AuthenticatedBaixasRoute: typeof AuthenticatedBaixasRoute
-  AuthenticatedConfigRoute: typeof AuthenticatedConfigRoute
+  AuthenticatedConfigRoute: typeof AuthenticatedConfigRouteWithChildren
   AuthenticatedContarRoute: typeof AuthenticatedContarRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedGruposRoute: typeof AuthenticatedGruposRoute
@@ -703,7 +734,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAbcRoute: AuthenticatedAbcRoute,
   AuthenticatedBaixasRoute: AuthenticatedBaixasRoute,
-  AuthenticatedConfigRoute: AuthenticatedConfigRoute,
+  AuthenticatedConfigRoute: AuthenticatedConfigRouteWithChildren,
   AuthenticatedContarRoute: AuthenticatedContarRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedGruposRoute: AuthenticatedGruposRoute,

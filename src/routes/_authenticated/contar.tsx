@@ -17,6 +17,8 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { addPendingCount } from "@/lib/idb";
 import { syncPendingCounts } from "@/lib/sync";
 import { cn } from "@/lib/utils";
+import { useRole } from "@/hooks/useRole";
+import { LimparContagemDialog } from "@/components/inventario/LimparContagemDialog";
 
 export const Route = createFileRoute("/_authenticated/contar")({
   component: ContarPage,
@@ -43,6 +45,7 @@ const GRUPOS_COM_FAMILIA = new Set(["Produto Acabado", "Mercadoria para Revenda"
 function ContarPage() {
   const qc = useQueryClient();
   const online = useOnlineStatus();
+  const { isAdmin } = useRole();
   const [origem, setOrigem] = useState<string>(TODOS);
   const [grupo, setGrupo] = useState<string>(TODOS);
   const [familia, setFamilia] = useState<string>(TODOS);
@@ -195,6 +198,7 @@ function ContarPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" size="sm"><Link to="/scanner"><ScanLine className="size-4 mr-1.5" /> Scanner</Link></Button>
+          {isAdmin && <LimparContagemDialog />}
           <div className="flex items-center gap-2 text-xs">
             <Switch checked={showSistemico} onCheckedChange={setShowSistemico} id="cego" />
             <Label htmlFor="cego" className="cursor-pointer flex items-center gap-1">

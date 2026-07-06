@@ -80,6 +80,7 @@ function isGroup(n: NavItem | NavGroup): n is NavGroup { return (n as NavGroup).
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { role, isAdmin, canWrite } = useRole();
+  const isCoord = role === "COORDENADOR_CONTROLE";
   const navigate = useNavigate();
   const online = useOnlineStatus();
   const { theme, toggle } = useTheme();
@@ -109,11 +110,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     navigate({ to: "/auth", replace: true });
   }
 
-  const can = (r: Access) => r === "any" || (r === "write" && canWrite) || (r === "admin" && isAdmin);
+  const can = (r: Access) => r === "any" || (r === "write" && canWrite) || (r === "admin" && (isAdmin || isCoord));
   const visible = useMemo(() => NAV
     .filter((n) => isGroup(n) ? n.items.some((i) => can(i.role)) : can(n.role))
     .map((n) => isGroup(n) ? { ...n, items: n.items.filter((i) => can(i.role)) } : n),
-    [canWrite, isAdmin]);
+    [canWrite, isAdmin, isCoord]);
 
   return (
     <div className="min-h-screen flex bg-background">
