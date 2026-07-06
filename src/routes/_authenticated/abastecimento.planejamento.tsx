@@ -151,13 +151,16 @@ function PlanejamentoPage() {
         sugestao_minmax = Math.max(0, sugestao_minmax);
       }
 
+      const sugestaoCeil = Math.ceil(Math.max(0, sugestao));
+      const sugestaoMinMaxCeil = Math.ceil(Math.max(0, sugestao_minmax));
+
       out.push({
         sku, produto: s.desc,
         origem, origem_abastecimento: p.origem_abastecimento,
         estoque: s.qtd, cmd, cobertura_atual, cobertura_alvo,
-        demanda_extra, necessidade, sugestao,
-        custo_unitario: s.custo, valor_reposicao: sugestao * s.custo,
-        minimo, ideal, maximo, sugestao_minmax,
+        demanda_extra, necessidade, sugestao: sugestaoCeil,
+        custo_unitario: s.custo, valor_reposicao: sugestaoCeil * s.custo,
+        minimo, ideal, maximo, sugestao_minmax: sugestaoMinMaxCeil,
       });
     }
     return out.sort((a, b) => a.cobertura_atual - b.cobertura_atual);
