@@ -220,6 +220,18 @@ function NovaMissao() {
           <Input value={form.id_local} onChange={(e) => setForm({ ...form, id_local: e.target.value })} />
         </div>
         <div>
+          <Label>Almoxarifado</Label>
+          <Select value={form.origem || "__all__"} onValueChange={(v) => setForm({ ...form, origem: v === "__all__" ? "" : v })}>
+            <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos</SelectItem>
+              {(origensQ.data ?? []).map((o) => (
+                <SelectItem key={o.codigo_origem} value={o.codigo_origem}>{o.descricao || o.codigo_origem}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
           <Label>Critério ABC</Label>
           <Select value={form.criterio_abc || "__none__"} onValueChange={(v) => setForm({ ...form, criterio_abc: v === "__none__" ? "" : v })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
