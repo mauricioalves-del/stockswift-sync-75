@@ -48,6 +48,7 @@ function ScannerPage() {
   const [contado, setContado] = useState("");
   const [saving, setSaving] = useState(false);
   const [lastCode, setLastCode] = useState<string>("");
+  const { data: almoxInfo } = useAlmoxAtivo();
 
   useEffect(() => {
     return () => {
