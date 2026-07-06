@@ -342,7 +342,17 @@ function PlanejamentoPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="sm:col-span-2">
+          <div>
+            <Label className="text-xs">Grupo de Produto</Label>
+            <Select value={grupoF} onValueChange={setGrupoF}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all">Todos os grupos</SelectItem>
+                {gruposDistintos.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
             <Label className="text-xs">Buscar SKU ou descrição</Label>
             <Input value={buscaF} onChange={(e) => setBuscaF(e.target.value)} placeholder="digite…" />
           </div>
