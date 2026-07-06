@@ -176,6 +176,21 @@ function ScannerPage() {
         <p className="text-sm text-muted-foreground">EAN13, CODE128, QR e Datamatrix</p>
       </div>
 
+      {almoxInfo?.almox ? (
+        <div className="flex items-center gap-2 rounded-md border bg-primary/5 px-3 py-2 text-sm">
+          <Warehouse className="size-4 text-primary" />
+          <span>Contagem no almoxarifado <strong>{almoxInfo.almox}</strong></span>
+          <Badge variant="outline" className="ml-auto text-[10px]">
+            {almoxInfo.source === "Missao" ? `Missão: ${almoxInfo.missaoTitulo ?? ""}` : "Padrão do usuário"}
+          </Badge>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+          <AlertTriangle className="size-4 text-warning-foreground" />
+          <span className="text-warning-foreground">Almoxarifado não configurado para esta contagem — buscando em todos.</span>
+        </div>
+      )}
+
       <Card>
         <CardContent className="p-4 space-y-3">
           <div id={elId} className="w-full aspect-[4/3] bg-black rounded-lg overflow-hidden" />
