@@ -218,6 +218,23 @@ function ContarPage() {
         </div>
       </div>
 
+      {almoxInfo?.almox ? (
+        <div className="flex items-center gap-2 rounded-md border bg-primary/5 px-3 py-2 text-sm">
+          <Warehouse className="size-4 text-primary" />
+          <span>Contagem restrita ao almoxarifado <strong>{almoxInfo.almox}</strong></span>
+          <Badge variant="outline" className="ml-auto text-[10px]">
+            {almoxInfo.source === "Missao" ? `Missão: ${almoxInfo.missaoTitulo ?? ""}` : "Padrão do usuário"}
+          </Badge>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+          <AlertTriangle className="size-4 text-warning-foreground" />
+          <span className="text-warning-foreground">Almoxarifado não configurado — mostrando todos.</span>
+        </div>
+      )}
+
+
+
       <Card>
         <CardContent className={cn("p-4 grid grid-cols-1 gap-4", cols)}>
           <div>
