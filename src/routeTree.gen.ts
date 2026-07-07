@@ -18,7 +18,6 @@ import { Route as AuthenticatedScannerRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedRecontagemRouteImport } from './routes/_authenticated/recontagem'
 import { Route as AuthenticatedOrigensRouteImport } from './routes/_authenticated/origens'
-import { Route as AuthenticatedMissoesRouteImport } from './routes/_authenticated/missoes'
 import { Route as AuthenticatedLogsRouteImport } from './routes/_authenticated/logs'
 import { Route as AuthenticatedInventarioRouteImport } from './routes/_authenticated/inventario'
 import { Route as AuthenticatedImportarFamiliasRouteImport } from './routes/_authenticated/importar-familias'
@@ -29,6 +28,7 @@ import { Route as AuthenticatedContarRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedConfigRouteImport } from './routes/_authenticated/config'
 import { Route as AuthenticatedBaixasRouteImport } from './routes/_authenticated/baixas'
 import { Route as AuthenticatedAbcRouteImport } from './routes/_authenticated/abc'
+import { Route as AuthenticatedMissoesIndexRouteImport } from './routes/_authenticated/missoes.index'
 import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_authenticated/suprimentos.estoque'
 import { Route as AuthenticatedSuprimentosDashboardRouteImport } from './routes/_authenticated/suprimentos.dashboard'
 import { Route as AuthenticatedGestaoPlanejamentoRouteImport } from './routes/_authenticated/gestao.planejamento'
@@ -88,11 +88,6 @@ const AuthenticatedOrigensRoute = AuthenticatedOrigensRouteImport.update({
   path: '/origens',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedMissoesRoute = AuthenticatedMissoesRouteImport.update({
-  id: '/missoes',
-  path: '/missoes',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedLogsRoute = AuthenticatedLogsRouteImport.update({
   id: '/logs',
   path: '/logs',
@@ -144,6 +139,12 @@ const AuthenticatedAbcRoute = AuthenticatedAbcRouteImport.update({
   path: '/abc',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMissoesIndexRoute =
+  AuthenticatedMissoesIndexRouteImport.update({
+    id: '/missoes/',
+    path: '/missoes/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSuprimentosEstoqueRoute =
   AuthenticatedSuprimentosEstoqueRouteImport.update({
     id: '/suprimentos/estoque',
@@ -243,7 +244,6 @@ export interface FileRoutesByFullPath {
   '/importar-familias': typeof AuthenticatedImportarFamiliasRoute
   '/inventario': typeof AuthenticatedInventarioRoute
   '/logs': typeof AuthenticatedLogsRoute
-  '/missoes': typeof AuthenticatedMissoesRoute
   '/origens': typeof AuthenticatedOrigensRoute
   '/recontagem': typeof AuthenticatedRecontagemRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
@@ -260,6 +260,7 @@ export interface FileRoutesByFullPath {
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/missoes/': typeof AuthenticatedMissoesIndexRoute
   '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
   '/suprimentos/requisicoes/': typeof AuthenticatedSuprimentosRequisicoesIndexRoute
   '/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
@@ -278,7 +279,6 @@ export interface FileRoutesByTo {
   '/importar-familias': typeof AuthenticatedImportarFamiliasRoute
   '/inventario': typeof AuthenticatedInventarioRoute
   '/logs': typeof AuthenticatedLogsRoute
-  '/missoes': typeof AuthenticatedMissoesRoute
   '/origens': typeof AuthenticatedOrigensRoute
   '/recontagem': typeof AuthenticatedRecontagemRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
@@ -295,6 +295,7 @@ export interface FileRoutesByTo {
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/missoes': typeof AuthenticatedMissoesIndexRoute
   '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
   '/suprimentos/requisicoes': typeof AuthenticatedSuprimentosRequisicoesIndexRoute
   '/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
@@ -315,7 +316,6 @@ export interface FileRoutesById {
   '/_authenticated/importar-familias': typeof AuthenticatedImportarFamiliasRoute
   '/_authenticated/inventario': typeof AuthenticatedInventarioRoute
   '/_authenticated/logs': typeof AuthenticatedLogsRoute
-  '/_authenticated/missoes': typeof AuthenticatedMissoesRoute
   '/_authenticated/origens': typeof AuthenticatedOrigensRoute
   '/_authenticated/recontagem': typeof AuthenticatedRecontagemRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
@@ -332,6 +332,7 @@ export interface FileRoutesById {
   '/_authenticated/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/_authenticated/missoes/': typeof AuthenticatedMissoesIndexRoute
   '/_authenticated/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
   '/_authenticated/suprimentos/requisicoes/': typeof AuthenticatedSuprimentosRequisicoesIndexRoute
   '/_authenticated/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
@@ -352,7 +353,6 @@ export interface FileRouteTypes {
     | '/importar-familias'
     | '/inventario'
     | '/logs'
-    | '/missoes'
     | '/origens'
     | '/recontagem'
     | '/relatorios'
@@ -369,6 +369,7 @@ export interface FileRouteTypes {
     | '/gestao/planejamento'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
+    | '/missoes/'
     | '/suprimentos/requisicoes/$id'
     | '/suprimentos/requisicoes/'
     | '/suprimentos/requisicoes/$id/ficha'
@@ -387,7 +388,6 @@ export interface FileRouteTypes {
     | '/importar-familias'
     | '/inventario'
     | '/logs'
-    | '/missoes'
     | '/origens'
     | '/recontagem'
     | '/relatorios'
@@ -404,6 +404,7 @@ export interface FileRouteTypes {
     | '/gestao/planejamento'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
+    | '/missoes'
     | '/suprimentos/requisicoes/$id'
     | '/suprimentos/requisicoes'
     | '/suprimentos/requisicoes/$id/ficha'
@@ -423,7 +424,6 @@ export interface FileRouteTypes {
     | '/_authenticated/importar-familias'
     | '/_authenticated/inventario'
     | '/_authenticated/logs'
-    | '/_authenticated/missoes'
     | '/_authenticated/origens'
     | '/_authenticated/recontagem'
     | '/_authenticated/relatorios'
@@ -440,6 +440,7 @@ export interface FileRouteTypes {
     | '/_authenticated/gestao/planejamento'
     | '/_authenticated/suprimentos/dashboard'
     | '/_authenticated/suprimentos/estoque'
+    | '/_authenticated/missoes/'
     | '/_authenticated/suprimentos/requisicoes/$id'
     | '/_authenticated/suprimentos/requisicoes/'
     | '/_authenticated/suprimentos/requisicoes/$id/ficha'
@@ -517,13 +518,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOrigensRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/missoes': {
-      id: '/_authenticated/missoes'
-      path: '/missoes'
-      fullPath: '/missoes'
-      preLoaderRoute: typeof AuthenticatedMissoesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/logs': {
       id: '/_authenticated/logs'
       path: '/logs'
@@ -592,6 +586,13 @@ declare module '@tanstack/react-router' {
       path: '/abc'
       fullPath: '/abc'
       preLoaderRoute: typeof AuthenticatedAbcRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/missoes/': {
+      id: '/_authenticated/missoes/'
+      path: '/missoes'
+      fullPath: '/missoes/'
+      preLoaderRoute: typeof AuthenticatedMissoesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/suprimentos/estoque': {
@@ -734,7 +735,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedImportarFamiliasRoute: typeof AuthenticatedImportarFamiliasRoute
   AuthenticatedInventarioRoute: typeof AuthenticatedInventarioRoute
   AuthenticatedLogsRoute: typeof AuthenticatedLogsRoute
-  AuthenticatedMissoesRoute: typeof AuthenticatedMissoesRoute
   AuthenticatedOrigensRoute: typeof AuthenticatedOrigensRoute
   AuthenticatedRecontagemRoute: typeof AuthenticatedRecontagemRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
@@ -749,6 +749,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGestaoPlanejamentoRoute: typeof AuthenticatedGestaoPlanejamentoRoute
   AuthenticatedSuprimentosDashboardRoute: typeof AuthenticatedSuprimentosDashboardRoute
   AuthenticatedSuprimentosEstoqueRoute: typeof AuthenticatedSuprimentosEstoqueRoute
+  AuthenticatedMissoesIndexRoute: typeof AuthenticatedMissoesIndexRoute
   AuthenticatedSuprimentosRequisicoesIdRoute: typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
   AuthenticatedSuprimentosRequisicoesIndexRoute: typeof AuthenticatedSuprimentosRequisicoesIndexRoute
 }
@@ -764,7 +765,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedImportarFamiliasRoute: AuthenticatedImportarFamiliasRoute,
   AuthenticatedInventarioRoute: AuthenticatedInventarioRoute,
   AuthenticatedLogsRoute: AuthenticatedLogsRoute,
-  AuthenticatedMissoesRoute: AuthenticatedMissoesRoute,
   AuthenticatedOrigensRoute: AuthenticatedOrigensRoute,
   AuthenticatedRecontagemRoute: AuthenticatedRecontagemRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
@@ -785,6 +785,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSuprimentosDashboardRoute:
     AuthenticatedSuprimentosDashboardRoute,
   AuthenticatedSuprimentosEstoqueRoute: AuthenticatedSuprimentosEstoqueRoute,
+  AuthenticatedMissoesIndexRoute: AuthenticatedMissoesIndexRoute,
   AuthenticatedSuprimentosRequisicoesIdRoute:
     AuthenticatedSuprimentosRequisicoesIdRouteWithChildren,
   AuthenticatedSuprimentosRequisicoesIndexRoute:

@@ -17,7 +17,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Plus, Sparkles, Loader2 } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/missoes")({
+export const Route = createFileRoute("/_authenticated/missoes/")({
   component: MissoesPage,
   head: () => ({ meta: [{ title: "Missões de Inventário" }] }),
 });
