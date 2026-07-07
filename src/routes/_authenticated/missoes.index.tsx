@@ -66,23 +66,29 @@ function ListaMissoes() {
               <TableHead>Título</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Grupo / Família</TableHead>
-              <TableHead>Local</TableHead>
+              <TableHead>Almox</TableHead>
               <TableHead>Execução</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="w-24 text-right">Abrir</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {(data ?? []).length === 0 && (
-              <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Nenhuma missão cadastrada</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">Nenhuma missão cadastrada</TableCell></TableRow>
             )}
             {(data ?? []).map((m) => (
-              <TableRow key={m.id}>
+              <TableRow key={m.id} className="cursor-pointer hover:bg-muted/40">
                 <TableCell className="font-medium">{m.titulo}</TableCell>
                 <TableCell><Badge variant="outline" className="text-[10px]">{m.tipo}</Badge></TableCell>
                 <TableCell className="text-xs">{[m.grupo, m.familia].filter(Boolean).join(" / ") || "—"}</TableCell>
-                <TableCell className="text-xs">{m.id_local || "—"}</TableCell>
+                <TableCell className="text-xs">{m.origem || "—"}</TableCell>
                 <TableCell className="text-xs">{m.data_execucao ? new Date(m.data_execucao).toLocaleDateString("pt-BR") : "—"}</TableCell>
                 <TableCell><Badge className="text-[10px]">{m.status}</Badge></TableCell>
+                <TableCell className="text-right">
+                  <Button asChild size="sm" variant="outline">
+                    <Link to="/missoes/$id" params={{ id: m.id }}>Executar</Link>
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
