@@ -53,8 +53,11 @@ function MissoesPage() {
   );
 }
 
-function ListaMissoes() {
+function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
+  const qc = useQueryClient();
   const { almoxes } = useMeusAlmoxarifados();
+  const [toDelete, setToDelete] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { data } = useQuery({
     queryKey: ["missoes", almoxes?.join(",") ?? "all"],
     queryFn: async () => {
@@ -65,6 +68,30 @@ function ListaMissoes() {
       return data as any[];
     },
   });
+
+  async function excluir() {
+    if (!toDelete) return;
+    setDeleting(true);
+    try {
+      const user = (await supabase.auth.getUser()).data.user!;
+      const { error: e1 } = await (supabase as any).from("missoes_itens").delete().eq("missao_id", toDelete.id);
+      if (e1) throw e1;
+      const { error: e2 } = await (supabase as any).from("missoes").delete().eq("id", toDelete.id);
+      if (e2) throw e2;
+      await (supabase as any).from("audit_logs").insert({
+        usuario: user.id, acao: "EXCLUIR_MISSAO", entidade: "missoes", entidade_id: toDelete.id,
+        payload: { titulo: toDelete.titulo },
+      });
+      toast.success("Missão excluída");
+      setToDelete(null);
+      qc.invalidateQueries({ queryKey: ["missoes"] });
+    } catch (err: any) {
+      toast.error(err.message ?? "Falha ao excluir");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <Card>
       <CardContent className="p-0 overflow-x-auto">
