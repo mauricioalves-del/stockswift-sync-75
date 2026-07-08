@@ -15,7 +15,11 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Sparkles, Loader2 } from "lucide-react";
+import { Plus, Sparkles, Loader2, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
 
 export const Route = createFileRoute("/_authenticated/missoes/")({
@@ -42,15 +46,18 @@ function MissoesPage() {
           <TabsTrigger value="lista">Lista</TabsTrigger>
           {podeGerir && <TabsTrigger value="nova">Nova Missão</TabsTrigger>}
         </TabsList>
-        <TabsContent value="lista"><ListaMissoes /></TabsContent>
+        <TabsContent value="lista"><ListaMissoes podeGerir={podeGerir} /></TabsContent>
         {podeGerir && <TabsContent value="nova"><NovaMissao /></TabsContent>}
       </Tabs>
     </div>
   );
 }
 
-function ListaMissoes() {
+function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
+  const qc = useQueryClient();
   const { almoxes } = useMeusAlmoxarifados();
+  const [toDelete, setToDelete] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { data } = useQuery({
     queryKey: ["missoes", almoxes?.join(",") ?? "all"],
     queryFn: async () => {
@@ -61,6 +68,30 @@ function ListaMissoes() {
       return data as any[];
     },
   });
+
+  async function excluir() {
+    if (!toDelete) return;
+    setDeleting(true);
+    try {
+      const user = (await supabase.auth.getUser()).data.user!;
+      const { error: e1 } = await (supabase as any).from("missoes_itens").delete().eq("missao_id", toDelete.id);
+      if (e1) throw e1;
+      const { error: e2 } = await (supabase as any).from("missoes").delete().eq("id", toDelete.id);
+      if (e2) throw e2;
+      await (supabase as any).from("audit_logs").insert({
+        usuario: user.id, acao: "EXCLUIR_MISSAO", entidade: "missoes", entidade_id: toDelete.id,
+        payload: { titulo: toDelete.titulo },
+      });
+      toast.success("Missão excluída");
+      setToDelete(null);
+      qc.invalidateQueries({ queryKey: ["missoes"] });
+    } catch (err: any) {
+      toast.error(err.message ?? "Falha ao excluir");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <Card>
       <CardContent className="p-0 overflow-x-auto">
@@ -73,7 +104,7 @@ function ListaMissoes() {
               <TableHead>Almox</TableHead>
               <TableHead>Execução</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-24 text-right">Abrir</TableHead>
+              <TableHead className="w-32 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -81,7 +112,7 @@ function ListaMissoes() {
               <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">Nenhuma missão cadastrada</TableCell></TableRow>
             )}
             {(data ?? []).map((m) => (
-              <TableRow key={m.id} className="cursor-pointer hover:bg-muted/40">
+              <TableRow key={m.id} className="hover:bg-muted/40">
                 <TableCell className="font-medium">{m.titulo}</TableCell>
                 <TableCell><Badge variant="outline" className="text-[10px]">{m.tipo}</Badge></TableCell>
                 <TableCell className="text-xs">{[m.grupo, m.familia].filter(Boolean).join(" / ") || "—"}</TableCell>
@@ -89,18 +120,53 @@ function ListaMissoes() {
                 <TableCell className="text-xs">{m.data_execucao ? new Date(m.data_execucao).toLocaleDateString("pt-BR") : "—"}</TableCell>
                 <TableCell><Badge className="text-[10px]">{m.status}</Badge></TableCell>
                 <TableCell className="text-right">
-                  <Button asChild size="sm" variant="outline">
-                    <Link to="/missoes/$id" params={{ id: m.id }}>Executar</Link>
-                  </Button>
+                  <div className="flex justify-end gap-1">
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/missoes/$id" params={{ id: m.id }}>Executar</Link>
+                    </Button>
+                    {podeGerir && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setToDelete(m)}
+                        aria-label="Excluir missão"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </CardContent>
+
+      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir missão?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A missão «{toDelete?.titulo}» e seus itens gerados serão removidos. Essa ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); excluir(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="size-4 animate-spin" /> : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
+
 
 function NovaMissao() {
   const qc = useQueryClient();
