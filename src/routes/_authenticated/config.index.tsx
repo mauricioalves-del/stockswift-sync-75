@@ -9,7 +9,7 @@ import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
 import { EyeOff, Shield, ChevronRight, Warehouse } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/config")({
+export const Route = createFileRoute("/_authenticated/config/")({
   component: ConfigPage,
   head: () => ({ meta: [{ title: "Configurações" }] }),
 });
