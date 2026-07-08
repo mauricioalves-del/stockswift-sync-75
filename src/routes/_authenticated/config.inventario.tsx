@@ -109,11 +109,13 @@ function ConfigInventarioPage() {
                       <SelectTrigger className="h-9"><SelectValue placeholder="Sem padrão" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value={SEM}>Sem padrão (todos)</SelectItem>
-                        {(origensQ.data ?? []).map((o) => (
-                          <SelectItem key={o.codigo_origem} value={o.codigo_origem}>
-                            {o.descricao || o.codigo_origem}
-                          </SelectItem>
-                        ))}
+                        {(origensQ.data ?? [])
+                          .filter((o) => u.permitidos.length === 0 || u.permitidos.includes(o.codigo_origem))
+                          .map((o) => (
+                            <SelectItem key={o.codigo_origem} value={o.codigo_origem}>
+                              {o.descricao || o.codigo_origem}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </TableCell>
