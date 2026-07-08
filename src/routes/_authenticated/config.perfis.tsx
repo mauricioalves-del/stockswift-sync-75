@@ -104,6 +104,7 @@ function PerfisPage() {
     toast.success(`Salvo (${rows.length} módulos).`);
     setDraft({});
     qc.invalidateQueries({ queryKey: ["permissoes", perfilAtivoId] });
+    qc.invalidateQueries({ queryKey: ["my-permissions"] });
   }
 
   if (loading) return <div className="p-8 text-center text-muted-foreground">Carregando…</div>;
