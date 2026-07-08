@@ -46,7 +46,7 @@ function MissoesPage() {
           <TabsTrigger value="lista">Lista</TabsTrigger>
           {podeGerir && <TabsTrigger value="nova">Nova Missão</TabsTrigger>}
         </TabsList>
-        <TabsContent value="lista"><ListaMissoes /></TabsContent>
+        <TabsContent value="lista"><ListaMissoes podeGerir={podeGerir} /></TabsContent>
         {podeGerir && <TabsContent value="nova"><NovaMissao /></TabsContent>}
       </Tabs>
     </div>
