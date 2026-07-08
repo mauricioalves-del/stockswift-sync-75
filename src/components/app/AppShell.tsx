@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useTheme } from "@/hooks/useTheme";
 import { Button } from "@/components/ui/button";
@@ -80,6 +81,7 @@ function isGroup(n: NavItem | NavGroup): n is NavGroup { return (n as NavGroup).
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { role, isAdmin, canWrite } = useRole();
+  const perms = usePermissions();
   const isCoord = role === "COORDENADOR_CONTROLE";
   const navigate = useNavigate();
   const online = useOnlineStatus();
@@ -110,11 +112,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     navigate({ to: "/auth", replace: true });
   }
 
-  const can = (r: Access) => r === "any" || (r === "write" && canWrite) || (r === "admin" && (isAdmin || isCoord));
+  // Fallback por papel — usado apenas quando o item não estiver mapeado na matriz.
+  const canByRole = (r: Access) =>
+    r === "any" || (r === "write" && canWrite) || (r === "admin" && (isAdmin || isCoord));
+
+  const canSee = (item: NavItem) => {
+    if (isAdmin) return true;
+    if (perms.isMapped(item.to)) return perms.canView(item.to);
+    return canByRole(item.role);
+  };
+
   const visible = useMemo(() => NAV
-    .filter((n) => isGroup(n) ? n.items.some((i) => can(i.role)) : can(n.role))
-    .map((n) => isGroup(n) ? { ...n, items: n.items.filter((i) => can(i.role)) } : n),
-    [canWrite, isAdmin, isCoord]);
+    .filter((n) => isGroup(n) ? n.items.some((i) => canSee(i)) : canSee(n))
+    .map((n) => isGroup(n) ? { ...n, items: n.items.filter((i) => canSee(i)) } : n),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [canWrite, isAdmin, isCoord, perms.loading, perms.canView]);
 
   return (
     <div className="min-h-screen flex bg-background">
