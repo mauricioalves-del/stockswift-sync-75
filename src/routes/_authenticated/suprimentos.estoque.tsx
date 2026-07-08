@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Boxes, Loader2 } from "lucide-react";
 import { formatNum, formatBRL } from "@/lib/inventory";
+import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
 
 export const Route = createFileRoute("/_authenticated/suprimentos/estoque")({
   component: EstoquePosicaoPage,
