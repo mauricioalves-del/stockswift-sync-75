@@ -125,6 +125,24 @@ function NovaMissao() {
     },
   });
 
+  // Reusa a mesma lógica de Contagem: famílias filtradas pelo grupo selecionado
+  const familiasQ = useQuery({
+    queryKey: ["familias-por-grupo-nova-missao", form.grupo],
+    queryFn: async () => {
+      if (form.grupo) {
+        const { data: cods } = await (supabase as any)
+          .from("grupo_produtos").select("codigo_produto").eq("grupo", form.grupo);
+        const codes = (cods ?? []).map((c: any) => c.codigo_produto);
+        if (codes.length === 0) return [] as string[];
+        const { data: fam } = await supabase.from("familias")
+          .select("familia").in("codigo_produto", codes);
+        return Array.from(new Set((fam ?? []).map((f: any) => f.familia).filter(Boolean))).sort() as string[];
+      }
+      const { data: fam } = await supabase.from("familias").select("familia");
+      return Array.from(new Set((fam ?? []).map((f: any) => f.familia).filter(Boolean))).sort() as string[];
+    },
+  });
+
   async function gerar() {
     if (!form.titulo) return toast.error("Informe um título");
     setSubmitting(true);
