@@ -1,43 +1,56 @@
-## Problema
+## Duas causas distintas
 
-O perfil **Coordenador de Controle** aparece com "Acesso Total" e todas as permissões marcadas na matriz, mas o menu lateral continua mostrando poucos módulos. Motivo: hoje `AppShell.tsx` filtra o menu por **papel hardcoded** (`isAdmin`, `canWrite`, `isCoord`), ignorando totalmente a tabela `permissoes` que a Matriz de Permissões grava. Como `COORDENADOR_CONTROLE` não é `ADMINISTRADOR` nem `INVENTARIANTE`, `canWrite = false` — e todos os itens marcados como `role: "write"` somem, mesmo tendo `pode_visualizar = true` na matriz.
+### 1) Erro `new row violates row-level security policy for table "permissoes"`
 
-A base já está pronta: `modulos_sistema` tem `rota` para cada módulo (ex.: `/contar`, `/suprimentos/estoque`), `permissoes` já tem 90 linhas gravadas, e a matriz salva por perfil.
+As policies de `permissoes`, `perfis` e `modulos_sistema` só permitem escrita para `COORDENADOR_CONTROLE`. A tela `config.perfis.tsx` libera a UI para `ADMINISTRADOR` também, mas o banco rejeita o `upsert`. Como você está logado como Administrador editando o perfil Gerente, o INSERT bate na policy e falha.
 
-## Solução
+### 2) Menu do Gerente mostra tudo, mesmo com só 13 módulos marcados
 
-Fazer o menu **consumir a matriz**. Uma única fonte de verdade: se `pode_visualizar = true` para o módulo cuja `rota` bate com o item de menu, o item aparece. Caso contrário, some.
+No `usePermissions.canView`, quando o módulo existe em `modulos_sistema` mas o perfil não tem linha em `permissoes` para ele, a função devolve `true` (fallback pensado para módulos "não mapeados"). No `AppShell`, o gate `if (perms.isMapped(item.to)) return perms.canView(item.to)` entra no ramo mapeado — e ainda assim recebe `true`. Resultado: qualquer módulo sem linha explícita aparece.
 
-### Passos
+Confirmado no banco: Gerente tem 14 linhas em `permissoes` (13 com visualizar), contra 32 módulos totais → os 18 sem linha vazam para o menu.
 
-1. **Novo hook `usePermissions()`** (`src/hooks/usePermissions.ts`)
-   - Descobre o `perfil_id` do usuário logado: `user_roles.role` → `perfis.role_key` → `perfis.id`.
-   - Carrega `modulos_sistema` (para mapear `rota → modulo_id`) e todas as `permissoes` daquele perfil.
-   - Retorna:
-     - `canView(rota: string): boolean`
-     - `canWrite(rota: string): boolean` (pode_criar OR pode_editar)
-     - `isAdmin` (bypass — Administrador sempre vê tudo, blindagem contra "trancar-se para fora")
-     - `loading`
-   - Cache com React Query (staleTime 60s), invalidado quando a matriz é salva.
+---
 
-2. **AppShell passa a filtrar por `canView(item.to)`**
-   - Substituir o `can()` atual pelo hook. `role: "any" | "write" | "admin"` de cada item vira apenas dica de fallback (usada se o módulo ainda não estiver mapeado na matriz).
-   - Grupo (`Cadastro`, `Inventário`, etc.) aparece se **qualquer** filho for visível.
-   - Administrador continua vendo tudo (bypass), independentemente da matriz — evita cenário de admin salvar uma matriz vazia e perder acesso.
+## Correções
 
-3. **Invalidação ao salvar a matriz**
-   - Em `config.perfis.tsx`, ao concluir o `upsert`, invalidar também `["my-permissions"]` para o menu recalcular sem F5.
+### A. Migração de RLS (`permissoes`, `perfis`, `modulos_sistema`)
 
-### Fora do escopo desta rodada
+Substituir as policies `coord_manage_*` por versões que também aceitem Administrador:
 
-- Não vou mexer nas RLS/policies das telas em si (a matriz ainda é usada só para exibir/esconder no menu; cada tela continua com sua checagem de papel atual). O prompt anterior da matriz já previu isso como próxima etapa.
-- Não vou criar/alterar tabelas — a estrutura (`perfis`, `modulos_sistema`, `permissoes`) já existe e está populada.
-- Não vou tocar em rotas nem em `routeTree.gen.ts`.
+```sql
+DROP POLICY coord_manage_permissoes ON public.permissoes;
+CREATE POLICY admin_coord_manage_permissoes ON public.permissoes
+  FOR ALL TO authenticated
+  USING (has_role(auth.uid(),'COORDENADOR_CONTROLE') OR has_role(auth.uid(),'ADMINISTRADOR'))
+  WITH CHECK (has_role(auth.uid(),'COORDENADOR_CONTROLE') OR has_role(auth.uid(),'ADMINISTRADOR'));
+```
+
+Mesmo padrão para `coord_manage_perfis` e `coord_manage_modulos`. Mantém os `read_*` como estão. GRANTs já existem (tabelas em uso hoje).
+
+### B. Ajustar `src/hooks/usePermissions.ts`
+
+Quando o módulo está mapeado no sistema mas não tem linha para o perfil, tratar como **negado** — não como permissivo:
+
+- `canView(rota)`: se `isAdmin` → true; se `isMapped(rota)` → retorna `p?.pode_visualizar === true` (sem linha = false); se não mapeado → true (fallback só pega módulos que ainda não existem em `modulos_sistema`).
+- `canWrite(rota)`: mesma lógica com `pode_criar || pode_editar`.
+
+`AppShell.tsx` não precisa mudar — a semântica de "mapeado + sem linha = negado" já se encaixa no gate atual.
+
+### C. Invalidação de cache após salvar
+
+Após o `upsert` bem-sucedido em `config.perfis.tsx`, `["my-permissions"]` já é invalidado. Nada a mudar aqui.
+
+---
 
 ## Validação
 
-1. Logar como **Coordenador de Controle** (perfil com tudo marcado): menu deve mostrar todos os grupos e itens — Cadastro, Inventário, Suprimentos, Gestão, Relatórios, Configurações.
-2. Na Matriz, desmarcar `Visualizar` de "Baixas Operacionais" para Coordenador, salvar. Sem recarregar, o item some do menu.
-3. Remarcar → o item volta.
-4. Logar como **Vendedor** (perfil com pouca coisa marcada): menu deve conter só o que a matriz autoriza.
-5. Administrador continua vendo tudo mesmo se a matriz dele estiver vazia (bypass de segurança).
+1. Como Administrador, abrir Matriz de Permissões → Gerente, alterar uma visualização, Salvar → sem erro de RLS.
+2. Logar como usuário Gerente → menu mostra somente os 13 módulos com `pode_visualizar = true`.
+3. Marcar mais uma visualização para Gerente e salvar → o item aparece no menu do Gerente sem F5.
+4. Coordenador de Controle continua conseguindo editar (não regride).
+5. Administrador continua vendo tudo (bypass em `usePermissions`).
+
+## Fora do escopo
+
+- Não mexer em GRANTs (já corretos), rotas, `routeTree.gen.ts`, nem nas checagens de papel dentro das telas de negócio.
