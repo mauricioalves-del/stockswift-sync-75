@@ -1637,11 +1637,38 @@ export type Database = {
         }
         Relationships: []
       }
+      usuario_almoxarifados: {
+        Row: {
+          codigo_origem: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          codigo_origem: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          codigo_origem?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuario_almoxarifados_codigo_origem_fkey"
+            columns: ["codigo_origem"]
+            isOneToOne: false
+            referencedRelation: "origens"
+            referencedColumns: ["codigo_origem"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      almoxarifados_permitidos: { Args: { _uid: string }; Returns: string[] }
       get_my_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
