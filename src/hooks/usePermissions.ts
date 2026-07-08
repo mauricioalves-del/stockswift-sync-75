@@ -51,23 +51,22 @@ export function usePermissions() {
     return q.data?.byMod.get(modId);
   }
 
-  function canView(rota: string): boolean {
-    if (isAdmin) return true;
-    const p = getPerm(rota);
-    // Se o módulo não está mapeado na matriz, deixa o fallback de papel decidir (retorna true aqui e AppShell aplica o role hint)
-    if (!p) return true;
-    return p.pode_visualizar === true;
-  }
-
   function isMapped(rota: string): boolean {
     return !!q.data?.rotaToModId.get(rota);
   }
 
+  function canView(rota: string): boolean {
+    if (isAdmin) return true;
+    if (!isMapped(rota)) return true; // módulo fora da matriz — fallback por papel no AppShell
+    const p = getPerm(rota);
+    return p?.pode_visualizar === true;
+  }
+
   function canWrite(rota: string): boolean {
     if (isAdmin) return true;
+    if (!isMapped(rota)) return true;
     const p = getPerm(rota);
-    if (!p) return true;
-    return p.pode_criar || p.pode_editar;
+    return !!(p && (p.pode_criar || p.pode_editar));
   }
 
   return {
