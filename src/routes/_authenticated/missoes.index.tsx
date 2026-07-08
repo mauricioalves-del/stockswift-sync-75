@@ -103,7 +103,7 @@ function NovaMissao() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     titulo: "", descricao: "", tipo: "EXTRAORDINARIA",
-    grupo: "", familia: "", id_local: "", origem: "",
+    grupo: "", familia: "", origem: "",
     data_execucao: new Date().toISOString().slice(0, 10),
     criterio_abc: "",
   });
