@@ -55,6 +55,7 @@ function ContarPage() {
   const [familia, setFamilia] = useState<string>(TODOS);
   const [sku, setSku] = useState<string>("");
   const { data: almoxInfo } = useAlmoxAtivo();
+  const { almoxes: meusAlmox } = useMeusAlmoxarifados();
 
   // Aplica almoxarifado ativo (missão ou padrão do usuário) como default do filtro
   useEffect(() => {
