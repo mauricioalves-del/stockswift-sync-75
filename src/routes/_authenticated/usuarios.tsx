@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
 import { Shield, ExternalLink } from "lucide-react";
@@ -18,7 +19,6 @@ export const Route = createFileRoute("/_authenticated/usuarios")({
   head: () => ({ meta: [{ title: "Usuários" }] }),
 });
 
-// Nível de acesso por role_key — apenas indicativo (matriz real fica em Config > Perfis)
 const NIVEL: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
   ADMINISTRADOR: { label: "Acesso Total", variant: "default" },
   COORDENADOR_CONTROLE: { label: "Acesso Total", variant: "default" },
@@ -45,19 +45,31 @@ function UsuariosPage() {
     },
   });
 
+  const origensQ = useQuery({
+    queryKey: ["origens-ativas-usuarios"],
+    queryFn: async () => {
+      const { data } = await supabase.from("origens").select("codigo_origem, descricao")
+        .eq("ativo", true).order("codigo_origem");
+      return data ?? [];
+    },
+  });
+
   const usuariosQ = useQuery({
     queryKey: ["usuarios"],
     enabled: podeGerir,
     queryFn: async () => {
-      const [profilesRes, rolesRes] = await Promise.all([
+      const [profilesRes, rolesRes, almoxRes] = await Promise.all([
         supabase.from("profiles").select("*").order("nome"),
         supabase.from("user_roles").select("*"),
+        (supabase as any).from("usuario_almoxarifados").select("user_id, codigo_origem"),
       ]);
       const profiles = profilesRes.data ?? [];
       const roles = rolesRes.data ?? [];
+      const almox = (almoxRes.data ?? []) as { user_id: string; codigo_origem: string }[];
       return profiles.map((p) => ({
         ...p,
         role: (roles.find((r) => r.user_id === p.id)?.role ?? null) as Role | null,
+        almoxes: almox.filter((a) => a.user_id === p.id).map((a) => a.codigo_origem),
       }));
     },
   });
@@ -75,17 +87,39 @@ function UsuariosPage() {
     qc.invalidateQueries({ queryKey: ["usuarios"] });
   }
 
+  async function changeAlmoxes(userId: string, next: string[]) {
+    const del = await (supabase as any).from("usuario_almoxarifados").delete().eq("user_id", userId);
+    if (del.error) return toast.error(del.error.message);
+    if (next.length > 0) {
+      const ins = await (supabase as any).from("usuario_almoxarifados").insert(
+        next.map((codigo_origem) => ({ user_id: userId, codigo_origem })),
+      );
+      if (ins.error) return toast.error(ins.error.message);
+    }
+    const me = (await supabase.auth.getUser()).data.user?.id;
+    await supabase.from("audit_logs").insert({
+      usuario: me, acao: "ALTERAR_ALMOX", entidade: "usuario_almoxarifados",
+      entidade_id: userId, payload: { almoxes: next },
+    });
+    toast.success(next.length === 0 ? "Acesso liberado a todos os almoxarifados" : `Acesso restrito a ${next.length} almoxarifado(s)`);
+    qc.invalidateQueries({ queryKey: ["usuarios"] });
+    qc.invalidateQueries({ queryKey: ["meus-almox"] });
+  }
+
   if (!podeGerir) return <div className="p-8 text-center text-muted-foreground">Acesso restrito.</div>;
 
   const perfis = perfisQ.data ?? [];
+  const origensOpts = (origensQ.data ?? []).map((o) => ({
+    value: o.codigo_origem, label: o.descricao || o.codigo_origem,
+  }));
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4">
+    <div className="max-w-6xl mx-auto space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Usuários & Perfis</h1>
           <p className="text-sm text-muted-foreground">
-            Atribua um perfil a cada usuário. A matriz de permissões é gerenciada em Configurações.
+            Atribua um perfil e defina quais almoxarifados cada usuário pode acessar.
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
@@ -97,19 +131,21 @@ function UsuariosPage() {
 
       <Card>
         <CardHeader><CardTitle className="text-base">{usuariosQ.data?.length ?? 0} usuário(s)</CardTitle></CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>E-mail</TableHead>
-                <TableHead className="w-56">Perfil</TableHead>
+                <TableHead className="w-44">Perfil</TableHead>
                 <TableHead>Nível</TableHead>
+                <TableHead className="w-72">Almoxarifados</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {usuariosQ.data?.map((u) => {
                 const nivel = u.role ? NIVEL[u.role] : null;
+                const irrestrito = u.role === "ADMINISTRADOR" || u.role === "COORDENADOR_CONTROLE";
                 return (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.nome || "—"}</TableCell>
@@ -128,6 +164,19 @@ function UsuariosPage() {
                       {nivel ? <Badge variant={nivel.variant} className="text-[10px]">{nivel.label}</Badge>
                              : <span className="text-xs text-muted-foreground">—</span>}
                     </TableCell>
+                    <TableCell>
+                      {irrestrito ? (
+                        <Badge variant="default" className="text-[10px]">Todos (irrestrito)</Badge>
+                      ) : (
+                        <MultiSelect
+                          options={origensOpts}
+                          value={u.almoxes}
+                          onChange={(v) => changeAlmoxes(u.id, v)}
+                          placeholder="Buscar almoxarifado…"
+                          allLabel="Todos"
+                        />
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -137,8 +186,8 @@ function UsuariosPage() {
       </Card>
 
       <p className="text-xs text-muted-foreground">
-        As permissões finais de cada perfil (visualizar, criar, editar, aprovar, excluir por módulo)
-        ficam na <Link to="/config/perfis" className="underline">matriz de permissões</Link>.
+        Vazio = acesso a todos os almoxarifados. Uma ou mais seleções = acesso restrito a esses.
+        Administrador e Coordenador de Controle sempre têm acesso irrestrito.
       </p>
     </div>
   );

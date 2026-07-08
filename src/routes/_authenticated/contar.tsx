@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { useRole } from "@/hooks/useRole";
 import { LimparContagemDialog } from "@/components/inventario/LimparContagemDialog";
 import { useAlmoxAtivo } from "@/lib/almox-inventario";
+import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
 import { Warehouse, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -54,6 +55,7 @@ function ContarPage() {
   const [familia, setFamilia] = useState<string>(TODOS);
   const [sku, setSku] = useState<string>("");
   const { data: almoxInfo } = useAlmoxAtivo();
+  const { almoxes: meusAlmox } = useMeusAlmoxarifados();
 
   // Aplica almoxarifado ativo (missão ou padrão do usuário) como default do filtro
   useEffect(() => {
@@ -72,11 +74,13 @@ function ContarPage() {
   const [showSistemico, setShowSistemico] = useState<boolean>(true);
   useEffect(() => { if (cego !== undefined) setShowSistemico(!cego); }, [cego]);
 
-  // Origens ativas
+  // Origens ativas (filtradas pelos almoxarifados permitidos ao usuário)
   const { data: origens } = useQuery({
-    queryKey: ["origens-ativas"],
+    queryKey: ["origens-ativas", meusAlmox?.join(",") ?? "all"],
     queryFn: async () => {
-      const { data } = await supabase.from("origens").select("codigo_origem, descricao").eq("ativo", true).order("codigo_origem");
+      let q = supabase.from("origens").select("codigo_origem, descricao").eq("ativo", true).order("codigo_origem");
+      if (meusAlmox) q = q.in("codigo_origem", meusAlmox.length ? meusAlmox : ["__nenhum__"]);
+      const { data } = await q;
       return data ?? [];
     },
   });
@@ -139,8 +143,9 @@ function ContarPage() {
   });
 
   // SKUs filtrados por origem + grupo + família opcional
+  // SKUs filtrados por origem + grupo + família opcional
   const { data: skus } = useQuery({
-    queryKey: ["skus-filtrados", origem, grupo, familia, codigosDoGrupo],
+    queryKey: ["skus-filtrados", origem, grupo, familia, codigosDoGrupo, meusAlmox?.join(",") ?? "all"],
     enabled: grupo !== "" && (grupo === TODOS || !!codigosDoGrupo),
     queryFn: async () => {
       let codes: string[] | null = null;
@@ -155,6 +160,7 @@ function ContarPage() {
         q = supabase.from("estoque_sistemico").select("id_produto, descricao").in("id_produto", codes);
       }
       if (origem !== TODOS) q = q.eq("origem", origem);
+      else if (meusAlmox) q = q.in("origem", meusAlmox.length ? meusAlmox : ["__nenhum__"]);
       const { data } = await q;
       const map = new Map<string, string>();
       (data ?? []).forEach((r) => map.set(r.id_produto, r.descricao));
@@ -165,11 +171,12 @@ function ContarPage() {
 
   // Lotes do SKU (filtrados por origem)
   const { data: lotes } = useQuery({
-    queryKey: ["lotes-do-sku", sku, origem],
+    queryKey: ["lotes-do-sku", sku, origem, meusAlmox?.join(",") ?? "all"],
     enabled: !!sku,
     queryFn: async () => {
       let q = supabase.from("estoque_sistemico").select("*").eq("id_produto", sku);
       if (origem !== TODOS) q = q.eq("origem", origem);
+      else if (meusAlmox) q = q.in("origem", meusAlmox.length ? meusAlmox : ["__nenhum__"]);
       const { data, error } = await q.order("lote");
       if (error) throw error;
       return (data ?? []) as EstoqueItem[];

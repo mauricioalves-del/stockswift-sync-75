@@ -1,56 +1,59 @@
-## Duas causas distintas
+## Objetivo
 
-### 1) Erro `new row violates row-level security policy for table "permissoes"`
+Permitir que Administrador/Coordenador defina, por usuário, **quais almoxarifados** ele pode enxergar. A restrição vale para todas as telas operacionais.
 
-As policies de `permissoes`, `perfis` e `modulos_sistema` só permitem escrita para `COORDENADOR_CONTROLE`. A tela `config.perfis.tsx` libera a UI para `ADMINISTRADOR` também, mas o banco rejeita o `upsert`. Como você está logado como Administrador editando o perfil Gerente, o INSERT bate na policy e falha.
+## O que muda
 
-### 2) Menu do Gerente mostra tudo, mesmo com só 13 módulos marcados
+### 1. Banco (nova tabela)
 
-No `usePermissions.canView`, quando o módulo existe em `modulos_sistema` mas o perfil não tem linha em `permissoes` para ele, a função devolve `true` (fallback pensado para módulos "não mapeados"). No `AppShell`, o gate `if (perms.isMapped(item.to)) return perms.canView(item.to)` entra no ramo mapeado — e ainda assim recebe `true`. Resultado: qualquer módulo sem linha explícita aparece.
+`usuario_almoxarifados` (chave composta `user_id + codigo_origem`) — lista os almoxarifados liberados de cada usuário. Sem linha nenhuma = "todos liberados" (comportamento atual, evita quebrar quem já existe). Uma linha ou mais = restrito a esses.
 
-Confirmado no banco: Gerente tem 14 linhas em `permissoes` (13 com visualizar), contra 32 módulos totais → os 18 sem linha vazam para o menu.
+- RLS: usuário lê as próprias linhas; Admin/Coordenador leem e gerenciam todas.
+- GRANT para `authenticated` e `service_role`.
+- Função `security definer` `almoxarifados_permitidos(_uid)` retorna o array de códigos (ou `NULL` quando irrestrito) — usada pelo hook client e reaproveitável em policies futuras.
 
----
+### 2. UI — Usuários & Perfis (`/usuarios`)
 
-## Correções
+Adicionar coluna **"Almoxarifados"** ao lado de Perfil, com um `MultiSelect` (Popover + Checkbox + Badge, já temos os primitives) listando todas as `origens` ativas.
 
-### A. Migração de RLS (`permissoes`, `perfis`, `modulos_sistema`)
+- Vazio = "Todos" (badge cinza).
+- Ao alterar, salva com `delete + insert` transacional na `usuario_almoxarifados` e loga em `audit_logs`.
+- Invalida queries `["usuarios"]` e `["meus-almox"]`.
 
-Substituir as policies `coord_manage_*` por versões que também aceitem Administrador:
+### 3. Hook central `useMeusAlmoxarifados`
 
-```sql
-DROP POLICY coord_manage_permissoes ON public.permissoes;
-CREATE POLICY admin_coord_manage_permissoes ON public.permissoes
-  FOR ALL TO authenticated
-  USING (has_role(auth.uid(),'COORDENADOR_CONTROLE') OR has_role(auth.uid(),'ADMINISTRADOR'))
-  WITH CHECK (has_role(auth.uid(),'COORDENADOR_CONTROLE') OR has_role(auth.uid(),'ADMINISTRADOR'));
-```
+Retorna `{ almoxes: string[] | null, loading }` — `null` quando irrestrito, senão o array. Cache com `staleTime: 60s`.
 
-Mesmo padrão para `coord_manage_perfis` e `coord_manage_modulos`. Mantém os `read_*` como estão. GRANTs já existem (tabelas em uso hoje).
+### 4. Filtro nas telas operacionais
 
-### B. Ajustar `src/hooks/usePermissions.ts`
+Aplicar `.in("origem", almoxes)` quando `almoxes !== null`:
 
-Quando o módulo está mapeado no sistema mas não tem linha para o perfil, tratar como **negado** — não como permissivo:
+- `contar.tsx` — filtro em `origens` (dropdown), `estoque_sistemico` (SKUs e lotes) e default de `useAlmoxAtivo` respeitando a lista.
+- `missoes.index.tsx` — filtro no dropdown de origem e na listagem de missões (`.in("origem", ...)`).
+- `suprimentos.estoque.tsx` — filtro em `estoque_sistemico` e no seletor de origem.
+- `config.inventario.tsx` — o Select de "almoxarifado padrão por usuário" passa a listar só os permitidos daquele usuário (Admin continua vendo todos).
+- `useAlmoxAtivo` — se o "padrão do usuário" ou "origem da missão" não estiver na lista permitida, ignora e cai no próximo nível.
 
-- `canView(rota)`: se `isAdmin` → true; se `isMapped(rota)` → retorna `p?.pode_visualizar === true` (sem linha = false); se não mapeado → true (fallback só pega módulos que ainda não existem em `modulos_sistema`).
-- `canWrite(rota)`: mesma lógica com `pode_criar || pode_editar`.
+### 5. AppShell / permissões
 
-`AppShell.tsx` não precisa mudar — a semântica de "mapeado + sem linha = negado" já se encaixa no gate atual.
-
-### C. Invalidação de cache após salvar
-
-Após o `upsert` bem-sucedido em `config.perfis.tsx`, `["my-permissions"]` já é invalidado. Nada a mudar aqui.
-
----
-
-## Validação
-
-1. Como Administrador, abrir Matriz de Permissões → Gerente, alterar uma visualização, Salvar → sem erro de RLS.
-2. Logar como usuário Gerente → menu mostra somente os 13 módulos com `pode_visualizar = true`.
-3. Marcar mais uma visualização para Gerente e salvar → o item aparece no menu do Gerente sem F5.
-4. Coordenador de Controle continua conseguindo editar (não regride).
-5. Administrador continua vendo tudo (bypass em `usePermissions`).
+Sem impacto na matriz de permissões atual — este é um filtro de dados independente da matriz de módulos.
 
 ## Fora do escopo
 
-- Não mexer em GRANTs (já corretos), rotas, `routeTree.gen.ts`, nem nas checagens de papel dentro das telas de negócio.
+- Filtrar `requisicoes` / `baixas` por almoxarifado (não têm coluna `origem` clara — pode entrar depois se necessário).
+- Enforcement no banco via RLS por almoxarifado (fica como camada UI + query; podemos endurecer depois com policies usando `almoxarifados_permitidos()`).
+
+## Detalhes técnicos
+
+```sql
+CREATE TABLE public.usuario_almoxarifados (
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  codigo_origem text NOT NULL REFERENCES public.origens(codigo_origem) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, codigo_origem)
+);
+```
+
+Policies: `select` para o próprio user OR admin/coord; `all` para admin/coord.
+
+Migração roda antes das mudanças de código (types são regenerados depois).

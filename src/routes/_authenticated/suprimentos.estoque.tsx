@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Boxes, Loader2 } from "lucide-react";
 import { formatNum, formatBRL } from "@/lib/inventory";
+import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
 
 export const Route = createFileRoute("/_authenticated/suprimentos/estoque")({
   component: EstoquePosicaoPage,
@@ -23,13 +24,16 @@ type Row = {
 function EstoquePosicaoPage() {
   const [origemF, setOrigemF] = useState<string>("__all");
   const [busca, setBusca] = useState("");
+  const { almoxes } = useMeusAlmoxarifados();
 
   const q = useQuery({
-    queryKey: ["suprimentos_estoque_posicao"],
+    queryKey: ["suprimentos_estoque_posicao", almoxes?.join(",") ?? "all"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("estoque_sistemico")
+      let query = supabase.from("estoque_sistemico")
         .select("id_produto, descricao, unidade, origem, quantidade, custo_unitario")
         .limit(10000);
+      if (almoxes) query = query.in("origem", almoxes.length ? almoxes : ["__nenhum__"]);
+      const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as Row[];
     },

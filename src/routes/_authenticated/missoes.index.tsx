@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Plus, Sparkles, Loader2 } from "lucide-react";
+import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
 
 export const Route = createFileRoute("/_authenticated/missoes/")({
   component: MissoesPage,
@@ -49,10 +50,13 @@ function MissoesPage() {
 }
 
 function ListaMissoes() {
+  const { almoxes } = useMeusAlmoxarifados();
   const { data } = useQuery({
-    queryKey: ["missoes"],
+    queryKey: ["missoes", almoxes?.join(",") ?? "all"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("missoes").select("*").order("data_execucao", { ascending: true });
+      let q = (supabase as any).from("missoes").select("*").order("data_execucao", { ascending: true });
+      if (almoxes) q = q.or(`origem.is.null,origem.in.(${(almoxes.length ? almoxes : ["__nenhum__"]).map((a) => `"${a}"`).join(",")})`);
+      const { data, error } = await q;
       if (error) throw error;
       return data as any[];
     },
@@ -108,11 +112,13 @@ function NovaMissao() {
     criterio_abc: "",
   });
 
+  const { almoxes } = useMeusAlmoxarifados();
   const origensQ = useQuery({
-    queryKey: ["origens-ativas-nova-missao"],
+    queryKey: ["origens-ativas-nova-missao", almoxes?.join(",") ?? "all"],
     queryFn: async () => {
-      const { data } = await supabase.from("origens").select("codigo_origem, descricao")
-        .eq("ativo", true).order("codigo_origem");
+      let q = supabase.from("origens").select("codigo_origem, descricao").eq("ativo", true).order("codigo_origem");
+      if (almoxes) q = q.in("codigo_origem", almoxes.length ? almoxes : ["__nenhum__"]);
+      const { data } = await q;
       return data ?? [];
     },
   });
