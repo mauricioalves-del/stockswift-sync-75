@@ -112,11 +112,13 @@ function NovaMissao() {
     criterio_abc: "",
   });
 
+  const { almoxes } = useMeusAlmoxarifados();
   const origensQ = useQuery({
-    queryKey: ["origens-ativas-nova-missao"],
+    queryKey: ["origens-ativas-nova-missao", almoxes?.join(",") ?? "all"],
     queryFn: async () => {
-      const { data } = await supabase.from("origens").select("codigo_origem, descricao")
-        .eq("ativo", true).order("codigo_origem");
+      let q = supabase.from("origens").select("codigo_origem, descricao").eq("ativo", true).order("codigo_origem");
+      if (almoxes) q = q.in("codigo_origem", almoxes.length ? almoxes : ["__nenhum__"]);
+      const { data } = await q;
       return data ?? [];
     },
   });
