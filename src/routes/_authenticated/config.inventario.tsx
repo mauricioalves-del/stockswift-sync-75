@@ -24,18 +24,21 @@ function ConfigInventarioPage() {
     queryKey: ["config-inv-usuarios"],
     enabled: podeGerir,
     queryFn: async () => {
-      const [profilesRes, rolesRes, paramsRes] = await Promise.all([
+      const [profilesRes, rolesRes, paramsRes, almoxRes] = await Promise.all([
         supabase.from("profiles").select("id, nome, email").order("nome"),
         supabase.from("user_roles").select("user_id, role"),
         (supabase as any).from("parametros_inventario").select("*")
           .eq("tipo_escopo", "Usuario").eq("ativo", true),
+        (supabase as any).from("usuario_almoxarifados").select("user_id, codigo_origem"),
       ]);
       const roles = rolesRes.data ?? [];
       const params = (paramsRes.data ?? []) as Array<{ referencia_id: string; almoxarifado_id: string; id: string }>;
+      const almox = (almoxRes.data ?? []) as { user_id: string; codigo_origem: string }[];
       return (profilesRes.data ?? []).map((p) => ({
         ...p,
         role: roles.find((r) => r.user_id === p.id)?.role ?? null,
         almox: params.find((x) => x.referencia_id === p.id)?.almoxarifado_id ?? null,
+        permitidos: almox.filter((a) => a.user_id === p.id).map((a) => a.codigo_origem),
       }));
     },
   });
