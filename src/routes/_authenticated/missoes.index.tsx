@@ -104,7 +104,7 @@ function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
               <TableHead>Almox</TableHead>
               <TableHead>Execução</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-24 text-right">Abrir</TableHead>
+              <TableHead className="w-32 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -112,7 +112,7 @@ function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
               <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">Nenhuma missão cadastrada</TableCell></TableRow>
             )}
             {(data ?? []).map((m) => (
-              <TableRow key={m.id} className="cursor-pointer hover:bg-muted/40">
+              <TableRow key={m.id} className="hover:bg-muted/40">
                 <TableCell className="font-medium">{m.titulo}</TableCell>
                 <TableCell><Badge variant="outline" className="text-[10px]">{m.tipo}</Badge></TableCell>
                 <TableCell className="text-xs">{[m.grupo, m.familia].filter(Boolean).join(" / ") || "—"}</TableCell>
@@ -120,18 +120,53 @@ function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
                 <TableCell className="text-xs">{m.data_execucao ? new Date(m.data_execucao).toLocaleDateString("pt-BR") : "—"}</TableCell>
                 <TableCell><Badge className="text-[10px]">{m.status}</Badge></TableCell>
                 <TableCell className="text-right">
-                  <Button asChild size="sm" variant="outline">
-                    <Link to="/missoes/$id" params={{ id: m.id }}>Executar</Link>
-                  </Button>
+                  <div className="flex justify-end gap-1">
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/missoes/$id" params={{ id: m.id }}>Executar</Link>
+                    </Button>
+                    {podeGerir && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setToDelete(m)}
+                        aria-label="Excluir missão"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </CardContent>
+
+      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir missão?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A missão «{toDelete?.titulo}» e seus itens gerados serão removidos. Essa ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); excluir(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="size-4 animate-spin" /> : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
+
 
 function NovaMissao() {
   const qc = useQueryClient();
