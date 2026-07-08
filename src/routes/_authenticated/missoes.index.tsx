@@ -236,11 +236,21 @@ function NovaMissao() {
         </div>
         <div>
           <Label>Família (opcional)</Label>
-          <Input value={form.familia} onChange={(e) => setForm({ ...form, familia: e.target.value })} placeholder="ex.: Povos da Floresta" />
-        </div>
-        <div>
-          <Label>Local (id_local)</Label>
-          <Input value={form.id_local} onChange={(e) => setForm({ ...form, id_local: e.target.value })} />
+          <Select
+            value={form.familia || "__all__"}
+            onValueChange={(v) => setForm({ ...form, familia: v === "__all__" ? "" : v })}
+          >
+            <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todas</SelectItem>
+              {(familiasQ.data ?? []).map((f) => (
+                <SelectItem key={f} value={f}>{f}</SelectItem>
+              ))}
+              {familiasQ.data && familiasQ.data.length === 0 && (
+                <SelectItem disabled value="__none__">Nenhuma família mapeada</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <Label>Almoxarifado</Label>
