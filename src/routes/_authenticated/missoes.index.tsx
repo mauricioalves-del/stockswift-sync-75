@@ -103,7 +103,7 @@ function NovaMissao() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     titulo: "", descricao: "", tipo: "EXTRAORDINARIA",
-    grupo: "", familia: "", id_local: "", origem: "",
+    grupo: "", familia: "", origem: "",
     data_execucao: new Date().toISOString().slice(0, 10),
     criterio_abc: "",
   });
@@ -125,6 +125,24 @@ function NovaMissao() {
     },
   });
 
+  // Reusa a mesma lógica de Contagem: famílias filtradas pelo grupo selecionado
+  const familiasQ = useQuery({
+    queryKey: ["familias-por-grupo-nova-missao", form.grupo],
+    queryFn: async () => {
+      if (form.grupo) {
+        const { data: cods } = await (supabase as any)
+          .from("grupo_produtos").select("codigo_produto").eq("grupo", form.grupo);
+        const codes = (cods ?? []).map((c: any) => c.codigo_produto);
+        if (codes.length === 0) return [] as string[];
+        const { data: fam } = await supabase.from("familias")
+          .select("familia").in("codigo_produto", codes);
+        return Array.from(new Set((fam ?? []).map((f: any) => f.familia).filter(Boolean))).sort() as string[];
+      }
+      const { data: fam } = await supabase.from("familias").select("familia");
+      return Array.from(new Set((fam ?? []).map((f: any) => f.familia).filter(Boolean))).sort() as string[];
+    },
+  });
+
   async function gerar() {
     if (!form.titulo) return toast.error("Informe um título");
     setSubmitting(true);
@@ -133,7 +151,7 @@ function NovaMissao() {
       // criar missão
       const { data: m, error } = await (supabase as any).from("missoes").insert({
         titulo: form.titulo, descricao: form.descricao, tipo: form.tipo,
-        grupo: form.grupo || null, familia: form.familia || null, id_local: form.id_local || null,
+        grupo: form.grupo || null, familia: form.familia || null,
         origem: form.origem || null,
         data_execucao: form.data_execucao, criado_por: user.id,
       }).select().single();
@@ -141,7 +159,6 @@ function NovaMissao() {
 
       // gerar itens
       let q = (supabase as any).from("estoque_sistemico").select("id_produto, descricao, lote, quantidade");
-      if (form.id_local) q = q.eq("id_local", form.id_local);
       if (form.origem) q = q.eq("origem", form.origem);
       if (form.grupo) {
         const { data: codigos } = await (supabase as any).from("grupo_produtos").select("codigo_produto").eq("grupo", form.grupo);
@@ -209,7 +226,7 @@ function NovaMissao() {
         </div>
         <div>
           <Label>Grupo</Label>
-          <Select value={form.grupo || "__all__"} onValueChange={(v) => setForm({ ...form, grupo: v === "__all__" ? "" : v })}>
+          <Select value={form.grupo || "__all__"} onValueChange={(v) => setForm({ ...form, grupo: v === "__all__" ? "" : v, familia: "" })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todos</SelectItem>
@@ -219,11 +236,21 @@ function NovaMissao() {
         </div>
         <div>
           <Label>Família (opcional)</Label>
-          <Input value={form.familia} onChange={(e) => setForm({ ...form, familia: e.target.value })} placeholder="ex.: Povos da Floresta" />
-        </div>
-        <div>
-          <Label>Local (id_local)</Label>
-          <Input value={form.id_local} onChange={(e) => setForm({ ...form, id_local: e.target.value })} />
+          <Select
+            value={form.familia || "__all__"}
+            onValueChange={(v) => setForm({ ...form, familia: v === "__all__" ? "" : v })}
+          >
+            <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todas</SelectItem>
+              {(familiasQ.data ?? []).map((f) => (
+                <SelectItem key={f} value={f}>{f}</SelectItem>
+              ))}
+              {familiasQ.data && familiasQ.data.length === 0 && (
+                <SelectItem disabled value="__none__">Nenhuma família mapeada</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <Label>Almoxarifado</Label>
