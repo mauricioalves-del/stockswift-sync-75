@@ -74,11 +74,13 @@ function ContarPage() {
   const [showSistemico, setShowSistemico] = useState<boolean>(true);
   useEffect(() => { if (cego !== undefined) setShowSistemico(!cego); }, [cego]);
 
-  // Origens ativas
+  // Origens ativas (filtradas pelos almoxarifados permitidos ao usuário)
   const { data: origens } = useQuery({
-    queryKey: ["origens-ativas"],
+    queryKey: ["origens-ativas", meusAlmox?.join(",") ?? "all"],
     queryFn: async () => {
-      const { data } = await supabase.from("origens").select("codigo_origem, descricao").eq("ativo", true).order("codigo_origem");
+      let q = supabase.from("origens").select("codigo_origem, descricao").eq("ativo", true).order("codigo_origem");
+      if (meusAlmox) q = q.in("codigo_origem", meusAlmox.length ? meusAlmox : ["__nenhum__"]);
+      const { data } = await q;
       return data ?? [];
     },
   });
