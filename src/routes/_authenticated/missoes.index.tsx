@@ -226,7 +226,7 @@ function NovaMissao() {
         </div>
         <div>
           <Label>Grupo</Label>
-          <Select value={form.grupo || "__all__"} onValueChange={(v) => setForm({ ...form, grupo: v === "__all__" ? "" : v })}>
+          <Select value={form.grupo || "__all__"} onValueChange={(v) => setForm({ ...form, grupo: v === "__all__" ? "" : v, familia: "" })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todos</SelectItem>
