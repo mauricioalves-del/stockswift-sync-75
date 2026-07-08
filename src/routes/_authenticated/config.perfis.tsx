@@ -107,13 +107,13 @@ function PerfisPage() {
   }
 
   if (loading) return <div className="p-8 text-center text-muted-foreground">Carregando…</div>;
-  if (role !== "COORDENADOR_CONTROLE") {
+  if (role !== "COORDENADOR_CONTROLE" && role !== "ADMINISTRADOR") {
     return (
       <div className="max-w-xl mx-auto mt-16 text-center space-y-3">
         <Shield className="size-10 mx-auto text-muted-foreground" />
         <h1 className="text-xl font-semibold">Acesso restrito</h1>
         <p className="text-sm text-muted-foreground">
-          Somente o perfil <b>Coordenador de Controle</b> pode alterar a matriz de permissões.
+          Somente <b>Administrador</b> ou <b>Coordenador de Controle</b> podem alterar a matriz de permissões.
         </p>
         <Button asChild variant="outline" size="sm"><Link to="/config"><ArrowLeft className="size-4 mr-1.5" /> Voltar</Link></Button>
       </div>

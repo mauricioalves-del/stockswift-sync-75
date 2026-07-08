@@ -57,11 +57,11 @@ function ConfigPage() {
         </Card>
       )}
 
-      {isCoord && (
+      {(isCoord || isAdmin) && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base"><Shield className="size-4" /> Perfis e Permissões</CardTitle>
-            <CardDescription>Matriz de acesso por perfil e módulo. Restrito ao Coordenador de Controle.</CardDescription>
+            <CardDescription>Matriz de acesso por perfil e módulo. Disponível para Administrador e Coordenador de Controle.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline" className="w-full justify-between">
