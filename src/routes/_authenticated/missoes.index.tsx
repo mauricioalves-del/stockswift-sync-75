@@ -50,10 +50,13 @@ function MissoesPage() {
 }
 
 function ListaMissoes() {
+  const { almoxes } = useMeusAlmoxarifados();
   const { data } = useQuery({
-    queryKey: ["missoes"],
+    queryKey: ["missoes", almoxes?.join(",") ?? "all"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("missoes").select("*").order("data_execucao", { ascending: true });
+      let q = (supabase as any).from("missoes").select("*").order("data_execucao", { ascending: true });
+      if (almoxes) q = q.or(`origem.is.null,origem.in.(${(almoxes.length ? almoxes : ["__nenhum__"]).map((a) => `"${a}"`).join(",")})`);
+      const { data, error } = await q;
       if (error) throw error;
       return data as any[];
     },
