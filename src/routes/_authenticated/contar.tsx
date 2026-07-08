@@ -143,8 +143,9 @@ function ContarPage() {
   });
 
   // SKUs filtrados por origem + grupo + família opcional
+  // SKUs filtrados por origem + grupo + família opcional
   const { data: skus } = useQuery({
-    queryKey: ["skus-filtrados", origem, grupo, familia, codigosDoGrupo],
+    queryKey: ["skus-filtrados", origem, grupo, familia, codigosDoGrupo, meusAlmox?.join(",") ?? "all"],
     enabled: grupo !== "" && (grupo === TODOS || !!codigosDoGrupo),
     queryFn: async () => {
       let codes: string[] | null = null;
@@ -159,6 +160,7 @@ function ContarPage() {
         q = supabase.from("estoque_sistemico").select("id_produto, descricao").in("id_produto", codes);
       }
       if (origem !== TODOS) q = q.eq("origem", origem);
+      else if (meusAlmox) q = q.in("origem", meusAlmox.length ? meusAlmox : ["__nenhum__"]);
       const { data } = await q;
       const map = new Map<string, string>();
       (data ?? []).forEach((r) => map.set(r.id_produto, r.descricao));
@@ -169,11 +171,12 @@ function ContarPage() {
 
   // Lotes do SKU (filtrados por origem)
   const { data: lotes } = useQuery({
-    queryKey: ["lotes-do-sku", sku, origem],
+    queryKey: ["lotes-do-sku", sku, origem, meusAlmox?.join(",") ?? "all"],
     enabled: !!sku,
     queryFn: async () => {
       let q = supabase.from("estoque_sistemico").select("*").eq("id_produto", sku);
       if (origem !== TODOS) q = q.eq("origem", origem);
+      else if (meusAlmox) q = q.in("origem", meusAlmox.length ? meusAlmox : ["__nenhum__"]);
       const { data, error } = await q.order("lote");
       if (error) throw error;
       return (data ?? []) as EstoqueItem[];
