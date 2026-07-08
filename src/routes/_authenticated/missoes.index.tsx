@@ -151,7 +151,7 @@ function NovaMissao() {
       // criar missão
       const { data: m, error } = await (supabase as any).from("missoes").insert({
         titulo: form.titulo, descricao: form.descricao, tipo: form.tipo,
-        grupo: form.grupo || null, familia: form.familia || null, id_local: form.id_local || null,
+        grupo: form.grupo || null, familia: form.familia || null,
         origem: form.origem || null,
         data_execucao: form.data_execucao, criado_por: user.id,
       }).select().single();
@@ -159,7 +159,6 @@ function NovaMissao() {
 
       // gerar itens
       let q = (supabase as any).from("estoque_sistemico").select("id_produto, descricao, lote, quantidade");
-      if (form.id_local) q = q.eq("id_local", form.id_local);
       if (form.origem) q = q.eq("origem", form.origem);
       if (form.grupo) {
         const { data: codigos } = await (supabase as any).from("grupo_produtos").select("codigo_produto").eq("grupo", form.grupo);
