@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { useRole } from "@/hooks/useRole";
 import { LimparContagemDialog } from "@/components/inventario/LimparContagemDialog";
 import { useAlmoxAtivo } from "@/lib/almox-inventario";
+import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
 import { Warehouse, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
