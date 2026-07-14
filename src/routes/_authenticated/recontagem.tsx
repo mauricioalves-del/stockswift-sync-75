@@ -17,6 +17,7 @@ export const Route = createFileRoute("/_authenticated/recontagem")({
 
 function RecontagemPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const { data } = useQuery({
     queryKey: ["recontagem"],
@@ -27,55 +28,33 @@ function RecontagemPage() {
         .in("status", ["PENDENTE_RECONTAGEM", "RECONTAGEM_OBRIGATORIA"])
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as RecontagemRow[];
     },
   });
 
-  async function aprovar(r: { id: string; inventario_id: string | null; contagem: number; codigo_produto: string; lote: string }) {
-    const userId = (await supabase.auth.getUser()).data.user?.id;
-    const now = new Date().toISOString();
-
-    if (r.inventario_id) {
-      await supabase.from("inventario").update({
-        status: "APROVADO",
-        aprovado_por: userId,
-        aprovado_em: now,
-        saldo_sistemico: r.contagem,
-      }).eq("id", r.inventario_id);
+  async function aprovar(r: RecontagemRow) {
+    try {
+      await aprovarRecontagem(r);
+      toast.success("Contagem aprovada — estoque sistêmico ajustado");
+      qc.invalidateQueries({ queryKey: ["recontagem"] });
+      qc.invalidateQueries({ queryKey: ["inventario"] });
+      qc.invalidateQueries({ queryKey: ["missao-itens"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    } catch (err: any) {
+      toast.error(err.message ?? "Falha ao aprovar");
     }
-
-    const { error } = await supabase.from("recontagem").update({
-      status: "APROVADO", aprovado_por: userId, aprovado_em: now,
-    }).eq("id", r.id);
-    if (error) return toast.error(error.message);
-
-    await supabase.from("audit_logs").insert({
-      usuario: userId, acao: "APROVAR_RECONTAGEM", entidade: "recontagem", entidade_id: r.id,
-      payload: { codigo_produto: r.codigo_produto, lote: r.lote, quantidade_aprovada: r.contagem },
-    });
-    toast.success("Contagem aprovada");
-    qc.invalidateQueries({ queryKey: ["recontagem"] });
-    qc.invalidateQueries({ queryKey: ["inventario"] });
-    qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
   }
 
-  async function solicitarRecontagem(r: { id: string; inventario_id: string | null; codigo_produto: string; lote: string }) {
-    const userId = (await supabase.auth.getUser()).data.user?.id;
-
-    if (r.inventario_id) {
-      await supabase.from("inventario").update({ status: "RECONTAGEM_OBRIGATORIA" }).eq("id", r.inventario_id);
+  async function solicitarRecontagem(r: RecontagemRow) {
+    try {
+      const missaoId = await gerarMissaoRecontagem(r);
+      toast.success("Nova missão de recontagem criada");
+      qc.invalidateQueries({ queryKey: ["recontagem"] });
+      qc.invalidateQueries({ queryKey: ["missoes"] });
+      navigate({ to: "/missoes/$id", params: { id: missaoId } });
+    } catch (err: any) {
+      toast.error(err.message ?? "Falha ao gerar recontagem");
     }
-
-    const { error } = await supabase.from("recontagem").update({ status: "RECONTAGEM_OBRIGATORIA" }).eq("id", r.id);
-    if (error) return toast.error(error.message);
-
-    await supabase.from("audit_logs").insert({
-      usuario: userId, acao: "SOLICITAR_RECONTAGEM", entidade: "recontagem", entidade_id: r.id,
-      payload: { codigo_produto: r.codigo_produto, lote: r.lote },
-    });
-    toast.success("Recontagem solicitada — operador poderá registrar nova contagem");
-    qc.invalidateQueries({ queryKey: ["recontagem"] });
-    qc.invalidateQueries({ queryKey: ["inventario"] });
   }
 
   return (
