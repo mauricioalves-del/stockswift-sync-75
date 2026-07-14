@@ -758,6 +758,7 @@ export type Database = {
           missao_id: string
           quantidade_contada: number | null
           quantidade_prevista: number | null
+          recontagem_origem_id: string | null
           status_item: string
           updated_at: string
         }
@@ -770,6 +771,7 @@ export type Database = {
           missao_id: string
           quantidade_contada?: number | null
           quantidade_prevista?: number | null
+          recontagem_origem_id?: string | null
           status_item?: string
           updated_at?: string
         }
@@ -782,6 +784,7 @@ export type Database = {
           missao_id?: string
           quantidade_contada?: number | null
           quantidade_prevista?: number | null
+          recontagem_origem_id?: string | null
           status_item?: string
           updated_at?: string
         }
@@ -791,6 +794,13 @@ export type Database = {
             columns: ["missao_id"]
             isOneToOne: false
             referencedRelation: "missoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "missoes_itens_recontagem_origem_id_fkey"
+            columns: ["recontagem_origem_id"]
+            isOneToOne: false
+            referencedRelation: "recontagem"
             referencedColumns: ["id"]
           },
         ]
