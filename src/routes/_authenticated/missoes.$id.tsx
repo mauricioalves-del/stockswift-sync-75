@@ -27,7 +27,7 @@ type Missao = {
 type Item = {
   id: string; missao_id: string; codigo_produto: string; descricao: string | null;
   lote: string | null; quantidade_prevista: number | null; quantidade_contada: number | null;
-  status_item: string | null;
+  status_item: string | null; recontagem_origem_id: string | null;
 };
 
 function MissaoExecucaoPage() {
