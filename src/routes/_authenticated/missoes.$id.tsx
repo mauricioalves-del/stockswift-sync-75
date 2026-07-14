@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { ArrowLeft, ScanLine, Save, Loader2, Warehouse, AlertTriangle, PlayCircle, CheckCircle2 } from "lucide-react";
 import { sounds } from "@/lib/audio";
 import { formatNum, classificarFaixa, acuracidadeColor, statusLabel } from "@/lib/inventory";
+import { aprovarRecontagem, type RecontagemRow } from "@/lib/recontagem";
 
 export const Route = createFileRoute("/_authenticated/missoes/$id")({
   component: MissaoExecucaoPage,
@@ -26,7 +27,7 @@ type Missao = {
 type Item = {
   id: string; missao_id: string; codigo_produto: string; descricao: string | null;
   lote: string | null; quantidade_prevista: number | null; quantidade_contada: number | null;
-  status_item: string | null;
+  status_item: string | null; recontagem_origem_id: string | null;
 };
 
 function MissaoExecucaoPage() {
@@ -205,38 +206,57 @@ function LinhaItem({ item, missao, onSaved }: { item: Item; missao: Missao; onSa
     if (existing) await supabase.from("inventario").update({ ...payloadInv, status: "PENDENTE" }).eq("id", existing.id);
     else await supabase.from("inventario").insert(payloadInv);
 
-    // Recontagem automática se fora da faixa 95–105%
-    const { data: recExistente } = await (supabase as any).from("recontagem")
-      .select("id").eq("item_missao_id", item.id).maybeSingle();
-    if (classe !== "OK") {
-      const recPayload = {
-        missao_id: missao.id,
-        item_missao_id: item.id,
-        codigo_produto: item.codigo_produto,
-        lote: item.lote ?? "",
-        descricao: item.descricao ?? "",
-        id_local: eData?.id_local ?? (missao.id_local ?? ""),
-        origem: missao.origem ?? "",
-        saldo_sistema: prev,
-        contagem: n,
-        acuracidade: percentual,
-        status: "PENDENTE_RECONTAGEM",
-        usuario: userId,
-      };
-      if (recExistente) {
-        await (supabase as any).from("recontagem").update(recPayload).eq("id", recExistente.id);
-      } else {
-        await (supabase as any).from("recontagem").insert(recPayload);
+    // Se o item veio de uma solicitação de recontagem, atualizamos APENAS a linha original
+    // da fila (nada de criar nova entrada).
+    if (item.recontagem_origem_id) {
+      const { data: origem } = await (supabase as any).from("recontagem")
+        .select("*").eq("id", item.recontagem_origem_id).maybeSingle();
+      if (origem) {
+        if (classe === "OK") {
+          await aprovarRecontagem({ ...(origem as RecontagemRow), contagem: n, acuracidade: percentual });
+        } else {
+          await (supabase as any).from("recontagem").update({
+            contagem: n,
+            acuracidade: percentual,
+            saldo_sistema: prev,
+            status: "PENDENTE_RECONTAGEM",
+            usuario: userId,
+          }).eq("id", origem.id);
+        }
       }
-    } else if (recExistente) {
-      // Item corrigido para dentro da faixa — encerra recontagem pendente
-      await (supabase as any).from("recontagem").update({
-        status: "APROVADO",
-        aprovado_por: userId,
-        aprovado_em: new Date().toISOString(),
-        contagem: n,
-        acuracidade: percentual,
-      }).eq("id", recExistente.id);
+    } else {
+      // Recontagem automática se fora da faixa 95–105%
+      const { data: recExistente } = await (supabase as any).from("recontagem")
+        .select("id").eq("item_missao_id", item.id).maybeSingle();
+      if (classe !== "OK") {
+        const recPayload = {
+          missao_id: missao.id,
+          item_missao_id: item.id,
+          codigo_produto: item.codigo_produto,
+          lote: item.lote ?? "",
+          descricao: item.descricao ?? "",
+          id_local: eData?.id_local ?? (missao.id_local ?? ""),
+          origem: missao.origem ?? "",
+          saldo_sistema: prev,
+          contagem: n,
+          acuracidade: percentual,
+          status: "PENDENTE_RECONTAGEM",
+          usuario: userId,
+        };
+        if (recExistente) {
+          await (supabase as any).from("recontagem").update(recPayload).eq("id", recExistente.id);
+        } else {
+          await (supabase as any).from("recontagem").insert(recPayload);
+        }
+      } else if (recExistente) {
+        await (supabase as any).from("recontagem").update({
+          status: "APROVADO",
+          aprovado_por: userId,
+          aprovado_em: new Date().toISOString(),
+          contagem: n,
+          acuracidade: percentual,
+        }).eq("id", recExistente.id);
+      }
     }
 
     // Transições de status da missão
