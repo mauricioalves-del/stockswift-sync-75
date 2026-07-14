@@ -286,7 +286,7 @@ function LinhaItem({ item, missao, onSaved }: { item: Item; missao: Missao; onSa
       </TableCell>
       <TableCell>
         <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${badge}`}>
-          {item.status_item ?? "PENDENTE"}
+          {badgeLabel}
         </span>
       </TableCell>
       <TableCell className="text-right">
