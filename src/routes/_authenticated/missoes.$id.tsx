@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { ArrowLeft, ScanLine, Save, Loader2, Warehouse, AlertTriangle, PlayCircle, CheckCircle2 } from "lucide-react";
 import { sounds } from "@/lib/audio";
 import { formatNum, classificarFaixa, acuracidadeColor, statusLabel } from "@/lib/inventory";
+import { aprovarRecontagem, type RecontagemRow } from "@/lib/recontagem";
 
 export const Route = createFileRoute("/_authenticated/missoes/$id")({
   component: MissaoExecucaoPage,
