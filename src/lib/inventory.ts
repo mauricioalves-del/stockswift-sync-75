@@ -30,12 +30,15 @@ export function acuracidadeColor(ac: number | null | undefined): {
 
 export function statusLabel(s: string): { label: string; tone: "success" | "warning" | "destructive" | "info" | "muted" } {
   switch (s) {
-    case "OK": return { label: "Acurado", tone: "success" };
+    case "OK": return { label: "Dentro da tolerância", tone: "success" };
     case "DIVERGENCIA_POSITIVA": return { label: "Divergência (+)", tone: "warning" };
+    case "DIVERGENCIA_NEGATIVA": return { label: "Divergência (−)", tone: "destructive" };
     case "RECONTAGEM_NECESSARIA": return { label: "Recontagem", tone: "destructive" };
     case "AGUARDANDO_APROVACAO": return { label: "Aprovação", tone: "info" };
     case "APROVADO": return { label: "Aprovado", tone: "success" };
     case "PENDENTE": return { label: "Pendente", tone: "muted" };
+    case "CONTADO": return { label: "Contado", tone: "success" };
+    case "DIVERGENTE": return { label: "Divergente", tone: "warning" };
     default: return { label: s, tone: "muted" };
   }
 }
