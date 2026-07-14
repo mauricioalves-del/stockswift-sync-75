@@ -86,8 +86,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Inventário Cloud" },
       { name: "twitter:description", content: "Sistema profissional de inventário operacional com scanner, dashboard e modo offline." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/ODVyF2ihiCWHXCOyWV9ESsYZIGm1/social-images/social-1784055186908-Gemini_Generated_Image_egnvoaegnvoaegnv_(1).webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/ODVyF2ihiCWHXCOyWV9ESsYZIGm1/social-images/social-1784055186908-Gemini_Generated_Image_egnvoaegnvoaegnv_(1).webp" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/ODVyF2ihiCWHXCOyWV9ESsYZIGm1/social-images/social-1784062513056-Gemini_Generated_Image_w6ihklw6ihklw6ih.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/ODVyF2ihiCWHXCOyWV9ESsYZIGm1/social-images/social-1784062513056-Gemini_Generated_Image_w6ihklw6ihklw6ih.webp" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
