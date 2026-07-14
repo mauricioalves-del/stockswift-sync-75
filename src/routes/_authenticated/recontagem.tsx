@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { acuracidadeColor, formatNum } from "@/lib/inventory";
+import { aprovarRecontagem, gerarMissaoRecontagem, type RecontagemRow } from "@/lib/recontagem";
 import { toast } from "sonner";
 import { CheckCircle2, RotateCcw } from "lucide-react";
 
