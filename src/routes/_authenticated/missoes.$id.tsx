@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ArrowLeft, ScanLine, Save, Loader2, Warehouse, AlertTriangle, PlayCircle, CheckCircle2 } from "lucide-react";
 import { sounds } from "@/lib/audio";
-import { formatNum } from "@/lib/inventory";
+import { formatNum, classificarFaixa, acuracidadeColor, statusLabel } from "@/lib/inventory";
 
 export const Route = createFileRoute("/_authenticated/missoes/$id")({
   component: MissaoExecucaoPage,
@@ -66,7 +66,8 @@ function MissaoExecucaoPage() {
   const missao = missaoQ.data;
   const itens = itensQ.data ?? [];
   const total = itens.length;
-  const concluidos = itens.filter((i) => i.status_item === "CONTADO" || i.status_item === "DIVERGENTE").length;
+  const CONCLUIDO_STATUSES = ["OK", "DIVERGENCIA_NEGATIVA", "DIVERGENCIA_POSITIVA", "CONTADO", "DIVERGENTE"];
+  const concluidos = itens.filter((i) => i.status_item != null && CONCLUIDO_STATUSES.includes(i.status_item)).length;
   const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
 
   if (missaoQ.isLoading) return <div className="p-8 text-center text-muted-foreground">Carregando…</div>;
@@ -165,8 +166,8 @@ function LinhaItem({ item, missao, onSaved }: { item: Item; missao: Missao; onSa
     const n = Number(q.replace(",", "."));
     if (q === "" || Number.isNaN(n) || n < 0) { toast.error("Quantidade inválida"); sounds.error(); return; }
     setSaving(true);
-    const divergente = Math.abs(n - prev) > 0.0001;
-    const status_item = divergente ? "DIVERGENTE" : "CONTADO";
+    const { classe, percentual } = classificarFaixa(n, prev);
+    const status_item = classe; // "OK" | "DIVERGENCIA_NEGATIVA" | "DIVERGENCIA_POSITIVA"
 
     // Atualiza item da missão
     const { error: e1 } = await (supabase as any).from("missoes_itens")
@@ -204,6 +205,40 @@ function LinhaItem({ item, missao, onSaved }: { item: Item; missao: Missao; onSa
     if (existing) await supabase.from("inventario").update({ ...payloadInv, status: "PENDENTE" }).eq("id", existing.id);
     else await supabase.from("inventario").insert(payloadInv);
 
+    // Recontagem automática se fora da faixa 95–105%
+    const { data: recExistente } = await (supabase as any).from("recontagem")
+      .select("id").eq("item_missao_id", item.id).maybeSingle();
+    if (classe !== "OK") {
+      const recPayload = {
+        missao_id: missao.id,
+        item_missao_id: item.id,
+        codigo_produto: item.codigo_produto,
+        lote: item.lote ?? "",
+        descricao: item.descricao ?? "",
+        id_local: eData?.id_local ?? (missao.id_local ?? ""),
+        origem: missao.origem ?? "",
+        saldo_sistema: prev,
+        contagem: n,
+        acuracidade: percentual,
+        status: "PENDENTE_RECONTAGEM",
+        usuario: userId,
+      };
+      if (recExistente) {
+        await (supabase as any).from("recontagem").update(recPayload).eq("id", recExistente.id);
+      } else {
+        await (supabase as any).from("recontagem").insert(recPayload);
+      }
+    } else if (recExistente) {
+      // Item corrigido para dentro da faixa — encerra recontagem pendente
+      await (supabase as any).from("recontagem").update({
+        status: "APROVADO",
+        aprovado_por: userId,
+        aprovado_em: new Date().toISOString(),
+        contagem: n,
+        acuracidade: percentual,
+      }).eq("id", recExistente.id);
+    }
+
     // Transições de status da missão
     if (missao.status === "PLANEJADA") {
       await (supabase as any).from("missoes").update({
@@ -214,19 +249,29 @@ function LinhaItem({ item, missao, onSaved }: { item: Item; missao: Missao; onSa
     // Se todos concluídos → CONCLUIDA
     const { data: restantes } = await (supabase as any).from("missoes_itens")
       .select("id").eq("missao_id", missao.id)
-      .not("status_item", "in", "(CONTADO,DIVERGENTE)");
+      .not("status_item", "in", "(OK,DIVERGENCIA_NEGATIVA,DIVERGENCIA_POSITIVA,CONTADO,DIVERGENTE)");
     if (!restantes || restantes.length === 0) {
       await (supabase as any).from("missoes").update({ status: "CONCLUIDA" }).eq("id", missao.id);
     }
 
-    toast.success(divergente ? "Registrado (divergência)" : "Contado"); sounds.success();
+    const msg = classe === "OK" ? "Dentro da tolerância"
+              : classe === "DIVERGENCIA_NEGATIVA" ? "Divergência negativa — enviado para recontagem"
+              : "Divergência positiva — enviado para recontagem";
+    if (classe === "OK") { toast.success(msg); sounds.success(); }
+    else { toast.warning(msg); sounds.success(); }
     setSaving(false);
     onSaved();
   }
 
-  const badge = item.status_item === "CONTADO" ? "bg-success/20 text-success-foreground"
-              : item.status_item === "DIVERGENTE" ? "bg-warning/20 text-warning-foreground"
-              : "bg-muted text-muted-foreground";
+  const cor = acuracidadeColor(
+    item.status_item === "OK" || item.status_item === "DIVERGENCIA_NEGATIVA" || item.status_item === "DIVERGENCIA_POSITIVA"
+      ? classificarFaixa(Number(item.quantidade_contada ?? 0), prev).percentual
+      : null,
+  );
+  const badge = item.status_item == null || item.status_item === "PENDENTE"
+    ? "bg-muted text-muted-foreground"
+    : `${cor.bg} ${cor.text}`;
+  const badgeLabel = item.status_item ? statusLabel(item.status_item).label : "Pendente";
 
   return (
     <TableRow>
@@ -241,7 +286,7 @@ function LinhaItem({ item, missao, onSaved }: { item: Item; missao: Missao; onSa
       </TableCell>
       <TableCell>
         <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${badge}`}>
-          {item.status_item ?? "PENDENTE"}
+          {badgeLabel}
         </span>
       </TableCell>
       <TableCell className="text-right">

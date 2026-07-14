@@ -1193,7 +1193,9 @@ export type Database = {
           id: string
           id_local: string
           inventario_id: string | null
+          item_missao_id: string | null
           lote: string
+          missao_id: string | null
           motivo: string | null
           origem: string
           saldo_sistema: number
@@ -1212,7 +1214,9 @@ export type Database = {
           id?: string
           id_local?: string
           inventario_id?: string | null
+          item_missao_id?: string | null
           lote?: string
+          missao_id?: string | null
           motivo?: string | null
           origem?: string
           saldo_sistema?: number
@@ -1231,7 +1235,9 @@ export type Database = {
           id?: string
           id_local?: string
           inventario_id?: string | null
+          item_missao_id?: string | null
           lote?: string
+          missao_id?: string | null
           motivo?: string | null
           origem?: string
           saldo_sistema?: number
@@ -1245,6 +1251,20 @@ export type Database = {
             columns: ["inventario_id"]
             isOneToOne: false
             referencedRelation: "inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recontagem_item_missao_id_fkey"
+            columns: ["item_missao_id"]
+            isOneToOne: false
+            referencedRelation: "missoes_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recontagem_missao_id_fkey"
+            columns: ["missao_id"]
+            isOneToOne: false
+            referencedRelation: "missoes"
             referencedColumns: ["id"]
           },
         ]
