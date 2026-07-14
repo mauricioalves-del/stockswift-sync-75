@@ -66,7 +66,8 @@ function MissaoExecucaoPage() {
   const missao = missaoQ.data;
   const itens = itensQ.data ?? [];
   const total = itens.length;
-  const concluidos = itens.filter((i) => i.status_item === "CONTADO" || i.status_item === "DIVERGENTE").length;
+  const CONCLUIDO_STATUSES = ["OK", "DIVERGENCIA_NEGATIVA", "DIVERGENCIA_POSITIVA", "CONTADO", "DIVERGENTE"];
+  const concluidos = itens.filter((i) => i.status_item != null && CONCLUIDO_STATUSES.includes(i.status_item)).length;
   const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
 
   if (missaoQ.isLoading) return <div className="p-8 text-center text-muted-foreground">Carregando…</div>;
