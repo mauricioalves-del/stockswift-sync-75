@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ArrowLeft, ScanLine, Save, Loader2, Warehouse, AlertTriangle, PlayCircle, CheckCircle2 } from "lucide-react";
 import { sounds } from "@/lib/audio";
-import { formatNum } from "@/lib/inventory";
+import { formatNum, classificarFaixa, acuracidadeColor, statusLabel } from "@/lib/inventory";
 
 export const Route = createFileRoute("/_authenticated/missoes/$id")({
   component: MissaoExecucaoPage,
