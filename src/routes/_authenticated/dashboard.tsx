@@ -22,7 +22,6 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 
 function Dashboard() {
   const isMobile = useIsMobile();
-  if (isMobile) return <MobileHome />;
   const { data: stats, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
