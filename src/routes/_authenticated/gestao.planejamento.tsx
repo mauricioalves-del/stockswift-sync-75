@@ -53,8 +53,27 @@ function PlanejamentoPage() {
 
 function ListaTarefas() {
   const qc = useQueryClient();
-  const [filtroStatus, setFiltroStatus] = useState<string>("__all__");
+  const [quick, setQuick] = useState<QuickFilter>(quickFilterMemory);
+  const [filtroStatus, setFiltroStatus] = useState<string>(statusFilterMemory);
   const [filtroTipo, setFiltroTipo] = useState<string>("__all__");
+
+  function handleQuick(v: QuickFilter) {
+    setQuick(v);
+    quickFilterMemory = v;
+    // atalho: pré-seleciona (ou limpa) o filtro granular de status
+    if (v === "concluidas") {
+      setFiltroStatus("Concluida");
+      statusFilterMemory = "Concluida";
+    } else {
+      setFiltroStatus("__all__");
+      statusFilterMemory = "__all__";
+    }
+  }
+
+  function handleStatus(v: string) {
+    setFiltroStatus(v);
+    statusFilterMemory = v;
+  }
 
   const tiposQ = useQuery({
     queryKey: ["tipos_tarefa"],
@@ -65,10 +84,17 @@ function ListaTarefas() {
   });
 
   const tarefasQ = useQuery({
-    queryKey: ["tarefas_op", filtroStatus, filtroTipo],
+    queryKey: ["tarefas_op", quick, filtroStatus, filtroTipo],
     queryFn: async () => {
       let q = (supabase as any).from("tarefas_operacionais").select("*").order("data_prevista", { ascending: true });
-      if (filtroStatus !== "__all__") q = q.eq("status", filtroStatus);
+      // filtro granular sempre prevalece quando explicitamente definido
+      if (filtroStatus !== "__all__") {
+        q = q.eq("status", filtroStatus);
+      } else if (quick === "pendentes") {
+        q = q.neq("status", "Concluida");
+      } else if (quick === "concluidas") {
+        q = q.eq("status", "Concluida");
+      }
       if (filtroTipo !== "__all__") q = q.eq("tipo_id", filtroTipo);
       const { data, error } = await q;
       if (error) throw error;
