@@ -41,13 +41,18 @@ const STATUS_TONES: Record<string, string> = {
 };
 
 function BaixasPage() {
+  const { isAdmin, role } = useRole();
+  const podeImportar = isAdmin || role === "GERENTE";
   return (
     <div className="max-w-6xl mx-auto space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Baixas Operacionais</h1>
-        <p className="text-sm text-muted-foreground">
-          Solicitação, aprovação e execução de baixas de estoque com rastreabilidade.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold">Baixas Operacionais</h1>
+          <p className="text-sm text-muted-foreground">
+            Solicitação, aprovação e execução de baixas de estoque com rastreabilidade.
+          </p>
+        </div>
+        {podeImportar && <ImportarBaixasDialog />}
       </div>
 
       <Tabs defaultValue="nova">
