@@ -22,7 +22,6 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 
 function Dashboard() {
   const isMobile = useIsMobile();
-  if (isMobile) return <MobileHome />;
   const { data: stats, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
@@ -125,6 +124,7 @@ function Dashboard() {
   });
 
 
+  if (isMobile) return <MobileHome />;
   if (isLoading || !stats) return <div className="p-8 text-muted-foreground">Carregando dashboard...</div>;
 
   const COLORS = ["var(--success)", "var(--warning)", "var(--destructive)"];
