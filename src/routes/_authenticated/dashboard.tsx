@@ -124,6 +124,7 @@ function Dashboard() {
   });
 
 
+  if (isMobile) return <MobileHome />;
   if (isLoading || !stats) return <div className="p-8 text-muted-foreground">Carregando dashboard...</div>;
 
   const COLORS = ["var(--success)", "var(--warning)", "var(--destructive)"];
