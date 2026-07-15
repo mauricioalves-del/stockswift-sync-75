@@ -104,12 +104,14 @@ export type Database = {
       baixa_operacional: {
         Row: {
           aprovador_id: string | null
+          categoria: string | null
           codigo_produto: string
           comentario_aprovacao: string | null
           created_at: string
           custo_unitario: number
           data_aprovacao: string | null
           data_execucao: string | null
+          data_ocorrencia: string | null
           data_solicitacao: string
           descricao: string
           foto_url: string | null
@@ -119,21 +121,26 @@ export type Database = {
           motivo_baixa_id: string | null
           observacao: string | null
           origem: string | null
+          origem_lancamento: string
           quantidade: number
+          responsavel_nome: string | null
           solicitante_id: string
           status_fluxo: string
+          subcategoria: string | null
           unidade: string | null
           updated_at: string
           valor_total: number
         }
         Insert: {
           aprovador_id?: string | null
+          categoria?: string | null
           codigo_produto: string
           comentario_aprovacao?: string | null
           created_at?: string
           custo_unitario?: number
           data_aprovacao?: string | null
           data_execucao?: string | null
+          data_ocorrencia?: string | null
           data_solicitacao?: string
           descricao: string
           foto_url?: string | null
@@ -143,21 +150,26 @@ export type Database = {
           motivo_baixa_id?: string | null
           observacao?: string | null
           origem?: string | null
+          origem_lancamento?: string
           quantidade: number
+          responsavel_nome?: string | null
           solicitante_id?: string
           status_fluxo?: string
+          subcategoria?: string | null
           unidade?: string | null
           updated_at?: string
           valor_total?: number
         }
         Update: {
           aprovador_id?: string | null
+          categoria?: string | null
           codigo_produto?: string
           comentario_aprovacao?: string | null
           created_at?: string
           custo_unitario?: number
           data_aprovacao?: string | null
           data_execucao?: string | null
+          data_ocorrencia?: string | null
           data_solicitacao?: string
           descricao?: string
           foto_url?: string | null
@@ -167,9 +179,12 @@ export type Database = {
           motivo_baixa_id?: string | null
           observacao?: string | null
           origem?: string | null
+          origem_lancamento?: string
           quantidade?: number
+          responsavel_nome?: string | null
           solicitante_id?: string
           status_fluxo?: string
+          subcategoria?: string | null
           unidade?: string | null
           updated_at?: string
           valor_total?: number
