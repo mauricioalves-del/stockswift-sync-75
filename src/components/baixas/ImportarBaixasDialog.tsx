@@ -1,26 +1,48 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Download, Upload, Loader2, FileSpreadsheet, CheckCircle2, AlertCircle } from "lucide-react";
 import {
-  parsePlanilhaBaixas, gerarModeloBaixas,
-  type ParsedRow, type CatalogoProduto,
+  parsePlanilhaBaixas, gerarModeloBaixas, ordenarFEFO,
+  type ParsedRow, type CatalogoProduto, type LoteDisponivel,
 } from "@/lib/baixas-import";
 
 export function ImportarBaixasDialog() {
   const qc = useQueryClient();
+  const { almoxes } = useMeusAlmoxarifados();
   const [open, setOpen] = useState(false);
+  const [almoxSel, setAlmoxSel] = useState<string>("");
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [filename, setFilename] = useState("");
   const [parsing, setParsing] = useState(false);
   const [importing, setImporting] = useState(false);
+
+  // Origens que o usuário pode escolher — se almoxes===null, mostra todas ativas
+  const origensQ = useQuery({
+    queryKey: ["baixas-origens-permitidas", almoxes?.join(",") ?? "all"],
+    enabled: open,
+    queryFn: async () => {
+      let query = (supabase as any).from("origens")
+        .select("codigo_origem, descricao").eq("ativo", true).order("codigo_origem");
+      if (almoxes && almoxes.length > 0) query = query.in("codigo_origem", almoxes);
+      if (almoxes && almoxes.length === 0) return [];
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as Array<{ codigo_origem: string; descricao: string }>;
+    },
+  });
 
   const catalogoQ = useQuery({
     queryKey: ["baixas-catalogo-produtos"],
@@ -83,13 +105,36 @@ export function ImportarBaixasDialog() {
     toast.success("Modelo baixado");
   }
 
+  async function carregarLotesPorSku(): Promise<Map<string, LoteDisponivel[]>> {
+    const { data, error } = await (supabase as any)
+      .from("estoque_sistemico")
+      .select("id, id_produto, lote, data_validade, quantidade, custo_unitario")
+      .eq("origem", almoxSel);
+    if (error) throw error;
+    const map = new Map<string, LoteDisponivel[]>();
+    for (const r of (data ?? []) as any[]) {
+      const arr = map.get(r.id_produto) ?? [];
+      arr.push({
+        estoque_id: r.id,
+        lote: r.lote ?? "",
+        data_validade: r.data_validade,
+        quantidade: Number(r.quantidade ?? 0),
+        custo_unitario: Number(r.custo_unitario ?? 0),
+      });
+      map.set(r.id_produto, arr);
+    }
+    return map;
+  }
+
   async function handleFile(file: File) {
+    if (!almoxSel) return toast.error("Selecione o Almoxarifado antes de subir a planilha");
     setFilename(file.name);
     setRows([]);
     setParsing(true);
     try {
+      const lotesMap = await carregarLotesPorSku();
       const parsed = await parsePlanilhaBaixas(
-        file, catalogoQ.data ?? [], motivosQ.data ?? [],
+        file, catalogoQ.data ?? [], motivosQ.data ?? [], lotesMap,
       );
       if (parsed.length === 0) toast.error("Nenhuma linha encontrada na planilha");
       setRows(parsed);
@@ -100,27 +145,40 @@ export function ImportarBaixasDialog() {
     }
   }
 
+  function alterarLote(linha: number, estoqueId: string) {
+    setRows((prev) => prev.map((r) => r.linha === linha ? { ...r, lote_selecionado_id: estoqueId } : r));
+  }
+
+  function loteDaLinha(r: ParsedRow): LoteDisponivel | undefined {
+    return r.lotes_disponiveis?.find((l) => l.estoque_id === r.lote_selecionado_id);
+  }
+
   async function confirmar() {
     const okRows = rows.filter((r) => r.status === "OK");
     if (okRows.length === 0) return toast.error("Nenhuma linha válida para importar");
     setImporting(true);
     try {
       const user = (await supabase.auth.getUser()).data.user!;
-      const payload = okRows.map((r) => ({
-        codigo_produto: r.sku,
-        descricao: r.descricao ?? r.produto,
-        unidade: r.unidade ?? null,
-        quantidade: r.quantidade,
-        custo_unitario: r.custo_unitario ?? 0,
-        motivo_baixa_id: r.motivo_id ?? null,
-        categoria: r.categoria || null,
-        subcategoria: r.subcategoria || null,
-        responsavel_nome: r.responsavel || null,
-        data_ocorrencia: r.data,
-        origem_lancamento: "IMPORTACAO_PLANILHA",
-        solicitante_id: user.id,
-        status_fluxo: "PENDENTE",
-      }));
+      const payload = okRows.map((r) => {
+        const lote = loteDaLinha(r);
+        return {
+          codigo_produto: r.sku,
+          descricao: r.descricao ?? r.produto,
+          unidade: r.unidade ?? null,
+          quantidade: r.quantidade,
+          custo_unitario: lote?.custo_unitario ?? 0,
+          motivo_baixa_id: r.motivo_id ?? null,
+          categoria: r.categoria || null,
+          subcategoria: r.subcategoria || null,
+          responsavel_nome: r.responsavel || null,
+          data_ocorrencia: r.data,
+          origem_lancamento: "IMPORTACAO_PLANILHA",
+          solicitante_id: user.id,
+          status_fluxo: "PENDENTE",
+          id_local: almoxSel,
+          lote: lote?.lote || null,
+        };
+      });
       const { error } = await (supabase as any).from("baixa_operacional").insert(payload);
       if (error) throw error;
 
@@ -128,11 +186,11 @@ export function ImportarBaixasDialog() {
         usuario: user.id,
         acao: "IMPORTAR_BAIXAS_PLANILHA",
         entidade: "baixa_operacional",
-        payload: { arquivo: filename, linhas_ok: okRows.length, linhas_erro: errCount },
+        payload: { arquivo: filename, almoxarifado: almoxSel, linhas_ok: okRows.length, linhas_erro: errCount },
       });
 
       toast.success(`${okRows.length} baixas importadas${errCount > 0 ? ` (${errCount} ignoradas)` : ""}`);
-      setRows([]); setFilename("");
+      setRows([]); setFilename(""); setAlmoxSel("");
       setOpen(false);
       qc.invalidateQueries({ queryKey: ["baixas"] });
     } catch (err: any) {
@@ -141,6 +199,8 @@ export function ImportarBaixasDialog() {
       setImporting(false);
     }
   }
+
+  const origens = origensQ.data ?? [];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -155,20 +215,36 @@ export function ImportarBaixasDialog() {
         </DialogTrigger>
       </div>
 
-      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Importar Planilha de Baixas</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer hover:bg-accent/30">
+          <div className="space-y-1.5">
+            <Label>Almoxarifado (aplica-se a toda a leva)</Label>
+            <Select value={almoxSel} onValueChange={(v) => { setAlmoxSel(v); setRows([]); setFilename(""); }}>
+              <SelectTrigger className="max-w-md">
+                <SelectValue placeholder={origens.length === 0 ? "Nenhum almoxarifado disponível" : "Selecione o almoxarifado"} />
+              </SelectTrigger>
+              <SelectContent>
+                {origens.map((o) => (
+                  <SelectItem key={o.codigo_origem} value={o.codigo_origem}>
+                    {o.descricao || o.codigo_origem}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 ${almoxSel ? "cursor-pointer hover:bg-accent/30" : "opacity-50 cursor-not-allowed"}`}>
             <FileSpreadsheet className="size-8 text-primary" />
             <div className="text-sm font-medium">Selecione o arquivo .xlsx</div>
             <div className="text-xs text-muted-foreground">
               Aba <b>BAIXA</b>, cabeçalho na linha 2, dados a partir da linha 3
             </div>
             <input
-              type="file" accept=".xlsx,.xls" className="hidden"
+              type="file" accept=".xlsx,.xls" className="hidden" disabled={!almoxSel}
               onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
             />
             {filename && (
@@ -189,7 +265,7 @@ export function ImportarBaixasDialog() {
                 </span>
               </div>
 
-              <div className="border rounded-lg overflow-x-auto max-h-[45vh]">
+              <div className="border rounded-lg overflow-x-auto max-h-[50vh]">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -200,32 +276,65 @@ export function ImportarBaixasDialog() {
                       <TableHead className="text-right">Qtd</TableHead>
                       <TableHead>Motivo</TableHead>
                       <TableHead>Data</TableHead>
-                      <TableHead>Resp.</TableHead>
+                      <TableHead>Lote</TableHead>
+                      <TableHead className="text-right">Valor Total</TableHead>
                       <TableHead>Observações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((r) => (
-                      <TableRow key={r.linha} className={r.status === "ERRO" ? "bg-destructive/5" : ""}>
-                        <TableCell className="text-xs">{r.linha}</TableCell>
-                        <TableCell>
-                          <Badge variant={r.status === "OK" ? "default" : "destructive"} className="text-[10px]">
-                            {r.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{r.sku}</TableCell>
-                        <TableCell className="text-xs max-w-xs truncate">{r.produto || r.descricao || "—"}</TableCell>
-                        <TableCell className="text-right tabular-nums text-xs">{r.quantidade || "—"}</TableCell>
-                        <TableCell className="text-xs">{r.motivo}</TableCell>
-                        <TableCell className="text-xs">
-                          {r.data ? new Date(r.data + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
-                        </TableCell>
-                        <TableCell className="text-xs">{r.responsavel}</TableCell>
-                        <TableCell className="text-xs text-destructive">
-                          {r.erros.join("; ")}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {rows.map((r) => {
+                      const lotesOrd = ordenarFEFO(r.lotes_disponiveis ?? []);
+                      const sugestaoId = lotesOrd[0]?.estoque_id;
+                      const loteSel = loteDaLinha(r);
+                      const valorTotal = (loteSel?.custo_unitario ?? 0) * r.quantidade;
+                      return (
+                        <TableRow key={r.linha} className={r.status === "ERRO" ? "bg-destructive/5" : ""}>
+                          <TableCell className="text-xs">{r.linha}</TableCell>
+                          <TableCell>
+                            <Badge variant={r.status === "OK" ? "default" : "destructive"} className="text-[10px]">
+                              {r.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{r.sku}</TableCell>
+                          <TableCell className="text-xs max-w-[16rem] truncate">{r.produto || r.descricao || "—"}</TableCell>
+                          <TableCell className="text-right tabular-nums text-xs">{r.quantidade || "—"}</TableCell>
+                          <TableCell className="text-xs">{r.motivo}</TableCell>
+                          <TableCell className="text-xs">
+                            {r.data ? new Date(r.data + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
+                          </TableCell>
+                          <TableCell className="text-xs min-w-[15rem]">
+                            {lotesOrd.length === 0 ? (
+                              <span className="text-destructive">sem lote</span>
+                            ) : (
+                              <div className="flex items-center gap-1.5">
+                                <Select
+                                  value={r.lote_selecionado_id ?? ""}
+                                  onValueChange={(v) => alterarLote(r.linha, v)}
+                                >
+                                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {lotesOrd.map((l) => (
+                                      <SelectItem key={l.estoque_id} value={l.estoque_id} className="text-xs">
+                                        {(l.lote || "(s/lote)")} — Vence em {l.data_validade ? new Date(l.data_validade + "T00:00:00").toLocaleDateString("pt-BR") : "s/ data"} (saldo {l.quantidade})
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                {r.lote_selecionado_id === sugestaoId && (
+                                  <Badge variant="secondary" className="text-[9px] whitespace-nowrap">FEFO</Badge>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-xs">
+                            {valorTotal > 0 ? valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}
+                          </TableCell>
+                          <TableCell className="text-xs text-destructive">
+                            {r.erros.join("; ")}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

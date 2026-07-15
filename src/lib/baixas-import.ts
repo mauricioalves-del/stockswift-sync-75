@@ -12,11 +12,21 @@ export type ParsedRow = {
   responsavel: string;
   status: "OK" | "ERRO";
   erros: string[];
-  // resolvidos
+  // resolvidos por SKU (catálogo)
   descricao?: string;
   unidade?: string;
-  custo_unitario?: number;
   motivo_id?: string;
+  // seleção de lote (feita na tela de prévia)
+  lotes_disponiveis?: LoteDisponivel[];
+  lote_selecionado_id?: string | null;
+};
+
+export type LoteDisponivel = {
+  estoque_id: string;
+  lote: string;
+  data_validade: string | null;
+  quantidade: number;
+  custo_unitario: number;
 };
 
 export type CatalogoProduto = {
@@ -55,9 +65,8 @@ function toIsoDate(s: string): string {
 export function gerarModeloBaixas(catalogo: CatalogoProduto[]): Blob {
   const wb = XLSX.utils.book_new();
 
-  // Aba BAIXA (cabeçalho na linha 2, dados a partir da linha 3)
   const baixaAOA: unknown[][] = [
-    ["Modelo de Baixa Operacional — preencher a partir da linha 3"],
+    ["Modelo de Baixa Operacional — preencher a partir da linha 3. Almoxarifado e Lote são escolhidos no sistema."],
     ["Categoria", "Subcategoria", "Itens", "SKU", "QTD", "MOTIVO", "DATA", "RESPONSÁVEL"],
   ];
   const wsBaixa = XLSX.utils.aoa_to_sheet(baixaAOA);
@@ -67,7 +76,6 @@ export function gerarModeloBaixas(catalogo: CatalogoProduto[]): Blob {
   ];
   XLSX.utils.book_append_sheet(wb, wsBaixa, "BAIXA");
 
-  // Aba BASE PRODUTOS
   const baseAOA: unknown[][] = [["Categoria", "Subcategoria", "SKU", "Produto"]];
   for (const p of catalogo) {
     baseAOA.push([p.categoria || "", p.subcategoria || "", p.sku, p.descricao]);
@@ -80,17 +88,30 @@ export function gerarModeloBaixas(catalogo: CatalogoProduto[]): Blob {
   return new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 }
 
+/**
+ * Ordena lotes por FEFO (data_validade crescente; nulls por último) e filtra saldo > 0.
+ */
+export function ordenarFEFO(lotes: LoteDisponivel[]): LoteDisponivel[] {
+  return [...lotes]
+    .filter((l) => l.quantidade > 0)
+    .sort((a, b) => {
+      const av = a.data_validade ?? "9999-12-31";
+      const bv = b.data_validade ?? "9999-12-31";
+      return av.localeCompare(bv);
+    });
+}
+
 export async function parsePlanilhaBaixas(
   file: File,
   catalogo: CatalogoProduto[],
   motivos: Array<{ id: string; descricao: string }>,
+  lotesPorSku: Map<string, LoteDisponivel[]>,
 ): Promise<ParsedRow[]> {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf);
   const sheet = wb.Sheets["BAIXA"] ?? wb.Sheets[wb.SheetNames[0]];
   if (!sheet) throw new Error('Aba "BAIXA" não encontrada');
 
-  // Cabeçalho na linha 2 → range começa em A2
   const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
     range: 1,
     defval: "",
@@ -101,7 +122,7 @@ export async function parsePlanilhaBaixas(
 
   const rows: ParsedRow[] = [];
   data.forEach((r, idx) => {
-    const linha = idx + 3; // linha real na planilha (cabeçalho na 2)
+    const linha = idx + 3;
     const categoria = pick(r, "Categoria", "CATEGORIA");
     const subcategoria = pick(r, "Subcategoria", "SUBCATEGORIA");
     const produto = pick(r, "Itens", "ITENS", "Produto", "PRODUTO");
@@ -111,7 +132,6 @@ export async function parsePlanilhaBaixas(
     const dataRaw = pick(r, "DATA", "Data", "data");
     const responsavel = pick(r, "RESPONSÁVEL", "RESPONSAVEL", "Responsável", "Responsavel", "responsavel");
 
-    // Linha totalmente vazia → ignorar
     if (!sku && !produto && !qtdRaw && !motivo && !dataRaw && !responsavel) return;
 
     const erros: string[] = [];
@@ -128,6 +148,12 @@ export async function parsePlanilhaBaixas(
     if (motivo && !motivoObj) erros.push(`Motivo "${motivo}" não cadastrado`);
     if (!responsavel) erros.push("Responsável vazio");
 
+    const lotesOrd = ordenarFEFO(lotesPorSku.get(sku) ?? []);
+    if (sku && prod && lotesOrd.length === 0) {
+      erros.push("Sem saldo em nenhum lote para este almoxarifado");
+    }
+    const sugestao = lotesOrd[0];
+
     rows.push({
       linha,
       categoria: categoria || prod?.categoria || "",
@@ -142,8 +168,9 @@ export async function parsePlanilhaBaixas(
       erros,
       descricao: prod?.descricao,
       unidade: prod?.unidade,
-      custo_unitario: prod?.custo_unitario,
       motivo_id: motivoObj?.id,
+      lotes_disponiveis: lotesOrd,
+      lote_selecionado_id: sugestao?.estoque_id ?? null,
     });
   });
 
