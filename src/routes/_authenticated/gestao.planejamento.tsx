@@ -13,6 +13,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Plus, Loader2, Trash2 } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
+type QuickFilter = "pendentes" | "concluidas" | "todas";
+// Session-scoped memory (não persiste entre sessões, só durante navegação)
+let quickFilterMemory: QuickFilter = "pendentes";
+let statusFilterMemory: string = "__all__";
 
 export const Route = createFileRoute("/_authenticated/gestao/planejamento")({
   component: PlanejamentoPage,
