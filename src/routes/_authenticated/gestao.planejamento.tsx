@@ -116,9 +116,19 @@ function ListaTarefas() {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center gap-3 flex-wrap">
+        <ToggleGroup
+          type="single"
+          value={quick}
+          onValueChange={(v) => v && handleQuick(v as QuickFilter)}
+          className="border rounded-md"
+        >
+          <ToggleGroupItem value="pendentes" className="text-xs px-3">Pendentes</ToggleGroupItem>
+          <ToggleGroupItem value="concluidas" className="text-xs px-3">Concluídas</ToggleGroupItem>
+          <ToggleGroupItem value="todas" className="text-xs px-3">Todas</ToggleGroupItem>
+        </ToggleGroup>
         <div className="flex items-center gap-2">
           <Label className="text-xs">Status</Label>
-          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+          <Select value={filtroStatus} onValueChange={handleStatus}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todos</SelectItem>
