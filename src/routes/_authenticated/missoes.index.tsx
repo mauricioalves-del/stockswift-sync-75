@@ -20,7 +20,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
+
+type QuickFilter = "pendentes" | "concluidas" | "todas";
+// Memória de sessão (não persiste entre sessões)
+let quickFilterMemory: QuickFilter = "pendentes";
+let statusFilterMemory: string = "__all__";
 
 export const Route = createFileRoute("/_authenticated/missoes/")({
   component: MissoesPage,
