@@ -64,11 +64,39 @@ function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
   const { almoxes } = useMeusAlmoxarifados();
   const [toDelete, setToDelete] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [quick, setQuick] = useState<QuickFilter>(quickFilterMemory);
+  const [filtroStatus, setFiltroStatus] = useState<string>(statusFilterMemory);
+
+  function handleQuick(v: QuickFilter) {
+    setQuick(v);
+    quickFilterMemory = v;
+    if (v === "concluidas") {
+      setFiltroStatus("CONCLUIDA");
+      statusFilterMemory = "CONCLUIDA";
+    } else {
+      setFiltroStatus("__all__");
+      statusFilterMemory = "__all__";
+    }
+  }
+
+  function handleStatus(v: string) {
+    setFiltroStatus(v);
+    statusFilterMemory = v;
+  }
+
   const { data } = useQuery({
-    queryKey: ["missoes", almoxes?.join(",") ?? "all"],
+    queryKey: ["missoes", almoxes?.join(",") ?? "all", quick, filtroStatus],
     queryFn: async () => {
       let q = (supabase as any).from("missoes").select("*").order("data_execucao", { ascending: true });
       if (almoxes) q = q.or(`origem.is.null,origem.in.(${(almoxes.length ? almoxes : ["__nenhum__"]).map((a) => `"${a}"`).join(",")})`);
+      // filtro granular tem prioridade; senão, aplica o segmented
+      if (filtroStatus !== "__all__") {
+        q = q.eq("status", filtroStatus);
+      } else if (quick === "pendentes") {
+        q = q.neq("status", "CONCLUIDA");
+      } else if (quick === "concluidas") {
+        q = q.eq("status", "CONCLUIDA");
+      }
       const { data, error } = await q;
       if (error) throw error;
       return data as any[];
@@ -100,6 +128,28 @@ function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
 
   return (
     <Card>
+      <CardHeader className="flex flex-row items-center gap-3 flex-wrap">
+        <ToggleGroup
+          type="single"
+          value={quick}
+          onValueChange={(v) => v && handleQuick(v as QuickFilter)}
+          className="border rounded-md"
+        >
+          <ToggleGroupItem value="pendentes" className="text-xs px-3">Pendentes</ToggleGroupItem>
+          <ToggleGroupItem value="concluidas" className="text-xs px-3">Concluídas</ToggleGroupItem>
+          <ToggleGroupItem value="todas" className="text-xs px-3">Todas</ToggleGroupItem>
+        </ToggleGroup>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs">Status</Label>
+          <Select value={filtroStatus} onValueChange={handleStatus}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos</SelectItem>
+              {STATUS.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
       <CardContent className="p-0 overflow-x-auto">
         <Table>
           <TableHeader>
