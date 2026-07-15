@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { listPendingCounts } from "@/lib/idb";
 import { syncPendingCounts } from "@/lib/sync";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { MobileBottomNav } from "@/components/app/MobileBottomNav";
 
 type Access = "any" | "write" | "admin";
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; role: Access };
@@ -187,7 +188,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 p-4 lg:p-6 min-w-0">{children}</main>
+        <main className="flex-1 p-4 lg:p-6 min-w-0 pb-24 lg:pb-6">{children}</main>
+        <MobileBottomNav onOpenMenu={() => setOpen(true)} />
       </div>
     </div>
   );
