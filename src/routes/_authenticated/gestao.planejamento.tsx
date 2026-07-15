@@ -13,6 +13,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Plus, Loader2, Trash2 } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
+type QuickFilter = "pendentes" | "concluidas" | "todas";
+// Session-scoped memory (não persiste entre sessões, só durante navegação)
+let quickFilterMemory: QuickFilter = "pendentes";
+let statusFilterMemory: string = "__all__";
 
 export const Route = createFileRoute("/_authenticated/gestao/planejamento")({
   component: PlanejamentoPage,
@@ -47,8 +53,27 @@ function PlanejamentoPage() {
 
 function ListaTarefas() {
   const qc = useQueryClient();
-  const [filtroStatus, setFiltroStatus] = useState<string>("__all__");
+  const [quick, setQuick] = useState<QuickFilter>(quickFilterMemory);
+  const [filtroStatus, setFiltroStatus] = useState<string>(statusFilterMemory);
   const [filtroTipo, setFiltroTipo] = useState<string>("__all__");
+
+  function handleQuick(v: QuickFilter) {
+    setQuick(v);
+    quickFilterMemory = v;
+    // atalho: pré-seleciona (ou limpa) o filtro granular de status
+    if (v === "concluidas") {
+      setFiltroStatus("Concluida");
+      statusFilterMemory = "Concluida";
+    } else {
+      setFiltroStatus("__all__");
+      statusFilterMemory = "__all__";
+    }
+  }
+
+  function handleStatus(v: string) {
+    setFiltroStatus(v);
+    statusFilterMemory = v;
+  }
 
   const tiposQ = useQuery({
     queryKey: ["tipos_tarefa"],
@@ -59,10 +84,17 @@ function ListaTarefas() {
   });
 
   const tarefasQ = useQuery({
-    queryKey: ["tarefas_op", filtroStatus, filtroTipo],
+    queryKey: ["tarefas_op", quick, filtroStatus, filtroTipo],
     queryFn: async () => {
       let q = (supabase as any).from("tarefas_operacionais").select("*").order("data_prevista", { ascending: true });
-      if (filtroStatus !== "__all__") q = q.eq("status", filtroStatus);
+      // filtro granular sempre prevalece quando explicitamente definido
+      if (filtroStatus !== "__all__") {
+        q = q.eq("status", filtroStatus);
+      } else if (quick === "pendentes") {
+        q = q.neq("status", "Concluida");
+      } else if (quick === "concluidas") {
+        q = q.eq("status", "Concluida");
+      }
       if (filtroTipo !== "__all__") q = q.eq("tipo_id", filtroTipo);
       const { data, error } = await q;
       if (error) throw error;
@@ -84,9 +116,19 @@ function ListaTarefas() {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center gap-3 flex-wrap">
+        <ToggleGroup
+          type="single"
+          value={quick}
+          onValueChange={(v) => v && handleQuick(v as QuickFilter)}
+          className="border rounded-md"
+        >
+          <ToggleGroupItem value="pendentes" className="text-xs px-3">Pendentes</ToggleGroupItem>
+          <ToggleGroupItem value="concluidas" className="text-xs px-3">Concluídas</ToggleGroupItem>
+          <ToggleGroupItem value="todas" className="text-xs px-3">Todas</ToggleGroupItem>
+        </ToggleGroup>
         <div className="flex items-center gap-2">
           <Label className="text-xs">Status</Label>
-          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+          <Select value={filtroStatus} onValueChange={handleStatus}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todos</SelectItem>
