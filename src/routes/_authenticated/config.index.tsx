@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
-import { EyeOff, Shield, ChevronRight, Warehouse, MessageSquare } from "lucide-react";
+import { EyeOff, Shield, ChevronRight, Warehouse, MessageSquare, Mail } from "lucide-react";
 
 
 export const Route = createFileRoute("/_authenticated/config/")({
@@ -132,6 +132,20 @@ function ConfigPage() {
                 {webhookSaving ? "Salvando..." : "Salvar"}
               </Button>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base"><Mail className="size-4" /> Parâmetros do Resend</CardTitle>
+            <CardDescription>Remetente, reply-to e prefixo de assunto para os e-mails de Baixa Fiscal. Inclui envio de teste. Restrito ao Administrador.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline" className="w-full justify-between">
+              <Link to="/config/resend">Configurar Resend <ChevronRight className="size-4" /></Link>
+            </Button>
           </CardContent>
         </Card>
       )}
