@@ -288,7 +288,7 @@ function useBuscaShortcut() {
   }, []);
 }
 
-function LinhaItem({
+const LinhaItem = memo(function LinhaItem({
   item, missao, lotesSist, linhasSalvas, isAdmin, onSaved,
 }: {
   item: Item;
@@ -300,7 +300,7 @@ function LinhaItem({
 }) {
   // Semente inicial: se já tiver linhas salvas → usa; senão, cria uma linha vazia com sugestão FEFO
   // (primeiro lote com saldo > 0, ou o primeiro da lista, ou "não relacionado" se não houver lote algum).
-  const seed = useMemo<LinhaLote[]>(() => {
+  const buildSeed = (): LinhaLote[] => {
     if (linhasSalvas.length > 0) {
       return linhasSalvas.map((r: any) => ({
         id: r.id,
@@ -323,7 +323,6 @@ function LinhaItem({
         saldo_sistemico_lote: fefo.saldo,
       }];
     }
-    // sem lotes sistêmicos: linha vazia via dropdown (operador poderá usar "Adicionar lote manual")
     return [{
       key: crypto.randomUUID(),
       lote: item.lote ?? "",
@@ -331,10 +330,24 @@ function LinhaItem({
       quantidade_contada: "",
       saldo_sistemico_lote: 0,
     }];
-  }, [linhasSalvas, lotesSist, item.lote]);
+  };
 
-  const [linhas, setLinhas] = useState<LinhaLote[]>(seed);
+  const [linhas, setLinhas] = useState<LinhaLote[]>(buildSeed);
   const [saving, setSaving] = useState(false);
+  const dirtyRef = useRef(false);
+
+  // Ressincroniza quando as linhas salvas chegam depois (fix do seed vazio) —
+  // mas só se o usuário ainda não tocou nesta linha.
+  const linhasSalvasKey = useMemo(
+    () => linhasSalvas.map((r: any) => `${r.id}:${r.quantidade_contada}`).join("|"),
+    [linhasSalvas],
+  );
+  useEffect(() => {
+    if (dirtyRef.current) return;
+    if (linhasSalvas.length === 0) return;
+    setLinhas(buildSeed());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linhasSalvasKey]);
 
   const totalSist = lotesSist.reduce((s, l) => s + (l.saldo || 0), 0);
   const totalContado = linhas.reduce((s, l) => s + (Number(l.quantidade_contada.replace(",", ".")) || 0), 0);
