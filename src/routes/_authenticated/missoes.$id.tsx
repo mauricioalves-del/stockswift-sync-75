@@ -526,26 +526,38 @@ function LinhaItem({
         <div className="space-y-1.5">
           {linhas.map((l) => (
             <div key={l.key} className="flex items-center gap-1.5">
-              <Select
-                value={l.eh_nao_relacionado ? "__NAO_RELACIONADO__" : (l.lote ?? "")}
-                onValueChange={(v) => alterarLote(l.key, v)}
-              >
-                <SelectTrigger className="h-8 text-xs flex-1 min-w-[160px]"><SelectValue placeholder="Lote…" /></SelectTrigger>
-                <SelectContent>
-                  {opcoesLote.map((o) => (
-                    <SelectItem key={o.lote} value={o.lote} className="text-xs">
-                      <span className="font-mono">{o.lote || "(sem lote)"}</span>
-                      <span className="ml-2 text-muted-foreground">
-                        saldo {formatNum(o.saldo)}
-                        {o.data_validade ? ` · val ${o.data_validade}` : ""}
-                      </span>
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="__NAO_RELACIONADO__" className="text-xs">
-                    <span className="italic">Lote Não Relacionado</span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+              {l.eh_nao_relacionado ? (
+                <Input
+                  type="text"
+                  className="h-8 text-xs flex-1 min-w-[160px] font-mono"
+                  value={l.lote_manual_texto ?? ""}
+                  onChange={(e) => alterarLoteManual(l.key, e.target.value)}
+                  placeholder="Lote físico (manual)…"
+                />
+              ) : (
+                <Select
+                  value={l.lote ?? ""}
+                  onValueChange={(v) => alterarLote(l.key, v)}
+                >
+                  <SelectTrigger className="h-8 text-xs flex-1 min-w-[160px]"><SelectValue placeholder="Lote…" /></SelectTrigger>
+                  <SelectContent>
+                    {opcoesLote.length === 0 && (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                        Nenhum lote no sistema para este SKU
+                      </div>
+                    )}
+                    {opcoesLote.map((o) => (
+                      <SelectItem key={o.lote} value={o.lote} className="text-xs">
+                        <span className="font-mono">{o.lote || "(sem lote)"}</span>
+                        <span className="ml-2 text-muted-foreground">
+                          saldo {formatNum(o.saldo)}
+                          {o.data_validade ? ` · val ${o.data_validade}` : ""}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Input
                 type="number" inputMode="decimal" step="0.001" min="0"
                 className="h-8 w-24 tabular-nums text-xs"
@@ -562,9 +574,14 @@ function LinhaItem({
               </Button>
             </div>
           ))}
-          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={addLinha}>
-            <Plus className="size-3 mr-1" /> Adicionar lote
-          </Button>
+          <div className="flex flex-wrap gap-1">
+            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={addLinha}>
+              <Plus className="size-3 mr-1" /> Adicionar lote
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={addLinhaManual}>
+              <Plus className="size-3 mr-1" /> Adicionar lote manual
+            </Button>
+          </div>
           <div className="text-[10px] text-muted-foreground">
             Total contado: <span className="tabular-nums font-semibold">{formatNum(totalContado)}</span>
             {" · "}Sistema: <span className="tabular-nums">{formatNum(totalSist)}</span>
