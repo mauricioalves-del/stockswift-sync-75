@@ -316,6 +316,7 @@ function LinhaItem({
       key: crypto.randomUUID(),
       lote: null,
       lote_manual_texto: "",
+      data_validade_manual: null,
       eh_nao_relacionado: true,
       quantidade_contada: "",
       saldo_sistemico_lote: 0,
@@ -333,6 +334,9 @@ function LinhaItem({
   }
   function alterarLoteManual(k: string, valor: string) {
     setLinhas(linhas.map((l) => l.key === k ? { ...l, lote_manual_texto: valor } : l));
+  }
+  function alterarValidadeManual(k: string, valor: string | null) {
+    setLinhas(linhas.map((l) => l.key === k ? { ...l, data_validade_manual: valor } : l));
   }
   function alterarQtd(k: string, valor: string) {
     setLinhas(linhas.map((l) => l.key === k ? { ...l, quantidade_contada: valor } : l));
