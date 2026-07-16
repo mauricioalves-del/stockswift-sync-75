@@ -148,6 +148,25 @@ function PlanejamentoPage() {
     if (!paramsQ.data) return [];
     const paramsMap = new Map(paramsQ.data.map((p) => [p.origem, p]));
     const prodMap = new Map((prodRepQ.data ?? []).map((p) => [p.id_produto, p]));
+    const familiaMap = new Map((familiasQ.data ?? []).map((f) => [f.codigo_produto, f.familia]));
+
+    // Supplier: total disponível por (origem_abast|sku) e lote FEFO
+    const supplierTotal = new Map<string, number>();
+    const supplierFefo = new Map<string, { lote: string; qtd: number; validade: string | null; imp: string }>();
+    for (const e of (supplierStockQ.data ?? [])) {
+      const qtd = Number(e.quantidade);
+      if (qtd <= 0) continue;
+      const key = `${e.origem}|${e.id_produto}`;
+      supplierTotal.set(key, (supplierTotal.get(key) ?? 0) + qtd);
+      const prev = supplierFefo.get(key);
+      const cur = { lote: e.lote, qtd, validade: e.data_validade, imp: e.data_importacao };
+      if (!prev) supplierFefo.set(key, cur);
+      else {
+        const a = prev.validade ?? "9999-12-31";
+        const b = cur.validade ?? "9999-12-31";
+        if (b < a || (b === a && cur.imp < prev.imp)) supplierFefo.set(key, cur);
+      }
+    }
 
     // Saldo consolidado por origem+SKU e custo médio simples
     const stockMap = new Map<string, { qtd: number; desc: string; custo: number }>();
@@ -181,7 +200,22 @@ function PlanejamentoPage() {
       const cobertura_alvo = p.cobertura_dias;
       const demanda_extra = demandaMap.get(key) ?? 0;
       const necessidade = cmd * cobertura_alvo + demanda_extra;
-      const sugestao = Math.max(0, necessidade - s.qtd);
+      let sugestao = Math.max(0, necessidade - s.qtd);
+
+      // Regras de suprimento: só abastece do que existe em Alm_SP_Fabrica / Alm_SP_Processo
+      const supKey = `${p.origem_abastecimento}|${sku}`;
+      const isSupplied = (SUPPLY_ORIGENS as readonly string[]).includes(p.origem_abastecimento);
+      const supplier_disp = isSupplied ? (supplierTotal.get(supKey) ?? 0) : Infinity;
+      const fefo = isSupplied ? (supplierFefo.get(supKey) ?? null) : null;
+      const familia = familiaMap.get(sku) ?? "";
+      const is_granel = familia === FAMILIA_GRANEIS;
+
+      // Granéis: se houver saldo no fornecedor, abastecer o lote mais velho inteiro (FEFO)
+      if (is_granel && isSupplied && fefo && fefo.qtd > 0) {
+        sugestao = Math.max(sugestao, fefo.qtd);
+      }
+      // Cap pelo disponível no fornecedor
+      if (isSupplied) sugestao = Math.min(sugestao, supplier_disp);
 
       const pr = prodMap.get(sku);
       const minimo = Number(pr?.estoque_minimo ?? 0);
@@ -193,6 +227,7 @@ function PlanejamentoPage() {
         if (maximo > 0) sugestao_minmax = Math.min(sugestao_minmax, Math.max(0, maximo - s.qtd));
         sugestao_minmax = Math.max(0, sugestao_minmax);
       }
+      if (isSupplied) sugestao_minmax = Math.min(sugestao_minmax, supplier_disp);
 
       const sugestaoCeil = Math.ceil(Math.max(0, sugestao));
       const sugestaoMinMaxCeil = Math.ceil(Math.max(0, sugestao_minmax));
@@ -204,10 +239,14 @@ function PlanejamentoPage() {
         demanda_extra, necessidade, sugestao: sugestaoCeil,
         custo_unitario: s.custo, valor_reposicao: sugestaoCeil * s.custo,
         minimo, ideal, maximo, sugestao_minmax: sugestaoMinMaxCeil,
+        supplier_disp: isSupplied ? supplier_disp : 0,
+        lote_fefo: fefo?.lote ?? null,
+        lote_fefo_qtd: fefo?.qtd ?? 0,
+        is_granel,
       });
     }
     return out.sort((a, b) => a.cobertura_atual - b.cobertura_atual);
-  }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data, prodRepQ.data]);
+  }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data, prodRepQ.data, supplierStockQ.data, familiasQ.data]);
 
 
   const linhasFiltradas = linhas.filter((l) => {
