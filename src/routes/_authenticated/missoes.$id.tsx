@@ -67,6 +67,7 @@ const CONCLUIDO_STATUSES = [
 function MissaoExecucaoPage() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
+  const { isAdmin } = useRole();
 
   const missaoQ = useQuery({
     queryKey: ["missao", id],
