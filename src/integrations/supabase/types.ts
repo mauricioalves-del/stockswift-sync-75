@@ -209,6 +209,36 @@ export type Database = {
           },
         ]
       }
+      cadastro_emails: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          email: string
+          finalidade: string
+          id: string
+          nome_contato: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          email: string
+          finalidade: string
+          id?: string
+          nome_contato?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          email?: string
+          finalidade?: string
+          id?: string
+          nome_contato?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       checklist_execucao: {
         Row: {
           created_at: string
