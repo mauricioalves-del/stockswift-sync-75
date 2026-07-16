@@ -342,7 +342,7 @@ function PlanejamentoPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2"><Compass className="size-6" /> Abastecimento</h1>
           <p className="text-sm text-muted-foreground">
             {metodo === "COBERTURA"
-              ? "Cobertura = Estoque ÷ CMD · Sugestão = (CMD × Cob. Alvo + Demanda Extra) − Estoque"
+              ? "Sugestão = (CMD × Cob. Alvo + Demanda Extra) − Estoque · limitada ao saldo em Alm_SP_Fabrica/Processo · Granéis: abastecem o lote FEFO inteiro"
               : "Se Estoque < Mín ⇒ Sugestão = Ideal − Estoque (limitado ao Máx)"}
           </p>
         </div>
