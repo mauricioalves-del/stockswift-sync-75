@@ -500,13 +500,17 @@ function LinhaItem({
       await (supabase as any).from("missoes").update({ status: "CONCLUIDA" }).eq("id", missao.id);
     }
 
-    const msg = status_item === "OK" ? "Dentro da tolerância"
-              : status_item === "QUEBRA_FEFO" ? "Total OK, mas há quebra de FEFO — enviado para ocorrências"
-              : status_item === "DIVERGENCIA_NEGATIVA" ? "Divergência negativa — enviado para recontagem"
-              : "Divergência positiva — enviado para recontagem";
-    if (status_item === "OK") { toast.success(msg); sounds.success(); }
-    else if (status_item === "QUEBRA_FEFO") { toast.warning(msg); sounds.success(); }
-    else { toast.warning(msg); sounds.success(); }
+    if (isAdmin) {
+      const msg = status_item === "OK" ? "Dentro da tolerância"
+                : status_item === "QUEBRA_FEFO" ? "Total OK, mas há quebra de FEFO — enviado para ocorrências"
+                : status_item === "DIVERGENCIA_NEGATIVA" ? "Divergência negativa — enviado para recontagem"
+                : "Divergência positiva — enviado para recontagem";
+      if (status_item === "OK") { toast.success(msg); sounds.success(); }
+      else if (status_item === "QUEBRA_FEFO") { toast.warning(msg); sounds.success(); }
+      else { toast.warning(msg); sounds.success(); }
+    } else {
+      toast.success("Contagem registrada"); sounds.success();
+    }
     setSaving(false);
     onSaved();
   }
