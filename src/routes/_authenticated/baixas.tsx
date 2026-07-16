@@ -71,20 +71,41 @@ function BaixasPage() {
   );
 }
 
+type CarrinhoItem = {
+  uid: string;
+  codigo_produto: string;
+  descricao: string;
+  unidade: string;
+  lote: string;
+  quantidade: number;
+  custo_unitario: number;
+  motivo_baixa_id: string;
+  motivo_desc: string;
+  observacao: string;
+  foto_path?: string | null;
+};
+
 function NovaBaixaForm() {
   const qc = useQueryClient();
+  const { role } = useRole();
   const [submitting, setSubmitting] = useState(false);
+
+  // Cabeçalho da solicitação
+  const [origem, setOrigem] = useState("");
+  const [observacaoSol, setObservacaoSol] = useState("");
+  const [carrinho, setCarrinho] = useState<CarrinhoItem[]>([]);
+
+  // Item em edição
   const [ean, setEan] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [produto, setProduto] = useState<{
     id_produto: string; descricao: string; unidade: string;
   } | null>(null);
-  const [origem, setOrigem] = useState("");
   const [loteSel, setLoteSel] = useState("");
   const [quantidade, setQuantidade] = useState("");
   const [motivoId, setMotivoId] = useState("");
-  const [observacao, setObservacao] = useState("");
+  const [observacaoItem, setObservacaoItem] = useState("");
   const [foto, setFoto] = useState<File | null>(null);
 
   const motivosQ = useQuery({
@@ -96,7 +117,6 @@ function NovaBaixaForm() {
     },
   });
 
-  // Lista de produtos distintos para seleção manual (fallback ao scanner)
   const produtosQ = useQuery({
     queryKey: ["produtos-distintos"],
     queryFn: async () => {
@@ -115,7 +135,6 @@ function NovaBaixaForm() {
     },
   });
 
-  // Todas as linhas de estoque do produto selecionado (todas origens/lotes)
   const estoqueQ = useQuery({
     queryKey: ["estoque-por-produto", produto?.id_produto],
     enabled: !!produto?.id_produto,
@@ -133,9 +152,12 @@ function NovaBaixaForm() {
   });
 
   const origensDisponiveis = useMemo(() => {
-    const set = new Set((estoqueQ.data ?? []).map((e) => e.origem).filter(Boolean));
+    // Une origens do estoque + a origem já escolhida no cabeçalho (para lojas com almox fixo)
+    const set = new Set<string>();
+    for (const e of estoqueQ.data ?? []) if (e.origem) set.add(e.origem);
+    if (origem) set.add(origem);
     return Array.from(set).sort();
-  }, [estoqueQ.data]);
+  }, [estoqueQ.data, origem]);
 
   const lotesDisponiveis = useMemo(() => {
     if (!origem) return [];
@@ -148,23 +170,19 @@ function NovaBaixaForm() {
     return (estoqueQ.data ?? []).find((e) => e.origem === origem && (e.lote ?? "") === loteSel) ?? null;
   }, [estoqueQ.data, origem, loteSel]);
 
-  // Reset em cascata
-  useEffect(() => { setOrigem(""); setLoteSel(""); }, [produto?.id_produto]);
-  useEffect(() => { setLoteSel(""); }, [origem]);
+  useEffect(() => { setLoteSel(""); }, [produto?.id_produto, origem]);
 
   const qtd = Number(quantidade || 0);
   const custo = Number(linhaSelecionada?.custo_unitario ?? 0);
-  const valorTotal = qtd * custo;
+  const valorTotalItem = qtd * custo;
   const saldo = Number(linhaSelecionada?.quantidade ?? 0);
 
-  // Parse do QR Code de rastreabilidade — lógica compartilhada com o scanner de Contagem.
   const extrairCodigoNumerico = extrairCodigoNumericoQR;
 
   async function buscarPorCodigo(codigo: string) {
     const numeric = extrairCodigoNumerico(codigo);
     if (!numeric) return toast.error("Nenhum código numérico identificado");
     setEan(numeric);
-    // Busca pelo Código do Produto (id_produto) na base de estoque
     const { data, error } = await (supabase as any)
       .from("estoque_sistemico")
       .select("id_produto, descricao, unidade")
@@ -187,60 +205,91 @@ function NovaBaixaForm() {
     toast.success(`Produto selecionado: ${p.id_produto}`);
   }
 
-  function limpar() {
-    setEan(""); setProduto(null); setOrigem(""); setLoteSel("");
-    setQuantidade(""); setMotivoId(""); setObservacao(""); setFoto(null);
+  function limparItem() {
+    setEan(""); setProduto(null); setLoteSel("");
+    setQuantidade(""); setMotivoId(""); setObservacaoItem(""); setFoto(null);
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!produto) return toast.error("Escaneie ou informe um EAN válido");
-    if (!origem) return toast.error("Selecione a Origem");
+  async function adicionarAoCarrinho() {
+    if (!origem) return toast.error("Selecione o Almoxarifado da solicitação");
+    if (!produto) return toast.error("Escaneie ou selecione um produto");
     if (!linhaSelecionada) return toast.error("Selecione o Lote");
     if (!qtd || qtd <= 0) return toast.error("Informe a quantidade");
-    if (qtd > saldo) return toast.error("Quantidade solicitada maior que saldo disponível.");
+    if (qtd > saldo) return toast.error("Quantidade maior que saldo disponível");
     if (!motivoId) return toast.error("Selecione o motivo");
-    if (!foto) return toast.error("Foto é obrigatória");
-    if (!["image/jpeg", "image/png", "image/jpg"].includes(foto.type)) return toast.error("Use JPG ou PNG");
-    if (foto.size > MAX_BYTES) return toast.error("Foto excede 10MB");
+    if (foto) {
+      if (!["image/jpeg", "image/png", "image/jpg"].includes(foto.type)) return toast.error("Use JPG ou PNG");
+      if (foto.size > MAX_BYTES) return toast.error("Foto excede 10MB");
+    }
 
-    setSubmitting(true);
-    try {
+    let foto_path: string | null = null;
+    if (foto) {
       const user = (await supabase.auth.getUser()).data.user!;
       const ext = foto.name.split(".").pop() ?? "jpg";
-      const path = `${user.id}/${Date.now()}.${ext}`;
-      const up = await supabase.storage.from("baixas-fotos").upload(path, foto, { contentType: foto.type });
-      if (up.error) throw up.error;
+      foto_path = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const up = await supabase.storage.from("baixas-fotos").upload(foto_path, foto, { contentType: foto.type });
+      if (up.error) return toast.error(up.error.message);
+    }
 
-      const { error } = await (supabase as any).from("baixa_operacional").insert({
+    const motivoDesc = (motivosQ.data ?? []).find((m) => m.id === motivoId)?.descricao ?? "";
+    setCarrinho((prev) => [
+      ...prev,
+      {
+        uid: crypto.randomUUID(),
         codigo_produto: produto.id_produto,
         descricao: produto.descricao,
-        lote: linhaSelecionada.lote || null,
-        unidade: produto.unidade || null,
-        id_local: origem,
+        unidade: produto.unidade,
+        lote: linhaSelecionada.lote ?? "",
         quantidade: qtd,
         custo_unitario: custo,
         motivo_baixa_id: motivoId,
-        observacao: observacao || null,
-        foto_url: path,
-        solicitante_id: user.id,
-        status_fluxo: "PENDENTE",
-      });
-      if (error) throw error;
+        motivo_desc: motivoDesc,
+        observacao: observacaoItem,
+        foto_path,
+      },
+    ]);
+    toast.success(`Item adicionado ao carrinho (${carrinho.length + 1})`);
+    limparItem();
+  }
 
-      await (supabase as any).from("audit_logs").insert({
-        usuario: user.id, acao: "CRIAR_BAIXA", entidade: "baixa_operacional",
-        payload: {
-          ean, codigo_produto: produto.id_produto, origem, lote: linhaSelecionada.lote,
-          quantidade: qtd, custo_unitario: custo, valor_total: valorTotal, motivo_baixa_id: motivoId,
-        },
-      });
+  function removerItem(uid: string) {
+    setCarrinho((prev) => prev.filter((c) => c.uid !== uid));
+  }
 
-      toast.success("Solicitação de baixa criada");
-      limpar();
+  const custoCarrinho = useMemo(
+    () => carrinho.reduce((s, c) => s + c.quantidade * c.custo_unitario, 0),
+    [carrinho],
+  );
+
+  async function enviarSolicitacao() {
+    if (carrinho.length === 0) return toast.error("Adicione ao menos um item ao carrinho");
+    if (!origem) return toast.error("Selecione o Almoxarifado");
+    setSubmitting(true);
+    try {
+      const { id } = await criarSolicitacaoBaixa({
+        id_local: origem,
+        observacao: observacaoSol || null,
+        origem_lancamento: "MANUAL",
+        itens: carrinho.map((c) => ({
+          codigo_produto: c.codigo_produto,
+          descricao: c.descricao,
+          unidade: c.unidade || null,
+          lote: c.lote || null,
+          id_local: origem,
+          quantidade: c.quantidade,
+          custo_unitario: c.custo_unitario,
+          motivo_baixa_id: c.motivo_baixa_id,
+          observacao: c.observacao || null,
+          foto_url: c.foto_path || null,
+        })),
+      });
+      toast.success(`Solicitação #${id} criada com ${carrinho.length} item(ns)`);
+      setCarrinho([]);
+      setObservacaoSol("");
+      limparItem();
       qc.invalidateQueries({ queryKey: ["baixas"] });
     } catch (err: any) {
-      toast.error(err.message ?? "Falha ao registrar baixa");
+      toast.error(err.message ?? "Falha ao registrar solicitação");
     } finally {
       setSubmitting(false);
     }
@@ -249,164 +298,234 @@ function NovaBaixaForm() {
   return (
     <>
       <Card>
-        <CardHeader><CardTitle>Nova Solicitação de Baixa</CardTitle></CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} className="grid md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <Label>Código do Produto / QR / EAN *</Label>
-              <div className="flex flex-wrap gap-2">
-                <Input
-                  value={ean}
-                  onChange={(e) => setEan(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); buscarPorCodigo(ean); } }}
-                  placeholder="Escaneie o QR/código de barras ou digite o Código do Produto"
-                  className="flex-1 min-w-[220px]"
-                />
-                <Button type="button" variant="outline" onClick={() => buscarPorCodigo(ean)}>Buscar</Button>
-                <Button type="button" onClick={() => setScannerOpen(true)} className="gap-2">
-                  <ScanBarcode className="size-4" /> Escanear
-                </Button>
-                <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button type="button" variant="secondary" className="gap-2">
-                      <List className="size-4" /> Lista de Produtos
-                      <ChevronsUpDown className="size-3 opacity-60" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[420px] p-0" align="end">
-                    <Command
-                      filter={(value, search) => {
-                        const s = search.toLowerCase();
-                        return value.toLowerCase().includes(s) ? 1 : 0;
-                      }}
-                    >
-                      <CommandInput placeholder="Buscar por código ou descrição..." />
-                      <CommandList>
-                        <CommandEmpty>
-                          {produtosQ.isLoading ? "Carregando..." : "Nenhum produto encontrado"}
-                        </CommandEmpty>
-                        <CommandGroup>
-                          {(produtosQ.data ?? []).map((p) => {
-                            const selected = produto?.id_produto === p.id_produto;
-                            return (
-                              <CommandItem
-                                key={p.id_produto}
-                                value={`${p.id_produto} ${p.descricao}`}
-                                onSelect={() => selecionarProdutoManual(p)}
-                              >
-                                <Check className={cn("mr-2 size-4", selected ? "opacity-100" : "opacity-0")} />
-                                <div className="flex flex-col">
-                                  <span className="font-mono text-xs">{p.id_produto}</span>
-                                  <span className="text-sm truncate">{p.descricao || "—"}</span>
-                                </div>
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                QR de rastreabilidade: apenas o valor numérico é considerado. A busca é feita pelo Código do Produto (Id_Produto).
-              </p>
-            </div>
-
-
+        <CardHeader>
+          <CardTitle>Nova Solicitação de Baixa</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Adicione um ou mais itens ao carrinho e envie tudo como uma única solicitação.
+            O time é notificado no Slack automaticamente.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <Label>SKU</Label>
-              <Input value={produto?.id_produto ?? ""} readOnly className="bg-muted font-mono" />
-            </div>
-            <div>
-              <Label>Unidade</Label>
-              <Input value={produto?.unidade ?? ""} readOnly className="bg-muted" />
-            </div>
-            <div className="md:col-span-2">
-              <Label>Descrição</Label>
-              <Input value={produto?.descricao ?? ""} readOnly className="bg-muted" />
-            </div>
-
-            <div>
-              <Label>Origem (Almoxarifado) *</Label>
-              <Select value={origem} onValueChange={setOrigem} disabled={!produto || origensDisponiveis.length === 0}>
-                <SelectTrigger><SelectValue placeholder={produto ? "Selecione" : "Escaneie o produto primeiro"} /></SelectTrigger>
+              <Label>Almoxarifado (aplicado a todos os itens) *</Label>
+              <Select value={origem} onValueChange={setOrigem}>
+                <SelectTrigger><SelectValue placeholder="Selecione o almoxarifado" /></SelectTrigger>
                 <SelectContent>
                   {origensDisponiveis.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                  {origem && !origensDisponiveis.includes(origem) && (
+                    <SelectItem value={origem}>{origem}</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Não pode ser alterado após adicionar o primeiro item.
+              </p>
             </div>
             <div>
-              <Label>Lote *</Label>
-              <Select value={loteSel} onValueChange={setLoteSel} disabled={!origem || lotesDisponiveis.length === 0}>
-                <SelectTrigger><SelectValue placeholder={origem ? "Selecione o lote" : "Selecione a origem"} /></SelectTrigger>
-                <SelectContent>
-                  {lotesDisponiveis.map((l) => (
-                    <SelectItem key={l.id} value={l.lote ?? ""}>
-                      {l.lote || "(sem lote)"} — saldo {formatNum(Number(l.quantidade))}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {linhaSelecionada && (
-              <div className="md:col-span-2 rounded-lg border bg-muted/40 p-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                <div><div className="text-xs text-muted-foreground">SKU</div><div className="font-mono">{produto?.id_produto}</div></div>
-                <div className="col-span-2"><div className="text-xs text-muted-foreground">Produto</div><div className="truncate">{produto?.descricao}</div></div>
-                <div><div className="text-xs text-muted-foreground">Origem</div><div>{origem}</div></div>
-                <div><div className="text-xs text-muted-foreground">Lote</div><div className="font-mono">{linhaSelecionada.lote || "—"}</div></div>
-                <div><div className="text-xs text-muted-foreground">Saldo</div><div className="font-semibold">{formatNum(saldo)}</div></div>
-                <div><div className="text-xs text-muted-foreground">Validade</div><div>{linhaSelecionada.data_validade ? new Date(linhaSelecionada.data_validade).toLocaleDateString("pt-BR") : "—"}</div></div>
-                <div><div className="text-xs text-muted-foreground">Custo Unitário</div><div>{formatBRL(custo)}</div></div>
-              </div>
-            )}
-
-            <div>
-              <Label>Quantidade a Baixar *</Label>
+              <Label>Observação da solicitação</Label>
               <Input
-                type="number" step="0.001" min="0"
-                value={quantidade}
-                onChange={(e) => setQuantidade(e.target.value)}
-                disabled={!linhaSelecionada}
+                value={observacaoSol}
+                onChange={(e) => setObservacaoSol(e.target.value)}
+                placeholder="Contexto geral (opcional)"
               />
-              {qtd > saldo && linhaSelecionada && (
-                <div className="text-xs text-destructive mt-1">Quantidade solicitada maior que saldo disponível.</div>
-              )}
             </div>
-            <div>
-              <Label>Valor Total</Label>
-              <Input value={formatBRL(valorTotal)} readOnly className="bg-muted" />
-            </div>
+          </div>
 
-            <div>
-              <Label>Motivo *</Label>
-              <Select value={motivoId} onValueChange={setMotivoId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {(motivosQ.data ?? []).map((m) => <SelectItem key={m.id} value={m.id}>{m.descricao}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Foto Evidência * (JPG/PNG, máx 10MB)</Label>
-              <Input type="file" accept="image/jpeg,image/png,image/jpg" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
-              {foto && <div className="mt-1 text-xs text-muted-foreground">{foto.name} — {(foto.size / 1024).toFixed(0)} KB</div>}
-            </div>
+          <div className="border-t pt-4">
+            <h3 className="text-sm font-semibold mb-3">Adicionar item ao carrinho</h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <Label>Código do Produto / QR / EAN *</Label>
+                <div className="flex flex-wrap gap-2">
+                  <Input
+                    value={ean}
+                    onChange={(e) => setEan(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); buscarPorCodigo(ean); } }}
+                    placeholder="Escaneie o QR/código de barras ou digite o Código do Produto"
+                    className="flex-1 min-w-[220px]"
+                  />
+                  <Button type="button" variant="outline" onClick={() => buscarPorCodigo(ean)}>Buscar</Button>
+                  <Button type="button" onClick={() => setScannerOpen(true)} className="gap-2">
+                    <ScanBarcode className="size-4" /> Escanear
+                  </Button>
+                  <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="secondary" className="gap-2">
+                        <List className="size-4" /> Lista de Produtos
+                        <ChevronsUpDown className="size-3 opacity-60" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[420px] p-0" align="end">
+                      <Command
+                        filter={(value, search) => {
+                          const s = search.toLowerCase();
+                          return value.toLowerCase().includes(s) ? 1 : 0;
+                        }}
+                      >
+                        <CommandInput placeholder="Buscar por código ou descrição..." />
+                        <CommandList>
+                          <CommandEmpty>
+                            {produtosQ.isLoading ? "Carregando..." : "Nenhum produto encontrado"}
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {(produtosQ.data ?? []).map((p) => {
+                              const selected = produto?.id_produto === p.id_produto;
+                              return (
+                                <CommandItem
+                                  key={p.id_produto}
+                                  value={`${p.id_produto} ${p.descricao}`}
+                                  onSelect={() => selecionarProdutoManual(p)}
+                                >
+                                  <Check className={cn("mr-2 size-4", selected ? "opacity-100" : "opacity-0")} />
+                                  <div className="flex flex-col">
+                                    <span className="font-mono text-xs">{p.id_produto}</span>
+                                    <span className="text-sm truncate">{p.descricao || "—"}</span>
+                                  </div>
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
 
-            <div className="md:col-span-2">
-              <Label>Observação</Label>
-              <Textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} />
-            </div>
+              <div>
+                <Label>SKU</Label>
+                <Input value={produto?.id_produto ?? ""} readOnly className="bg-muted font-mono" />
+              </div>
+              <div>
+                <Label>Unidade</Label>
+                <Input value={produto?.unidade ?? ""} readOnly className="bg-muted" />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Descrição</Label>
+                <Input value={produto?.descricao ?? ""} readOnly className="bg-muted" />
+              </div>
 
-            <div className="md:col-span-2 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={limpar}>Limpar</Button>
-              <Button type="submit" disabled={submitting} className="gap-2">
-                {submitting ? <Loader2 className="size-4 animate-spin" /> : <PackageMinus className="size-4" />}
-                Solicitar Baixa
-              </Button>
+              <div>
+                <Label>Lote *</Label>
+                <Select value={loteSel} onValueChange={setLoteSel} disabled={!origem || lotesDisponiveis.length === 0}>
+                  <SelectTrigger><SelectValue placeholder={origem ? "Selecione o lote" : "Selecione o almoxarifado"} /></SelectTrigger>
+                  <SelectContent>
+                    {lotesDisponiveis.map((l) => (
+                      <SelectItem key={l.id} value={l.lote ?? ""}>
+                        {l.lote || "(sem lote)"} — saldo {formatNum(Number(l.quantidade))}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Motivo *</Label>
+                <Select value={motivoId} onValueChange={setMotivoId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {(motivosQ.data ?? []).map((m) => <SelectItem key={m.id} value={m.id}>{m.descricao}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Quantidade *</Label>
+                <Input
+                  type="number" step="0.001" min="0"
+                  value={quantidade}
+                  onChange={(e) => setQuantidade(e.target.value)}
+                  disabled={!linhaSelecionada}
+                />
+                {qtd > saldo && linhaSelecionada && (
+                  <div className="text-xs text-destructive mt-1">Quantidade maior que saldo disponível.</div>
+                )}
+              </div>
+              <div>
+                <Label>Valor do Item</Label>
+                <Input value={formatBRL(valorTotalItem)} readOnly className="bg-muted" />
+              </div>
+
+              <div>
+                <Label>Foto Evidência (opcional — JPG/PNG, máx 10MB)</Label>
+                <Input type="file" accept="image/jpeg,image/png,image/jpg" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
+                {foto && <div className="mt-1 text-xs text-muted-foreground">{foto.name} — {(foto.size / 1024).toFixed(0)} KB</div>}
+              </div>
+              <div>
+                <Label>Observação do item</Label>
+                <Input value={observacaoItem} onChange={(e) => setObservacaoItem(e.target.value)} />
+              </div>
+
+              <div className="md:col-span-2 flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={limparItem}>Limpar item</Button>
+                <Button type="button" onClick={adicionarAoCarrinho} className="gap-2">
+                  <Plus className="size-4" /> Adicionar ao Carrinho
+                </Button>
+              </div>
             </div>
-          </form>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base">Carrinho ({carrinho.length} {carrinho.length === 1 ? "item" : "itens"})</CardTitle>
+          <div className="text-sm">
+            Total: <span className="font-semibold">{formatBRL(custoCarrinho)}</span>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {carrinho.length === 0 ? (
+            <div className="text-center text-sm text-muted-foreground py-6">
+              Nenhum item ainda. Preencha acima e clique em "Adicionar ao Carrinho".
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Produto</TableHead>
+                    <TableHead>Lote</TableHead>
+                    <TableHead className="text-right">Qtd</TableHead>
+                    <TableHead>Motivo</TableHead>
+                    <TableHead className="text-right">Custo</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {carrinho.map((c) => (
+                    <TableRow key={c.uid}>
+                      <TableCell className="font-mono text-xs">{c.codigo_produto}</TableCell>
+                      <TableCell className="max-w-[16rem] truncate text-xs">{c.descricao}</TableCell>
+                      <TableCell className="font-mono text-xs">{c.lote || "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{formatNum(c.quantidade)}</TableCell>
+                      <TableCell className="text-xs">{c.motivo_desc}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">
+                        {formatBRL(c.quantidade * c.custo_unitario)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button size="icon" variant="ghost" onClick={() => removerItem(c.uid)}>
+                          <Trash2 className="size-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              disabled={submitting || carrinho.length === 0}
+              onClick={enviarSolicitacao}
+              className="gap-2"
+            >
+              {submitting ? <Loader2 className="size-4 animate-spin" /> : <PackageMinus className="size-4" />}
+              Solicitar Baixa
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -415,9 +534,12 @@ function NovaBaixaForm() {
         onClose={() => setScannerOpen(false)}
         onDetected={(code) => { setScannerOpen(false); buscarPorCodigo(code); }}
       />
+      {/* silence unused role warning while role-based UI is not yet needed here */}
+      <span className="hidden">{role}</span>
     </>
   );
 }
+
 
 
 function useBaixas(statuses: string[]) {
