@@ -339,6 +339,9 @@ function LinhaItem({
       if (!l.eh_nao_relacionado && !l.lote) {
         toast.error("Selecione o lote em todas as linhas"); return;
       }
+      if (l.eh_nao_relacionado && !(l.lote_manual_texto ?? "").trim()) {
+        toast.error("Informe o código do lote manual"); return;
+      }
     }
     // Sem lotes duplicados (ignorando não relacionado)
     const codigos = linhas.filter((l) => !l.eh_nao_relacionado).map((l) => l.lote);
@@ -354,6 +357,7 @@ function LinhaItem({
     const payloadLinhas = linhas.map((l) => ({
       item_missao_id: item.id,
       lote: l.eh_nao_relacionado ? null : l.lote,
+      lote_manual_texto: l.eh_nao_relacionado ? (l.lote_manual_texto ?? "").trim() : null,
       eh_nao_relacionado: l.eh_nao_relacionado,
       quantidade_contada: Number(l.quantidade_contada.replace(",", ".")),
       saldo_sistemico_lote: l.saldo_sistemico_lote ?? null,
