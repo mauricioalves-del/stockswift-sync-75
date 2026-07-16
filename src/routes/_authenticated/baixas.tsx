@@ -638,7 +638,20 @@ function FilaAprovacao() {
   }
 
   return (
-    <Card>
+    <div className="space-y-3">
+      {isAdmin && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            onClick={solicitarBaixaFiscal}
+            disabled={enviandoFiscal || !(data && data.length > 0)}
+          >
+            {enviandoFiscal ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
+            Solicitar Baixa Fiscal
+          </Button>
+        </div>
+      )}
+      <Card>
       <CardContent className="p-0 overflow-x-auto">
         <Table>
           <TableHeader>
