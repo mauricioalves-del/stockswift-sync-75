@@ -679,7 +679,9 @@ const LinhaItem = memo(function LinhaItem({
                 className="h-8 w-24 tabular-nums text-xs"
                 value={l.quantidade_contada}
                 onChange={(e) => alterarQtd(l.key, e.target.value)}
+                onKeyDown={onQtdKeyDown}
                 placeholder="0"
+                title="Enter para salvar"
               />
               <Button
                 type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0"
