@@ -703,4 +703,4 @@ const LinhaItem = memo(function LinhaItem({
       </TableCell>
     </TableRow>
   );
-}
+});
