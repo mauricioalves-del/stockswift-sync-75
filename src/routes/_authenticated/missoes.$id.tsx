@@ -122,9 +122,10 @@ function MissaoExecucaoPage() {
   });
 
   // Linhas de lote já persistidas para os itens da missão.
-  const itemIds = (itensQ.data ?? []).map((i) => i.id);
+  const itemIds = useMemo(() => (itensQ.data ?? []).map((i) => i.id), [itensQ.data]);
+  const itemIdsKey = useMemo(() => itemIds.join(","), [itemIds]);
   const linhasQ = useQuery({
-    queryKey: ["missao-item-lotes", id, itemIds.join(",")],
+    queryKey: ["missao-item-lotes", id, itemIdsKey],
     enabled: itemIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
