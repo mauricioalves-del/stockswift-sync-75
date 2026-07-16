@@ -353,7 +353,7 @@ const LinhaItem = memo(function LinhaItem({
   const totalContado = linhas.reduce((s, l) => s + (Number(l.quantidade_contada.replace(",", ".")) || 0), 0);
 
   function addLinha() {
-    // Sugere próximo lote FEFO ainda não usado
+    dirtyRef.current = true;
     const usados = new Set(linhas.filter((l) => !l.eh_nao_relacionado).map((l) => l.lote));
     const prox = lotesSist.find((l) => !usados.has(l.lote));
     setLinhas([...linhas, prox
@@ -361,6 +361,7 @@ const LinhaItem = memo(function LinhaItem({
       : { key: crypto.randomUUID(), lote: "", eh_nao_relacionado: false, quantidade_contada: "", saldo_sistemico_lote: 0 }]);
   }
   function addLinhaManual() {
+    dirtyRef.current = true;
     setLinhas([...linhas, {
       key: crypto.randomUUID(),
       lote: null,
@@ -372,9 +373,11 @@ const LinhaItem = memo(function LinhaItem({
     }]);
   }
   function removerLinha(k: string) {
+    dirtyRef.current = true;
     setLinhas(linhas.filter((l) => l.key !== k));
   }
   function alterarLote(k: string, valor: string) {
+    dirtyRef.current = true;
     setLinhas(linhas.map((l) => {
       if (l.key !== k) return l;
       const s = lotesSist.find((x) => x.lote === valor);
@@ -382,13 +385,22 @@ const LinhaItem = memo(function LinhaItem({
     }));
   }
   function alterarLoteManual(k: string, valor: string) {
+    dirtyRef.current = true;
     setLinhas(linhas.map((l) => l.key === k ? { ...l, lote_manual_texto: valor } : l));
   }
   function alterarValidadeManual(k: string, valor: string | null) {
+    dirtyRef.current = true;
     setLinhas(linhas.map((l) => l.key === k ? { ...l, data_validade_manual: valor } : l));
   }
   function alterarQtd(k: string, valor: string) {
+    dirtyRef.current = true;
     setLinhas(linhas.map((l) => l.key === k ? { ...l, quantidade_contada: valor } : l));
+  }
+  function onQtdKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (saving) return;
+    salvar();
   }
 
   async function salvar() {
