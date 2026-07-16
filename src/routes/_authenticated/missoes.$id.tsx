@@ -88,7 +88,7 @@ function MissaoExecucaoPage() {
     enabled: !!missaoQ.data && skus.length > 0,
     queryFn: async () => {
       let q = (supabase as any).from("estoque_sistemico")
-        .select("id_produto, lote, saldo_sistemico, custo_unitario, unidade, id_local, data_validade")
+        .select("id_produto, lote, quantidade, custo_unitario, unidade, id_local, data_validade")
         .in("id_produto", skus);
       if (missaoQ.data?.origem) q = q.eq("origem", missaoQ.data.origem);
       const { data, error } = await q;
@@ -98,7 +98,7 @@ function MissaoExecucaoPage() {
         const arr = map.get(r.id_produto) ?? [];
         arr.push({
           lote: r.lote ?? "",
-          saldo: Number(r.saldo_sistemico ?? 0),
+          saldo: Number(r.quantidade ?? 0),
           custo_unitario: Number(r.custo_unitario ?? 0),
           unidade: r.unidade ?? "UN",
           id_local: r.id_local ?? "",
