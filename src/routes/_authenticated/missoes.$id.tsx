@@ -507,7 +507,7 @@ function LinhaItem({
                 : "Divergência positiva — enviado para recontagem";
       if (status_item === "OK") { toast.success(msg); sounds.success(); }
       else if (status_item === "QUEBRA_FEFO") { toast.warning(msg); sounds.success(); }
-      else { toast.warning(msg); sounds.success(); }
+      else { toast.warning(msg); sounds.divergente(); }
     } else {
       toast.success("Contagem registrada"); sounds.success();
     }
