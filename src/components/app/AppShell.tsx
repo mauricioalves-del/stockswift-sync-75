@@ -41,6 +41,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/contar", label: "Contagem", icon: ClipboardList, role: "write" },
       { to: "/scanner", label: "Scanner", icon: ScanLine, role: "write" },
       { to: "/recontagem", label: "Recontagem", icon: RotateCcw, role: "write" },
+      { to: "/quebras-fefo", label: "Quebras de FEFO", icon: AlertTriangle, role: "write" },
     ],
   },
   {
