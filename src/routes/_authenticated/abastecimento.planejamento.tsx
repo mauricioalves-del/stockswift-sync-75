@@ -23,17 +23,23 @@ export const Route = createFileRoute("/_authenticated/abastecimento/planejamento
 
 type Param = { origem: string; origem_abastecimento: string; cobertura_dias: number; dias_seguranca: number; ativo: boolean };
 type Estoque = { id_produto: string; descricao: string; quantidade: number; custo_unitario: number; origem: string };
+type EstoqueLote = { id_produto: string; origem: string; quantidade: number; lote: string; data_validade: string | null; data_importacao: string };
 type Consumo = { origem: string; sku: string; quantidade: number; data_movimento: string };
 type Demanda = { origem: string; sku: string; quantidade_extra: number; status: string; data_inicio: string; data_fim: string };
 type ProdRep = { id_produto: string; estoque_minimo: number; estoque_ideal: number; estoque_maximo: number; ativo: boolean };
+type Familia = { codigo_produto: string; familia: string };
 
 type Metodo = "COBERTURA" | "MINMAX";
+
+const SUPPLY_ORIGENS = ["Alm_SP_Fabrica", "Alm_SP_Processo"] as const;
+const FAMILIA_GRANEIS = "Granéis";
 
 type Linha = {
   sku: string; produto: string; origem: string; origem_abastecimento: string;
   estoque: number; cmd: number; cobertura_atual: number; cobertura_alvo: number;
   demanda_extra: number; necessidade: number; sugestao: number; custo_unitario: number; valor_reposicao: number;
   minimo: number; ideal: number; maximo: number; sugestao_minmax: number;
+  supplier_disp: number; lote_fefo: string | null; lote_fefo_qtd: number; is_granel: boolean;
 };
 
 
