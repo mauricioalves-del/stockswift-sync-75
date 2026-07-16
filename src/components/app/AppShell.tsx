@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ClipboardList, ScanLine, RotateCcw, FileBarChart2,
   Users as UsersIcon, ScrollText, Settings as SettingsIcon, LogOut, Menu, X,
   Sun, Moon, Wifi, WifiOff, RefreshCw, Layers, FolderTree, Package, BarChart3,
-  Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp, Warehouse,
+  Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp, Warehouse, Mail,
   Compass, Sparkles, Settings2, Boxes, Truck, AlertTriangle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +31,7 @@ const NAV: (NavItem | NavGroup)[] = [
     items: [
       { to: "/origens", label: "Almox", icon: Warehouse, role: "write" },
       { to: "/motivos-baixa", label: "Motivos de Baixa", icon: PackageMinus, role: "write" },
+      { to: "/emails", label: "E-mails", icon: Mail, role: "admin" },
       { to: "/importar", label: "Sincronização de Estoque", icon: RefreshCw, role: "write" },
       { to: "/importar-familias", label: "Importador de Famílias", icon: Leaf, role: "write" },
       { to: "/grupos", label: "Importador de Grupos", icon: Layers, role: "write" },

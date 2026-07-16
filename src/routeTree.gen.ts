@@ -25,6 +25,7 @@ import { Route as AuthenticatedInventarioRouteImport } from './routes/_authentic
 import { Route as AuthenticatedImportarFamiliasRouteImport } from './routes/_authenticated/importar-familias'
 import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticated/importar'
 import { Route as AuthenticatedGruposRouteImport } from './routes/_authenticated/grupos'
+import { Route as AuthenticatedEmailsRouteImport } from './routes/_authenticated/emails'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedContarRouteImport } from './routes/_authenticated/contar'
 import { Route as AuthenticatedBaixasRouteImport } from './routes/_authenticated/baixas'
@@ -127,6 +128,11 @@ const AuthenticatedImportarRoute = AuthenticatedImportarRouteImport.update({
 const AuthenticatedGruposRoute = AuthenticatedGruposRouteImport.update({
   id: '/grupos',
   path: '/grupos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedEmailsRoute = AuthenticatedEmailsRouteImport.update({
+  id: '/emails',
+  path: '/emails',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -259,6 +265,7 @@ export interface FileRoutesByFullPath {
   '/baixas': typeof AuthenticatedBaixasRoute
   '/contar': typeof AuthenticatedContarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/emails': typeof AuthenticatedEmailsRoute
   '/grupos': typeof AuthenticatedGruposRoute
   '/importar': typeof AuthenticatedImportarRoute
   '/importar-familias': typeof AuthenticatedImportarFamiliasRoute
@@ -297,6 +304,7 @@ export interface FileRoutesByTo {
   '/baixas': typeof AuthenticatedBaixasRoute
   '/contar': typeof AuthenticatedContarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/emails': typeof AuthenticatedEmailsRoute
   '/grupos': typeof AuthenticatedGruposRoute
   '/importar': typeof AuthenticatedImportarRoute
   '/importar-familias': typeof AuthenticatedImportarFamiliasRoute
@@ -337,6 +345,7 @@ export interface FileRoutesById {
   '/_authenticated/baixas': typeof AuthenticatedBaixasRoute
   '/_authenticated/contar': typeof AuthenticatedContarRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/emails': typeof AuthenticatedEmailsRoute
   '/_authenticated/grupos': typeof AuthenticatedGruposRoute
   '/_authenticated/importar': typeof AuthenticatedImportarRoute
   '/_authenticated/importar-familias': typeof AuthenticatedImportarFamiliasRoute
@@ -377,6 +386,7 @@ export interface FileRouteTypes {
     | '/baixas'
     | '/contar'
     | '/dashboard'
+    | '/emails'
     | '/grupos'
     | '/importar'
     | '/importar-familias'
@@ -415,6 +425,7 @@ export interface FileRouteTypes {
     | '/baixas'
     | '/contar'
     | '/dashboard'
+    | '/emails'
     | '/grupos'
     | '/importar'
     | '/importar-familias'
@@ -454,6 +465,7 @@ export interface FileRouteTypes {
     | '/_authenticated/baixas'
     | '/_authenticated/contar'
     | '/_authenticated/dashboard'
+    | '/_authenticated/emails'
     | '/_authenticated/grupos'
     | '/_authenticated/importar'
     | '/_authenticated/importar-familias'
@@ -604,6 +616,13 @@ declare module '@tanstack/react-router' {
       path: '/grupos'
       fullPath: '/grupos'
       preLoaderRoute: typeof AuthenticatedGruposRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/emails': {
+      id: '/_authenticated/emails'
+      path: '/emails'
+      fullPath: '/emails'
+      preLoaderRoute: typeof AuthenticatedEmailsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
@@ -776,6 +795,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedBaixasRoute: typeof AuthenticatedBaixasRoute
   AuthenticatedContarRoute: typeof AuthenticatedContarRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedEmailsRoute: typeof AuthenticatedEmailsRoute
   AuthenticatedGruposRoute: typeof AuthenticatedGruposRoute
   AuthenticatedImportarRoute: typeof AuthenticatedImportarRoute
   AuthenticatedImportarFamiliasRoute: typeof AuthenticatedImportarFamiliasRoute
@@ -811,6 +831,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBaixasRoute: AuthenticatedBaixasRoute,
   AuthenticatedContarRoute: AuthenticatedContarRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedEmailsRoute: AuthenticatedEmailsRoute,
   AuthenticatedGruposRoute: AuthenticatedGruposRoute,
   AuthenticatedImportarRoute: AuthenticatedImportarRoute,
   AuthenticatedImportarFamiliasRoute: AuthenticatedImportarFamiliasRoute,

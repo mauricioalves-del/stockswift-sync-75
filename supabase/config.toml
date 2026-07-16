@@ -2,3 +2,6 @@ project_id = "pxbgyfdhbufwualiztwr"
 
 [functions.notificar-baixa-slack]
 verify_jwt = false
+
+[functions.solicitar-baixa-fiscal]
+verify_jwt = true
