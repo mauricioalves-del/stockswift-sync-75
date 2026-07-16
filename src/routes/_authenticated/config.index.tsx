@@ -19,12 +19,20 @@ export const Route = createFileRoute("/_authenticated/config/")({
 function ConfigPage() {
   const { isAdmin, role } = useRole();
   const [cego, setCego] = useState(false);
+  const [webhook, setWebhook] = useState("");
+  const [webhookSaving, setWebhookSaving] = useState(false);
   const isCoord = role === "COORDENADOR_CONTROLE";
   const podeGerirInv = isAdmin || role === "GERENTE" || isCoord;
+  const podeGerirWebhook = isAdmin || isCoord;
 
   useEffect(() => {
     supabase.from("app_config").select("valor").eq("chave", "inventario_cego").maybeSingle()
       .then(({ data }) => setCego(data?.valor === true || data?.valor === "true"));
+    supabase.from("app_config").select("valor").eq("chave", "slack_webhook_baixas").maybeSingle()
+      .then(({ data }) => {
+        const v = data?.valor;
+        setWebhook(typeof v === "string" ? v : "");
+      });
   }, []);
 
   async function toggle(v: boolean) {
@@ -34,6 +42,23 @@ function ConfigPage() {
     if (error) return toast.error(error.message);
     toast.success(v ? "Inventário cego ativado" : "Saldo sistêmico será exibido");
   }
+
+  async function salvarWebhook() {
+    setWebhookSaving(true);
+    try {
+      const me = (await supabase.auth.getUser()).data.user?.id;
+      const { error } = await supabase.from("app_config").upsert({
+        chave: "slack_webhook_baixas", valor: webhook, updated_by: me, updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+      toast.success("Webhook do Slack atualizado");
+    } catch (err: any) {
+      toast.error(err.message ?? "Falha ao salvar");
+    } finally {
+      setWebhookSaving(false);
+    }
+  }
+
 
   if (!isAdmin && !isCoord) return <div className="p-8 text-center text-muted-foreground">Acesso restrito.</div>;
 
