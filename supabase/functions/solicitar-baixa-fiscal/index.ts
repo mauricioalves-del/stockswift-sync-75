@@ -17,6 +17,21 @@ const CORS = {
 const DEFAULT_FROM = "Baixas Operacionais <onboarding@resend.dev>";
 const STATUS_FILA = ["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO"];
 
+function json(body: Record<string, unknown>, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, "Content-Type": "application/json" },
+  });
+}
+
+function isResendTestingFrom(from: string): boolean {
+  return /onboarding@resend\.dev/i.test(from);
+}
+
+function sameEmail(a?: string | null, b?: string | null): boolean {
+  return (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
+}
+
 function formatBRL(v: number): string {
   return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -43,7 +58,9 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY não configurada");
+    if (!RESEND_API_KEY) {
+      return json({ ok: false, code: "MISSING_RESEND_API_KEY", error: "RESEND_API_KEY não configurada" });
+    }
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -56,9 +73,7 @@ Deno.serve(async (req) => {
 
     const { data: isAdmin } = await admin.rpc("has_role", { _user_id: userId, _role: "ADMINISTRADOR" });
     if (!isAdmin) {
-      return new Response(JSON.stringify({ ok: false, error: "Apenas Administrador pode disparar esta ação" }), {
-        status: 403, headers: { ...CORS, "Content-Type": "application/json" },
-      });
+      return json({ ok: false, code: "FORBIDDEN", error: "Apenas Administrador pode disparar esta ação" }, 403);
     }
 
     const body = await req.json().catch(() => ({}));
@@ -78,6 +93,14 @@ Deno.serve(async (req) => {
     if (isTest) {
       const testTo = (body?.test_to as string | undefined)?.trim() || userRes.user.email;
       if (!testTo) throw new Error("Informe um destinatário de teste (test_to)");
+
+      if (isResendTestingFrom(FROM_EMAIL) && !sameEmail(testTo, userRes.user.email)) {
+        return json({
+          ok: false,
+          code: "RESEND_TEST_RECIPIENT_LIMIT",
+          error: `O remetente padrão do Resend (onboarding@resend.dev) só envia testes para ${userRes.user.email}. Para enviar para outros destinatários, verifique um domínio no Resend e configure o From com esse domínio.`,
+        });
+      }
 
       const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;padding:16px">
         <h2>Teste de envio — Baixa Fiscal</h2>
@@ -105,8 +128,10 @@ Deno.serve(async (req) => {
       });
       const rBody = await r.text();
       if (!r.ok) {
-        return new Response(JSON.stringify({ ok: false, error: `Resend HTTP ${r.status}: ${rBody.slice(0, 500)}` }), {
-          status: 502, headers: { ...CORS, "Content-Type": "application/json" },
+        return json({
+          ok: false,
+          code: r.status === 403 ? "RESEND_VALIDATION_ERROR" : "RESEND_ERROR",
+          error: `Resend HTTP ${r.status}: ${rBody.slice(0, 500)}`,
         });
       }
       let rJson: any = {}; try { rJson = JSON.parse(rBody); } catch { /* noop */ }
@@ -114,9 +139,7 @@ Deno.serve(async (req) => {
         usuario: userId, acao: "BAIXA_FISCAL_TESTE", entidade: "resend",
         payload: { destinatario: testTo, from: FROM_EMAIL, resend_id: rJson?.id ?? null },
       });
-      return new Response(JSON.stringify({ ok: true, test: true, destinatario: testTo, from: FROM_EMAIL, resend_id: rJson?.id ?? null }), {
-        headers: { ...CORS, "Content-Type": "application/json" },
-      });
+      return json({ ok: true, test: true, destinatario: testTo, from: FROM_EMAIL, resend_id: rJson?.id ?? null });
     }
 
     // ==== ENVIO REAL ====
@@ -126,7 +149,13 @@ Deno.serve(async (req) => {
       .eq("finalidade", "Baixa Fiscal")
       .eq("ativo", true);
     if (derr) throw derr;
-    if (!dests || dests.length === 0) throw new Error("Nenhum destinatário cadastrado para 'Baixa Fiscal'");
+    if (!dests || dests.length === 0) {
+      return json({
+        ok: false,
+        code: "MISSING_BAIXA_FISCAL_RECIPIENTS",
+        error: "Nenhum destinatário ativo cadastrado para 'Baixa Fiscal'. Cadastre ao menos um e-mail em Cadastros → E-mails.",
+      });
+    }
 
     const { data: itens, error: ierr } = await admin
       .from("baixa_operacional")
@@ -135,7 +164,9 @@ Deno.serve(async (req) => {
       .order("id_local", { ascending: true })
       .order("created_at", { ascending: true });
     if (ierr) throw ierr;
-    if (!itens || itens.length === 0) throw new Error("Não há itens pendentes na fila de aprovação");
+    if (!itens || itens.length === 0) {
+      return json({ ok: false, code: "NO_PENDING_ITEMS", error: "Não há itens pendentes na fila de aprovação" });
+    }
 
     const porAlmox = new Map<string, any[]>();
     for (const it of itens) {
@@ -228,6 +259,15 @@ Deno.serve(async (req) => {
     </body></html>`;
 
     const toList = dests.map((d: any) => d.email);
+
+    if (isResendTestingFrom(FROM_EMAIL) && toList.some((email: string) => !sameEmail(email, userRes.user.email))) {
+      return json({
+        ok: false,
+        code: "RESEND_TEST_RECIPIENT_LIMIT",
+        error: `O remetente padrão do Resend (onboarding@resend.dev) só envia para ${userRes.user.email}. Verifique um domínio no Resend e configure o From com esse domínio para enviar aos destinatários cadastrados.`,
+      });
+    }
+
     const payload: any = {
       from: FROM_EMAIL,
       to: toList,
@@ -249,9 +289,7 @@ Deno.serve(async (req) => {
         usuario: userId, acao: "BAIXA_FISCAL_FALHA", entidade: "baixa_operacional",
         payload: { erro: errMsg, destinatarios: toList, qtd_itens: itens.length },
       });
-      return new Response(JSON.stringify({ ok: false, error: errMsg }), {
-        status: 502, headers: { ...CORS, "Content-Type": "application/json" },
-      });
+      return json({ ok: false, code: resendRes.status === 403 ? "RESEND_VALIDATION_ERROR" : "RESEND_ERROR", error: errMsg });
     }
 
     const resendJson = await resendRes.json().catch(() => ({}));
@@ -269,13 +307,11 @@ Deno.serve(async (req) => {
       },
     });
 
-    return new Response(JSON.stringify({
+    return json({
       ok: true, qtd_itens: itens.length, destinatarios: toList, custo_total: totalGeral,
-    }), { headers: { ...CORS, "Content-Type": "application/json" } });
+    });
   } catch (err: any) {
     console.error("solicitar-baixa-fiscal", err);
-    return new Response(JSON.stringify({ ok: false, error: err.message ?? String(err) }), {
-      status: 500, headers: { ...CORS, "Content-Type": "application/json" },
-    });
+    return json({ ok: false, code: "UNEXPECTED_ERROR", error: err.message ?? String(err) }, 500);
   }
 });
