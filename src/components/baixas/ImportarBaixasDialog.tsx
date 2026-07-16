@@ -160,7 +160,7 @@ export function ImportarBaixasDialog() {
     setImporting(true);
     try {
       const user = (await supabase.auth.getUser()).data.user!;
-      const payload = okRows.map((r) => {
+      const itens = okRows.map((r) => {
         const lote = loteDaLinha(r);
         return {
           codigo_produto: r.sku,
@@ -173,24 +173,28 @@ export function ImportarBaixasDialog() {
           subcategoria: r.subcategoria || null,
           responsavel_nome: r.responsavel || null,
           data_ocorrencia: r.data,
-          origem_lancamento: "IMPORTACAO_PLANILHA",
-          solicitante_id: user.id,
-          status_fluxo: "PENDENTE",
           id_local: almoxSel,
           lote: lote?.lote || null,
+          origem_lancamento: "IMPORTACAO_PLANILHA",
         };
       });
-      const { error } = await (supabase as any).from("baixa_operacional").insert(payload);
-      if (error) throw error;
+
+      const { id: solicitacaoId } = await criarSolicitacaoBaixa({
+        id_local: almoxSel,
+        origem_lancamento: "IMPORTACAO_PLANILHA",
+        observacao: `Importação de planilha (${filename})`,
+        itens,
+      });
 
       await (supabase as any).from("audit_logs").insert({
         usuario: user.id,
         acao: "IMPORTAR_BAIXAS_PLANILHA",
-        entidade: "baixa_operacional",
+        entidade: "solicitacoes_baixa",
+        entidade_id: String(solicitacaoId),
         payload: { arquivo: filename, almoxarifado: almoxSel, linhas_ok: okRows.length, linhas_erro: errCount },
       });
 
-      toast.success(`${okRows.length} baixas importadas${errCount > 0 ? ` (${errCount} ignoradas)` : ""}`);
+      toast.success(`Solicitação #${solicitacaoId} criada com ${okRows.length} baixas${errCount > 0 ? ` (${errCount} ignoradas)` : ""}`);
       setRows([]); setFilename(""); setAlmoxSel("");
       setOpen(false);
       qc.invalidateQueries({ queryKey: ["baixas"] });
@@ -198,6 +202,7 @@ export function ImportarBaixasDialog() {
       toast.error(err.message ?? "Falha ao importar baixas");
     } finally {
       setImporting(false);
+
     }
   }
 
