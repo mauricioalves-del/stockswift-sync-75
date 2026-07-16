@@ -23,17 +23,23 @@ export const Route = createFileRoute("/_authenticated/abastecimento/planejamento
 
 type Param = { origem: string; origem_abastecimento: string; cobertura_dias: number; dias_seguranca: number; ativo: boolean };
 type Estoque = { id_produto: string; descricao: string; quantidade: number; custo_unitario: number; origem: string };
+type EstoqueLote = { id_produto: string; origem: string; quantidade: number; lote: string; data_validade: string | null; data_importacao: string };
 type Consumo = { origem: string; sku: string; quantidade: number; data_movimento: string };
 type Demanda = { origem: string; sku: string; quantidade_extra: number; status: string; data_inicio: string; data_fim: string };
 type ProdRep = { id_produto: string; estoque_minimo: number; estoque_ideal: number; estoque_maximo: number; ativo: boolean };
+type Familia = { codigo_produto: string; familia: string };
 
 type Metodo = "COBERTURA" | "MINMAX";
+
+const SUPPLY_ORIGENS = ["Alm_SP_Fabrica", "Alm_SP_Processo"] as const;
+const FAMILIA_GRANEIS = "Granéis";
 
 type Linha = {
   sku: string; produto: string; origem: string; origem_abastecimento: string;
   estoque: number; cmd: number; cobertura_atual: number; cobertura_alvo: number;
   demanda_extra: number; necessidade: number; sugestao: number; custo_unitario: number; valor_reposicao: number;
   minimo: number; ideal: number; maximo: number; sugestao_minmax: number;
+  supplier_disp: number; lote_fefo: string | null; lote_fefo_qtd: number; is_granel: boolean;
 };
 
 
@@ -93,6 +99,25 @@ function PlanejamentoPage() {
     },
   });
 
+  const supplierStockQ = useQuery({
+    queryKey: ["planejamento_supplier_stock"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("estoque_sistemico")
+        .select("id_produto, origem, quantidade, lote, data_validade, data_importacao")
+        .in("origem", SUPPLY_ORIGENS as unknown as string[]);
+      if (error) throw error;
+      return (data ?? []) as unknown as EstoqueLote[];
+    },
+  });
+
+  const familiasQ = useQuery({
+    queryKey: ["planejamento_familias"],
+    queryFn: async () => {
+      const { data } = await supabase.from("familias" as never).select("codigo_produto, familia");
+      return (data ?? []) as unknown as Familia[];
+    },
+  });
+
   const prodRepQ = useQuery({
     queryKey: ["planejamento_prod_rep"],
     queryFn: async () => {
@@ -123,6 +148,25 @@ function PlanejamentoPage() {
     if (!paramsQ.data) return [];
     const paramsMap = new Map(paramsQ.data.map((p) => [p.origem, p]));
     const prodMap = new Map((prodRepQ.data ?? []).map((p) => [p.id_produto, p]));
+    const familiaMap = new Map((familiasQ.data ?? []).map((f) => [f.codigo_produto, f.familia]));
+
+    // Supplier: total disponível por (origem_abast|sku) e lote FEFO
+    const supplierTotal = new Map<string, number>();
+    const supplierFefo = new Map<string, { lote: string; qtd: number; validade: string | null; imp: string }>();
+    for (const e of (supplierStockQ.data ?? [])) {
+      const qtd = Number(e.quantidade);
+      if (qtd <= 0) continue;
+      const key = `${e.origem}|${e.id_produto}`;
+      supplierTotal.set(key, (supplierTotal.get(key) ?? 0) + qtd);
+      const prev = supplierFefo.get(key);
+      const cur = { lote: e.lote, qtd, validade: e.data_validade, imp: e.data_importacao };
+      if (!prev) supplierFefo.set(key, cur);
+      else {
+        const a = prev.validade ?? "9999-12-31";
+        const b = cur.validade ?? "9999-12-31";
+        if (b < a || (b === a && cur.imp < prev.imp)) supplierFefo.set(key, cur);
+      }
+    }
 
     // Saldo consolidado por origem+SKU e custo médio simples
     const stockMap = new Map<string, { qtd: number; desc: string; custo: number }>();
@@ -156,7 +200,22 @@ function PlanejamentoPage() {
       const cobertura_alvo = p.cobertura_dias;
       const demanda_extra = demandaMap.get(key) ?? 0;
       const necessidade = cmd * cobertura_alvo + demanda_extra;
-      const sugestao = Math.max(0, necessidade - s.qtd);
+      let sugestao = Math.max(0, necessidade - s.qtd);
+
+      // Regras de suprimento: só abastece do que existe em Alm_SP_Fabrica / Alm_SP_Processo
+      const supKey = `${p.origem_abastecimento}|${sku}`;
+      const isSupplied = (SUPPLY_ORIGENS as readonly string[]).includes(p.origem_abastecimento);
+      const supplier_disp = isSupplied ? (supplierTotal.get(supKey) ?? 0) : Infinity;
+      const fefo = isSupplied ? (supplierFefo.get(supKey) ?? null) : null;
+      const familia = familiaMap.get(sku) ?? "";
+      const is_granel = familia === FAMILIA_GRANEIS;
+
+      // Granéis: se houver saldo no fornecedor, abastecer o lote mais velho inteiro (FEFO)
+      if (is_granel && isSupplied && fefo && fefo.qtd > 0) {
+        sugestao = Math.max(sugestao, fefo.qtd);
+      }
+      // Cap pelo disponível no fornecedor
+      if (isSupplied) sugestao = Math.min(sugestao, supplier_disp);
 
       const pr = prodMap.get(sku);
       const minimo = Number(pr?.estoque_minimo ?? 0);
@@ -168,6 +227,7 @@ function PlanejamentoPage() {
         if (maximo > 0) sugestao_minmax = Math.min(sugestao_minmax, Math.max(0, maximo - s.qtd));
         sugestao_minmax = Math.max(0, sugestao_minmax);
       }
+      if (isSupplied) sugestao_minmax = Math.min(sugestao_minmax, supplier_disp);
 
       const sugestaoCeil = Math.ceil(Math.max(0, sugestao));
       const sugestaoMinMaxCeil = Math.ceil(Math.max(0, sugestao_minmax));
@@ -179,10 +239,14 @@ function PlanejamentoPage() {
         demanda_extra, necessidade, sugestao: sugestaoCeil,
         custo_unitario: s.custo, valor_reposicao: sugestaoCeil * s.custo,
         minimo, ideal, maximo, sugestao_minmax: sugestaoMinMaxCeil,
+        supplier_disp: isSupplied ? supplier_disp : 0,
+        lote_fefo: fefo?.lote ?? null,
+        lote_fefo_qtd: fefo?.qtd ?? 0,
+        is_granel,
       });
     }
     return out.sort((a, b) => a.cobertura_atual - b.cobertura_atual);
-  }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data, prodRepQ.data]);
+  }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data, prodRepQ.data, supplierStockQ.data, familiasQ.data]);
 
 
   const linhasFiltradas = linhas.filter((l) => {
@@ -278,7 +342,7 @@ function PlanejamentoPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2"><Compass className="size-6" /> Abastecimento</h1>
           <p className="text-sm text-muted-foreground">
             {metodo === "COBERTURA"
-              ? "Cobertura = Estoque ÷ CMD · Sugestão = (CMD × Cob. Alvo + Demanda Extra) − Estoque"
+              ? "Sugestão = (CMD × Cob. Alvo + Demanda Extra) − Estoque · limitada ao saldo em Alm_SP_Fabrica/Processo · Granéis: abastecem o lote FEFO inteiro"
               : "Se Estoque < Mín ⇒ Sugestão = Ideal − Estoque (limitado ao Máx)"}
           </p>
         </div>
@@ -383,13 +447,18 @@ function PlanejamentoPage() {
                   <TableHead className="text-right">Cob. Atual</TableHead>
                   <TableHead className="text-right">Cob. Alvo</TableHead>
                   <TableHead className="text-right">Dem. Extra</TableHead>
+                  <TableHead className="text-right">Disp. Fornec.</TableHead>
+                  <TableHead className="text-right">Lote FEFO</TableHead>
                   <TableHead className="text-right">Sugestão</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {linhasFiltradas.slice(0, 500).map((l) => (
                     <TableRow key={`${l.origem}|${l.sku}`}>
-                      <TableCell className="font-mono text-xs">{l.sku}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {l.sku}
+                        {l.is_granel && <Badge variant="outline" className="ml-1 text-[10px]">Granel</Badge>}
+                      </TableCell>
                       <TableCell className="text-xs max-w-xs truncate">{l.produto}</TableCell>
                       <TableCell className="text-xs">{l.origem}</TableCell>
                       <TableCell className="text-xs font-medium">{l.origem_abastecimento}</TableCell>
@@ -398,12 +467,20 @@ function PlanejamentoPage() {
                       <TableCell className="text-right"><CoberturaBadge dias={l.cobertura_atual} /></TableCell>
                       <TableCell className="text-right tabular-nums">{l.cobertura_alvo}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.demanda_extra > 0 ? `+${formatNum(l.demanda_extra)}` : "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">
+                        {(SUPPLY_ORIGENS as readonly string[]).includes(l.origem_abastecimento)
+                          ? <span className={l.supplier_disp <= 0 ? "text-destructive" : ""}>{formatNum(l.supplier_disp)}</span>
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">
+                        {l.lote_fefo ? <span className="font-mono">{l.lote_fefo} ({formatNum(l.lote_fefo_qtd)})</span> : "—"}
+                      </TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">{formatNum(l.sugestao)}</TableCell>
                       <TableCell className="text-right tabular-nums">R$ {formatNum(l.valor_reposicao)}</TableCell>
                     </TableRow>
                   ))}
                   {linhasFiltradas.length === 0 && (
-                    <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground text-sm py-6">
+                    <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground text-sm py-6">
                       Sem dados. Cadastre parâmetros e importe consumo.
                     </TableCell></TableRow>
                   )}
