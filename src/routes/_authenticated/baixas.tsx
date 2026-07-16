@@ -709,6 +709,7 @@ function FilaAprovacao() {
         </Table>
       </CardContent>
     </Card>
+    </div>
   );
 }
 
