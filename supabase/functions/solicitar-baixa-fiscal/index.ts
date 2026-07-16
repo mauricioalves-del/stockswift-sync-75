@@ -1,10 +1,10 @@
-// Edge Function: monta e envia por e-mail (Resend) a solicitação de Baixa Fiscal
-// com todos os itens pendentes na fila de aprovação, agrupados por Almoxarifado
-// e por Motivo. Restrito a Administrador. Registra em audit_logs.
+// Edge Function: monta e envia por e-mail (Gmail via Lovable Connector Gateway)
+// a solicitação de Baixa Fiscal com todos os itens pendentes na fila de
+// aprovação, agrupados por Almoxarifado e por Motivo. Restrito a Administrador.
+// Registra em audit_logs.
 //
 // Também suporta modo de teste: { test: true, test_to?: string } — envia um
-// e-mail simples usando os parâmetros configurados em app_config (resend_*),
-// sem exigir itens na fila. Útil para validar remetente e chave.
+// e-mail simples para validar a conexão com o Gmail.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
@@ -14,7 +14,7 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const DEFAULT_FROM = "Baixas Operacionais <onboarding@resend.dev>";
+const GMAIL_GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v1/users/me/messages/send";
 const STATUS_FILA = ["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO"];
 
 function json(body: Record<string, unknown>, status = 200): Response {
@@ -22,14 +22,6 @@ function json(body: Record<string, unknown>, status = 200): Response {
     status,
     headers: { ...CORS, "Content-Type": "application/json" },
   });
-}
-
-function isResendTestingFrom(from: string): boolean {
-  return /onboarding@resend\.dev/i.test(from);
-}
-
-function sameEmail(a?: string | null, b?: string | null): boolean {
-  return (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
 }
 
 function formatBRL(v: number): string {
@@ -48,6 +40,53 @@ async function getCfg(admin: any, chave: string): Promise<string | null> {
   return typeof v === "string" ? v : String(v);
 }
 
+function b64url(s: string): string {
+  const bytes = new TextEncoder().encode(s);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function buildRawEmail(opts: {
+  from?: string | null;
+  to: string[];
+  subject: string;
+  html: string;
+  replyTo?: string | null;
+}): string {
+  const headers: string[] = [];
+  if (opts.from) headers.push(`From: ${opts.from}`);
+  headers.push(`To: ${opts.to.join(", ")}`);
+  if (opts.replyTo) headers.push(`Reply-To: ${opts.replyTo}`);
+  const subj = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(opts.subject)))}?=`;
+  headers.push(`Subject: ${subj}`);
+  headers.push("MIME-Version: 1.0");
+  headers.push('Content-Type: text/html; charset="UTF-8"');
+  const msg = headers.join("\r\n") + "\r\n\r\n" + opts.html;
+  return b64url(msg);
+}
+
+async function sendViaGmail(raw: string): Promise<{ ok: boolean; status: number; body: string; id?: string }> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const GMAIL_KEY = Deno.env.get("GOOGLE_MAIL_API_KEY");
+  if (!LOVABLE_API_KEY || !GMAIL_KEY) {
+    return { ok: false, status: 0, body: "Credenciais do Gmail (connector) ausentes no ambiente" };
+  }
+  const r = await fetch(GMAIL_GATEWAY, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+      "X-Connection-Api-Key": GMAIL_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ raw }),
+  });
+  const body = await r.text();
+  if (!r.ok) return { ok: false, status: r.status, body };
+  let parsed: any = {}; try { parsed = JSON.parse(body); } catch { /* noop */ }
+  return { ok: true, status: r.status, body, id: parsed?.id };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
 
@@ -57,13 +96,8 @@ Deno.serve(async (req) => {
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    if (!RESEND_API_KEY) {
-      return json({ ok: false, code: "MISSING_RESEND_API_KEY", error: "RESEND_API_KEY não configurada" });
-    }
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
-
     const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -79,11 +113,11 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const isTest: boolean = body?.test === true;
 
-    // Parâmetros do Resend: app_config sobrepõe env; env sobrepõe default
-    const cfgFrom = await getCfg(admin, "resend_from");
+    // Parâmetros opcionais em app_config (chaves antigas continuam válidas)
+    const cfgFrom = await getCfg(admin, "resend_from"); // ex.: "Baixas <fiscal@empresa.com>"
     const cfgReply = await getCfg(admin, "resend_reply_to");
     const cfgPrefix = await getCfg(admin, "resend_subject_prefix");
-    const FROM_EMAIL = cfgFrom || Deno.env.get("BAIXA_FISCAL_FROM") || DEFAULT_FROM;
+    const FROM_HEADER = cfgFrom || Deno.env.get("BAIXA_FISCAL_FROM") || null;
     const REPLY_TO = cfgReply || Deno.env.get("BAIXA_FISCAL_REPLY_TO") || null;
     const SUBJECT_PREFIX = cfgPrefix || "";
 
@@ -94,52 +128,39 @@ Deno.serve(async (req) => {
       const testTo = (body?.test_to as string | undefined)?.trim() || userRes.user.email;
       if (!testTo) throw new Error("Informe um destinatário de teste (test_to)");
 
-      if (isResendTestingFrom(FROM_EMAIL) && !sameEmail(testTo, userRes.user.email)) {
-        return json({
-          ok: false,
-          code: "RESEND_TEST_RECIPIENT_LIMIT",
-          error: `O remetente padrão do Resend (onboarding@resend.dev) só envia testes para ${userRes.user.email}. Para enviar para outros destinatários, verifique um domínio no Resend e configure o From com esse domínio.`,
-        });
-      }
-
       const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;padding:16px">
-        <h2>Teste de envio — Baixa Fiscal</h2>
-        <p>Este é um e-mail de teste enviado a partir das configurações do Resend.</p>
+        <h2>Teste de envio — Baixa Fiscal (Gmail)</h2>
+        <p>E-mail de teste enviado pela conta Gmail conectada ao projeto.</p>
         <ul style="font-size:12px;color:#374151">
-          <li><b>From:</b> ${esc(FROM_EMAIL)}</li>
+          <li><b>From (cabeçalho):</b> ${esc(FROM_HEADER ?? "(conta Gmail conectada)")}</li>
           <li><b>Reply-To:</b> ${esc(REPLY_TO ?? "(nenhum)")}</li>
           <li><b>Prefixo de assunto:</b> ${esc(SUBJECT_PREFIX || "(nenhum)")}</li>
           <li><b>Data:</b> ${esc(dataHoje)}</li>
         </ul>
+        <p style="font-size:11px;color:#6b7280">Observação: o Gmail sempre envia a partir do endereço da conta autenticada, ignorando o cabeçalho From quando este não corresponde a um alias verificado.</p>
       </body></html>`;
 
-      const payload: any = {
-        from: FROM_EMAIL,
+      const raw = buildRawEmail({
+        from: FROM_HEADER,
         to: [testTo],
+        replyTo: REPLY_TO,
         subject: `${SUBJECT_PREFIX}[TESTE] Baixa Fiscal — ${dataHoje}`,
         html,
-      };
-      if (REPLY_TO) payload.reply_to = REPLY_TO;
-
-      const r = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
       });
-      const rBody = await r.text();
+
+      const r = await sendViaGmail(raw);
       if (!r.ok) {
         return json({
           ok: false,
-          code: r.status === 403 ? "RESEND_VALIDATION_ERROR" : "RESEND_ERROR",
-          error: `Resend HTTP ${r.status}: ${rBody.slice(0, 500)}`,
+          code: r.status === 401 || r.status === 403 ? "GMAIL_AUTH_ERROR" : "GMAIL_ERROR",
+          error: `Gmail HTTP ${r.status}: ${r.body.slice(0, 500)}`,
         });
       }
-      let rJson: any = {}; try { rJson = JSON.parse(rBody); } catch { /* noop */ }
       await admin.from("audit_logs").insert({
-        usuario: userId, acao: "BAIXA_FISCAL_TESTE", entidade: "resend",
-        payload: { destinatario: testTo, from: FROM_EMAIL, resend_id: rJson?.id ?? null },
+        usuario: userId, acao: "BAIXA_FISCAL_TESTE", entidade: "gmail",
+        payload: { destinatario: testTo, from: FROM_HEADER, gmail_id: r.id ?? null },
       });
-      return json({ ok: true, test: true, destinatario: testTo, from: FROM_EMAIL, resend_id: rJson?.id ?? null });
+      return json({ ok: true, test: true, destinatario: testTo, from: FROM_HEADER, gmail_id: r.id ?? null });
     }
 
     // ==== ENVIO REAL ====
@@ -260,39 +281,27 @@ Deno.serve(async (req) => {
 
     const toList = dests.map((d: any) => d.email);
 
-    if (isResendTestingFrom(FROM_EMAIL) && toList.some((email: string) => !sameEmail(email, userRes.user.email))) {
-      return json({
-        ok: false,
-        code: "RESEND_TEST_RECIPIENT_LIMIT",
-        error: `O remetente padrão do Resend (onboarding@resend.dev) só envia para ${userRes.user.email}. Verifique um domínio no Resend e configure o From com esse domínio para enviar aos destinatários cadastrados.`,
-      });
-    }
-
-    const payload: any = {
-      from: FROM_EMAIL,
+    const raw = buildRawEmail({
+      from: FROM_HEADER,
       to: toList,
+      replyTo: REPLY_TO,
       subject: `${SUBJECT_PREFIX}Solicitação de Baixa Fiscal — ${dataHoje}`,
       html,
-    };
-    if (REPLY_TO) payload.reply_to = REPLY_TO;
-
-    const resendRes = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
     });
 
-    if (!resendRes.ok) {
-      const body = await resendRes.text();
-      const errMsg = `Resend HTTP ${resendRes.status}: ${body.slice(0, 400)}`;
+    const r = await sendViaGmail(raw);
+    if (!r.ok) {
+      const errMsg = `Gmail HTTP ${r.status}: ${r.body.slice(0, 400)}`;
       await admin.from("audit_logs").insert({
         usuario: userId, acao: "BAIXA_FISCAL_FALHA", entidade: "baixa_operacional",
         payload: { erro: errMsg, destinatarios: toList, qtd_itens: itens.length },
       });
-      return json({ ok: false, code: resendRes.status === 403 ? "RESEND_VALIDATION_ERROR" : "RESEND_ERROR", error: errMsg });
+      return json({
+        ok: false,
+        code: r.status === 401 || r.status === 403 ? "GMAIL_AUTH_ERROR" : "GMAIL_ERROR",
+        error: errMsg,
+      });
     }
-
-    const resendJson = await resendRes.json().catch(() => ({}));
 
     await admin.from("audit_logs").insert({
       usuario: userId,
@@ -303,12 +312,12 @@ Deno.serve(async (req) => {
         qtd_itens: itens.length,
         custo_total: totalGeral,
         itens_sem_custo: semCustoGeral,
-        resend_id: resendJson?.id ?? null,
+        gmail_id: r.id ?? null,
       },
     });
 
     return json({
-      ok: true, qtd_itens: itens.length, destinatarios: toList, custo_total: totalGeral,
+      ok: true, qtd_itens: itens.length, destinatarios: toList, custo_total: totalGeral, gmail_id: r.id ?? null,
     });
   } catch (err: any) {
     console.error("solicitar-baixa-fiscal", err);
