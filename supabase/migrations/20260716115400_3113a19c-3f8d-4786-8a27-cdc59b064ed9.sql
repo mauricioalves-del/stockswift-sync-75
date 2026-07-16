@@ -1,0 +1,1 @@
+ALTER TABLE public.itens_missao_lotes ADD COLUMN IF NOT EXISTS data_validade_manual DATE;

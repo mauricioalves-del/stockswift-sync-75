@@ -8,14 +8,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import {
   ArrowLeft, ScanLine, Save, Loader2, Warehouse, AlertTriangle,
-  PlayCircle, CheckCircle2, Plus, Trash2,
+  PlayCircle, CheckCircle2, Plus, Trash2, CalendarIcon,
 } from "lucide-react";
 import { sounds } from "@/lib/audio";
 import { formatNum, classificarFaixa, acuracidadeColor, statusLabel, TOLERANCIA_MIN, TOLERANCIA_MAX } from "@/lib/inventory";
 import { aprovarRecontagem, type RecontagemRow } from "@/lib/recontagem";
+import { useRole } from "@/hooks/useRole";
+import { cn } from "@/lib/utils";
+import { format, parseISO } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/missoes/$id")({
   component: MissaoExecucaoPage,
@@ -48,6 +53,7 @@ type LinhaLote = {
   key: string;
   lote: string | null;         // null → Não Relacionado (lote manual)
   lote_manual_texto?: string;  // texto livre quando eh_nao_relacionado
+  data_validade_manual?: string | null; // yyyy-mm-dd, lote manual
   eh_nao_relacionado: boolean;
   quantidade_contada: string;  // string em edição
   saldo_sistemico_lote?: number | null;
@@ -61,6 +67,7 @@ const CONCLUIDO_STATUSES = [
 function MissaoExecucaoPage() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
+  const { isAdmin } = useRole();
 
   const missaoQ = useQuery({
     queryKey: ["missao", id],
@@ -210,7 +217,7 @@ function MissaoExecucaoPage() {
               <TableRow>
                 <TableHead>SKU</TableHead>
                 <TableHead>Produto</TableHead>
-                <TableHead className="text-right">Sistema</TableHead>
+                {isAdmin && <TableHead className="text-right">Sistema</TableHead>}
                 <TableHead className="w-[420px]">Contagem por lote</TableHead>
                 <TableHead className="w-40">Status</TableHead>
                 <TableHead className="w-32 text-right">Ação</TableHead>
@@ -218,7 +225,7 @@ function MissaoExecucaoPage() {
             </TableHeader>
             <TableBody>
               {itens.length === 0 && (
-                <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                <TableRow><TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-10 text-muted-foreground">
                   Nenhum item gerado para esta missão.
                 </TableCell></TableRow>
               )}
@@ -229,6 +236,7 @@ function MissaoExecucaoPage() {
                   missao={missao}
                   lotesSist={lotesQ.data?.get(it.codigo_produto) ?? []}
                   linhasSalvas={linhasQ.data?.get(it.id) ?? []}
+                  isAdmin={isAdmin}
                   onSaved={() => {
                     qc.invalidateQueries({ queryKey: ["missao-itens", id] });
                     qc.invalidateQueries({ queryKey: ["missao-item-lotes", id, itemIds.join(",")] });
@@ -245,12 +253,13 @@ function MissaoExecucaoPage() {
 }
 
 function LinhaItem({
-  item, missao, lotesSist, linhasSalvas, onSaved,
+  item, missao, lotesSist, linhasSalvas, isAdmin, onSaved,
 }: {
   item: Item;
   missao: Missao;
   lotesSist: LoteSist[];
   linhasSalvas: any[];
+  isAdmin: boolean;
   onSaved: () => void;
 }) {
   // Semente inicial: se já tiver linhas salvas → usa; senão, cria uma linha vazia com sugestão FEFO
@@ -262,6 +271,7 @@ function LinhaItem({
         key: r.id,
         lote: r.lote,
         lote_manual_texto: r.lote_manual_texto ?? "",
+        data_validade_manual: r.data_validade_manual ?? null,
         eh_nao_relacionado: !!r.eh_nao_relacionado,
         quantidade_contada: String(r.quantidade_contada ?? ""),
         saldo_sistemico_lote: r.saldo_sistemico_lote != null ? Number(r.saldo_sistemico_lote) : null,
@@ -306,6 +316,7 @@ function LinhaItem({
       key: crypto.randomUUID(),
       lote: null,
       lote_manual_texto: "",
+      data_validade_manual: null,
       eh_nao_relacionado: true,
       quantidade_contada: "",
       saldo_sistemico_lote: 0,
@@ -323,6 +334,9 @@ function LinhaItem({
   }
   function alterarLoteManual(k: string, valor: string) {
     setLinhas(linhas.map((l) => l.key === k ? { ...l, lote_manual_texto: valor } : l));
+  }
+  function alterarValidadeManual(k: string, valor: string | null) {
+    setLinhas(linhas.map((l) => l.key === k ? { ...l, data_validade_manual: valor } : l));
   }
   function alterarQtd(k: string, valor: string) {
     setLinhas(linhas.map((l) => l.key === k ? { ...l, quantidade_contada: valor } : l));
@@ -358,6 +372,7 @@ function LinhaItem({
       item_missao_id: item.id,
       lote: l.eh_nao_relacionado ? null : l.lote,
       lote_manual_texto: l.eh_nao_relacionado ? (l.lote_manual_texto ?? "").trim() : null,
+      data_validade_manual: l.eh_nao_relacionado ? (l.data_validade_manual ?? null) : null,
       eh_nao_relacionado: l.eh_nao_relacionado,
       quantidade_contada: Number(l.quantidade_contada.replace(",", ".")),
       saldo_sistemico_lote: l.saldo_sistemico_lote ?? null,
@@ -485,13 +500,17 @@ function LinhaItem({
       await (supabase as any).from("missoes").update({ status: "CONCLUIDA" }).eq("id", missao.id);
     }
 
-    const msg = status_item === "OK" ? "Dentro da tolerância"
-              : status_item === "QUEBRA_FEFO" ? "Total OK, mas há quebra de FEFO — enviado para ocorrências"
-              : status_item === "DIVERGENCIA_NEGATIVA" ? "Divergência negativa — enviado para recontagem"
-              : "Divergência positiva — enviado para recontagem";
-    if (status_item === "OK") { toast.success(msg); sounds.success(); }
-    else if (status_item === "QUEBRA_FEFO") { toast.warning(msg); sounds.success(); }
-    else { toast.warning(msg); sounds.success(); }
+    if (isAdmin) {
+      const msg = status_item === "OK" ? "Dentro da tolerância"
+                : status_item === "QUEBRA_FEFO" ? "Total OK, mas há quebra de FEFO — enviado para ocorrências"
+                : status_item === "DIVERGENCIA_NEGATIVA" ? "Divergência negativa — enviado para recontagem"
+                : "Divergência positiva — enviado para recontagem";
+      if (status_item === "OK") { toast.success(msg); sounds.success(); }
+      else if (status_item === "QUEBRA_FEFO") { toast.warning(msg); sounds.success(); }
+      else { toast.warning(msg); sounds.success(); }
+    } else {
+      toast.success("Contagem registrada"); sounds.success();
+    }
     setSaving(false);
     onSaved();
   }
@@ -512,28 +531,67 @@ function LinhaItem({
   // opções de lote no dropdown: todos os lotes sistêmicos (mesmo com saldo 0) + Não Relacionado
   const opcoesLote = lotesSist;
 
+  const unidade = (lotesSist[0]?.unidade ?? "UN").toUpperCase();
+  const destacar = unidade === "KG" || unidade === "LT" || unidade === "L";
+  const unidadeBadgeClass = destacar
+    ? "bg-warning/40 text-warning-foreground border-warning/60"
+    : "bg-muted text-muted-foreground border-border";
+
   return (
-    <TableRow>
-      <TableCell className="font-mono text-xs align-top">{item.codigo_produto}</TableCell>
-      <TableCell className="max-w-xs truncate align-top">{item.descricao}</TableCell>
-      <TableCell className="text-right tabular-nums align-top">
-        <div>{formatNum(totalSist)}</div>
-        {opcoesLote.length > 0 && (
-          <div className="text-[10px] text-muted-foreground">{opcoesLote.length} lote(s)</div>
-        )}
+    <TableRow className={destacar ? "bg-warning/10 hover:bg-warning/15" : undefined}>
+      <TableCell className="font-mono text-xs align-top">
+        <div className="flex items-center gap-1.5">
+          <span>{item.codigo_produto}</span>
+          <span className={cn("inline-flex items-center rounded border px-1.5 py-0 text-[10px] font-bold uppercase", unidadeBadgeClass)}>
+            {unidade}
+          </span>
+        </div>
       </TableCell>
+      <TableCell className="max-w-xs truncate align-top">{item.descricao}</TableCell>
+      {isAdmin && (
+        <TableCell className="text-right tabular-nums align-top">
+          <div>{formatNum(totalSist)}</div>
+          {opcoesLote.length > 0 && (
+            <div className="text-[10px] text-muted-foreground">{opcoesLote.length} lote(s)</div>
+          )}
+        </TableCell>
+      )}
       <TableCell className="align-top">
         <div className="space-y-1.5">
           {linhas.map((l) => (
-            <div key={l.key} className="flex items-center gap-1.5">
+            <div key={l.key} className="flex flex-wrap items-center gap-1.5">
               {l.eh_nao_relacionado ? (
-                <Input
-                  type="text"
-                  className="h-8 text-xs flex-1 min-w-[160px] font-mono"
-                  value={l.lote_manual_texto ?? ""}
-                  onChange={(e) => alterarLoteManual(l.key, e.target.value)}
-                  placeholder="Lote físico (manual)…"
-                />
+                <>
+                  <Input
+                    type="text"
+                    className="h-8 text-xs flex-1 min-w-[140px] font-mono"
+                    value={l.lote_manual_texto ?? ""}
+                    onChange={(e) => alterarLoteManual(l.key, e.target.value)}
+                    placeholder="Lote físico (manual)…"
+                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button" variant="outline" size="sm"
+                        className={cn("h-8 justify-start text-xs font-normal gap-1.5",
+                          !l.data_validade_manual && "text-muted-foreground")}
+                      >
+                        <CalendarIcon className="size-3.5" />
+                        {l.data_validade_manual
+                          ? format(parseISO(l.data_validade_manual), "dd/MM/yyyy")
+                          : "Validade"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={l.data_validade_manual ? parseISO(l.data_validade_manual) : undefined}
+                        onSelect={(d) => alterarValidadeManual(l.key, d ? format(d, "yyyy-MM-dd") : null)}
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </>
               ) : (
                 <Select
                   value={l.lote ?? ""}
@@ -549,10 +607,6 @@ function LinhaItem({
                     {opcoesLote.map((o) => (
                       <SelectItem key={o.lote} value={o.lote} className="text-xs">
                         <span className="font-mono">{o.lote || "(sem lote)"}</span>
-                        <span className="ml-2 text-muted-foreground">
-                          saldo {formatNum(o.saldo)}
-                          {o.data_validade ? ` · val ${o.data_validade}` : ""}
-                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -584,7 +638,7 @@ function LinhaItem({
           </div>
           <div className="text-[10px] text-muted-foreground">
             Total contado: <span className="tabular-nums font-semibold">{formatNum(totalContado)}</span>
-            {" · "}Sistema: <span className="tabular-nums">{formatNum(totalSist)}</span>
+            {isAdmin && <>{" · "}Sistema: <span className="tabular-nums">{formatNum(totalSist)}</span></>}
           </div>
         </div>
       </TableCell>
