@@ -8,14 +8,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import {
   ArrowLeft, ScanLine, Save, Loader2, Warehouse, AlertTriangle,
-  PlayCircle, CheckCircle2, Plus, Trash2,
+  PlayCircle, CheckCircle2, Plus, Trash2, CalendarIcon,
 } from "lucide-react";
 import { sounds } from "@/lib/audio";
 import { formatNum, classificarFaixa, acuracidadeColor, statusLabel, TOLERANCIA_MIN, TOLERANCIA_MAX } from "@/lib/inventory";
 import { aprovarRecontagem, type RecontagemRow } from "@/lib/recontagem";
+import { useRole } from "@/hooks/useRole";
+import { cn } from "@/lib/utils";
+import { format, parseISO } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/missoes/$id")({
   component: MissaoExecucaoPage,
