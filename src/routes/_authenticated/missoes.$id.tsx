@@ -261,6 +261,7 @@ function LinhaItem({
         id: r.id,
         key: r.id,
         lote: r.lote,
+        lote_manual_texto: r.lote_manual_texto ?? "",
         eh_nao_relacionado: !!r.eh_nao_relacionado,
         quantidade_contada: String(r.quantidade_contada ?? ""),
         saldo_sistemico_lote: r.saldo_sistemico_lote != null ? Number(r.saldo_sistemico_lote) : null,
@@ -276,11 +277,11 @@ function LinhaItem({
         saldo_sistemico_lote: fefo.saldo,
       }];
     }
-    // sem lotes sistêmicos: usa lote do próprio item (se houver) ou não relacionado
+    // sem lotes sistêmicos: linha vazia via dropdown (operador poderá usar "Adicionar lote manual")
     return [{
       key: crypto.randomUUID(),
-      lote: item.lote ?? null,
-      eh_nao_relacionado: !item.lote,
+      lote: item.lote ?? "",
+      eh_nao_relacionado: false,
       quantidade_contada: "",
       saldo_sistemico_lote: 0,
     }];
@@ -293,12 +294,22 @@ function LinhaItem({
   const totalContado = linhas.reduce((s, l) => s + (Number(l.quantidade_contada.replace(",", ".")) || 0), 0);
 
   function addLinha() {
-    // Sugere próximo lote FEFO ainda não usado; senão, "Não Relacionado".
+    // Sugere próximo lote FEFO ainda não usado
     const usados = new Set(linhas.filter((l) => !l.eh_nao_relacionado).map((l) => l.lote));
     const prox = lotesSist.find((l) => !usados.has(l.lote));
     setLinhas([...linhas, prox
       ? { key: crypto.randomUUID(), lote: prox.lote, eh_nao_relacionado: false, quantidade_contada: "", saldo_sistemico_lote: prox.saldo }
-      : { key: crypto.randomUUID(), lote: null, eh_nao_relacionado: true, quantidade_contada: "", saldo_sistemico_lote: 0 }]);
+      : { key: crypto.randomUUID(), lote: "", eh_nao_relacionado: false, quantidade_contada: "", saldo_sistemico_lote: 0 }]);
+  }
+  function addLinhaManual() {
+    setLinhas([...linhas, {
+      key: crypto.randomUUID(),
+      lote: null,
+      lote_manual_texto: "",
+      eh_nao_relacionado: true,
+      quantidade_contada: "",
+      saldo_sistemico_lote: 0,
+    }]);
   }
   function removerLinha(k: string) {
     setLinhas(linhas.filter((l) => l.key !== k));
@@ -306,12 +317,12 @@ function LinhaItem({
   function alterarLote(k: string, valor: string) {
     setLinhas(linhas.map((l) => {
       if (l.key !== k) return l;
-      if (valor === "__NAO_RELACIONADO__") {
-        return { ...l, lote: null, eh_nao_relacionado: true, saldo_sistemico_lote: 0 };
-      }
       const s = lotesSist.find((x) => x.lote === valor);
       return { ...l, lote: valor, eh_nao_relacionado: false, saldo_sistemico_lote: s?.saldo ?? 0 };
     }));
+  }
+  function alterarLoteManual(k: string, valor: string) {
+    setLinhas(linhas.map((l) => l.key === k ? { ...l, lote_manual_texto: valor } : l));
   }
   function alterarQtd(k: string, valor: string) {
     setLinhas(linhas.map((l) => l.key === k ? { ...l, quantidade_contada: valor } : l));
