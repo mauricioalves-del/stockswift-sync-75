@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,6 +68,7 @@ function MissaoExecucaoPage() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
   const { isAdmin } = useRole();
+  useBuscaShortcut();
 
   const missaoQ = useQuery({
     queryKey: ["missao", id],
@@ -122,9 +123,10 @@ function MissaoExecucaoPage() {
   });
 
   // Linhas de lote já persistidas para os itens da missão.
-  const itemIds = (itensQ.data ?? []).map((i) => i.id);
+  const itemIds = useMemo(() => (itensQ.data ?? []).map((i) => i.id), [itensQ.data]);
+  const itemIdsKey = useMemo(() => itemIds.join(","), [itemIds]);
   const linhasQ = useQuery({
-    queryKey: ["missao-item-lotes", id, itemIds.join(",")],
+    queryKey: ["missao-item-lotes", id, itemIdsKey],
     enabled: itemIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -151,14 +153,30 @@ function MissaoExecucaoPage() {
     qc.invalidateQueries({ queryKey: ["almox-ativo"] });
   }
 
+  const [busca, setBusca] = useState("");
   const missao = missaoQ.data;
   const itens = itensQ.data ?? [];
   const total = itens.length;
   const concluidos = itens.filter((i) => i.status_item != null && CONCLUIDO_STATUSES.includes(i.status_item)).length;
   const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
 
+  const itensFiltrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    if (!q) return itens;
+    return itens.filter((i) =>
+      i.codigo_produto.toLowerCase().includes(q) ||
+      (i.descricao ?? "").toLowerCase().includes(q),
+    );
+  }, [itens, busca]);
+
   if (missaoQ.isLoading) return <div className="p-8 text-center text-muted-foreground">Carregando…</div>;
   if (!missao) return <div className="p-8 text-center text-muted-foreground">Missão não encontrada.</div>;
+
+  const onSavedItem = () => {
+    qc.invalidateQueries({ queryKey: ["missao-itens", id] });
+    qc.invalidateQueries({ queryKey: ["missao-item-lotes", id] });
+    qc.invalidateQueries({ queryKey: ["missao", id] });
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-4">
@@ -202,14 +220,21 @@ function MissaoExecucaoPage() {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center justify-between">
+        <CardHeader className="gap-2">
+          <CardTitle className="text-base flex items-center justify-between gap-2 flex-wrap">
             <span>Itens a contar</span>
             <span className="text-xs font-normal tabular-nums text-muted-foreground">
               {concluidos} de {total} · {pct}%
               {pct === 100 && <CheckCircle2 className="size-4 text-success inline ml-1.5" />}
             </span>
           </CardTitle>
+          <Input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar SKU ou descrição… (atalho: /)"
+            className="h-8 text-sm max-w-sm"
+            data-busca-missao
+          />
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <Table>
@@ -224,12 +249,12 @@ function MissaoExecucaoPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {itens.length === 0 && (
+              {itensFiltrados.length === 0 && (
                 <TableRow><TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-10 text-muted-foreground">
-                  Nenhum item gerado para esta missão.
+                  {itens.length === 0 ? "Nenhum item gerado para esta missão." : "Nenhum item corresponde à busca."}
                 </TableCell></TableRow>
               )}
-              {itens.map((it) => (
+              {itensFiltrados.map((it) => (
                 <LinhaItem
                   key={it.id}
                   item={it}
@@ -237,11 +262,7 @@ function MissaoExecucaoPage() {
                   lotesSist={lotesQ.data?.get(it.codigo_produto) ?? []}
                   linhasSalvas={linhasQ.data?.get(it.id) ?? []}
                   isAdmin={isAdmin}
-                  onSaved={() => {
-                    qc.invalidateQueries({ queryKey: ["missao-itens", id] });
-                    qc.invalidateQueries({ queryKey: ["missao-item-lotes", id, itemIds.join(",")] });
-                    qc.invalidateQueries({ queryKey: ["missao", id] });
-                  }}
+                  onSaved={onSavedItem}
                 />
               ))}
             </TableBody>
@@ -252,7 +273,22 @@ function MissaoExecucaoPage() {
   );
 }
 
-function LinhaItem({
+// Atalho global "/" foca a busca da missão
+function useBuscaShortcut() {
+  useEffect(() => {
+    const h = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const tgt = e.target as HTMLElement | null;
+      if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) return;
+      const el = document.querySelector<HTMLInputElement>("[data-busca-missao]");
+      if (el) { e.preventDefault(); el.focus(); el.select(); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
+}
+
+const LinhaItem = memo(function LinhaItem({
   item, missao, lotesSist, linhasSalvas, isAdmin, onSaved,
 }: {
   item: Item;
@@ -264,7 +300,7 @@ function LinhaItem({
 }) {
   // Semente inicial: se já tiver linhas salvas → usa; senão, cria uma linha vazia com sugestão FEFO
   // (primeiro lote com saldo > 0, ou o primeiro da lista, ou "não relacionado" se não houver lote algum).
-  const seed = useMemo<LinhaLote[]>(() => {
+  const buildSeed = (): LinhaLote[] => {
     if (linhasSalvas.length > 0) {
       return linhasSalvas.map((r: any) => ({
         id: r.id,
@@ -287,7 +323,6 @@ function LinhaItem({
         saldo_sistemico_lote: fefo.saldo,
       }];
     }
-    // sem lotes sistêmicos: linha vazia via dropdown (operador poderá usar "Adicionar lote manual")
     return [{
       key: crypto.randomUUID(),
       lote: item.lote ?? "",
@@ -295,16 +330,30 @@ function LinhaItem({
       quantidade_contada: "",
       saldo_sistemico_lote: 0,
     }];
-  }, [linhasSalvas, lotesSist, item.lote]);
+  };
 
-  const [linhas, setLinhas] = useState<LinhaLote[]>(seed);
+  const [linhas, setLinhas] = useState<LinhaLote[]>(buildSeed);
   const [saving, setSaving] = useState(false);
+  const dirtyRef = useRef(false);
+
+  // Ressincroniza quando as linhas salvas chegam depois (fix do seed vazio) —
+  // mas só se o usuário ainda não tocou nesta linha.
+  const linhasSalvasKey = useMemo(
+    () => linhasSalvas.map((r: any) => `${r.id}:${r.quantidade_contada}`).join("|"),
+    [linhasSalvas],
+  );
+  useEffect(() => {
+    if (dirtyRef.current) return;
+    if (linhasSalvas.length === 0) return;
+    setLinhas(buildSeed());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linhasSalvasKey]);
 
   const totalSist = lotesSist.reduce((s, l) => s + (l.saldo || 0), 0);
   const totalContado = linhas.reduce((s, l) => s + (Number(l.quantidade_contada.replace(",", ".")) || 0), 0);
 
   function addLinha() {
-    // Sugere próximo lote FEFO ainda não usado
+    dirtyRef.current = true;
     const usados = new Set(linhas.filter((l) => !l.eh_nao_relacionado).map((l) => l.lote));
     const prox = lotesSist.find((l) => !usados.has(l.lote));
     setLinhas([...linhas, prox
@@ -312,6 +361,7 @@ function LinhaItem({
       : { key: crypto.randomUUID(), lote: "", eh_nao_relacionado: false, quantidade_contada: "", saldo_sistemico_lote: 0 }]);
   }
   function addLinhaManual() {
+    dirtyRef.current = true;
     setLinhas([...linhas, {
       key: crypto.randomUUID(),
       lote: null,
@@ -323,9 +373,11 @@ function LinhaItem({
     }]);
   }
   function removerLinha(k: string) {
+    dirtyRef.current = true;
     setLinhas(linhas.filter((l) => l.key !== k));
   }
   function alterarLote(k: string, valor: string) {
+    dirtyRef.current = true;
     setLinhas(linhas.map((l) => {
       if (l.key !== k) return l;
       const s = lotesSist.find((x) => x.lote === valor);
@@ -333,13 +385,22 @@ function LinhaItem({
     }));
   }
   function alterarLoteManual(k: string, valor: string) {
+    dirtyRef.current = true;
     setLinhas(linhas.map((l) => l.key === k ? { ...l, lote_manual_texto: valor } : l));
   }
   function alterarValidadeManual(k: string, valor: string | null) {
+    dirtyRef.current = true;
     setLinhas(linhas.map((l) => l.key === k ? { ...l, data_validade_manual: valor } : l));
   }
   function alterarQtd(k: string, valor: string) {
+    dirtyRef.current = true;
     setLinhas(linhas.map((l) => l.key === k ? { ...l, quantidade_contada: valor } : l));
+  }
+  function onQtdKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (saving) return;
+    salvar();
   }
 
   async function salvar() {
@@ -512,6 +573,7 @@ function LinhaItem({
       toast.success("Contagem registrada"); sounds.success();
     }
     setSaving(false);
+    dirtyRef.current = false;
     onSaved();
   }
 
@@ -617,7 +679,9 @@ function LinhaItem({
                 className="h-8 w-24 tabular-nums text-xs"
                 value={l.quantidade_contada}
                 onChange={(e) => alterarQtd(l.key, e.target.value)}
+                onKeyDown={onQtdKeyDown}
                 placeholder="0"
+                title="Enter para salvar"
               />
               <Button
                 type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0"
@@ -654,4 +718,4 @@ function LinhaItem({
       </TableCell>
     </TableRow>
   );
-}
+});
