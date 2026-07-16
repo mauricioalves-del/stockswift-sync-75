@@ -19,6 +19,7 @@ import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authentic
 import { Route as AuthenticatedRecontagemRouteImport } from './routes/_authenticated/recontagem'
 import { Route as AuthenticatedQuebrasFefoRouteImport } from './routes/_authenticated/quebras-fefo'
 import { Route as AuthenticatedOrigensRouteImport } from './routes/_authenticated/origens'
+import { Route as AuthenticatedMotivosBaixaRouteImport } from './routes/_authenticated/motivos-baixa'
 import { Route as AuthenticatedLogsRouteImport } from './routes/_authenticated/logs'
 import { Route as AuthenticatedInventarioRouteImport } from './routes/_authenticated/inventario'
 import { Route as AuthenticatedImportarFamiliasRouteImport } from './routes/_authenticated/importar-familias'
@@ -96,6 +97,12 @@ const AuthenticatedOrigensRoute = AuthenticatedOrigensRouteImport.update({
   path: '/origens',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMotivosBaixaRoute =
+  AuthenticatedMotivosBaixaRouteImport.update({
+    id: '/motivos-baixa',
+    path: '/motivos-baixa',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedLogsRoute = AuthenticatedLogsRouteImport.update({
   id: '/logs',
   path: '/logs',
@@ -257,6 +264,7 @@ export interface FileRoutesByFullPath {
   '/importar-familias': typeof AuthenticatedImportarFamiliasRoute
   '/inventario': typeof AuthenticatedInventarioRoute
   '/logs': typeof AuthenticatedLogsRoute
+  '/motivos-baixa': typeof AuthenticatedMotivosBaixaRoute
   '/origens': typeof AuthenticatedOrigensRoute
   '/quebras-fefo': typeof AuthenticatedQuebrasFefoRoute
   '/recontagem': typeof AuthenticatedRecontagemRoute
@@ -294,6 +302,7 @@ export interface FileRoutesByTo {
   '/importar-familias': typeof AuthenticatedImportarFamiliasRoute
   '/inventario': typeof AuthenticatedInventarioRoute
   '/logs': typeof AuthenticatedLogsRoute
+  '/motivos-baixa': typeof AuthenticatedMotivosBaixaRoute
   '/origens': typeof AuthenticatedOrigensRoute
   '/quebras-fefo': typeof AuthenticatedQuebrasFefoRoute
   '/recontagem': typeof AuthenticatedRecontagemRoute
@@ -333,6 +342,7 @@ export interface FileRoutesById {
   '/_authenticated/importar-familias': typeof AuthenticatedImportarFamiliasRoute
   '/_authenticated/inventario': typeof AuthenticatedInventarioRoute
   '/_authenticated/logs': typeof AuthenticatedLogsRoute
+  '/_authenticated/motivos-baixa': typeof AuthenticatedMotivosBaixaRoute
   '/_authenticated/origens': typeof AuthenticatedOrigensRoute
   '/_authenticated/quebras-fefo': typeof AuthenticatedQuebrasFefoRoute
   '/_authenticated/recontagem': typeof AuthenticatedRecontagemRoute
@@ -372,6 +382,7 @@ export interface FileRouteTypes {
     | '/importar-familias'
     | '/inventario'
     | '/logs'
+    | '/motivos-baixa'
     | '/origens'
     | '/quebras-fefo'
     | '/recontagem'
@@ -409,6 +420,7 @@ export interface FileRouteTypes {
     | '/importar-familias'
     | '/inventario'
     | '/logs'
+    | '/motivos-baixa'
     | '/origens'
     | '/quebras-fefo'
     | '/recontagem'
@@ -447,6 +459,7 @@ export interface FileRouteTypes {
     | '/_authenticated/importar-familias'
     | '/_authenticated/inventario'
     | '/_authenticated/logs'
+    | '/_authenticated/motivos-baixa'
     | '/_authenticated/origens'
     | '/_authenticated/quebras-fefo'
     | '/_authenticated/recontagem'
@@ -549,6 +562,13 @@ declare module '@tanstack/react-router' {
       path: '/origens'
       fullPath: '/origens'
       preLoaderRoute: typeof AuthenticatedOrigensRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/motivos-baixa': {
+      id: '/_authenticated/motivos-baixa'
+      path: '/motivos-baixa'
+      fullPath: '/motivos-baixa'
+      preLoaderRoute: typeof AuthenticatedMotivosBaixaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/logs': {
@@ -761,6 +781,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedImportarFamiliasRoute: typeof AuthenticatedImportarFamiliasRoute
   AuthenticatedInventarioRoute: typeof AuthenticatedInventarioRoute
   AuthenticatedLogsRoute: typeof AuthenticatedLogsRoute
+  AuthenticatedMotivosBaixaRoute: typeof AuthenticatedMotivosBaixaRoute
   AuthenticatedOrigensRoute: typeof AuthenticatedOrigensRoute
   AuthenticatedQuebrasFefoRoute: typeof AuthenticatedQuebrasFefoRoute
   AuthenticatedRecontagemRoute: typeof AuthenticatedRecontagemRoute
@@ -795,6 +816,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedImportarFamiliasRoute: AuthenticatedImportarFamiliasRoute,
   AuthenticatedInventarioRoute: AuthenticatedInventarioRoute,
   AuthenticatedLogsRoute: AuthenticatedLogsRoute,
+  AuthenticatedMotivosBaixaRoute: AuthenticatedMotivosBaixaRoute,
   AuthenticatedOrigensRoute: AuthenticatedOrigensRoute,
   AuthenticatedQuebrasFefoRoute: AuthenticatedQuebrasFefoRoute,
   AuthenticatedRecontagemRoute: AuthenticatedRecontagemRoute,

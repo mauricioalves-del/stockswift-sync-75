@@ -30,9 +30,11 @@ const NAV: (NavItem | NavGroup)[] = [
     id: "cadastro", label: "Cadastro", icon: FolderTree, role: "write",
     items: [
       { to: "/origens", label: "Almox", icon: Warehouse, role: "write" },
+      { to: "/motivos-baixa", label: "Motivos de Baixa", icon: PackageMinus, role: "write" },
       { to: "/importar", label: "Sincronização de Estoque", icon: RefreshCw, role: "write" },
       { to: "/importar-familias", label: "Importador de Famílias", icon: Leaf, role: "write" },
       { to: "/grupos", label: "Importador de Grupos", icon: Layers, role: "write" },
+
     ],
   },
   {
