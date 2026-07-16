@@ -573,6 +573,7 @@ const LinhaItem = memo(function LinhaItem({
       toast.success("Contagem registrada"); sounds.success();
     }
     setSaving(false);
+    dirtyRef.current = false;
     onSaved();
   }
 
