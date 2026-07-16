@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { extrairCodigoNumericoQR } from "@/lib/qr-estoque";
 import { ImportarBaixasDialog } from "@/components/baixas/ImportarBaixasDialog";
 import { criarSolicitacaoBaixa } from "@/lib/solicitacoes-baixa";
+import { readEdgeFunctionFailure } from "@/lib/edge-function-errors";
 
 
 
@@ -563,6 +565,17 @@ function FilaAprovacao() {
   const qc = useQueryClient();
   const { data } = useBaixas(["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO"]);
   const [enviandoFiscal, setEnviandoFiscal] = useState(false);
+  const [avisoFiscal, setAvisoFiscal] = useState<{ code?: string; message: string } | null>(null);
+
+  function mensagemFiscal(code: string | undefined, fallback: string) {
+    if (code === "MISSING_BAIXA_FISCAL_RECIPIENTS") {
+      return "Cadastre ao menos um destinatário ativo com finalidade Baixa Fiscal antes de enviar.";
+    }
+    if (code === "RESEND_TEST_RECIPIENT_LIMIT" || code === "RESEND_VALIDATION_ERROR") {
+      return "O remetente atual ainda está em modo de teste no Resend. Use o e-mail da conta Resend para testes ou configure um domínio verificado em Configurações → Resend.";
+    }
+    return fallback;
+  }
 
   async function solicitarBaixaFiscal() {
     if (!(data && data.length > 0)) return toast.error("Não há itens pendentes na fila");
@@ -570,12 +583,20 @@ function FilaAprovacao() {
     setEnviandoFiscal(true);
     try {
       const { data: resp, error } = await supabase.functions.invoke("solicitar-baixa-fiscal", { body: {} });
-      if (error) throw error;
-      if (resp && (resp as any).ok === false) throw new Error((resp as any).error ?? "Falha no envio");
+      const failure = error ? await readEdgeFunctionFailure(error) : ((resp as any)?.ok === false ? resp as any : null);
+      if (failure) {
+        const message = mensagemFiscal(failure.code, failure.error ?? "Falha no envio");
+        setAvisoFiscal({ code: failure.code, message });
+        toast.error(message);
+        return;
+      }
       const r = resp as any;
+      setAvisoFiscal(null);
       toast.success(`E-mail enviado a ${r?.destinatarios?.length ?? 0} destinatário(s) — ${r?.qtd_itens ?? 0} item(ns).`);
     } catch (err: any) {
-      toast.error(`Falha ao enviar: ${err?.message ?? err}`);
+      const message = err?.message ?? "Falha ao enviar";
+      setAvisoFiscal({ message });
+      toast.error(message);
     } finally {
       setEnviandoFiscal(false);
     }
@@ -640,16 +661,39 @@ function FilaAprovacao() {
   return (
     <div className="space-y-3">
       {isAdmin && (
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            onClick={solicitarBaixaFiscal}
-            disabled={enviandoFiscal || !(data && data.length > 0)}
-          >
-            {enviandoFiscal ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
-            Solicitar Baixa Fiscal
-          </Button>
-        </div>
+        <>
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              onClick={solicitarBaixaFiscal}
+              disabled={enviandoFiscal || !(data && data.length > 0)}
+            >
+              {enviandoFiscal ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
+              Solicitar Baixa Fiscal
+            </Button>
+          </div>
+          {avisoFiscal && (
+            <Alert variant="destructive">
+              <Mail className="size-4" />
+              <AlertTitle>Envio fiscal pendente de configuração</AlertTitle>
+              <AlertDescription className="space-y-2">
+                <p>{avisoFiscal.message}</p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {avisoFiscal.code === "MISSING_BAIXA_FISCAL_RECIPIENTS" && (
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/emails">Cadastrar destinatários</Link>
+                    </Button>
+                  )}
+                  {(avisoFiscal.code === "RESEND_TEST_RECIPIENT_LIMIT" || avisoFiscal.code === "RESEND_VALIDATION_ERROR") && (
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/config/resend">Ajustar Resend</Link>
+                    </Button>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+        </>
       )}
       <Card>
       <CardContent className="p-0 overflow-x-auto">

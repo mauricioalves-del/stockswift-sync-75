@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { Mail, Send, Save } from "lucide-react";
+import { readEdgeFunctionFailure } from "@/lib/edge-function-errors";
 
 export const Route = createFileRoute("/_authenticated/config/resend")({
   component: ResendConfigPage,
@@ -27,6 +29,7 @@ function ResendConfigPage() {
   const [saving, setSaving] = useState(false);
   const [testTo, setTestTo] = useState("");
   const [testing, setTesting] = useState(false);
+  const [testFailure, setTestFailure] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -70,11 +73,21 @@ function ResendConfigPage() {
       const { data, error } = await supabase.functions.invoke("solicitar-baixa-fiscal", {
         body: { test: true, test_to: testTo.trim() },
       });
-      if (error) throw error;
-      if ((data as any)?.ok === false) throw new Error((data as any).error ?? "Falha no envio");
+      const failure = error ? await readEdgeFunctionFailure(error) : ((data as any)?.ok === false ? data as any : null);
+      if (failure) {
+        const message = failure.code === "RESEND_TEST_RECIPIENT_LIMIT"
+          ? failure.error ?? "O remetente padrão do Resend só permite teste para o e-mail da conta Resend."
+          : failure.error ?? "Falha no envio";
+        setTestFailure(message);
+        toast.error(message);
+        return;
+      }
+      setTestFailure(null);
       toast.success(`E-mail de teste enviado para ${testTo.trim()}`);
     } catch (e: any) {
-      toast.error(e.message ?? "Falha no envio de teste");
+      const message = e.message ?? "Falha no envio de teste";
+      setTestFailure(message);
+      toast.error(message);
     } finally {
       setTesting(false);
     }
@@ -136,6 +149,13 @@ function ResendConfigPage() {
             />
             <p className="text-xs text-muted-foreground">Se o remetente ainda usa onboarding@resend.dev, só o dono da conta Resend receberá.</p>
           </div>
+          {testFailure && (
+            <Alert variant="destructive">
+              <Mail className="size-4" />
+              <AlertTitle>Teste não enviado</AlertTitle>
+              <AlertDescription>{testFailure}</AlertDescription>
+            </Alert>
+          )}
           <div className="flex justify-end">
             <Button onClick={enviarTeste} disabled={testing} variant="secondary">
               <Send className="size-4 mr-1" /> {testing ? "Enviando..." : "Enviar teste"}
