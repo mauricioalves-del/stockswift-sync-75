@@ -124,6 +124,7 @@ export type Database = {
           origem_lancamento: string
           quantidade: number
           responsavel_nome: string | null
+          solicitacao_id: number | null
           solicitante_id: string
           status_fluxo: string
           subcategoria: string | null
@@ -153,6 +154,7 @@ export type Database = {
           origem_lancamento?: string
           quantidade: number
           responsavel_nome?: string | null
+          solicitacao_id?: number | null
           solicitante_id?: string
           status_fluxo?: string
           subcategoria?: string | null
@@ -182,6 +184,7 @@ export type Database = {
           origem_lancamento?: string
           quantidade?: number
           responsavel_nome?: string | null
+          solicitacao_id?: number | null
           solicitante_id?: string
           status_fluxo?: string
           subcategoria?: string | null
@@ -195,6 +198,13 @@ export type Database = {
             columns: ["motivo_baixa_id"]
             isOneToOne: false
             referencedRelation: "motivo_baixa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "baixa_operacional_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes_baixa"
             referencedColumns: ["id"]
           },
         ]
@@ -1615,6 +1625,62 @@ export type Database = {
           valor_total?: number
         }
         Relationships: []
+      }
+      solicitacoes_baixa: {
+        Row: {
+          created_at: string
+          data_solicitacao: string
+          id: number
+          id_local: string | null
+          motivo_baixa_id: string | null
+          observacao: string | null
+          origem_lancamento: string
+          slack_erro: string | null
+          slack_notificado_at: string | null
+          solicitante_id: string
+          solicitante_nome: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_solicitacao?: string
+          id?: number
+          id_local?: string | null
+          motivo_baixa_id?: string | null
+          observacao?: string | null
+          origem_lancamento?: string
+          slack_erro?: string | null
+          slack_notificado_at?: string | null
+          solicitante_id?: string
+          solicitante_nome?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_solicitacao?: string
+          id?: number
+          id_local?: string | null
+          motivo_baixa_id?: string | null
+          observacao?: string | null
+          origem_lancamento?: string
+          slack_erro?: string | null
+          slack_notificado_at?: string | null
+          solicitante_id?: string
+          solicitante_nome?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_baixa_motivo_baixa_id_fkey"
+            columns: ["motivo_baixa_id"]
+            isOneToOne: false
+            referencedRelation: "motivo_baixa"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       status_baixa: {
         Row: {
