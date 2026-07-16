@@ -18,6 +18,7 @@ import {
   parsePlanilhaBaixas, gerarModeloBaixas, ordenarFEFO,
   type ParsedRow, type CatalogoProduto, type LoteDisponivel,
 } from "@/lib/baixas-import";
+import { criarSolicitacaoBaixa } from "@/lib/solicitacoes-baixa";
 
 export function ImportarBaixasDialog() {
   const qc = useQueryClient();
