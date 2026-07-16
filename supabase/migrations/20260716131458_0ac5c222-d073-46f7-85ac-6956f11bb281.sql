@@ -1,0 +1,1 @@
+GRANT INSERT, UPDATE, DELETE ON public.motivo_baixa TO authenticated;
