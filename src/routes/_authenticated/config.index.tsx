@@ -111,6 +111,30 @@ function ConfigPage() {
           </CardContent>
         </Card>
       )}
+
+      {podeGerirWebhook && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="size-4" /> Webhook Slack — Baixas</CardTitle>
+            <CardDescription>URL do canal do Slack que recebe a notificação de cada nova solicitação de baixa. Restrito a Administrador e Coordenador de Controle.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Label htmlFor="wh-baixas">URL do webhook</Label>
+            <Input
+              id="wh-baixas"
+              type="url"
+              value={webhook}
+              placeholder="https://hooks.slack.com/services/..."
+              onChange={(e) => setWebhook(e.target.value)}
+            />
+            <div className="flex justify-end">
+              <Button onClick={salvarWebhook} disabled={webhookSaving}>
+                {webhookSaving ? "Salvando..." : "Salvar"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
