@@ -447,13 +447,18 @@ function PlanejamentoPage() {
                   <TableHead className="text-right">Cob. Atual</TableHead>
                   <TableHead className="text-right">Cob. Alvo</TableHead>
                   <TableHead className="text-right">Dem. Extra</TableHead>
+                  <TableHead className="text-right">Disp. Fornec.</TableHead>
+                  <TableHead className="text-right">Lote FEFO</TableHead>
                   <TableHead className="text-right">Sugestão</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {linhasFiltradas.slice(0, 500).map((l) => (
                     <TableRow key={`${l.origem}|${l.sku}`}>
-                      <TableCell className="font-mono text-xs">{l.sku}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {l.sku}
+                        {l.is_granel && <Badge variant="outline" className="ml-1 text-[10px]">Granel</Badge>}
+                      </TableCell>
                       <TableCell className="text-xs max-w-xs truncate">{l.produto}</TableCell>
                       <TableCell className="text-xs">{l.origem}</TableCell>
                       <TableCell className="text-xs font-medium">{l.origem_abastecimento}</TableCell>
@@ -462,12 +467,20 @@ function PlanejamentoPage() {
                       <TableCell className="text-right"><CoberturaBadge dias={l.cobertura_atual} /></TableCell>
                       <TableCell className="text-right tabular-nums">{l.cobertura_alvo}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.demanda_extra > 0 ? `+${formatNum(l.demanda_extra)}` : "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">
+                        {(SUPPLY_ORIGENS as readonly string[]).includes(l.origem_abastecimento)
+                          ? <span className={l.supplier_disp <= 0 ? "text-destructive" : ""}>{formatNum(l.supplier_disp)}</span>
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">
+                        {l.lote_fefo ? <span className="font-mono">{l.lote_fefo} ({formatNum(l.lote_fefo_qtd)})</span> : "—"}
+                      </TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">{formatNum(l.sugestao)}</TableCell>
                       <TableCell className="text-right tabular-nums">R$ {formatNum(l.valor_reposicao)}</TableCell>
                     </TableRow>
                   ))}
                   {linhasFiltradas.length === 0 && (
-                    <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground text-sm py-6">
+                    <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground text-sm py-6">
                       Sem dados. Cadastre parâmetros e importe consumo.
                     </TableCell></TableRow>
                   )}
