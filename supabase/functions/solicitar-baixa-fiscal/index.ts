@@ -1,6 +1,10 @@
 // Edge Function: monta e envia por e-mail (Resend) a solicitação de Baixa Fiscal
 // com todos os itens pendentes na fila de aprovação, agrupados por Almoxarifado
 // e por Motivo. Restrito a Administrador. Registra em audit_logs.
+//
+// Também suporta modo de teste: { test: true, test_to?: string } — envia um
+// e-mail simples usando os parâmetros configurados em app_config (resend_*),
+// sem exigir itens na fila. Útil para validar remetente e chave.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
@@ -10,10 +14,7 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Para enviar do seu domínio, verifique-o em https://resend.com/domains
-// e defina o secret BAIXA_FISCAL_FROM (ex.: "Baixas <baixas@magiochocolates.com.br>").
-// Enquanto não verificado, cai no remetente de teste do Resend (só entrega ao dono da conta).
-const FROM_EMAIL = Deno.env.get("BAIXA_FISCAL_FROM") ?? "Baixas Operacionais <onboarding@resend.dev>";
+const DEFAULT_FROM = "Baixas Operacionais <onboarding@resend.dev>";
 const STATUS_FILA = ["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO"];
 
 function formatBRL(v: number): string {
@@ -23,6 +24,13 @@ function esc(s: unknown): string {
   return String(s ?? "")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+async function getCfg(admin: any, chave: string): Promise<string | null> {
+  const { data } = await admin.from("app_config").select("valor").eq("chave", chave).maybeSingle();
+  const v = data?.valor;
+  if (v == null) return null;
+  return typeof v === "string" ? v : String(v);
 }
 
 Deno.serve(async (req) => {
@@ -39,7 +47,6 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Identifica caller e valida role
     const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -54,7 +61,65 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Destinatários ativos
+    const body = await req.json().catch(() => ({}));
+    const isTest: boolean = body?.test === true;
+
+    // Parâmetros do Resend: app_config sobrepõe env; env sobrepõe default
+    const cfgFrom = await getCfg(admin, "resend_from");
+    const cfgReply = await getCfg(admin, "resend_reply_to");
+    const cfgPrefix = await getCfg(admin, "resend_subject_prefix");
+    const FROM_EMAIL = cfgFrom || Deno.env.get("BAIXA_FISCAL_FROM") || DEFAULT_FROM;
+    const REPLY_TO = cfgReply || Deno.env.get("BAIXA_FISCAL_REPLY_TO") || null;
+    const SUBJECT_PREFIX = cfgPrefix || "";
+
+    const dataHoje = new Date().toLocaleDateString("pt-BR");
+
+    // ==== MODO TESTE ====
+    if (isTest) {
+      const testTo = (body?.test_to as string | undefined)?.trim() || userRes.user.email;
+      if (!testTo) throw new Error("Informe um destinatário de teste (test_to)");
+
+      const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;padding:16px">
+        <h2>Teste de envio — Baixa Fiscal</h2>
+        <p>Este é um e-mail de teste enviado a partir das configurações do Resend.</p>
+        <ul style="font-size:12px;color:#374151">
+          <li><b>From:</b> ${esc(FROM_EMAIL)}</li>
+          <li><b>Reply-To:</b> ${esc(REPLY_TO ?? "(nenhum)")}</li>
+          <li><b>Prefixo de assunto:</b> ${esc(SUBJECT_PREFIX || "(nenhum)")}</li>
+          <li><b>Data:</b> ${esc(dataHoje)}</li>
+        </ul>
+      </body></html>`;
+
+      const payload: any = {
+        from: FROM_EMAIL,
+        to: [testTo],
+        subject: `${SUBJECT_PREFIX}[TESTE] Baixa Fiscal — ${dataHoje}`,
+        html,
+      };
+      if (REPLY_TO) payload.reply_to = REPLY_TO;
+
+      const r = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const rBody = await r.text();
+      if (!r.ok) {
+        return new Response(JSON.stringify({ ok: false, error: `Resend HTTP ${r.status}: ${rBody.slice(0, 500)}` }), {
+          status: 502, headers: { ...CORS, "Content-Type": "application/json" },
+        });
+      }
+      let rJson: any = {}; try { rJson = JSON.parse(rBody); } catch { /* noop */ }
+      await admin.from("audit_logs").insert({
+        usuario: userId, acao: "BAIXA_FISCAL_TESTE", entidade: "resend",
+        payload: { destinatario: testTo, from: FROM_EMAIL, resend_id: rJson?.id ?? null },
+      });
+      return new Response(JSON.stringify({ ok: true, test: true, destinatario: testTo, from: FROM_EMAIL, resend_id: rJson?.id ?? null }), {
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
+
+    // ==== ENVIO REAL ====
     const { data: dests, error: derr } = await admin
       .from("cadastro_emails")
       .select("email, nome_contato")
@@ -63,7 +128,6 @@ Deno.serve(async (req) => {
     if (derr) throw derr;
     if (!dests || dests.length === 0) throw new Error("Nenhum destinatário cadastrado para 'Baixa Fiscal'");
 
-    // Itens da fila
     const { data: itens, error: ierr } = await admin
       .from("baixa_operacional")
       .select("id, codigo_produto, descricao, unidade, lote, quantidade, custo_unitario, valor_total, id_local, motivo:motivo_baixa(descricao)")
@@ -73,7 +137,6 @@ Deno.serve(async (req) => {
     if (ierr) throw ierr;
     if (!itens || itens.length === 0) throw new Error("Não há itens pendentes na fila de aprovação");
 
-    // Agrupa por almox -> motivo
     const porAlmox = new Map<string, any[]>();
     for (const it of itens) {
       const k = it.id_local ?? "—";
@@ -83,11 +146,9 @@ Deno.serve(async (req) => {
 
     let totalGeral = 0;
     let semCustoGeral = 0;
-    const dataHoje = new Date().toLocaleDateString("pt-BR");
 
     const seccoes: string[] = [];
     for (const [almox, lista] of porAlmox) {
-      // agrupa por motivo mantendo ordem de aparição
       const porMotivo = new Map<string, any[]>();
       for (const it of lista) {
         const m = it.motivo?.descricao ?? "—";
@@ -167,19 +228,18 @@ Deno.serve(async (req) => {
     </body></html>`;
 
     const toList = dests.map((d: any) => d.email);
+    const payload: any = {
+      from: FROM_EMAIL,
+      to: toList,
+      subject: `${SUBJECT_PREFIX}Solicitação de Baixa Fiscal — ${dataHoje}`,
+      html,
+    };
+    if (REPLY_TO) payload.reply_to = REPLY_TO;
 
     const resendRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: FROM_EMAIL,
-        to: toList,
-        subject: `Solicitação de Baixa Fiscal — ${dataHoje}`,
-        html,
-      }),
+      headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
 
     if (!resendRes.ok) {
