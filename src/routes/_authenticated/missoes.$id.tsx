@@ -152,14 +152,30 @@ function MissaoExecucaoPage() {
     qc.invalidateQueries({ queryKey: ["almox-ativo"] });
   }
 
+  const [busca, setBusca] = useState("");
   const missao = missaoQ.data;
   const itens = itensQ.data ?? [];
   const total = itens.length;
   const concluidos = itens.filter((i) => i.status_item != null && CONCLUIDO_STATUSES.includes(i.status_item)).length;
   const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
 
+  const itensFiltrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    if (!q) return itens;
+    return itens.filter((i) =>
+      i.codigo_produto.toLowerCase().includes(q) ||
+      (i.descricao ?? "").toLowerCase().includes(q),
+    );
+  }, [itens, busca]);
+
   if (missaoQ.isLoading) return <div className="p-8 text-center text-muted-foreground">Carregando…</div>;
   if (!missao) return <div className="p-8 text-center text-muted-foreground">Missão não encontrada.</div>;
+
+  const onSavedItem = () => {
+    qc.invalidateQueries({ queryKey: ["missao-itens", id] });
+    qc.invalidateQueries({ queryKey: ["missao-item-lotes", id] });
+    qc.invalidateQueries({ queryKey: ["missao", id] });
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-4">
@@ -203,14 +219,21 @@ function MissaoExecucaoPage() {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center justify-between">
+        <CardHeader className="gap-2">
+          <CardTitle className="text-base flex items-center justify-between gap-2 flex-wrap">
             <span>Itens a contar</span>
             <span className="text-xs font-normal tabular-nums text-muted-foreground">
               {concluidos} de {total} · {pct}%
               {pct === 100 && <CheckCircle2 className="size-4 text-success inline ml-1.5" />}
             </span>
           </CardTitle>
+          <Input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar SKU ou descrição… (atalho: /)"
+            className="h-8 text-sm max-w-sm"
+            data-busca-missao
+          />
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <Table>
@@ -225,12 +248,12 @@ function MissaoExecucaoPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {itens.length === 0 && (
+              {itensFiltrados.length === 0 && (
                 <TableRow><TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-10 text-muted-foreground">
-                  Nenhum item gerado para esta missão.
+                  {itens.length === 0 ? "Nenhum item gerado para esta missão." : "Nenhum item corresponde à busca."}
                 </TableCell></TableRow>
               )}
-              {itens.map((it) => (
+              {itensFiltrados.map((it) => (
                 <LinhaItem
                   key={it.id}
                   item={it}
@@ -238,11 +261,7 @@ function MissaoExecucaoPage() {
                   lotesSist={lotesQ.data?.get(it.codigo_produto) ?? []}
                   linhasSalvas={linhasQ.data?.get(it.id) ?? []}
                   isAdmin={isAdmin}
-                  onSaved={() => {
-                    qc.invalidateQueries({ queryKey: ["missao-itens", id] });
-                    qc.invalidateQueries({ queryKey: ["missao-item-lotes", id, itemIds.join(",")] });
-                    qc.invalidateQueries({ queryKey: ["missao", id] });
-                  }}
+                  onSaved={onSavedItem}
                 />
               ))}
             </TableBody>
@@ -251,6 +270,21 @@ function MissaoExecucaoPage() {
       </Card>
     </div>
   );
+}
+
+// Atalho global "/" foca a busca da missão
+function useBuscaShortcut() {
+  useEffect(() => {
+    const h = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const tgt = e.target as HTMLElement | null;
+      if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) return;
+      const el = document.querySelector<HTMLInputElement>("[data-busca-missao]");
+      if (el) { e.preventDefault(); el.focus(); el.select(); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
 }
 
 function LinhaItem({
