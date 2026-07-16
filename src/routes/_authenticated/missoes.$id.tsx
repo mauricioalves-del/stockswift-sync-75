@@ -46,7 +46,8 @@ type LoteSist = {
 type LinhaLote = {
   id?: string;
   key: string;
-  lote: string | null;         // null → Não Relacionado
+  lote: string | null;         // null → Não Relacionado (lote manual)
+  lote_manual_texto?: string;  // texto livre quando eh_nao_relacionado
   eh_nao_relacionado: boolean;
   quantidade_contada: string;  // string em edição
   saldo_sistemico_lote?: number | null;
@@ -87,7 +88,7 @@ function MissaoExecucaoPage() {
     enabled: !!missaoQ.data && skus.length > 0,
     queryFn: async () => {
       let q = (supabase as any).from("estoque_sistemico")
-        .select("id_produto, lote, saldo_sistemico, custo_unitario, unidade, id_local, data_validade")
+        .select("id_produto, lote, quantidade, custo_unitario, unidade, id_local, data_validade")
         .in("id_produto", skus);
       if (missaoQ.data?.origem) q = q.eq("origem", missaoQ.data.origem);
       const { data, error } = await q;
@@ -97,7 +98,7 @@ function MissaoExecucaoPage() {
         const arr = map.get(r.id_produto) ?? [];
         arr.push({
           lote: r.lote ?? "",
-          saldo: Number(r.saldo_sistemico ?? 0),
+          saldo: Number(r.quantidade ?? 0),
           custo_unitario: Number(r.custo_unitario ?? 0),
           unidade: r.unidade ?? "UN",
           id_local: r.id_local ?? "",
@@ -260,6 +261,7 @@ function LinhaItem({
         id: r.id,
         key: r.id,
         lote: r.lote,
+        lote_manual_texto: r.lote_manual_texto ?? "",
         eh_nao_relacionado: !!r.eh_nao_relacionado,
         quantidade_contada: String(r.quantidade_contada ?? ""),
         saldo_sistemico_lote: r.saldo_sistemico_lote != null ? Number(r.saldo_sistemico_lote) : null,
@@ -275,11 +277,11 @@ function LinhaItem({
         saldo_sistemico_lote: fefo.saldo,
       }];
     }
-    // sem lotes sistêmicos: usa lote do próprio item (se houver) ou não relacionado
+    // sem lotes sistêmicos: linha vazia via dropdown (operador poderá usar "Adicionar lote manual")
     return [{
       key: crypto.randomUUID(),
-      lote: item.lote ?? null,
-      eh_nao_relacionado: !item.lote,
+      lote: item.lote ?? "",
+      eh_nao_relacionado: false,
       quantidade_contada: "",
       saldo_sistemico_lote: 0,
     }];
@@ -292,12 +294,22 @@ function LinhaItem({
   const totalContado = linhas.reduce((s, l) => s + (Number(l.quantidade_contada.replace(",", ".")) || 0), 0);
 
   function addLinha() {
-    // Sugere próximo lote FEFO ainda não usado; senão, "Não Relacionado".
+    // Sugere próximo lote FEFO ainda não usado
     const usados = new Set(linhas.filter((l) => !l.eh_nao_relacionado).map((l) => l.lote));
     const prox = lotesSist.find((l) => !usados.has(l.lote));
     setLinhas([...linhas, prox
       ? { key: crypto.randomUUID(), lote: prox.lote, eh_nao_relacionado: false, quantidade_contada: "", saldo_sistemico_lote: prox.saldo }
-      : { key: crypto.randomUUID(), lote: null, eh_nao_relacionado: true, quantidade_contada: "", saldo_sistemico_lote: 0 }]);
+      : { key: crypto.randomUUID(), lote: "", eh_nao_relacionado: false, quantidade_contada: "", saldo_sistemico_lote: 0 }]);
+  }
+  function addLinhaManual() {
+    setLinhas([...linhas, {
+      key: crypto.randomUUID(),
+      lote: null,
+      lote_manual_texto: "",
+      eh_nao_relacionado: true,
+      quantidade_contada: "",
+      saldo_sistemico_lote: 0,
+    }]);
   }
   function removerLinha(k: string) {
     setLinhas(linhas.filter((l) => l.key !== k));
@@ -305,12 +317,12 @@ function LinhaItem({
   function alterarLote(k: string, valor: string) {
     setLinhas(linhas.map((l) => {
       if (l.key !== k) return l;
-      if (valor === "__NAO_RELACIONADO__") {
-        return { ...l, lote: null, eh_nao_relacionado: true, saldo_sistemico_lote: 0 };
-      }
       const s = lotesSist.find((x) => x.lote === valor);
       return { ...l, lote: valor, eh_nao_relacionado: false, saldo_sistemico_lote: s?.saldo ?? 0 };
     }));
+  }
+  function alterarLoteManual(k: string, valor: string) {
+    setLinhas(linhas.map((l) => l.key === k ? { ...l, lote_manual_texto: valor } : l));
   }
   function alterarQtd(k: string, valor: string) {
     setLinhas(linhas.map((l) => l.key === k ? { ...l, quantidade_contada: valor } : l));
@@ -327,6 +339,9 @@ function LinhaItem({
       if (!l.eh_nao_relacionado && !l.lote) {
         toast.error("Selecione o lote em todas as linhas"); return;
       }
+      if (l.eh_nao_relacionado && !(l.lote_manual_texto ?? "").trim()) {
+        toast.error("Informe o código do lote manual"); return;
+      }
     }
     // Sem lotes duplicados (ignorando não relacionado)
     const codigos = linhas.filter((l) => !l.eh_nao_relacionado).map((l) => l.lote);
@@ -342,6 +357,7 @@ function LinhaItem({
     const payloadLinhas = linhas.map((l) => ({
       item_missao_id: item.id,
       lote: l.eh_nao_relacionado ? null : l.lote,
+      lote_manual_texto: l.eh_nao_relacionado ? (l.lote_manual_texto ?? "").trim() : null,
       eh_nao_relacionado: l.eh_nao_relacionado,
       quantidade_contada: Number(l.quantidade_contada.replace(",", ".")),
       saldo_sistemico_lote: l.saldo_sistemico_lote ?? null,
@@ -510,26 +526,38 @@ function LinhaItem({
         <div className="space-y-1.5">
           {linhas.map((l) => (
             <div key={l.key} className="flex items-center gap-1.5">
-              <Select
-                value={l.eh_nao_relacionado ? "__NAO_RELACIONADO__" : (l.lote ?? "")}
-                onValueChange={(v) => alterarLote(l.key, v)}
-              >
-                <SelectTrigger className="h-8 text-xs flex-1 min-w-[160px]"><SelectValue placeholder="Lote…" /></SelectTrigger>
-                <SelectContent>
-                  {opcoesLote.map((o) => (
-                    <SelectItem key={o.lote} value={o.lote} className="text-xs">
-                      <span className="font-mono">{o.lote || "(sem lote)"}</span>
-                      <span className="ml-2 text-muted-foreground">
-                        saldo {formatNum(o.saldo)}
-                        {o.data_validade ? ` · val ${o.data_validade}` : ""}
-                      </span>
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="__NAO_RELACIONADO__" className="text-xs">
-                    <span className="italic">Lote Não Relacionado</span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+              {l.eh_nao_relacionado ? (
+                <Input
+                  type="text"
+                  className="h-8 text-xs flex-1 min-w-[160px] font-mono"
+                  value={l.lote_manual_texto ?? ""}
+                  onChange={(e) => alterarLoteManual(l.key, e.target.value)}
+                  placeholder="Lote físico (manual)…"
+                />
+              ) : (
+                <Select
+                  value={l.lote ?? ""}
+                  onValueChange={(v) => alterarLote(l.key, v)}
+                >
+                  <SelectTrigger className="h-8 text-xs flex-1 min-w-[160px]"><SelectValue placeholder="Lote…" /></SelectTrigger>
+                  <SelectContent>
+                    {opcoesLote.length === 0 && (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                        Nenhum lote no sistema para este SKU
+                      </div>
+                    )}
+                    {opcoesLote.map((o) => (
+                      <SelectItem key={o.lote} value={o.lote} className="text-xs">
+                        <span className="font-mono">{o.lote || "(sem lote)"}</span>
+                        <span className="ml-2 text-muted-foreground">
+                          saldo {formatNum(o.saldo)}
+                          {o.data_validade ? ` · val ${o.data_validade}` : ""}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Input
                 type="number" inputMode="decimal" step="0.001" min="0"
                 className="h-8 w-24 tabular-nums text-xs"
@@ -546,9 +574,14 @@ function LinhaItem({
               </Button>
             </div>
           ))}
-          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={addLinha}>
-            <Plus className="size-3 mr-1" /> Adicionar lote
-          </Button>
+          <div className="flex flex-wrap gap-1">
+            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={addLinha}>
+              <Plus className="size-3 mr-1" /> Adicionar lote
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={addLinhaManual}>
+              <Plus className="size-3 mr-1" /> Adicionar lote manual
+            </Button>
+          </div>
           <div className="text-[10px] text-muted-foreground">
             Total contado: <span className="tabular-nums font-semibold">{formatNum(totalContado)}</span>
             {" · "}Sistema: <span className="tabular-nums">{formatNum(totalSist)}</span>

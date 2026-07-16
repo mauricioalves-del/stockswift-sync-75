@@ -692,6 +692,7 @@ export type Database = {
           id: string
           item_missao_id: string
           lote: string | null
+          lote_manual_texto: string | null
           quantidade_contada: number
           saldo_sistemico_lote: number | null
           updated_at: string
@@ -703,6 +704,7 @@ export type Database = {
           id?: string
           item_missao_id: string
           lote?: string | null
+          lote_manual_texto?: string | null
           quantidade_contada?: number
           saldo_sistemico_lote?: number | null
           updated_at?: string
@@ -714,6 +716,7 @@ export type Database = {
           id?: string
           item_missao_id?: string
           lote?: string | null
+          lote_manual_texto?: string | null
           quantidade_contada?: number
           saldo_sistemico_lote?: number | null
           updated_at?: string
