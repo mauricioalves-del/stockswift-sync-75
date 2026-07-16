@@ -688,6 +688,7 @@ export type Database = {
       itens_missao_lotes: {
         Row: {
           created_at: string
+          data_validade_manual: string | null
           eh_nao_relacionado: boolean
           id: string
           item_missao_id: string
@@ -700,6 +701,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          data_validade_manual?: string | null
           eh_nao_relacionado?: boolean
           id?: string
           item_missao_id: string
@@ -712,6 +714,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          data_validade_manual?: string | null
           eh_nao_relacionado?: boolean
           id?: string
           item_missao_id?: string
