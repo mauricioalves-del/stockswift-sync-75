@@ -685,6 +685,50 @@ export type Database = {
         }
         Relationships: []
       }
+      itens_missao_lotes: {
+        Row: {
+          created_at: string
+          eh_nao_relacionado: boolean
+          id: string
+          item_missao_id: string
+          lote: string | null
+          quantidade_contada: number
+          saldo_sistemico_lote: number | null
+          updated_at: string
+          usuario: string | null
+        }
+        Insert: {
+          created_at?: string
+          eh_nao_relacionado?: boolean
+          id?: string
+          item_missao_id: string
+          lote?: string | null
+          quantidade_contada?: number
+          saldo_sistemico_lote?: number | null
+          updated_at?: string
+          usuario?: string | null
+        }
+        Update: {
+          created_at?: string
+          eh_nao_relacionado?: boolean
+          id?: string
+          item_missao_id?: string
+          lote?: string | null
+          quantidade_contada?: number
+          saldo_sistemico_lote?: number | null
+          updated_at?: string
+          usuario?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itens_missao_lotes_item_missao_id_fkey"
+            columns: ["item_missao_id"]
+            isOneToOne: false
+            referencedRelation: "missoes_itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       locais: {
         Row: {
           ativo: boolean
@@ -1202,6 +1246,81 @@ export type Database = {
             columns: ["perfil_id"]
             isOneToOne: false
             referencedRelation: "perfis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quebras_fefo: {
+        Row: {
+          codigo_produto: string
+          created_at: string
+          descricao: string | null
+          detalhes: Json
+          id: string
+          id_local: string | null
+          item_missao_id: string | null
+          missao_id: string | null
+          observacao: string | null
+          origem: string | null
+          resolvido_em: string | null
+          resolvido_por: string | null
+          status: string
+          total_contado: number
+          total_sistemico: number
+          updated_at: string
+          usuario: string | null
+        }
+        Insert: {
+          codigo_produto: string
+          created_at?: string
+          descricao?: string | null
+          detalhes?: Json
+          id?: string
+          id_local?: string | null
+          item_missao_id?: string | null
+          missao_id?: string | null
+          observacao?: string | null
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: string
+          total_contado?: number
+          total_sistemico?: number
+          updated_at?: string
+          usuario?: string | null
+        }
+        Update: {
+          codigo_produto?: string
+          created_at?: string
+          descricao?: string | null
+          detalhes?: Json
+          id?: string
+          id_local?: string | null
+          item_missao_id?: string | null
+          missao_id?: string | null
+          observacao?: string | null
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: string
+          total_contado?: number
+          total_sistemico?: number
+          updated_at?: string
+          usuario?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quebras_fefo_item_missao_id_fkey"
+            columns: ["item_missao_id"]
+            isOneToOne: false
+            referencedRelation: "missoes_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quebras_fefo_missao_id_fkey"
+            columns: ["missao_id"]
+            isOneToOne: false
+            referencedRelation: "missoes"
             referencedColumns: ["id"]
           },
         ]

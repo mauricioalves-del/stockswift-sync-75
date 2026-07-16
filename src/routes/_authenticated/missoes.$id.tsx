@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,10 +7,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, ScanLine, Save, Loader2, Warehouse, AlertTriangle, PlayCircle, CheckCircle2 } from "lucide-react";
+import {
+  ArrowLeft, ScanLine, Save, Loader2, Warehouse, AlertTriangle,
+  PlayCircle, CheckCircle2, Plus, Trash2,
+} from "lucide-react";
 import { sounds } from "@/lib/audio";
-import { formatNum, classificarFaixa, acuracidadeColor, statusLabel } from "@/lib/inventory";
+import { formatNum, classificarFaixa, acuracidadeColor, statusLabel, TOLERANCIA_MIN, TOLERANCIA_MAX } from "@/lib/inventory";
 import { aprovarRecontagem, type RecontagemRow } from "@/lib/recontagem";
 
 export const Route = createFileRoute("/_authenticated/missoes/$id")({
@@ -29,6 +33,29 @@ type Item = {
   lote: string | null; quantidade_prevista: number | null; quantidade_contada: number | null;
   status_item: string | null; recontagem_origem_id: string | null;
 };
+
+type LoteSist = {
+  lote: string;
+  saldo: number;
+  custo_unitario: number;
+  unidade: string;
+  id_local: string;
+  data_validade: string | null;
+};
+
+type LinhaLote = {
+  id?: string;
+  key: string;
+  lote: string | null;         // null → Não Relacionado
+  eh_nao_relacionado: boolean;
+  quantidade_contada: string;  // string em edição
+  saldo_sistemico_lote?: number | null;
+};
+
+const CONCLUIDO_STATUSES = [
+  "OK", "DIVERGENCIA_NEGATIVA", "DIVERGENCIA_POSITIVA",
+  "CONTADO", "DIVERGENTE", "QUEBRA_FEFO",
+];
 
 function MissaoExecucaoPage() {
   const { id } = Route.useParams();
@@ -53,6 +80,58 @@ function MissaoExecucaoPage() {
     },
   });
 
+  // Todos os lotes sistêmicos (mesmo com saldo 0) para os SKUs da missão, no almoxarifado da missão.
+  const skus = useMemo(() => Array.from(new Set((itensQ.data ?? []).map((i) => i.codigo_produto))), [itensQ.data]);
+  const lotesQ = useQuery({
+    queryKey: ["missao-lotes-sist", id, missaoQ.data?.origem, skus.join(",")],
+    enabled: !!missaoQ.data && skus.length > 0,
+    queryFn: async () => {
+      let q = (supabase as any).from("estoque_sistemico")
+        .select("id_produto, lote, saldo_sistemico, custo_unitario, unidade, id_local, data_validade")
+        .in("id_produto", skus);
+      if (missaoQ.data?.origem) q = q.eq("origem", missaoQ.data.origem);
+      const { data, error } = await q;
+      if (error) throw error;
+      const map = new Map<string, LoteSist[]>();
+      for (const r of (data ?? []) as any[]) {
+        const arr = map.get(r.id_produto) ?? [];
+        arr.push({
+          lote: r.lote ?? "",
+          saldo: Number(r.saldo_sistemico ?? 0),
+          custo_unitario: Number(r.custo_unitario ?? 0),
+          unidade: r.unidade ?? "UN",
+          id_local: r.id_local ?? "",
+          data_validade: r.data_validade ?? null,
+        });
+        map.set(r.id_produto, arr);
+      }
+      // ordena por FEFO por SKU
+      for (const arr of map.values()) {
+        arr.sort((a, b) => (a.data_validade ?? "9999-12-31").localeCompare(b.data_validade ?? "9999-12-31"));
+      }
+      return map;
+    },
+  });
+
+  // Linhas de lote já persistidas para os itens da missão.
+  const itemIds = (itensQ.data ?? []).map((i) => i.id);
+  const linhasQ = useQuery({
+    queryKey: ["missao-item-lotes", id, itemIds.join(",")],
+    enabled: itemIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("itens_missao_lotes").select("*").in("item_missao_id", itemIds);
+      if (error) throw error;
+      const map = new Map<string, any[]>();
+      for (const r of (data ?? []) as any[]) {
+        const arr = map.get(r.item_missao_id) ?? [];
+        arr.push(r);
+        map.set(r.item_missao_id, arr);
+      }
+      return map;
+    },
+  });
+
   async function assumirMissao() {
     const uid = (await supabase.auth.getUser()).data.user?.id;
     if (!uid) return;
@@ -67,7 +146,6 @@ function MissaoExecucaoPage() {
   const missao = missaoQ.data;
   const itens = itensQ.data ?? [];
   const total = itens.length;
-  const CONCLUIDO_STATUSES = ["OK", "DIVERGENCIA_NEGATIVA", "DIVERGENCIA_POSITIVA", "CONTADO", "DIVERGENTE"];
   const concluidos = itens.filter((i) => i.status_item != null && CONCLUIDO_STATUSES.includes(i.status_item)).length;
   const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
 
@@ -109,7 +187,7 @@ function MissaoExecucaoPage() {
       {missao.status === "PLANEJADA" && (
         <Card>
           <CardContent className="p-4 flex items-center justify-between gap-3">
-            <div className="text-sm">Assuma a missão para iniciar a contagem. Isso ativa o escopo de almoxarifado no Scanner.</div>
+            <div className="text-sm">Assuma a missão para iniciar a contagem.</div>
             <Button onClick={assumirMissao} className="gap-2"><PlayCircle className="size-4" /> Iniciar Missão</Button>
           </CardContent>
         </Card>
@@ -131,24 +209,31 @@ function MissaoExecucaoPage() {
               <TableRow>
                 <TableHead>SKU</TableHead>
                 <TableHead>Produto</TableHead>
-                <TableHead>Lote</TableHead>
                 <TableHead className="text-right">Sistema</TableHead>
-                <TableHead className="w-40">Contagem</TableHead>
-                <TableHead className="w-32">Status</TableHead>
+                <TableHead className="w-[420px]">Contagem por lote</TableHead>
+                <TableHead className="w-40">Status</TableHead>
                 <TableHead className="w-32 text-right">Ação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {itens.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
                   Nenhum item gerado para esta missão.
                 </TableCell></TableRow>
               )}
               {itens.map((it) => (
-                <LinhaItem key={it.id} item={it} missao={missao} onSaved={() => {
-                  qc.invalidateQueries({ queryKey: ["missao-itens", id] });
-                  qc.invalidateQueries({ queryKey: ["missao", id] });
-                }} />
+                <LinhaItem
+                  key={it.id}
+                  item={it}
+                  missao={missao}
+                  lotesSist={lotesQ.data?.get(it.codigo_produto) ?? []}
+                  linhasSalvas={linhasQ.data?.get(it.id) ?? []}
+                  onSaved={() => {
+                    qc.invalidateQueries({ queryKey: ["missao-itens", id] });
+                    qc.invalidateQueries({ queryKey: ["missao-item-lotes", id, itemIds.join(",")] });
+                    qc.invalidateQueries({ queryKey: ["missao", id] });
+                  }}
+                />
               ))}
             </TableBody>
           </Table>
@@ -158,74 +243,191 @@ function MissaoExecucaoPage() {
   );
 }
 
-function LinhaItem({ item, missao, onSaved }: { item: Item; missao: Missao; onSaved: () => void }) {
-  const [q, setQ] = useState<string>(item.quantidade_contada != null ? String(item.quantidade_contada) : "");
+function LinhaItem({
+  item, missao, lotesSist, linhasSalvas, onSaved,
+}: {
+  item: Item;
+  missao: Missao;
+  lotesSist: LoteSist[];
+  linhasSalvas: any[];
+  onSaved: () => void;
+}) {
+  // Semente inicial: se já tiver linhas salvas → usa; senão, cria uma linha vazia com sugestão FEFO
+  // (primeiro lote com saldo > 0, ou o primeiro da lista, ou "não relacionado" se não houver lote algum).
+  const seed = useMemo<LinhaLote[]>(() => {
+    if (linhasSalvas.length > 0) {
+      return linhasSalvas.map((r: any) => ({
+        id: r.id,
+        key: r.id,
+        lote: r.lote,
+        eh_nao_relacionado: !!r.eh_nao_relacionado,
+        quantidade_contada: String(r.quantidade_contada ?? ""),
+        saldo_sistemico_lote: r.saldo_sistemico_lote != null ? Number(r.saldo_sistemico_lote) : null,
+      }));
+    }
+    const fefo = lotesSist.find((l) => l.saldo > 0) ?? lotesSist[0];
+    if (fefo) {
+      return [{
+        key: crypto.randomUUID(),
+        lote: fefo.lote || (item.lote ?? ""),
+        eh_nao_relacionado: false,
+        quantidade_contada: "",
+        saldo_sistemico_lote: fefo.saldo,
+      }];
+    }
+    // sem lotes sistêmicos: usa lote do próprio item (se houver) ou não relacionado
+    return [{
+      key: crypto.randomUUID(),
+      lote: item.lote ?? null,
+      eh_nao_relacionado: !item.lote,
+      quantidade_contada: "",
+      saldo_sistemico_lote: 0,
+    }];
+  }, [linhasSalvas, lotesSist, item.lote]);
+
+  const [linhas, setLinhas] = useState<LinhaLote[]>(seed);
   const [saving, setSaving] = useState(false);
-  const prev = Number(item.quantidade_prevista ?? 0);
+
+  const totalSist = lotesSist.reduce((s, l) => s + (l.saldo || 0), 0);
+  const totalContado = linhas.reduce((s, l) => s + (Number(l.quantidade_contada.replace(",", ".")) || 0), 0);
+
+  function addLinha() {
+    // Sugere próximo lote FEFO ainda não usado; senão, "Não Relacionado".
+    const usados = new Set(linhas.filter((l) => !l.eh_nao_relacionado).map((l) => l.lote));
+    const prox = lotesSist.find((l) => !usados.has(l.lote));
+    setLinhas([...linhas, prox
+      ? { key: crypto.randomUUID(), lote: prox.lote, eh_nao_relacionado: false, quantidade_contada: "", saldo_sistemico_lote: prox.saldo }
+      : { key: crypto.randomUUID(), lote: null, eh_nao_relacionado: true, quantidade_contada: "", saldo_sistemico_lote: 0 }]);
+  }
+  function removerLinha(k: string) {
+    setLinhas(linhas.filter((l) => l.key !== k));
+  }
+  function alterarLote(k: string, valor: string) {
+    setLinhas(linhas.map((l) => {
+      if (l.key !== k) return l;
+      if (valor === "__NAO_RELACIONADO__") {
+        return { ...l, lote: null, eh_nao_relacionado: true, saldo_sistemico_lote: 0 };
+      }
+      const s = lotesSist.find((x) => x.lote === valor);
+      return { ...l, lote: valor, eh_nao_relacionado: false, saldo_sistemico_lote: s?.saldo ?? 0 };
+    }));
+  }
+  function alterarQtd(k: string, valor: string) {
+    setLinhas(linhas.map((l) => l.key === k ? { ...l, quantidade_contada: valor } : l));
+  }
 
   async function salvar() {
-    const n = Number(q.replace(",", "."));
-    if (q === "" || Number.isNaN(n) || n < 0) { toast.error("Quantidade inválida"); sounds.error(); return; }
+    // Validações mínimas
+    if (linhas.length === 0) { toast.error("Adicione ao menos uma linha de lote"); return; }
+    for (const l of linhas) {
+      const q = Number(l.quantidade_contada.replace(",", "."));
+      if (l.quantidade_contada === "" || Number.isNaN(q) || q < 0) {
+        toast.error("Quantidade inválida em uma das linhas"); sounds.error(); return;
+      }
+      if (!l.eh_nao_relacionado && !l.lote) {
+        toast.error("Selecione o lote em todas as linhas"); return;
+      }
+    }
+    // Sem lotes duplicados (ignorando não relacionado)
+    const codigos = linhas.filter((l) => !l.eh_nao_relacionado).map((l) => l.lote);
+    if (new Set(codigos).size !== codigos.length) {
+      toast.error("Há lotes repetidos — junte as quantidades em uma única linha"); return;
+    }
+
     setSaving(true);
-    const { classe, percentual } = classificarFaixa(n, prev);
-    const status_item = classe; // "OK" | "DIVERGENCIA_NEGATIVA" | "DIVERGENCIA_POSITIVA"
-
-    // Atualiza item da missão
-    const { error: e1 } = await (supabase as any).from("missoes_itens")
-      .update({ quantidade_contada: n, status_item }).eq("id", item.id);
-    if (e1) { toast.error(e1.message); sounds.error(); setSaving(false); return; }
-
-    // Registra em inventário (para o Relatório de Inventário) — só se houve mudança
     const userId = (await supabase.auth.getUser()).data.user?.id ?? "";
-    // Busca custo do estoque_sistemico (mesmo escopo de almox)
-    let est = (supabase as any).from("estoque_sistemico")
-      .select("custo_unitario, unidade, id_local, data_validade")
-      .eq("id_produto", item.codigo_produto);
-    if (item.lote) est = est.eq("lote", item.lote);
-    if (missao.origem) est = est.eq("origem", missao.origem);
-    const { data: eData } = await est.maybeSingle();
 
-    const payloadInv = {
-      id_produto: item.codigo_produto,
-      lote: item.lote ?? "",
-      descricao: item.descricao ?? "",
-      unidade: eData?.unidade ?? "UN",
-      id_local: eData?.id_local ?? (missao.id_local ?? ""),
-      origem: missao.origem ?? "",
-      custo_unitario: Number(eData?.custo_unitario ?? 0),
-      saldo_sistemico: prev,
-      quantidade_contada: n,
-      data_validade: eData?.data_validade ?? null,
-      contagem_numero: 1,
-      usuario: userId,
-      data_contagem: new Date().toISOString(),
-    };
-    const { data: existing } = await supabase
-      .from("inventario").select("id")
-      .eq("id_produto", item.codigo_produto).eq("lote", item.lote ?? "").maybeSingle();
-    if (existing) await supabase.from("inventario").update({ ...payloadInv, status: "PENDENTE" }).eq("id", existing.id);
-    else await supabase.from("inventario").insert(payloadInv);
+    // Substitui as linhas persistidas por essas
+    await (supabase as any).from("itens_missao_lotes").delete().eq("item_missao_id", item.id);
+    const payloadLinhas = linhas.map((l) => ({
+      item_missao_id: item.id,
+      lote: l.eh_nao_relacionado ? null : l.lote,
+      eh_nao_relacionado: l.eh_nao_relacionado,
+      quantidade_contada: Number(l.quantidade_contada.replace(",", ".")),
+      saldo_sistemico_lote: l.saldo_sistemico_lote ?? null,
+      usuario: userId || null,
+    }));
+    const { error: eIns } = await (supabase as any).from("itens_missao_lotes").insert(payloadLinhas);
+    if (eIns) { toast.error(eIns.message); sounds.error(); setSaving(false); return; }
 
-    // Se o item veio de uma solicitação de recontagem, atualizamos APENAS a linha original
-    // da fila (nada de criar nova entrada).
+    // === Análise nível SKU (2.1) ===
+    const { classe, percentual } = classificarFaixa(totalContado, totalSist);
+    // status_item base: OK | DIVERGENCIA_POSITIVA | DIVERGENCIA_NEGATIVA
+    let status_item: string = classe;
+
+    // === Análise nível LOTE (2.2) — só quando total está dentro da faixa ===
+    let temQuebraFefo = false;
+    const detalhesQuebra: Array<{ lote: string | null; sistemico: number; contado: number; eh_nao_relacionado: boolean; percentual: number | null }> = [];
+    // mapa contado por lote
+    const contadoPorLote = new Map<string, number>();
+    let contadoNaoRelacionado = 0;
+    for (const l of linhas) {
+      const q = Number(l.quantidade_contada.replace(",", "."));
+      if (l.eh_nao_relacionado) contadoNaoRelacionado += q;
+      else contadoPorLote.set(l.lote as string, (contadoPorLote.get(l.lote as string) ?? 0) + q);
+    }
+    if (classe === "OK") {
+      // verifica cada lote sistêmico com saldo > 0
+      for (const ls of lotesSist) {
+        if (ls.saldo <= 0) continue;
+        const cont = contadoPorLote.get(ls.lote) ?? 0;
+        const pct = Math.round(((cont / ls.saldo) * 100) * 100) / 100;
+        if (pct < TOLERANCIA_MIN || pct > TOLERANCIA_MAX) {
+          temQuebraFefo = true;
+          detalhesQuebra.push({ lote: ls.lote, sistemico: ls.saldo, contado: cont, eh_nao_relacionado: false, percentual: pct });
+        }
+      }
+      if (contadoNaoRelacionado > 0) {
+        temQuebraFefo = true;
+        detalhesQuebra.push({ lote: null, sistemico: 0, contado: contadoNaoRelacionado, eh_nao_relacionado: true, percentual: null });
+      }
+      if (temQuebraFefo) status_item = "QUEBRA_FEFO";
+    }
+
+    // Atualiza item da missão (mantém quantidade_contada agregada para compatibilidade)
+    const { error: eUp } = await (supabase as any).from("missoes_itens")
+      .update({ quantidade_contada: totalContado, status_item }).eq("id", item.id);
+    if (eUp) { toast.error(eUp.message); sounds.error(); setSaving(false); return; }
+
+    // === Persistência de derivados ===
+    // Se OK/QUEBRA_FEFO → não vai pra recontagem; mas se QUEBRA_FEFO cria ocorrência.
+    // Se DIVERGENCIA_* → vai pra recontagem (fila existente), como já era.
+
+    // Limpa possível quebra_fefo/recontagem prévia deste item para evitar duplicação
+    await (supabase as any).from("quebras_fefo").delete().eq("item_missao_id", item.id).eq("status", "PENDENTE");
+
+    if (temQuebraFefo) {
+      await (supabase as any).from("quebras_fefo").insert({
+        missao_id: missao.id,
+        item_missao_id: item.id,
+        codigo_produto: item.codigo_produto,
+        descricao: item.descricao ?? "",
+        origem: missao.origem ?? "",
+        id_local: missao.id_local ?? (lotesSist[0]?.id_local ?? ""),
+        total_sistemico: totalSist,
+        total_contado: totalContado,
+        detalhes: detalhesQuebra,
+        status: "PENDENTE",
+        usuario: userId || null,
+      });
+    }
+
+    // Recontagem — mesmo mecanismo anterior, mas usando totais
+    const primeiroLote = linhas.find((l) => !l.eh_nao_relacionado)?.lote ?? item.lote ?? "";
     if (item.recontagem_origem_id) {
       const { data: origem } = await (supabase as any).from("recontagem")
         .select("*").eq("id", item.recontagem_origem_id).maybeSingle();
       if (origem) {
         if (classe === "OK") {
-          await aprovarRecontagem({ ...(origem as RecontagemRow), contagem: n, acuracidade: percentual });
+          await aprovarRecontagem({ ...(origem as RecontagemRow), contagem: totalContado, acuracidade: percentual });
         } else {
           await (supabase as any).from("recontagem").update({
-            contagem: n,
-            acuracidade: percentual,
-            saldo_sistema: prev,
-            status: "PENDENTE_RECONTAGEM",
-            usuario: userId,
+            contagem: totalContado, acuracidade: percentual, saldo_sistema: totalSist,
+            status: "PENDENTE_RECONTAGEM", usuario: userId,
           }).eq("id", origem.id);
         }
       }
     } else {
-      // Recontagem automática se fora da faixa 95–105%
       const { data: recExistente } = await (supabase as any).from("recontagem")
         .select("id").eq("item_missao_id", item.id).maybeSingle();
       if (classe !== "OK") {
@@ -233,28 +435,22 @@ function LinhaItem({ item, missao, onSaved }: { item: Item; missao: Missao; onSa
           missao_id: missao.id,
           item_missao_id: item.id,
           codigo_produto: item.codigo_produto,
-          lote: item.lote ?? "",
+          lote: primeiroLote,
           descricao: item.descricao ?? "",
-          id_local: eData?.id_local ?? (missao.id_local ?? ""),
+          id_local: missao.id_local ?? (lotesSist[0]?.id_local ?? ""),
           origem: missao.origem ?? "",
-          saldo_sistema: prev,
-          contagem: n,
+          saldo_sistema: totalSist,
+          contagem: totalContado,
           acuracidade: percentual,
           status: "PENDENTE_RECONTAGEM",
           usuario: userId,
         };
-        if (recExistente) {
-          await (supabase as any).from("recontagem").update(recPayload).eq("id", recExistente.id);
-        } else {
-          await (supabase as any).from("recontagem").insert(recPayload);
-        }
+        if (recExistente) await (supabase as any).from("recontagem").update(recPayload).eq("id", recExistente.id);
+        else await (supabase as any).from("recontagem").insert(recPayload);
       } else if (recExistente) {
         await (supabase as any).from("recontagem").update({
-          status: "APROVADO",
-          aprovado_por: userId,
-          aprovado_em: new Date().toISOString(),
-          contagem: n,
-          acuracidade: percentual,
+          status: "APROVADO", aprovado_por: userId, aprovado_em: new Date().toISOString(),
+          contagem: totalContado, acuracidade: percentual,
         }).eq("id", recExistente.id);
       }
     }
@@ -266,51 +462,106 @@ function LinhaItem({ item, missao, onSaved }: { item: Item; missao: Missao; onSa
         responsavel_id: missao.responsavel_id ?? userId,
       }).eq("id", missao.id);
     }
-    // Se todos concluídos → CONCLUIDA
     const { data: restantes } = await (supabase as any).from("missoes_itens")
       .select("id").eq("missao_id", missao.id)
-      .not("status_item", "in", "(OK,DIVERGENCIA_NEGATIVA,DIVERGENCIA_POSITIVA,CONTADO,DIVERGENTE)");
+      .not("status_item", "in", `(${CONCLUIDO_STATUSES.join(",")})`);
     if (!restantes || restantes.length === 0) {
       await (supabase as any).from("missoes").update({ status: "CONCLUIDA" }).eq("id", missao.id);
     }
 
-    const msg = classe === "OK" ? "Dentro da tolerância"
-              : classe === "DIVERGENCIA_NEGATIVA" ? "Divergência negativa — enviado para recontagem"
+    const msg = status_item === "OK" ? "Dentro da tolerância"
+              : status_item === "QUEBRA_FEFO" ? "Total OK, mas há quebra de FEFO — enviado para ocorrências"
+              : status_item === "DIVERGENCIA_NEGATIVA" ? "Divergência negativa — enviado para recontagem"
               : "Divergência positiva — enviado para recontagem";
-    if (classe === "OK") { toast.success(msg); sounds.success(); }
+    if (status_item === "OK") { toast.success(msg); sounds.success(); }
+    else if (status_item === "QUEBRA_FEFO") { toast.warning(msg); sounds.success(); }
     else { toast.warning(msg); sounds.success(); }
     setSaving(false);
     onSaved();
   }
 
   const cor = acuracidadeColor(
-    item.status_item === "OK" || item.status_item === "DIVERGENCIA_NEGATIVA" || item.status_item === "DIVERGENCIA_POSITIVA"
-      ? classificarFaixa(Number(item.quantidade_contada ?? 0), prev).percentual
+    item.status_item && CONCLUIDO_STATUSES.includes(item.status_item)
+      ? classificarFaixa(Number(item.quantidade_contada ?? 0), totalSist).percentual
       : null,
   );
   const badge = item.status_item == null || item.status_item === "PENDENTE"
     ? "bg-muted text-muted-foreground"
-    : `${cor.bg} ${cor.text}`;
-  const badgeLabel = item.status_item ? statusLabel(item.status_item).label : "Pendente";
+    : item.status_item === "QUEBRA_FEFO"
+      ? "bg-warning/20 text-warning-foreground"
+      : `${cor.bg} ${cor.text}`;
+  const badgeLabel = item.status_item === "QUEBRA_FEFO" ? "Quebra de FEFO"
+    : item.status_item ? statusLabel(item.status_item).label : "Pendente";
+
+  // opções de lote no dropdown: todos os lotes sistêmicos (mesmo com saldo 0) + Não Relacionado
+  const opcoesLote = lotesSist;
 
   return (
     <TableRow>
-      <TableCell className="font-mono text-xs">{item.codigo_produto}</TableCell>
-      <TableCell className="max-w-xs truncate">{item.descricao}</TableCell>
-      <TableCell className="font-mono text-xs">{item.lote || "—"}</TableCell>
-      <TableCell className="text-right tabular-nums">{formatNum(prev)}</TableCell>
-      <TableCell>
-        <Input type="number" inputMode="decimal" step="0.001" min="0"
-          value={q} onChange={(e) => setQ(e.target.value)}
-          placeholder="0" className="h-9 tabular-nums" />
+      <TableCell className="font-mono text-xs align-top">{item.codigo_produto}</TableCell>
+      <TableCell className="max-w-xs truncate align-top">{item.descricao}</TableCell>
+      <TableCell className="text-right tabular-nums align-top">
+        <div>{formatNum(totalSist)}</div>
+        {opcoesLote.length > 0 && (
+          <div className="text-[10px] text-muted-foreground">{opcoesLote.length} lote(s)</div>
+        )}
       </TableCell>
-      <TableCell>
+      <TableCell className="align-top">
+        <div className="space-y-1.5">
+          {linhas.map((l) => (
+            <div key={l.key} className="flex items-center gap-1.5">
+              <Select
+                value={l.eh_nao_relacionado ? "__NAO_RELACIONADO__" : (l.lote ?? "")}
+                onValueChange={(v) => alterarLote(l.key, v)}
+              >
+                <SelectTrigger className="h-8 text-xs flex-1 min-w-[160px]"><SelectValue placeholder="Lote…" /></SelectTrigger>
+                <SelectContent>
+                  {opcoesLote.map((o) => (
+                    <SelectItem key={o.lote} value={o.lote} className="text-xs">
+                      <span className="font-mono">{o.lote || "(sem lote)"}</span>
+                      <span className="ml-2 text-muted-foreground">
+                        saldo {formatNum(o.saldo)}
+                        {o.data_validade ? ` · val ${o.data_validade}` : ""}
+                      </span>
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="__NAO_RELACIONADO__" className="text-xs">
+                    <span className="italic">Lote Não Relacionado</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                type="number" inputMode="decimal" step="0.001" min="0"
+                className="h-8 w-24 tabular-nums text-xs"
+                value={l.quantidade_contada}
+                onChange={(e) => alterarQtd(l.key, e.target.value)}
+                placeholder="0"
+              />
+              <Button
+                type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0"
+                onClick={() => removerLinha(l.key)} disabled={linhas.length === 1}
+                title="Remover linha"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          ))}
+          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={addLinha}>
+            <Plus className="size-3 mr-1" /> Adicionar lote
+          </Button>
+          <div className="text-[10px] text-muted-foreground">
+            Total contado: <span className="tabular-nums font-semibold">{formatNum(totalContado)}</span>
+            {" · "}Sistema: <span className="tabular-nums">{formatNum(totalSist)}</span>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="align-top">
         <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${badge}`}>
           {badgeLabel}
         </span>
       </TableCell>
-      <TableCell className="text-right">
-        <Button size="sm" onClick={salvar} disabled={saving || !q}>
+      <TableCell className="text-right align-top">
+        <Button size="sm" onClick={salvar} disabled={saving}>
           {saving ? <Loader2 className="size-3.5 animate-spin" /> : <><Save className="size-3.5 mr-1" /> Salvar</>}
         </Button>
       </TableCell>
