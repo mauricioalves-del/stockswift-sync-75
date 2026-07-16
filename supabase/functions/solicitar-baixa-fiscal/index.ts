@@ -10,7 +10,10 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const FROM_EMAIL = "Mauricio.alves@Magiochocolates.com.br";
+// Para enviar do seu domínio, verifique-o em https://resend.com/domains
+// e defina o secret BAIXA_FISCAL_FROM (ex.: "Baixas <baixas@magiochocolates.com.br>").
+// Enquanto não verificado, cai no remetente de teste do Resend (só entrega ao dono da conta).
+const FROM_EMAIL = Deno.env.get("BAIXA_FISCAL_FROM") ?? "Baixas Operacionais <onboarding@resend.dev>";
 const STATUS_FILA = ["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO"];
 
 function formatBRL(v: number): string {
