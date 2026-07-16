@@ -1,0 +1,1 @@
+ALTER TABLE public.itens_missao_lotes ADD COLUMN IF NOT EXISTS lote_manual_texto text;
