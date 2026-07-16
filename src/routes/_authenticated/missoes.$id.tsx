@@ -217,7 +217,7 @@ function MissaoExecucaoPage() {
               <TableRow>
                 <TableHead>SKU</TableHead>
                 <TableHead>Produto</TableHead>
-                <TableHead className="text-right">Sistema</TableHead>
+                {isAdmin && <TableHead className="text-right">Sistema</TableHead>}
                 <TableHead className="w-[420px]">Contagem por lote</TableHead>
                 <TableHead className="w-40">Status</TableHead>
                 <TableHead className="w-32 text-right">Ação</TableHead>
@@ -225,7 +225,7 @@ function MissaoExecucaoPage() {
             </TableHeader>
             <TableBody>
               {itens.length === 0 && (
-                <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                <TableRow><TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-10 text-muted-foreground">
                   Nenhum item gerado para esta missão.
                 </TableCell></TableRow>
               )}
@@ -236,6 +236,7 @@ function MissaoExecucaoPage() {
                   missao={missao}
                   lotesSist={lotesQ.data?.get(it.codigo_produto) ?? []}
                   linhasSalvas={linhasQ.data?.get(it.id) ?? []}
+                  isAdmin={isAdmin}
                   onSaved={() => {
                     qc.invalidateQueries({ queryKey: ["missao-itens", id] });
                     qc.invalidateQueries({ queryKey: ["missao-item-lotes", id, itemIds.join(",")] });
