@@ -253,12 +253,13 @@ function MissaoExecucaoPage() {
 }
 
 function LinhaItem({
-  item, missao, lotesSist, linhasSalvas, onSaved,
+  item, missao, lotesSist, linhasSalvas, isAdmin, onSaved,
 }: {
   item: Item;
   missao: Missao;
   lotesSist: LoteSist[];
   linhasSalvas: any[];
+  isAdmin: boolean;
   onSaved: () => void;
 }) {
   // Semente inicial: se já tiver linhas salvas → usa; senão, cria uma linha vazia com sugestão FEFO
@@ -270,6 +271,7 @@ function LinhaItem({
         key: r.id,
         lote: r.lote,
         lote_manual_texto: r.lote_manual_texto ?? "",
+        data_validade_manual: r.data_validade_manual ?? null,
         eh_nao_relacionado: !!r.eh_nao_relacionado,
         quantidade_contada: String(r.quantidade_contada ?? ""),
         saldo_sistemico_lote: r.saldo_sistemico_lote != null ? Number(r.saldo_sistemico_lote) : null,
