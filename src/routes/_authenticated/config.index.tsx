@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
-import { EyeOff, Shield, ChevronRight, Warehouse, MessageSquare } from "lucide-react";
+import { EyeOff, Shield, ChevronRight, Warehouse, MessageSquare, Mail } from "lucide-react";
 
 
 export const Route = createFileRoute("/_authenticated/config/")({
