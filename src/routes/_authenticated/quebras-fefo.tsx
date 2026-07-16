@@ -215,15 +215,12 @@ function RealocarDialog({ quebra, onClose, onDone }: { quebra: Quebra; onClose: 
       entidade: "estoque_sistemico",
       entidade_id: quebra.item_missao_id,
       usuario: uid,
-      detalhes: {
-        codigo_produto: quebra.codigo_produto,
-        origem: quebra.origem,
-        antes: lotes.map((l) => ({ lote: l.lote, saldo: Number(l.saldo_sistemico) })),
-        depois: lotes.map((l) => ({
-          lote: l.lote,
-          saldo: ajustes[l.id] !== undefined ? Number(ajustes[l.id].replace(",", ".")) : Number(l.saldo_sistemico),
-        })),
-      },
+      observacao: `SKU ${quebra.codigo_produto} · almox ${quebra.origem ?? "—"}`,
+      dados_antes: lotes.map((l) => ({ lote: l.lote, saldo: Number(l.saldo_sistemico) })),
+      dados_depois: lotes.map((l) => ({
+        lote: l.lote,
+        saldo: ajustes[l.id] !== undefined ? Number(ajustes[l.id].replace(",", ".")) : Number(l.saldo_sistemico),
+      })),
     });
     // Fecha ocorrência
     await (supabase as any).from("quebras_fefo").update({
