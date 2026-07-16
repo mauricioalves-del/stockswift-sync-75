@@ -372,6 +372,7 @@ function LinhaItem({
       item_missao_id: item.id,
       lote: l.eh_nao_relacionado ? null : l.lote,
       lote_manual_texto: l.eh_nao_relacionado ? (l.lote_manual_texto ?? "").trim() : null,
+      data_validade_manual: l.eh_nao_relacionado ? (l.data_validade_manual ?? null) : null,
       eh_nao_relacionado: l.eh_nao_relacionado,
       quantidade_contada: Number(l.quantidade_contada.replace(",", ".")),
       saldo_sistemico_lote: l.saldo_sistemico_lote ?? null,
