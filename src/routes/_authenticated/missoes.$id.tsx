@@ -46,7 +46,8 @@ type LoteSist = {
 type LinhaLote = {
   id?: string;
   key: string;
-  lote: string | null;         // null → Não Relacionado
+  lote: string | null;         // null → Não Relacionado (lote manual)
+  lote_manual_texto?: string;  // texto livre quando eh_nao_relacionado
   eh_nao_relacionado: boolean;
   quantidade_contada: string;  // string em edição
   saldo_sistemico_lote?: number | null;
