@@ -16,13 +16,15 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatBRL, formatNum } from "@/lib/inventory";
-import { CheckCircle2, XCircle, MessageSquareWarning, PackageMinus, Loader2, ScanBarcode, Check, ChevronsUpDown, List } from "lucide-react";
+import { CheckCircle2, XCircle, MessageSquareWarning, PackageMinus, Loader2, ScanBarcode, Check, ChevronsUpDown, List, Plus, Trash2 } from "lucide-react";
 import { BarcodeScanner } from "@/components/app/BarcodeScanner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { extrairCodigoNumericoQR } from "@/lib/qr-estoque";
 import { ImportarBaixasDialog } from "@/components/baixas/ImportarBaixasDialog";
+import { criarSolicitacaoBaixa } from "@/lib/solicitacoes-baixa";
+
 
 
 export const Route = createFileRoute("/_authenticated/baixas")({
