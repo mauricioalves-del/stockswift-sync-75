@@ -135,6 +135,20 @@ function ConfigPage() {
           </CardContent>
         </Card>
       )}
+
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base"><Mail className="size-4" /> Parâmetros do Resend</CardTitle>
+            <CardDescription>Remetente, reply-to e prefixo de assunto para os e-mails de Baixa Fiscal. Inclui envio de teste. Restrito ao Administrador.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline" className="w-full justify-between">
+              <Link to="/config/resend">Configurar Resend <ChevronRight className="size-4" /></Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
