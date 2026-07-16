@@ -4,10 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
-import { EyeOff, Shield, ChevronRight, Warehouse } from "lucide-react";
+import { EyeOff, Shield, ChevronRight, Warehouse, MessageSquare } from "lucide-react";
+
 
 export const Route = createFileRoute("/_authenticated/config/")({
   component: ConfigPage,
