@@ -312,8 +312,6 @@ Deno.serve(async (req) => {
     });
   } catch (err: any) {
     console.error("solicitar-baixa-fiscal", err);
-    return new Response(JSON.stringify({ ok: false, error: err.message ?? String(err) }), {
-      status: 500, headers: { ...CORS, "Content-Type": "application/json" },
-    });
+    return json({ ok: false, code: "UNEXPECTED_ERROR", error: err.message ?? String(err) }, 500);
   }
 });
