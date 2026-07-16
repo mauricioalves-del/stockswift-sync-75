@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatBRL, formatNum } from "@/lib/inventory";
-import { CheckCircle2, XCircle, MessageSquareWarning, PackageMinus, Loader2, ScanBarcode, Check, ChevronsUpDown, List, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, XCircle, MessageSquareWarning, PackageMinus, Loader2, ScanBarcode, Check, ChevronsUpDown, List, Plus, Trash2, Mail } from "lucide-react";
 import { BarcodeScanner } from "@/components/app/BarcodeScanner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -562,6 +562,24 @@ function FilaAprovacao() {
   const podeAprovar = isAdmin || role === "GERENTE";
   const qc = useQueryClient();
   const { data } = useBaixas(["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO"]);
+  const [enviandoFiscal, setEnviandoFiscal] = useState(false);
+
+  async function solicitarBaixaFiscal() {
+    if (!(data && data.length > 0)) return toast.error("Não há itens pendentes na fila");
+    if (!confirm(`Enviar solicitação de Baixa Fiscal com ${data.length} item(ns) pendente(s)?`)) return;
+    setEnviandoFiscal(true);
+    try {
+      const { data: resp, error } = await supabase.functions.invoke("solicitar-baixa-fiscal", { body: {} });
+      if (error) throw error;
+      if (resp && (resp as any).ok === false) throw new Error((resp as any).error ?? "Falha no envio");
+      const r = resp as any;
+      toast.success(`E-mail enviado a ${r?.destinatarios?.length ?? 0} destinatário(s) — ${r?.qtd_itens ?? 0} item(ns).`);
+    } catch (err: any) {
+      toast.error(`Falha ao enviar: ${err?.message ?? err}`);
+    } finally {
+      setEnviandoFiscal(false);
+    }
+  }
 
   async function decidir(b: any, acao: "APROVADA" | "REPROVADA" | "AJUSTE_SOLICITADO") {
     const comentario = window.prompt(
