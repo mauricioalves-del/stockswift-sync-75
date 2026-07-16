@@ -99,6 +99,25 @@ function PlanejamentoPage() {
     },
   });
 
+  const supplierStockQ = useQuery({
+    queryKey: ["planejamento_supplier_stock"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("estoque_sistemico")
+        .select("id_produto, origem, quantidade, lote, data_validade, data_importacao")
+        .in("origem", SUPPLY_ORIGENS as unknown as string[]);
+      if (error) throw error;
+      return (data ?? []) as unknown as EstoqueLote[];
+    },
+  });
+
+  const familiasQ = useQuery({
+    queryKey: ["planejamento_familias"],
+    queryFn: async () => {
+      const { data } = await supabase.from("familias" as never).select("codigo_produto, familia");
+      return (data ?? []) as unknown as Familia[];
+    },
+  });
+
   const prodRepQ = useQuery({
     queryKey: ["planejamento_prod_rep"],
     queryFn: async () => {
