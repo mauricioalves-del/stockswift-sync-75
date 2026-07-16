@@ -68,6 +68,7 @@ function MissaoExecucaoPage() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
   const { isAdmin } = useRole();
+  useBuscaShortcut();
 
   const missaoQ = useQuery({
     queryKey: ["missao", id],
