@@ -531,28 +531,67 @@ function LinhaItem({
   // opções de lote no dropdown: todos os lotes sistêmicos (mesmo com saldo 0) + Não Relacionado
   const opcoesLote = lotesSist;
 
+  const unidade = (lotesSist[0]?.unidade ?? "UN").toUpperCase();
+  const destacar = unidade === "KG" || unidade === "LT" || unidade === "L";
+  const unidadeBadgeClass = destacar
+    ? "bg-warning/40 text-warning-foreground border-warning/60"
+    : "bg-muted text-muted-foreground border-border";
+
   return (
-    <TableRow>
-      <TableCell className="font-mono text-xs align-top">{item.codigo_produto}</TableCell>
-      <TableCell className="max-w-xs truncate align-top">{item.descricao}</TableCell>
-      <TableCell className="text-right tabular-nums align-top">
-        <div>{formatNum(totalSist)}</div>
-        {opcoesLote.length > 0 && (
-          <div className="text-[10px] text-muted-foreground">{opcoesLote.length} lote(s)</div>
-        )}
+    <TableRow className={destacar ? "bg-warning/10 hover:bg-warning/15" : undefined}>
+      <TableCell className="font-mono text-xs align-top">
+        <div className="flex items-center gap-1.5">
+          <span>{item.codigo_produto}</span>
+          <span className={cn("inline-flex items-center rounded border px-1.5 py-0 text-[10px] font-bold uppercase", unidadeBadgeClass)}>
+            {unidade}
+          </span>
+        </div>
       </TableCell>
+      <TableCell className="max-w-xs truncate align-top">{item.descricao}</TableCell>
+      {isAdmin && (
+        <TableCell className="text-right tabular-nums align-top">
+          <div>{formatNum(totalSist)}</div>
+          {opcoesLote.length > 0 && (
+            <div className="text-[10px] text-muted-foreground">{opcoesLote.length} lote(s)</div>
+          )}
+        </TableCell>
+      )}
       <TableCell className="align-top">
         <div className="space-y-1.5">
           {linhas.map((l) => (
-            <div key={l.key} className="flex items-center gap-1.5">
+            <div key={l.key} className="flex flex-wrap items-center gap-1.5">
               {l.eh_nao_relacionado ? (
-                <Input
-                  type="text"
-                  className="h-8 text-xs flex-1 min-w-[160px] font-mono"
-                  value={l.lote_manual_texto ?? ""}
-                  onChange={(e) => alterarLoteManual(l.key, e.target.value)}
-                  placeholder="Lote físico (manual)…"
-                />
+                <>
+                  <Input
+                    type="text"
+                    className="h-8 text-xs flex-1 min-w-[140px] font-mono"
+                    value={l.lote_manual_texto ?? ""}
+                    onChange={(e) => alterarLoteManual(l.key, e.target.value)}
+                    placeholder="Lote físico (manual)…"
+                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button" variant="outline" size="sm"
+                        className={cn("h-8 justify-start text-xs font-normal gap-1.5",
+                          !l.data_validade_manual && "text-muted-foreground")}
+                      >
+                        <CalendarIcon className="size-3.5" />
+                        {l.data_validade_manual
+                          ? format(parseISO(l.data_validade_manual), "dd/MM/yyyy")
+                          : "Validade"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={l.data_validade_manual ? parseISO(l.data_validade_manual) : undefined}
+                        onSelect={(d) => alterarValidadeManual(l.key, d ? format(d, "yyyy-MM-dd") : null)}
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </>
               ) : (
                 <Select
                   value={l.lote ?? ""}
@@ -568,10 +607,6 @@ function LinhaItem({
                     {opcoesLote.map((o) => (
                       <SelectItem key={o.lote} value={o.lote} className="text-xs">
                         <span className="font-mono">{o.lote || "(sem lote)"}</span>
-                        <span className="ml-2 text-muted-foreground">
-                          saldo {formatNum(o.saldo)}
-                          {o.data_validade ? ` · val ${o.data_validade}` : ""}
-                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -603,7 +638,7 @@ function LinhaItem({
           </div>
           <div className="text-[10px] text-muted-foreground">
             Total contado: <span className="tabular-nums font-semibold">{formatNum(totalContado)}</span>
-            {" · "}Sistema: <span className="tabular-nums">{formatNum(totalSist)}</span>
+            {isAdmin && <>{" · "}Sistema: <span className="tabular-nums">{formatNum(totalSist)}</span></>}
           </div>
         </div>
       </TableCell>
