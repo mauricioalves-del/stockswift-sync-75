@@ -560,6 +560,7 @@ function PlanejamentoPage() {
 }
 
 function CoberturaBadge({ dias }: { dias: number }) {
+
   const txt = dias >= 999 ? "∞" : dias.toFixed(1);
   const tone = dias >= 8 ? "bg-success/15 text-success"
     : dias >= 5 ? "bg-warning/20 text-warning-foreground"
