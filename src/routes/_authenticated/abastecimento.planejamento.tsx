@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Compass, Loader2, AlertTriangle, TrendingUp, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { formatNum } from "@/lib/inventory";
+import { indiceMedioNaJanela, indiceHoje, metodoPorABC, type PeriodoSazonal, type Metodo as MetodoSku } from "@/lib/sazonalidade";
 
 
 
@@ -21,15 +22,17 @@ export const Route = createFileRoute("/_authenticated/abastecimento/planejamento
   head: () => ({ meta: [{ title: "Abastecimento" }] }),
 });
 
-type Param = { origem: string; origem_abastecimento: string; cobertura_dias: number; dias_seguranca: number; ativo: boolean };
+type Param = { origem: string; origem_abastecimento: string; cobertura_dias: number; dias_seguranca: number; ativo: boolean; metodo_override: string | null };
 type Estoque = { id_produto: string; descricao: string; quantidade: number; custo_unitario: number; origem: string };
 type EstoqueLote = { id_produto: string; origem: string; quantidade: number; lote: string; data_validade: string | null; data_importacao: string };
 type Consumo = { origem: string; sku: string; quantidade: number; data_movimento: string };
 type Demanda = { origem: string; sku: string; quantidade_extra: number; status: string; data_inicio: string; data_fim: string };
 type ProdRep = { id_produto: string; estoque_minimo: number; estoque_ideal: number; estoque_maximo: number; ativo: boolean };
 type Familia = { codigo_produto: string; familia: string };
+type ABC = { codigo_produto: string; classe: string };
+type Grupo = { grupo: string; codigo_produto: string };
 
-type Metodo = "COBERTURA" | "MINMAX";
+type Metodo = "COBERTURA" | "MINMAX" | "AUTO";
 
 const SUPPLY_ORIGENS = ["Alm_SP_Fabrica", "Alm_SP_Processo"] as const;
 const FAMILIA_GRANEIS = "Granéis";
@@ -41,6 +44,9 @@ type Linha = {
   minimo: number; ideal: number; maximo: number; sugestao_minmax: number;
   supplier_disp: number; lote_fefo: string | null; lote_fefo_qtd: number; is_granel: boolean;
   dias_base: number; janela_dias: number; sem_base: boolean;
+  classe_abc: string | null;
+  metodo_efetivo: MetodoSku; metodo_fonte: "override" | "abc" | "default";
+  indice_sazonal: number; sazonal_nomes: string[];
 };
 
 
