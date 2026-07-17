@@ -623,6 +623,30 @@ function FilaAprovacao() {
     qc.invalidateQueries({ queryKey: ["baixas"] });
   }
 
+  async function aprovarTodos() {
+    const pendentes = (data ?? []).filter((b: any) => b.status_fluxo !== "APROVADA");
+    if (pendentes.length === 0) return toast.error("Não há itens pendentes para aprovar");
+    if (!confirm(`Aprovar todos os ${pendentes.length} item(ns) pendente(s) da fila?`)) return;
+    const comentario = window.prompt("Comentário para aprovação em lote (opcional):") ?? null;
+    const user = (await supabase.auth.getUser()).data.user!;
+    const ids = pendentes.map((b: any) => b.id);
+    const { error } = await (supabase as any).from("baixa_operacional").update({
+      status_fluxo: "APROVADA",
+      aprovador_id: user.id,
+      data_aprovacao: new Date().toISOString(),
+      comentario_aprovacao: comentario,
+    }).in("id", ids);
+    if (error) return toast.error(error.message);
+    await (supabase as any).from("audit_logs").insert(
+      pendentes.map((b: any) => ({
+        usuario: user.id, acao: "BAIXA_APROVADA", entidade: "baixa_operacional", entidade_id: b.id,
+        payload: { codigo_produto: b.codigo_produto, lote: b.lote, quantidade: b.quantidade, comentario, lote_aprovacao: true },
+      }))
+    );
+    toast.success(`${pendentes.length} baixa(s) aprovada(s)`);
+    qc.invalidateQueries({ queryKey: ["baixas"] });
+  }
+
   async function executar(b: any) {
     if (!confirm(`Executar baixa de ${b.quantidade} ${b.unidade ?? ""} do produto ${b.codigo_produto}?`)) return;
     const user = (await supabase.auth.getUser()).data.user!;
@@ -662,7 +686,16 @@ function FilaAprovacao() {
     <div className="space-y-3">
       {isAdmin && (
         <>
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2 flex-wrap">
+            {podeAprovar && (
+              <Button
+                onClick={aprovarTodos}
+                disabled={!(data && data.some((b: any) => b.status_fluxo !== "APROVADA"))}
+              >
+                <CheckCircle2 className="size-4 mr-2" />
+                Aprovar todos
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={solicitarBaixaFiscal}
