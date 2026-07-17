@@ -686,7 +686,16 @@ function FilaAprovacao() {
     <div className="space-y-3">
       {isAdmin && (
         <>
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2 flex-wrap">
+            {podeAprovar && (
+              <Button
+                onClick={aprovarTodos}
+                disabled={!(data && data.some((b: any) => b.status_fluxo !== "APROVADA"))}
+              >
+                <CheckCircle2 className="size-4 mr-2" />
+                Aprovar todos
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={solicitarBaixaFiscal}
