@@ -114,6 +114,27 @@ function RequisicoesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const excluir = useMutation({
+    mutationFn: async (r: Req) => {
+      const { data: u } = await supabase.auth.getUser();
+      const { error: e1 } = await supabase.from("requisicao_itens" as never).delete().eq("requisicao_id", r.id);
+      if (e1) throw e1;
+      const { error: e2 } = await supabase.from("requisicoes" as never).delete().eq("id", r.id);
+      if (e2) throw e2;
+      await supabase.from("auditoria").insert({
+        entidade: "requisicoes", entidade_id: r.id, acao: "EXCLUSAO",
+        usuario: u.user?.id, dados_antes: r as never,
+        observacao: `Exclusão da requisição ${r.numero} (status ${r.status})`,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Requisição excluída");
+      setExcluirOpen(null);
+      qc.invalidateQueries({ queryKey: ["requisicoes"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="max-w-7xl mx-auto space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
