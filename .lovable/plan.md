@@ -1,51 +1,110 @@
-## Faixas de tolerância unificadas em Missões + Recontagem automática
 
-### Situação atual
-- `src/lib/inventory.ts` → `acuracidadeColor` usa faixa `97–100` fixa; acima = amarelo, abaixo = vermelho.
-- Trigger `public.compute_inventario_metrics` (na tabela `inventario`) também usa `97–100` fixo para decidir `OK / DIVERGENCIA_POSITIVA / RECONTAGEM_NECESSARIA`.
-- Trigger `handle_recontagem_on_inventario` já gera `recontagem` quando `acuracidade < 97` — fluxo do módulo Contagem.
-- Missões (`missoes_itens`) hoje classificam só como `CONTADO` (bateu exato) ou `DIVERGENTE` (qualquer diferença) e **não** alimentam `recontagem`.
-- Limites não estão parametrizados em `parametros_inventario` — são hardcoded.
+# Motor de Previsão de Demanda do Abastecimento
 
-### O que muda
+Escopo: substituir a lógica de CMD dentro da engine já existente do módulo Abastecimento, sem recriar telas. Entregar em ondas, cada uma validável isoladamente para não desperdiçar créditos.
 
-**1. Extrair faixa para utilitário compartilhado**
-Novo em `src/lib/inventory.ts`:
-- Constantes `TOLERANCIA_MIN = 95`, `TOLERANCIA_MAX = 105` (fonte única para front).
-- Função `classificarFaixa(contada, sistemico) → { classe: "OK" | "DIVERGENCIA_NEGATIVA" | "DIVERGENCIA_POSITIVA", percentual }` cobrindo o caso de sistêmico = 0 (contada 0 → OK; contada > 0 → positiva).
-- Ajustar `acuracidadeColor` para usar 95–105 (verde) / >105 (amarelo) / <95 (vermelho), mantendo assinatura.
+## Onda 1 — Correção do viés de ruptura (item 1)
 
-**2. Espelhar faixa no banco (para Contagem continuar coerente)**
-Migração ajustando `public.compute_inventario_metrics`:
-- Faixa `OK` passa de 97–100 para 95–105.
-- `< 95` continua indo para `RECONTAGEM_NECESSARIA` (1ª contagem) / `AGUARDANDO_APROVACAO` (≥ 2ª).
-- `> 105` passa a também exigir recontagem (hoje vira `DIVERGENCIA_POSITIVA` e não gera recontagem) — para manter regra "toda divergência fora da faixa vai para recontagem" também no módulo Contagem.
-- Ajustar `handle_recontagem_on_inventario` para disparar quando `acuracidade < 95 OR acuracidade > 105` em vez de `< 97`.
-- Atualizar copy `< 97%` em `src/routes/_authenticated/recontagem.tsx` para "fora da faixa 95–105%".
+Onde: função de cálculo do CMD usada em `abastecimento.planejamento.tsx` / `abastecimento.consumo.tsx`.
 
-**3. Nova classificação em `missoes_itens`**
-- Adicionar valores ao domínio de `status_item`: `OK`, `DIVERGENCIA_NEGATIVA`, `DIVERGENCIA_POSITIVA` (mantendo `PENDENTE`; `CONTADO`/`DIVERGENTE` viram legado e permanecem aceitos para não quebrar dados existentes).
-- Em `src/routes/_authenticated/missoes.$id.tsx` (`LinhaItem.salvar`):
-  - Trocar lógica igual/diferente por `classificarFaixa()` → gravar `status_item` com a nova classe.
-  - Progresso (`concluidos`) e query de "restantes → CONCLUIDA" passam a considerar `OK/DIVERGENCIA_NEGATIVA/DIVERGENCIA_POSITIVA` (mais os antigos `CONTADO/DIVERGENTE`).
-  - Badge com cor por classe (verde/amarelo/vermelho) usando `acuracidadeColor` para consistência com Contagem.
+Mudança:
+- Numerador: total vendido no período (mantém).
+- Denominador: passa a ser **dias com estoque disponível** em vez de dias corridos.
+- Fonte dos "dias com estoque disponível" (nesta ordem, o que existir primeiro):
+  1. Snapshot diário de saldo, se já sincronizado.
+  2. Fallback: dias distintos em `historico_consumo` com venda > 0 **∪** dias em que houve entrada em `estoque_sistemico` naquele SKU/almoxarifado.
+- Nunca deixar denominador = 0: se `dias_disponiveis = 0`, marcar CMD como `null` e classificar amostra como "Sem base" (não sugerir compra por demanda).
 
-**4. Geração automática de Recontagem a partir da missão**
-Ainda em `salvar()`, após atualizar `missoes_itens`:
-- Se classe ≠ `OK`, além do upsert já feito em `inventario` (que hoje só grava se `RECONTAGEM_NECESSARIA` for atingida via trigger), inserir também em `public.recontagem` com:
-  `missao_id`, `item_missao_id` (= `item.id`), `codigo_produto`/`sku`, `lote`, `descricao`, `id_local`, `saldo_sistema` = previsto, `contagem` = contada, `acuracidade` = percentual, `status = 'PENDENTE_RECONTAGEM'`, `usuario`, `almoxarifado_id` = `missao.origem`.
-- Verificar colunas de `recontagem`: se `missao_id`/`item_missao_id`/`almoxarifado_id` não existirem, adicionar via migração (nullable, sem quebrar dados atuais). Confirmarei via `read_query` antes de escrever a migração final.
-- Evitar duplicata: `ON CONFLICT` em `(item_missao_id)` — criar índice único parcial quando `item_missao_id IS NOT NULL`. Se o item já tem recontagem pendente e o operador corrige, atualiza a linha existente.
-- Se classe voltar a `OK` numa correção, marcar a `recontagem` correspondente como `APROVADO` automaticamente (ou remover, decisão: **manter e marcar APROVADO** para preservar histórico/auditoria).
+Validação: comparar CMD antigo × novo em 10 SKUs com ruptura recente antes de liberar geral.
 
-**5. Testes manuais (roteiro)**
-Numa missão de teste com 3 itens:
-- Sistêmico 100, contada 100 → status `OK`, sem registro em Recontagem.
-- Sistêmico 100, contada 80 → `DIVERGENCIA_NEGATIVA` (80%), aparece em Recontagem.
-- Sistêmico 100, contada 120 → `DIVERGENCIA_POSITIVA` (120%), aparece em Recontagem.
-- Caso sistêmico 0 / contada 5 → `DIVERGENCIA_POSITIVA`, aparece em Recontagem.
+## Onda 2 — Transparência da amostra (item 3)
 
-### Fora do escopo
-- Tornar 95/105 parametrizáveis via UI (`parametros_inventario`) — hoje ninguém edita esses limites. Fica como evolução separada; por ora ambos os módulos leem das constantes em `src/lib/inventory.ts` + do trigger (fonte única no código, valores idênticos nos dois lados).
-- Reprocessar itens antigos de missões já contadas para reclassificar retroativamente.
-- Mudar a tela de Recontagem além do texto do subtítulo.
+Adicionar à linha da tabela de Cobertura duas colunas discretas:
+- `Dias base` (ex.: "9/30").
+- Badge de confiança: **Alta** ≥70%, **Média** 40–70%, **Baixa** <40%, **Sem base** quando denominador 0.
+
+Sem mudar nenhuma fórmula — só exposição do que a Onda 1 já calculou.
+
+## Onda 3 — Janela ponderada (item 2)
+
+Novos parâmetros em `parametros_abastecimento` (linha global, editáveis em Configurações):
+- `janela_semanas` (default 4).
+- `pesos_semanais` (default `[3,2,1,1]`, tamanho = janela).
+
+Cálculo:
+```
+CMD = Σ(venda_semana_i × peso_i) / Σ(dias_disponiveis_semana_i × peso_i)
+```
+Semana = janela de 7 dias contados de trás pra frente a partir de hoje.
+
+Fallback: se `janela_semanas` ou pesos ausentes/ inválidos → cai no cálculo simples da Onda 1.
+
+## Onda 4 — Seleção automática de método por ABC (item 4)
+
+Em `parametros_abastecimento` acrescentar coluna `metodo_override` (nullable) por SKU. Regra na leitura:
+- `metodo_override` presente → usar esse.
+- Senão: classe A/B → `POR_DEMANDA`; classe C → `MIN_IDEAL_MAX`; sem classe → mantém default atual.
+
+Na UI de parâmetros do SKU, mostrar o método efetivo + fonte ("automático por ABC" / "manual").
+
+## Onda 5 — Sazonalidade (item 5)
+
+### 5.1 Nova tabela `periodos_sazonais`
+```
+id, nome, data_inicio date, data_fim date,
+recorrente_anual bool,
+escopo_tipo text ('EMPRESA'|'GRUPO'|'FAMILIA'|'SKU'),
+escopo_valor text,          -- código do grupo/família/sku, null se EMPRESA
+indice_multiplicador numeric,
+origem_indice text ('MANUAL'|'AUTOMATICO'),
+ativo bool default true,
+criado_por, created_at, updated_at
+```
+Migração inclui GRANTs, RLS (leitura autenticado, escrita GERENTE/ADMIN), e `ALTER TABLE parametros_abastecimento ADD COLUMN metodo_override text`.
+
+### 5.2 Tela nova `/config/sazonalidade`
+CRUD simples reaproveitando o layout de `motivos-baixa.tsx`. Campos: nome, datas, recorrente, escopo (dropdown tipo + input valor), índice, ativo. Botão "Calcular do histórico" (só habilita quando há ≥ 1 ano de `historico_consumo` para o escopo) que preenche o índice usando:
+```
+indice = venda_media_diaria_dentro_do_periodo_ano_anterior /
+         venda_media_diaria_fora_do_periodo_mesmo_ano
+```
+Após a data_fim passar, exibir linha comparativa "previsto × realizado" na própria row.
+
+### 5.3 Aplicação no cálculo
+Nova função `cmdAjustadoParaJanela(cmdBase, sku, grupo, familia, janelaDias)`:
+- Para cada dia da janela de cobertura alvo, verifica períodos ativos que casam com escopo do SKU (recorrente_anual expande a data no ano corrente).
+- Se casa → `cmd_dia = cmdBase × indice`. Senão → `cmdBase`.
+- Retorna `{ necessidade, motivo }` onde `motivo` traz "+X% por sazonalidade: <nome> em Y dias" quando aplicável.
+
+Sugestão final = `necessidade + demanda_extra_aprovada − saldo_atual − em_pedido` (mantém a lógica atual, só troca o `cmd × dias`).
+
+### 5.4 Reflexo em Min/Ideal/Máx
+Durante um período sazonal ativo cujo escopo casa com o SKU, aplicar `ideal_efetivo = ideal × indice`, `max_efetivo = max × indice`. Ao expirar, volta ao valor cadastrado (nada é gravado — cálculo em runtime).
+
+## Onda 6 — Sincronização do ciclo (item 6)
+Reaproveita o mesmo trigger de recálculo já existente na tela de Abastecimento; só troca a função chamada. Sem cron novo.
+
+## Ordem sugerida de entrega
+1. Onda 1 (fórmula) + Onda 2 (badges) na mesma leva — impacto direto, baixo custo.
+2. Onda 3 (janela ponderada) + parâmetros editáveis.
+3. Onda 4 (auto ABC).
+4. Onda 5 completa (migração + tela + aplicação no cálculo), começando pelo cadastro manual do índice; automático como botão opcional.
+
+## Detalhes técnicos
+
+**Arquivos previstos:**
+- `src/lib/cmd.ts` — nova função `calcularCMD(sku, almox, opts)` centralizando a lógica (usada por planejamento e consumo).
+- `src/lib/sazonalidade.ts` — resolução de períodos aplicáveis + índice.
+- `src/routes/_authenticated/abastecimento.planejamento.tsx` — trocar chamada + novas colunas.
+- `src/routes/_authenticated/abastecimento.consumo.tsx` — trocar chamada + badges.
+- `src/routes/_authenticated/abastecimento.parametros.tsx` — inputs de janela/pesos e override de método.
+- `src/routes/_authenticated/config.sazonalidade.tsx` — nova tela.
+- `src/components/app/AppShell.tsx` — entrada de menu.
+- Migração: `periodos_sazonais` + `parametros_abastecimento.metodo_override` + GRANTs + RLS.
+
+**Pontos de atenção:**
+- Consultar `historico_consumo` uma vez por leva de SKUs e reduzir em memória (evitar N+1 na tela de Abastecimento com centenas de linhas).
+- Cache no queryClient com key incluindo `janela_semanas` e `pesos_semanais` para invalidar quando o parâmetro mudar.
+- Períodos recorrentes: normalizar para o ano corrente na hora de comparar com a janela (ex.: Páscoa 2026).
+
+Confirma essa ordem? Posso começar pelas **Ondas 1 + 2** já.
