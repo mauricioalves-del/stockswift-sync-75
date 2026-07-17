@@ -269,6 +269,28 @@ function RequisicoesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!excluirOpen} onOpenChange={(o) => !o && setExcluirOpen(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir requisição {excluirOpen?.numero}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é permanente. A requisição e todos os seus itens serão removidos do sistema.
+              Estoques já movimentados por separações anteriores NÃO serão revertidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={excluir.isPending}
+              onClick={(e) => { e.preventDefault(); if (excluirOpen) excluir.mutate(excluirOpen); }}
+            >
+              {excluir.isPending && <Loader2 className="size-4 mr-1 animate-spin" />} Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
