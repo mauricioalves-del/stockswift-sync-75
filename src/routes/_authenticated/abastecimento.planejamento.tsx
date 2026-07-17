@@ -210,8 +210,10 @@ function PlanejamentoPage() {
       const familia = familiaMap.get(sku) ?? "";
       const is_granel = familia === FAMILIA_GRANEIS;
 
-      // Granéis: se houver saldo no fornecedor, abastecer o lote mais velho inteiro (FEFO)
-      if (is_granel && isSupplied && fefo && fefo.qtd > 0) {
+      // Granéis: só quando o item realmente precisa de reposição (cobertura abaixo do alvo),
+      // abastecer com o lote FEFO inteiro do fornecedor.
+      const precisaRepor = cobertura_atual < cobertura_alvo || sugestao > 0;
+      if (is_granel && isSupplied && fefo && fefo.qtd > 0 && precisaRepor) {
         sugestao = Math.max(sugestao, fefo.qtd);
       }
       // Cap pelo disponível no fornecedor
