@@ -177,10 +177,18 @@ function PlanejamentoPage() {
       else stockMap.set(key, { qtd: Number(e.quantidade), desc: e.descricao ?? e.id_produto, custo: Number(e.custo_unitario) });
     }
 
+    // CMD real: numerador = total vendido; denominador = dias com estoque disponível (proxy: dias distintos com venda > 0)
+    const JANELA_DIAS = 30;
     const consumoMap = new Map<string, number>();
+    const diasMap = new Map<string, Set<string>>();
     for (const c of (consumoQ.data ?? [])) {
+      const qtd = Number(c.quantidade);
+      if (qtd <= 0) continue;
       const key = `${c.origem}|${c.sku}`;
-      consumoMap.set(key, (consumoMap.get(key) ?? 0) + Number(c.quantidade));
+      consumoMap.set(key, (consumoMap.get(key) ?? 0) + qtd);
+      const set = diasMap.get(key) ?? new Set<string>();
+      set.add(String(c.data_movimento).slice(0, 10));
+      diasMap.set(key, set);
     }
 
     const demandaMap = new Map<string, number>();
@@ -194,13 +202,16 @@ function PlanejamentoPage() {
       const [origem, sku] = key.split("|");
       const p = paramsMap.get(origem);
       if (!p) continue;
-      const consumo30 = consumoMap.get(key) ?? 0;
-      const cmd = consumo30 / 30;
+      const consumoTotal = consumoMap.get(key) ?? 0;
+      const diasBase = (diasMap.get(key)?.size) ?? 0;
+      const cmd = diasBase > 0 ? consumoTotal / diasBase : 0;
+      const semBase = diasBase === 0;
       const cobertura_atual = cmd > 0 ? s.qtd / cmd : 999;
       const cobertura_alvo = p.cobertura_dias;
       const demanda_extra = demandaMap.get(key) ?? 0;
-      const necessidade = cmd * cobertura_alvo + demanda_extra;
+      const necessidade = semBase ? demanda_extra : cmd * cobertura_alvo + demanda_extra;
       let sugestao = Math.max(0, necessidade - s.qtd);
+
 
       // Regras de suprimento: só abastece do que existe em Alm_SP_Fabrica / Alm_SP_Processo
       const supKey = `${p.origem_abastecimento}|${sku}`;
