@@ -483,8 +483,11 @@ function PlanejamentoPage() {
                       <TableCell className="text-xs">{l.origem}</TableCell>
                       <TableCell className="text-xs font-medium">{l.origem_abastecimento}</TableCell>
                       <TableCell className="text-right tabular-nums">{formatNum(l.estoque)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{l.cmd.toFixed(2)}</TableCell>
-                      <TableCell className="text-right"><CoberturaBadge dias={l.cobertura_atual} /></TableCell>
+                      <TableCell className="text-right tabular-nums">{l.sem_base ? "—" : l.cmd.toFixed(2)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs text-muted-foreground">{l.dias_base}/{l.janela_dias}</TableCell>
+                      <TableCell><ConfiancaBadge diasBase={l.dias_base} janela={l.janela_dias} /></TableCell>
+                      <TableCell className="text-right">{l.sem_base ? <Badge variant="outline" className="text-[10px]">Sem base</Badge> : <CoberturaBadge dias={l.cobertura_atual} />}</TableCell>
+
                       <TableCell className="text-right tabular-nums">{l.cobertura_alvo}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.demanda_extra > 0 ? `+${formatNum(l.demanda_extra)}` : "—"}</TableCell>
                       <TableCell className="text-right tabular-nums text-xs">
