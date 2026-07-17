@@ -75,11 +75,11 @@ function PlanejamentoPage() {
   });
 
   const consumoQ = useQuery({
-    queryKey: ["planejamento_consumo", origensAtivas.join(",")],
+    queryKey: ["planejamento_consumo_90d", origensAtivas.join(",")],
     enabled: origensAtivas.length > 0,
     queryFn: async () => {
       const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - 30);
+      cutoff.setDate(cutoff.getDate() - 90);
       const iso = cutoff.toISOString().slice(0, 10);
       const { data } = await supabase.from("historico_consumo" as never)
         .select("origem, sku, quantidade, data_movimento")
