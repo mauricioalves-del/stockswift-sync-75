@@ -93,6 +93,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const online = useOnlineStatus();
   const { theme, toggle } = useTheme();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("magio.sidebar.collapsed") === "1";
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("magio.sidebar.collapsed", collapsed ? "1" : "0");
+    }
+  }, [collapsed]);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const qc = useQueryClient();
 
