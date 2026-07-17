@@ -145,8 +145,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex bg-background">
-      <aside className="hidden lg:flex w-64 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
-        <SidebarContent items={visible} pathname={pathname} />
+      <aside className={cn(
+        "hidden lg:flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-[width] duration-200",
+        collapsed ? "w-16" : "w-64",
+      )}>
+        <SidebarContent items={visible} pathname={pathname} collapsed={collapsed} onExpand={() => setCollapsed(false)} />
       </aside>
 
       {open && (
@@ -166,6 +169,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2 px-4 lg:px-6 h-14">
             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)}>
               <Menu className="size-5" />
+            </Button>
+            <Button
+              variant="ghost" size="icon"
+              className="hidden lg:inline-flex"
+              onClick={() => setCollapsed((c) => !c)}
+              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+              title={collapsed ? "Expandir menu" : "Recolher menu"}
+            >
+              {collapsed ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
             </Button>
 
             <div className="lg:hidden flex items-center gap-2 mr-auto">
