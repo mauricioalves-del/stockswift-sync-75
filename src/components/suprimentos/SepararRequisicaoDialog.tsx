@@ -171,9 +171,9 @@ export function SepararRequisicaoDialog({
       }
 
       // Status geral
-      let statusReq = "NAO_ATENDIDA";
-      if (totalOk === items.length) statusReq = "SEPARADA_TOTAL";
-      else if (totalOk + totalParcial > 0) statusReq = "SEPARADA_PARCIAL";
+      let statusReq = "ENVIADA";
+      if (totalOk === items.length) statusReq = "ATENDIDA";
+      else if (totalOk + totalParcial > 0) statusReq = "EM_SEPARACAO";
 
       const { error: e3 } = await supabase.from("requisicoes" as never)
         .update({ status: statusReq } as never).eq("id", requisicao.id);
