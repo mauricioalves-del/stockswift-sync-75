@@ -447,6 +447,9 @@ function PlanejamentoPage() {
               <TabsTrigger value="MINMAX">Mín / Ideal / Máx</TabsTrigger>
             </TabsList>
           </Tabs>
+          <Button variant="outline" onClick={() => exportarExcel(linhasFiltradas, metodo)} disabled={linhasFiltradas.length === 0}>
+            <FileSpreadsheet className="size-4 mr-1" /> Baixar Excel
+          </Button>
           <Button
             onClick={() => gerarPedido.mutate()}
             disabled={sugeridosCount === 0 || gerarPedido.isPending}
