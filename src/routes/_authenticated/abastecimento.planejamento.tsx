@@ -461,6 +461,8 @@ function PlanejamentoPage() {
                   <TableHead>Abastecido por</TableHead>
                   <TableHead className="text-right">Estoque</TableHead>
                   <TableHead className="text-right">CMD</TableHead>
+                  <TableHead className="text-right">Base</TableHead>
+                  <TableHead>Confiança</TableHead>
                   <TableHead className="text-right">Cob. Atual</TableHead>
                   <TableHead className="text-right">Cob. Alvo</TableHead>
                   <TableHead className="text-right">Dem. Extra</TableHead>
@@ -469,6 +471,7 @@ function PlanejamentoPage() {
                   <TableHead className="text-right">Sugestão</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                 </TableRow></TableHeader>
+
                 <TableBody>
                   {linhasFiltradas.slice(0, 500).map((l) => (
                     <TableRow key={`${l.origem}|${l.sku}`}>
