@@ -342,15 +342,24 @@ function PlanejamentoPage() {
     return true;
   });
 
+  // Escolhe qual sugestão usar por linha, respeitando o modo global (COBERTURA/MINMAX)
+  // ou o método efetivo por SKU (AUTO — ABC + override).
+  const sugestaoDe = (l: Linha) => {
+    if (metodo === "COBERTURA") return l.sugestao;
+    if (metodo === "MINMAX") return l.sugestao_minmax;
+    return l.metodo_efetivo === "MIN_IDEAL_MAX" ? l.sugestao_minmax : l.sugestao;
+  };
+
   const kpis = useMemo(() => {
     const total = linhasFiltradas.length;
     const abaixo = linhasFiltradas.filter((l) => l.cobertura_atual < l.cobertura_alvo).length;
     const criticos = linhasFiltradas.filter((l) => l.cobertura_atual < 3).length;
     const abaixoMin = linhasFiltradas.filter((l) => l.minimo > 0 && l.estoque < l.minimo).length;
     const acimaMax = linhasFiltradas.filter((l) => l.maximo > 0 && l.estoque > l.maximo).length;
-    const valor = linhasFiltradas.reduce((s, l) => s + (metodo === "MINMAX" ? l.sugestao_minmax * l.custo_unitario : l.valor_reposicao), 0);
+    const valor = linhasFiltradas.reduce((s, l) => s + sugestaoDe(l) * l.custo_unitario, 0);
     const cobMedia = total ? linhasFiltradas.reduce((s, l) => s + Math.min(l.cobertura_atual, 60), 0) / total : 0;
     return { total, abaixo, criticos, valor, cobMedia, abaixoMin, acimaMax };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linhasFiltradas, metodo]);
 
 
