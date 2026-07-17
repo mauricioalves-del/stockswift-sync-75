@@ -57,6 +57,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/abastecimento/demandas", label: "Demandas Extras", icon: Sparkles, role: "write" },
       { to: "/abastecimento/consumo", label: "Importar Consumo", icon: TrendingUp, role: "write" },
       { to: "/abastecimento/parametros", label: "Parâmetros Abastecimento", icon: Settings2, role: "admin" },
+      { to: "/config/sazonalidade", label: "Sazonalidade", icon: Sparkles, role: "admin" },
     ],
   },
   {
