@@ -1074,6 +1074,7 @@ export type Database = {
           dias_seguranca: number
           frequencia_abastecimento: string
           id: string
+          metodo_override: string | null
           origem: string
           origem_abastecimento: string
           updated_at: string
@@ -1085,6 +1086,7 @@ export type Database = {
           dias_seguranca?: number
           frequencia_abastecimento?: string
           id?: string
+          metodo_override?: string | null
           origem: string
           origem_abastecimento?: string
           updated_at?: string
@@ -1096,6 +1098,7 @@ export type Database = {
           dias_seguranca?: number
           frequencia_abastecimento?: string
           id?: string
+          metodo_override?: string | null
           origem?: string
           origem_abastecimento?: string
           updated_at?: string
@@ -1158,6 +1161,54 @@ export type Database = {
           id?: string
           nome?: string
           role_key?: Database["public"]["Enums"]["app_role"] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      periodos_sazonais: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          criado_por: string | null
+          data_fim: string
+          data_inicio: string
+          escopo_tipo: string
+          escopo_valor: string | null
+          id: string
+          indice_multiplicador: number
+          nome: string
+          origem_indice: string
+          recorrente_anual: boolean
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          data_fim: string
+          data_inicio: string
+          escopo_tipo: string
+          escopo_valor?: string | null
+          id?: string
+          indice_multiplicador?: number
+          nome: string
+          origem_indice?: string
+          recorrente_anual?: boolean
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          data_fim?: string
+          data_inicio?: string
+          escopo_tipo?: string
+          escopo_valor?: string | null
+          id?: string
+          indice_multiplicador?: number
+          nome?: string
+          origem_indice?: string
+          recorrente_anual?: boolean
           updated_at?: string
         }
         Relationships: []

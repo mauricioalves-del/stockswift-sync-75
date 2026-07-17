@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Compass, Loader2, AlertTriangle, TrendingUp, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { formatNum } from "@/lib/inventory";
+import { indiceMedioNaJanela, indiceHoje, metodoPorABC, type PeriodoSazonal, type Metodo as MetodoSku } from "@/lib/sazonalidade";
 
 
 
@@ -21,15 +22,17 @@ export const Route = createFileRoute("/_authenticated/abastecimento/planejamento
   head: () => ({ meta: [{ title: "Abastecimento" }] }),
 });
 
-type Param = { origem: string; origem_abastecimento: string; cobertura_dias: number; dias_seguranca: number; ativo: boolean };
+type Param = { origem: string; origem_abastecimento: string; cobertura_dias: number; dias_seguranca: number; ativo: boolean; metodo_override: string | null };
 type Estoque = { id_produto: string; descricao: string; quantidade: number; custo_unitario: number; origem: string };
 type EstoqueLote = { id_produto: string; origem: string; quantidade: number; lote: string; data_validade: string | null; data_importacao: string };
 type Consumo = { origem: string; sku: string; quantidade: number; data_movimento: string };
 type Demanda = { origem: string; sku: string; quantidade_extra: number; status: string; data_inicio: string; data_fim: string };
 type ProdRep = { id_produto: string; estoque_minimo: number; estoque_ideal: number; estoque_maximo: number; ativo: boolean };
 type Familia = { codigo_produto: string; familia: string };
+type ABC = { codigo_produto: string; classe: string };
+type Grupo = { grupo: string; codigo_produto: string };
 
-type Metodo = "COBERTURA" | "MINMAX";
+type Metodo = "COBERTURA" | "MINMAX" | "AUTO";
 
 const SUPPLY_ORIGENS = ["Alm_SP_Fabrica", "Alm_SP_Processo"] as const;
 const FAMILIA_GRANEIS = "Granéis";
@@ -41,6 +44,9 @@ type Linha = {
   minimo: number; ideal: number; maximo: number; sugestao_minmax: number;
   supplier_disp: number; lote_fefo: string | null; lote_fefo_qtd: number; is_granel: boolean;
   dias_base: number; janela_dias: number; sem_base: boolean;
+  classe_abc: string | null;
+  metodo_efetivo: MetodoSku; metodo_fonte: "override" | "abc" | "default";
+  indice_sazonal: number; sazonal_nomes: string[];
 };
 
 
@@ -49,7 +55,7 @@ function PlanejamentoPage() {
   const [origemF, setOrigemF] = useState<string>("__all");
   const [buscaF, setBuscaF] = useState("");
   const [grupoF, setGrupoF] = useState<string>("__all");
-  const [metodo, setMetodo] = useState<Metodo>("COBERTURA");
+  const [metodo, setMetodo] = useState<Metodo>("AUTO");
 
 
   const paramsQ = useQuery({
@@ -132,11 +138,30 @@ function PlanejamentoPage() {
   const gruposQ = useQuery({
     queryKey: ["planejamento_grupos"],
     queryFn: async () => {
-      const { data } = await (supabase as never as { from: (t: string) => { select: (c: string) => Promise<{ data: { grupo: string; codigo_produto: string }[] | null }> } })
+      const { data } = await (supabase as never as { from: (t: string) => { select: (c: string) => Promise<{ data: Grupo[] | null }> } })
         .from("grupo_produtos").select("grupo, codigo_produto");
-      return (data ?? []) as { grupo: string; codigo_produto: string }[];
+      return (data ?? []) as Grupo[];
     },
   });
+
+  const abcQ = useQuery({
+    queryKey: ["planejamento_abc"],
+    queryFn: async () => {
+      const { data } = await (supabase as never as { from: (t: string) => { select: (c: string) => Promise<{ data: ABC[] | null }> } })
+        .from("classificacao_abc").select("codigo_produto, classe");
+      return (data ?? []) as ABC[];
+    },
+  });
+
+  const sazonaisQ = useQuery({
+    queryKey: ["planejamento_sazonais"],
+    queryFn: async () => {
+      const { data } = await (supabase as never as { from: (t: string) => { select: (c: string) => { eq: (col: string, v: boolean) => Promise<{ data: PeriodoSazonal[] | null }> } } })
+        .from("periodos_sazonais").select("*").eq("ativo", true);
+      return (data ?? []) as PeriodoSazonal[];
+    },
+  });
+
   const gruposDistintos = useMemo(
     () => Array.from(new Set((gruposQ.data ?? []).map((g) => g.grupo).filter(Boolean))).sort(),
     [gruposQ.data]
@@ -151,6 +176,9 @@ function PlanejamentoPage() {
     const paramsMap = new Map(paramsQ.data.map((p) => [p.origem, p]));
     const prodMap = new Map((prodRepQ.data ?? []).map((p) => [p.id_produto, p]));
     const familiaMap = new Map((familiasQ.data ?? []).map((f) => [f.codigo_produto, f.familia]));
+    const abcMap = new Map((abcQ.data ?? []).map((a) => [a.codigo_produto, a.classe]));
+    const grupoMap = new Map((gruposQ.data ?? []).map((g) => [g.codigo_produto, g.grupo]));
+    const periodos = sazonaisQ.data ?? [];
 
     // Supplier: total disponível por (origem_abast|sku) e lote FEFO
     const supplierTotal = new Map<string, number>();
@@ -180,8 +208,6 @@ function PlanejamentoPage() {
     }
 
     // CMD ponderado por janelas (7/30/90 dias)
-    // Cada janela: CMD_i = total_vendido_i / dias_com_venda_i (elimina viés de ruptura)
-    // CMD final = média ponderada (peso maior para janelas recentes)
     const JANELAS = [
       { dias: 7, peso: 0.5 },
       { dias: 30, peso: 0.3 },
@@ -194,7 +220,6 @@ function PlanejamentoPage() {
       return d.toISOString().slice(0, 10);
     });
 
-    // Para cada janela: consumo total e set de dias com venda por chave
     const consumoJanela: Map<string, number>[] = JANELAS.map(() => new Map());
     const diasJanela: Map<string, Set<string>>[] = JANELAS.map(() => new Map());
     for (const c of (consumoQ.data ?? [])) {
@@ -224,7 +249,6 @@ function PlanejamentoPage() {
       const p = paramsMap.get(origem);
       if (!p) continue;
 
-      // Computa CMD por janela e blend ponderado (apenas janelas com base)
       const cmds: { cmd: number; peso: number; dias: number }[] = [];
       for (let i = 0; i < JANELAS.length; i++) {
         const total = consumoJanela[i].get(key) ?? 0;
@@ -235,39 +259,45 @@ function PlanejamentoPage() {
       }
       const pesoTotal = cmds.reduce((a, b) => a + b.peso, 0);
       const cmd = pesoTotal > 0 ? cmds.reduce((a, b) => a + b.cmd * b.peso, 0) / pesoTotal : 0;
-      // Base: maior janela com histórico (mais representativa) — para exibição
       const diasBase = cmds.length > 0 ? Math.max(...cmds.map((c) => c.dias)) : 0;
       const janelaBase = cmds.length > 0 ? Math.max(...cmds.map((c) => JANELAS.find((j) => j.peso === c.peso)?.dias ?? 0)) : 30;
       const semBase = cmd === 0;
 
-      const cobertura_atual = cmd > 0 ? s.qtd / cmd : 999;
+      // Contexto SKU para sazonalidade e ABC
+      const familia = familiaMap.get(sku) ?? "";
+      const grupo = grupoMap.get(sku) ?? "";
+      const classe = abcMap.get(sku) ?? null;
       const cobertura_alvo = p.cobertura_dias;
+
+      // Índice médio de sazonalidade na janela de cobertura alvo (afeta CMD projetado)
+      const saz = indiceMedioNaJanela(periodos, { sku, grupo, familia }, Math.max(1, cobertura_alvo));
+      // Índice hoje (afeta Ideal/Máx no MinMax)
+      const sazHoje = indiceHoje(periodos, { sku, grupo, familia });
+
+      const cobertura_atual = cmd > 0 ? s.qtd / cmd : 999;
       const demanda_extra = demandaMap.get(key) ?? 0;
-      const necessidade = semBase ? demanda_extra : cmd * cobertura_alvo + demanda_extra;
+      // Necessidade ajustada por sazonalidade média da janela
+      const necessidade = semBase ? demanda_extra : cmd * cobertura_alvo * saz.indice + demanda_extra;
       let sugestao = Math.max(0, necessidade - s.qtd);
 
-
-      // Regras de suprimento: só abastece do que existe em Alm_SP_Fabrica / Alm_SP_Processo
+      // Regras de suprimento
       const supKey = `${p.origem_abastecimento}|${sku}`;
       const isSupplied = (SUPPLY_ORIGENS as readonly string[]).includes(p.origem_abastecimento);
       const supplier_disp = isSupplied ? (supplierTotal.get(supKey) ?? 0) : Infinity;
       const fefo = isSupplied ? (supplierFefo.get(supKey) ?? null) : null;
-      const familia = familiaMap.get(sku) ?? "";
       const is_granel = familia === FAMILIA_GRANEIS;
 
-      // Granéis: só quando o item realmente precisa de reposição (cobertura abaixo do alvo),
-      // abastecer com o lote FEFO inteiro do fornecedor.
       const precisaRepor = cobertura_atual < cobertura_alvo || sugestao > 0;
       if (is_granel && isSupplied && fefo && fefo.qtd > 0 && precisaRepor) {
         sugestao = Math.max(sugestao, fefo.qtd);
       }
-      // Cap pelo disponível no fornecedor
       if (isSupplied) sugestao = Math.min(sugestao, supplier_disp);
 
       const pr = prodMap.get(sku);
       const minimo = Number(pr?.estoque_minimo ?? 0);
-      const ideal = Number(pr?.estoque_ideal ?? 0);
-      const maximo = Number(pr?.estoque_maximo ?? 0);
+      // Sazonalidade sobre Ideal/Máx no momento atual
+      const ideal = Number(pr?.estoque_ideal ?? 0) * sazHoje.indice;
+      const maximo = Number(pr?.estoque_maximo ?? 0) * sazHoje.indice;
       let sugestao_minmax = 0;
       if (minimo > 0 && s.qtd < minimo && ideal > 0) {
         sugestao_minmax = ideal - s.qtd;
@@ -278,6 +308,8 @@ function PlanejamentoPage() {
 
       const sugestaoCeil = Math.ceil(Math.max(0, sugestao));
       const sugestaoMinMaxCeil = Math.ceil(Math.max(0, sugestao_minmax));
+
+      const met = metodoPorABC(classe, p.metodo_override);
 
       out.push({
         sku, produto: s.desc,
@@ -291,11 +323,13 @@ function PlanejamentoPage() {
         lote_fefo_qtd: fefo?.qtd ?? 0,
         is_granel,
         dias_base: diasBase, janela_dias: janelaBase, sem_base: semBase,
-
+        classe_abc: classe,
+        metodo_efetivo: met.metodo, metodo_fonte: met.fonte,
+        indice_sazonal: saz.indice, sazonal_nomes: saz.nomes,
       });
     }
     return out.sort((a, b) => a.cobertura_atual - b.cobertura_atual);
-  }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data, prodRepQ.data, supplierStockQ.data, familiasQ.data]);
+  }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data, prodRepQ.data, supplierStockQ.data, familiasQ.data, abcQ.data, gruposQ.data, sazonaisQ.data]);
 
 
   const linhasFiltradas = linhas.filter((l) => {
@@ -308,15 +342,24 @@ function PlanejamentoPage() {
     return true;
   });
 
+  // Escolhe qual sugestão usar por linha, respeitando o modo global (COBERTURA/MINMAX)
+  // ou o método efetivo por SKU (AUTO — ABC + override).
+  const sugestaoDe = (l: Linha) => {
+    if (metodo === "COBERTURA") return l.sugestao;
+    if (metodo === "MINMAX") return l.sugestao_minmax;
+    return l.metodo_efetivo === "MIN_IDEAL_MAX" ? l.sugestao_minmax : l.sugestao;
+  };
+
   const kpis = useMemo(() => {
     const total = linhasFiltradas.length;
     const abaixo = linhasFiltradas.filter((l) => l.cobertura_atual < l.cobertura_alvo).length;
     const criticos = linhasFiltradas.filter((l) => l.cobertura_atual < 3).length;
     const abaixoMin = linhasFiltradas.filter((l) => l.minimo > 0 && l.estoque < l.minimo).length;
     const acimaMax = linhasFiltradas.filter((l) => l.maximo > 0 && l.estoque > l.maximo).length;
-    const valor = linhasFiltradas.reduce((s, l) => s + (metodo === "MINMAX" ? l.sugestao_minmax * l.custo_unitario : l.valor_reposicao), 0);
+    const valor = linhasFiltradas.reduce((s, l) => s + sugestaoDe(l) * l.custo_unitario, 0);
     const cobMedia = total ? linhasFiltradas.reduce((s, l) => s + Math.min(l.cobertura_atual, 60), 0) / total : 0;
     return { total, abaixo, criticos, valor, cobMedia, abaixoMin, acimaMax };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linhasFiltradas, metodo]);
 
 
@@ -328,7 +371,7 @@ function PlanejamentoPage() {
   const gerarPedido = useMutation({
     mutationFn: async () => {
       const sugeridos = linhasFiltradas
-        .map((l) => ({ ...l, _sug: metodo === "MINMAX" ? l.sugestao_minmax : l.sugestao }))
+        .map((l) => ({ ...l, _sug: sugestaoDe(l), _metodo: metodo === "AUTO" ? l.metodo_efetivo : (metodo === "MINMAX" ? "MIN_IDEAL_MAX" : "POR_DEMANDA") }))
         .filter((l) => l._sug > 0);
       if (sugeridos.length === 0) throw new Error("Nenhum item com sugestão de reposição.");
       const { data: u } = await supabase.auth.getUser();
@@ -345,7 +388,7 @@ function PlanejamentoPage() {
 
       const criadas: { id: string; numero: string }[] = [];
       let seq = 0;
-      const metodoLabel = metodo === "MINMAX" ? "MinMax" : "Cobertura";
+      const metodoLabel = metodo === "AUTO" ? "Auto (ABC)" : metodo === "MINMAX" ? "MinMax" : "Cobertura";
       for (const [key, itens] of grupos) {
         const [destino, fornecedor] = key.split("|");
         const numero = `REQ-${Date.now().toString().slice(-8)}-${seq++}`;
@@ -380,7 +423,7 @@ function PlanejamentoPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const sugeridosCount = linhasFiltradas.filter((l) => (metodo === "MINMAX" ? l.sugestao_minmax : l.sugestao) > 0).length;
+  const sugeridosCount = linhasFiltradas.filter((l) => sugestaoDe(l) > 0).length;
 
 
 
@@ -390,15 +433,16 @@ function PlanejamentoPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><Compass className="size-6" /> Abastecimento</h1>
           <p className="text-sm text-muted-foreground">
-            {metodo === "COBERTURA"
-              ? "Sugestão = (CMD × Cob. Alvo + Demanda Extra) − Estoque · limitada ao saldo em Alm_SP_Fabrica/Processo · Granéis: abastecem o lote FEFO inteiro"
-              : "Se Estoque < Mín ⇒ Sugestão = Ideal − Estoque (limitado ao Máx)"}
+            {metodo === "COBERTURA" && "Sugestão = (CMD × Cob. Alvo × Sazonalidade + Demanda Extra) − Estoque · limitada ao saldo em Alm_SP_Fabrica/Processo · Granéis: lote FEFO inteiro"}
+            {metodo === "MINMAX" && "Se Estoque < Mín ⇒ Sugestão = Ideal − Estoque (limitado ao Máx) · Ideal/Máx ajustados por sazonalidade ativa"}
+            {metodo === "AUTO" && "Método por SKU: classe A/B → Por Demanda · classe C → Mín/Ideal/Máx · com override manual e ajuste sazonal automático"}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
           <Tabs value={metodo} onValueChange={(v) => setMetodo(v as Metodo)}>
             <TabsList>
-              <TabsTrigger value="COBERTURA">Por Demanda (Cobertura)</TabsTrigger>
+              <TabsTrigger value="AUTO">Auto (ABC)</TabsTrigger>
+              <TabsTrigger value="COBERTURA">Por Demanda</TabsTrigger>
               <TabsTrigger value="MINMAX">Mín / Ideal / Máx</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -424,17 +468,17 @@ function PlanejamentoPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <KPI label="SKUs" value={String(kpis.total)} />
-        {metodo === "COBERTURA" ? (
-          <>
-            <KPI label="Abaixo da cobertura" value={String(kpis.abaixo)} tone="warning" />
-            <KPI label="Cobertura < 3 dias" value={String(kpis.criticos)} tone="danger" />
-            <KPI label="Cobertura média" value={`${kpis.cobMedia.toFixed(1)} d`} />
-          </>
-        ) : (
+        {metodo === "MINMAX" ? (
           <>
             <KPI label="Abaixo do mínimo" value={String(kpis.abaixoMin)} tone="danger" />
             <KPI label="Acima do máximo" value={String(kpis.acimaMax)} tone="warning" />
             <KPI label="A repor" value={String(sugeridosCount)} />
+          </>
+        ) : (
+          <>
+            <KPI label="Abaixo da cobertura" value={String(kpis.abaixo)} tone="warning" />
+            <KPI label="Cobertura < 3 dias" value={String(kpis.criticos)} tone="danger" />
+            <KPI label="Cobertura média" value={`${kpis.cobMedia.toFixed(1)} d`} />
           </>
         )}
         <KPI label="Valor reposição" value={`R$ ${formatNum(kpis.valor)}`} />
@@ -476,14 +520,14 @@ function PlanejamentoPage() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <TrendingUp className="size-4" />
-            {metodo === "COBERTURA" ? "Cobertura por SKU" : "Mín / Ideal / Máx por SKU"}
+            {metodo === "MINMAX" ? "Mín / Ideal / Máx por SKU" : metodo === "AUTO" ? "Cobertura por SKU (Auto ABC + Sazonalidade)" : "Cobertura por SKU"}
           </CardTitle>
           <CardDescription>
-            {metodo === "COBERTURA" ? "Ordenado pelos mais críticos." : "Vermelho: abaixo do mínimo · Amarelo: entre mín e ideal · Verde: ok · Azul: excesso"}
+            {metodo === "MINMAX" ? "Vermelho: abaixo do mínimo · Amarelo: entre mín e ideal · Verde: ok · Azul: excesso" : "Ordenado pelos mais críticos."}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? <Loader2 className="animate-spin" /> : metodo === "COBERTURA" ? (
+          {loading ? <Loader2 className="animate-spin" /> : metodo !== "MINMAX" ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow>
@@ -491,6 +535,8 @@ function PlanejamentoPage() {
                   <TableHead>Produto</TableHead>
                   <TableHead>Destino</TableHead>
                   <TableHead>Abastecido por</TableHead>
+                  {metodo === "AUTO" && <TableHead>Método</TableHead>}
+                  <TableHead>Sazon.</TableHead>
                   <TableHead className="text-right">Estoque</TableHead>
                   <TableHead className="text-right">CMD</TableHead>
                   <TableHead className="text-right">Base</TableHead>
@@ -505,15 +551,24 @@ function PlanejamentoPage() {
                 </TableRow></TableHeader>
 
                 <TableBody>
-                  {linhasFiltradas.slice(0, 500).map((l) => (
+                  {linhasFiltradas.slice(0, 500).map((l) => {
+                    const sug = sugestaoDe(l);
+                    return (
                     <TableRow key={`${l.origem}|${l.sku}`}>
                       <TableCell className="font-mono text-xs">
                         {l.sku}
+                        {l.classe_abc && <Badge variant="outline" className="ml-1 text-[10px]">{l.classe_abc}</Badge>}
                         {l.is_granel && <Badge variant="outline" className="ml-1 text-[10px]">Granel</Badge>}
                       </TableCell>
                       <TableCell className="text-xs max-w-xs truncate">{l.produto}</TableCell>
                       <TableCell className="text-xs">{l.origem}</TableCell>
                       <TableCell className="text-xs font-medium">{l.origem_abastecimento}</TableCell>
+                      {metodo === "AUTO" && (
+                        <TableCell className="text-xs">
+                          <MetodoBadge metodo={l.metodo_efetivo} fonte={l.metodo_fonte} />
+                        </TableCell>
+                      )}
+                      <TableCell><SazonBadge indice={l.indice_sazonal} nomes={l.sazonal_nomes} /></TableCell>
                       <TableCell className="text-right tabular-nums">{formatNum(l.estoque)}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.sem_base ? "—" : l.cmd.toFixed(2)}</TableCell>
                       <TableCell className="text-right tabular-nums text-xs text-muted-foreground">{l.dias_base}/{l.janela_dias}</TableCell>
@@ -530,12 +585,13 @@ function PlanejamentoPage() {
                       <TableCell className="text-right tabular-nums text-xs">
                         {l.lote_fefo ? <span className="font-mono">{l.lote_fefo} ({formatNum(l.lote_fefo_qtd)})</span> : "—"}
                       </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums">{formatNum(l.sugestao)}</TableCell>
-                      <TableCell className="text-right tabular-nums">R$ {formatNum(l.valor_reposicao)}</TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums">{formatNum(sug)}</TableCell>
+                      <TableCell className="text-right tabular-nums">R$ {formatNum(sug * l.custo_unitario)}</TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                   {linhasFiltradas.length === 0 && (
-                    <TableRow><TableCell colSpan={15} className="text-center text-muted-foreground text-sm py-6">
+                    <TableRow><TableCell colSpan={metodo === "AUTO" ? 17 : 16} className="text-center text-muted-foreground text-sm py-6">
                       Sem dados. Cadastre parâmetros e importe consumo.
                     </TableCell></TableRow>
                   )}
@@ -625,4 +681,26 @@ function ConfiancaBadge({ diasBase, janela }: { diasBase: number; janela: number
   if (ratio >= 0.7) return <Badge className="bg-success/15 text-success text-[10px]">Alta</Badge>;
   if (ratio >= 0.4) return <Badge className="bg-warning/20 text-warning-foreground text-[10px]">Média</Badge>;
   return <Badge className="bg-destructive/15 text-destructive text-[10px]">Baixa</Badge>;
+}
+
+function MetodoBadge({ metodo, fonte }: { metodo: "POR_DEMANDA" | "MIN_IDEAL_MAX"; fonte: "override" | "abc" | "default" }) {
+  const label = metodo === "POR_DEMANDA" ? "Por Demanda" : "Mín/Máx";
+  const src = fonte === "override" ? "manual" : fonte === "abc" ? "ABC" : "default";
+  const tone = metodo === "POR_DEMANDA" ? "bg-primary/10 text-primary" : "bg-muted text-foreground";
+  return (
+    <div className="flex flex-col gap-0.5">
+      <Badge className={`${tone} text-[10px]`}>{label}</Badge>
+      <span className="text-[9px] text-muted-foreground">{src}</span>
+    </div>
+  );
+}
+
+function SazonBadge({ indice, nomes }: { indice: number; nomes: string[] }) {
+  if (!indice || indice === 1) return <span className="text-xs text-muted-foreground">—</span>;
+  const pct = Math.round((indice - 1) * 100);
+  const tone = indice > 1 ? "bg-warning/20 text-warning-foreground" : "bg-blue-500/15 text-blue-700 dark:text-blue-400";
+  const label = `${pct > 0 ? "+" : ""}${pct}%`;
+  return (
+    <Badge className={`${tone} text-[10px]`} title={nomes.join(", ")}>{label}</Badge>
+  );
 }

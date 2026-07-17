@@ -38,6 +38,7 @@ import { Route as AuthenticatedMissoesIdRouteImport } from './routes/_authentica
 import { Route as AuthenticatedGestaoPlanejamentoRouteImport } from './routes/_authenticated/gestao.planejamento'
 import { Route as AuthenticatedGestaoModelosChecklistRouteImport } from './routes/_authenticated/gestao.modelos-checklist'
 import { Route as AuthenticatedGestaoMinhasTarefasRouteImport } from './routes/_authenticated/gestao.minhas-tarefas'
+import { Route as AuthenticatedConfigSazonalidadeRouteImport } from './routes/_authenticated/config.sazonalidade'
 import { Route as AuthenticatedConfigResendRouteImport } from './routes/_authenticated/config.resend'
 import { Route as AuthenticatedConfigPerfisRouteImport } from './routes/_authenticated/config.perfis'
 import { Route as AuthenticatedConfigInventarioRouteImport } from './routes/_authenticated/config.inventario'
@@ -203,6 +204,12 @@ const AuthenticatedGestaoMinhasTarefasRoute =
     path: '/gestao/minhas-tarefas',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedConfigSazonalidadeRoute =
+  AuthenticatedConfigSazonalidadeRouteImport.update({
+    id: '/config/sazonalidade',
+    path: '/config/sazonalidade',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedConfigResendRoute =
   AuthenticatedConfigResendRouteImport.update({
     id: '/config/resend',
@@ -292,6 +299,7 @@ export interface FileRoutesByFullPath {
   '/config/inventario': typeof AuthenticatedConfigInventarioRoute
   '/config/perfis': typeof AuthenticatedConfigPerfisRoute
   '/config/resend': typeof AuthenticatedConfigResendRoute
+  '/config/sazonalidade': typeof AuthenticatedConfigSazonalidadeRoute
   '/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
@@ -332,6 +340,7 @@ export interface FileRoutesByTo {
   '/config/inventario': typeof AuthenticatedConfigInventarioRoute
   '/config/perfis': typeof AuthenticatedConfigPerfisRoute
   '/config/resend': typeof AuthenticatedConfigResendRoute
+  '/config/sazonalidade': typeof AuthenticatedConfigSazonalidadeRoute
   '/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
@@ -374,6 +383,7 @@ export interface FileRoutesById {
   '/_authenticated/config/inventario': typeof AuthenticatedConfigInventarioRoute
   '/_authenticated/config/perfis': typeof AuthenticatedConfigPerfisRoute
   '/_authenticated/config/resend': typeof AuthenticatedConfigResendRoute
+  '/_authenticated/config/sazonalidade': typeof AuthenticatedConfigSazonalidadeRoute
   '/_authenticated/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
   '/_authenticated/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/_authenticated/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
@@ -416,6 +426,7 @@ export interface FileRouteTypes {
     | '/config/inventario'
     | '/config/perfis'
     | '/config/resend'
+    | '/config/sazonalidade'
     | '/gestao/minhas-tarefas'
     | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
@@ -456,6 +467,7 @@ export interface FileRouteTypes {
     | '/config/inventario'
     | '/config/perfis'
     | '/config/resend'
+    | '/config/sazonalidade'
     | '/gestao/minhas-tarefas'
     | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
@@ -497,6 +509,7 @@ export interface FileRouteTypes {
     | '/_authenticated/config/inventario'
     | '/_authenticated/config/perfis'
     | '/_authenticated/config/resend'
+    | '/_authenticated/config/sazonalidade'
     | '/_authenticated/gestao/minhas-tarefas'
     | '/_authenticated/gestao/modelos-checklist'
     | '/_authenticated/gestao/planejamento'
@@ -722,6 +735,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGestaoMinhasTarefasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/config/sazonalidade': {
+      id: '/_authenticated/config/sazonalidade'
+      path: '/config/sazonalidade'
+      fullPath: '/config/sazonalidade'
+      preLoaderRoute: typeof AuthenticatedConfigSazonalidadeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/config/resend': {
       id: '/_authenticated/config/resend'
       path: '/config/resend'
@@ -835,6 +855,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedConfigInventarioRoute: typeof AuthenticatedConfigInventarioRoute
   AuthenticatedConfigPerfisRoute: typeof AuthenticatedConfigPerfisRoute
   AuthenticatedConfigResendRoute: typeof AuthenticatedConfigResendRoute
+  AuthenticatedConfigSazonalidadeRoute: typeof AuthenticatedConfigSazonalidadeRoute
   AuthenticatedGestaoMinhasTarefasRoute: typeof AuthenticatedGestaoMinhasTarefasRoute
   AuthenticatedGestaoModelosChecklistRoute: typeof AuthenticatedGestaoModelosChecklistRoute
   AuthenticatedGestaoPlanejamentoRoute: typeof AuthenticatedGestaoPlanejamentoRoute
@@ -876,6 +897,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedConfigInventarioRoute: AuthenticatedConfigInventarioRoute,
   AuthenticatedConfigPerfisRoute: AuthenticatedConfigPerfisRoute,
   AuthenticatedConfigResendRoute: AuthenticatedConfigResendRoute,
+  AuthenticatedConfigSazonalidadeRoute: AuthenticatedConfigSazonalidadeRoute,
   AuthenticatedGestaoMinhasTarefasRoute: AuthenticatedGestaoMinhasTarefasRoute,
   AuthenticatedGestaoModelosChecklistRoute:
     AuthenticatedGestaoModelosChecklistRoute,
