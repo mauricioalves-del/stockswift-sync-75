@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Compass, Loader2, AlertTriangle, TrendingUp, FileText } from "lucide-react";
+import { Compass, Loader2, AlertTriangle, TrendingUp, FileText, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { formatNum } from "@/lib/inventory";
 import { indiceMedioNaJanela, indiceHoje, metodoPorABC, type PeriodoSazonal, type Metodo as MetodoSku } from "@/lib/sazonalidade";
