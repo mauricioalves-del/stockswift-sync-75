@@ -53,6 +53,7 @@ function RequisicoesPage() {
   const [rejeitarOpen, setRejeitarOpen] = useState<Req | null>(null);
   const [motivoRej, setMotivoRej] = useState("");
   const [separarOpen, setSepararOpen] = useState<Req | null>(null);
+  const [excluirOpen, setExcluirOpen] = useState<Req | null>(null);
 
   const q = useQuery({
     queryKey: ["requisicoes", statusF],
