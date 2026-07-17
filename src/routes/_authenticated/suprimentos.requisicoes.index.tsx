@@ -224,6 +224,11 @@ function RequisicoesPage() {
                               <Trash2 className="size-4 text-muted-foreground" />
                             </Button>
                           )}
+                          {isAdmin && (
+                            <Button size="sm" variant="ghost" onClick={() => setExcluirOpen(r)} title="Excluir definitivamente">
+                              <Trash className="size-4 text-destructive" />
+                            </Button>
+                          )}
                           <Button asChild size="sm" variant="link">
                             <Link to="/suprimentos/requisicoes/$id" params={{ id: r.id }}>Ver</Link>
                           </Button>
