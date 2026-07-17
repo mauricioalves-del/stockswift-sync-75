@@ -176,6 +176,9 @@ function PlanejamentoPage() {
     const paramsMap = new Map(paramsQ.data.map((p) => [p.origem, p]));
     const prodMap = new Map((prodRepQ.data ?? []).map((p) => [p.id_produto, p]));
     const familiaMap = new Map((familiasQ.data ?? []).map((f) => [f.codigo_produto, f.familia]));
+    const abcMap = new Map((abcQ.data ?? []).map((a) => [a.codigo_produto, a.classe]));
+    const grupoMap = new Map((gruposQ.data ?? []).map((g) => [g.codigo_produto, g.grupo]));
+    const periodos = sazonaisQ.data ?? [];
 
     // Supplier: total disponível por (origem_abast|sku) e lote FEFO
     const supplierTotal = new Map<string, number>();
@@ -205,8 +208,6 @@ function PlanejamentoPage() {
     }
 
     // CMD ponderado por janelas (7/30/90 dias)
-    // Cada janela: CMD_i = total_vendido_i / dias_com_venda_i (elimina viés de ruptura)
-    // CMD final = média ponderada (peso maior para janelas recentes)
     const JANELAS = [
       { dias: 7, peso: 0.5 },
       { dias: 30, peso: 0.3 },
@@ -219,7 +220,6 @@ function PlanejamentoPage() {
       return d.toISOString().slice(0, 10);
     });
 
-    // Para cada janela: consumo total e set de dias com venda por chave
     const consumoJanela: Map<string, number>[] = JANELAS.map(() => new Map());
     const diasJanela: Map<string, Set<string>>[] = JANELAS.map(() => new Map());
     for (const c of (consumoQ.data ?? [])) {
@@ -249,7 +249,6 @@ function PlanejamentoPage() {
       const p = paramsMap.get(origem);
       if (!p) continue;
 
-      // Computa CMD por janela e blend ponderado (apenas janelas com base)
       const cmds: { cmd: number; peso: number; dias: number }[] = [];
       for (let i = 0; i < JANELAS.length; i++) {
         const total = consumoJanela[i].get(key) ?? 0;
@@ -260,39 +259,45 @@ function PlanejamentoPage() {
       }
       const pesoTotal = cmds.reduce((a, b) => a + b.peso, 0);
       const cmd = pesoTotal > 0 ? cmds.reduce((a, b) => a + b.cmd * b.peso, 0) / pesoTotal : 0;
-      // Base: maior janela com histórico (mais representativa) — para exibição
       const diasBase = cmds.length > 0 ? Math.max(...cmds.map((c) => c.dias)) : 0;
       const janelaBase = cmds.length > 0 ? Math.max(...cmds.map((c) => JANELAS.find((j) => j.peso === c.peso)?.dias ?? 0)) : 30;
       const semBase = cmd === 0;
 
-      const cobertura_atual = cmd > 0 ? s.qtd / cmd : 999;
+      // Contexto SKU para sazonalidade e ABC
+      const familia = familiaMap.get(sku) ?? "";
+      const grupo = grupoMap.get(sku) ?? "";
+      const classe = abcMap.get(sku) ?? null;
       const cobertura_alvo = p.cobertura_dias;
+
+      // Índice médio de sazonalidade na janela de cobertura alvo (afeta CMD projetado)
+      const saz = indiceMedioNaJanela(periodos, { sku, grupo, familia }, Math.max(1, cobertura_alvo));
+      // Índice hoje (afeta Ideal/Máx no MinMax)
+      const sazHoje = indiceHoje(periodos, { sku, grupo, familia });
+
+      const cobertura_atual = cmd > 0 ? s.qtd / cmd : 999;
       const demanda_extra = demandaMap.get(key) ?? 0;
-      const necessidade = semBase ? demanda_extra : cmd * cobertura_alvo + demanda_extra;
+      // Necessidade ajustada por sazonalidade média da janela
+      const necessidade = semBase ? demanda_extra : cmd * cobertura_alvo * saz.indice + demanda_extra;
       let sugestao = Math.max(0, necessidade - s.qtd);
 
-
-      // Regras de suprimento: só abastece do que existe em Alm_SP_Fabrica / Alm_SP_Processo
+      // Regras de suprimento
       const supKey = `${p.origem_abastecimento}|${sku}`;
       const isSupplied = (SUPPLY_ORIGENS as readonly string[]).includes(p.origem_abastecimento);
       const supplier_disp = isSupplied ? (supplierTotal.get(supKey) ?? 0) : Infinity;
       const fefo = isSupplied ? (supplierFefo.get(supKey) ?? null) : null;
-      const familia = familiaMap.get(sku) ?? "";
       const is_granel = familia === FAMILIA_GRANEIS;
 
-      // Granéis: só quando o item realmente precisa de reposição (cobertura abaixo do alvo),
-      // abastecer com o lote FEFO inteiro do fornecedor.
       const precisaRepor = cobertura_atual < cobertura_alvo || sugestao > 0;
       if (is_granel && isSupplied && fefo && fefo.qtd > 0 && precisaRepor) {
         sugestao = Math.max(sugestao, fefo.qtd);
       }
-      // Cap pelo disponível no fornecedor
       if (isSupplied) sugestao = Math.min(sugestao, supplier_disp);
 
       const pr = prodMap.get(sku);
       const minimo = Number(pr?.estoque_minimo ?? 0);
-      const ideal = Number(pr?.estoque_ideal ?? 0);
-      const maximo = Number(pr?.estoque_maximo ?? 0);
+      // Sazonalidade sobre Ideal/Máx no momento atual
+      const ideal = Number(pr?.estoque_ideal ?? 0) * sazHoje.indice;
+      const maximo = Number(pr?.estoque_maximo ?? 0) * sazHoje.indice;
       let sugestao_minmax = 0;
       if (minimo > 0 && s.qtd < minimo && ideal > 0) {
         sugestao_minmax = ideal - s.qtd;
@@ -303,6 +308,8 @@ function PlanejamentoPage() {
 
       const sugestaoCeil = Math.ceil(Math.max(0, sugestao));
       const sugestaoMinMaxCeil = Math.ceil(Math.max(0, sugestao_minmax));
+
+      const met = metodoPorABC(classe, p.metodo_override);
 
       out.push({
         sku, produto: s.desc,
@@ -316,7 +323,9 @@ function PlanejamentoPage() {
         lote_fefo_qtd: fefo?.qtd ?? 0,
         is_granel,
         dias_base: diasBase, janela_dias: janelaBase, sem_base: semBase,
-
+        classe_abc: classe,
+        metodo_efetivo: met.metodo, metodo_fonte: met.fonte,
+        indice_sazonal: saz.indice, sazonal_nomes: saz.nomes,
       });
     }
     return out.sort((a, b) => a.cobertura_atual - b.cobertura_atual);
