@@ -371,7 +371,7 @@ function PlanejamentoPage() {
   const gerarPedido = useMutation({
     mutationFn: async () => {
       const sugeridos = linhasFiltradas
-        .map((l) => ({ ...l, _sug: metodo === "MINMAX" ? l.sugestao_minmax : l.sugestao }))
+        .map((l) => ({ ...l, _sug: sugestaoDe(l), _metodo: metodo === "AUTO" ? l.metodo_efetivo : (metodo === "MINMAX" ? "MIN_IDEAL_MAX" : "POR_DEMANDA") }))
         .filter((l) => l._sug > 0);
       if (sugeridos.length === 0) throw new Error("Nenhum item com sugestão de reposição.");
       const { data: u } = await supabase.auth.getUser();
@@ -388,7 +388,7 @@ function PlanejamentoPage() {
 
       const criadas: { id: string; numero: string }[] = [];
       let seq = 0;
-      const metodoLabel = metodo === "MINMAX" ? "MinMax" : "Cobertura";
+      const metodoLabel = metodo === "AUTO" ? "Auto (ABC)" : metodo === "MINMAX" ? "MinMax" : "Cobertura";
       for (const [key, itens] of grupos) {
         const [destino, fornecedor] = key.split("|");
         const numero = `REQ-${Date.now().toString().slice(-8)}-${seq++}`;
@@ -423,7 +423,7 @@ function PlanejamentoPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const sugeridosCount = linhasFiltradas.filter((l) => (metodo === "MINMAX" ? l.sugestao_minmax : l.sugestao) > 0).length;
+  const sugeridosCount = linhasFiltradas.filter((l) => sugestaoDe(l) > 0).length;
 
 
 
