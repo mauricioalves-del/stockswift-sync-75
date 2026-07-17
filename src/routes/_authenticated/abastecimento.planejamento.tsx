@@ -329,7 +329,7 @@ function PlanejamentoPage() {
       });
     }
     return out.sort((a, b) => a.cobertura_atual - b.cobertura_atual);
-  }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data, prodRepQ.data, supplierStockQ.data, familiasQ.data]);
+  }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data, prodRepQ.data, supplierStockQ.data, familiasQ.data, abcQ.data, gruposQ.data, sazonaisQ.data]);
 
 
   const linhasFiltradas = linhas.filter((l) => {
