@@ -138,11 +138,30 @@ function PlanejamentoPage() {
   const gruposQ = useQuery({
     queryKey: ["planejamento_grupos"],
     queryFn: async () => {
-      const { data } = await (supabase as never as { from: (t: string) => { select: (c: string) => Promise<{ data: { grupo: string; codigo_produto: string }[] | null }> } })
+      const { data } = await (supabase as never as { from: (t: string) => { select: (c: string) => Promise<{ data: Grupo[] | null }> } })
         .from("grupo_produtos").select("grupo, codigo_produto");
-      return (data ?? []) as { grupo: string; codigo_produto: string }[];
+      return (data ?? []) as Grupo[];
     },
   });
+
+  const abcQ = useQuery({
+    queryKey: ["planejamento_abc"],
+    queryFn: async () => {
+      const { data } = await (supabase as never as { from: (t: string) => { select: (c: string) => Promise<{ data: ABC[] | null }> } })
+        .from("classificacao_abc").select("codigo_produto, classe");
+      return (data ?? []) as ABC[];
+    },
+  });
+
+  const sazonaisQ = useQuery({
+    queryKey: ["planejamento_sazonais"],
+    queryFn: async () => {
+      const { data } = await (supabase as never as { from: (t: string) => { select: (c: string) => { eq: (col: string, v: boolean) => Promise<{ data: PeriodoSazonal[] | null }> } } })
+        .from("periodos_sazonais").select("*").eq("ativo", true);
+      return (data ?? []) as PeriodoSazonal[];
+    },
+  });
+
   const gruposDistintos = useMemo(
     () => Array.from(new Set((gruposQ.data ?? []).map((g) => g.grupo).filter(Boolean))).sort(),
     [gruposQ.data]
