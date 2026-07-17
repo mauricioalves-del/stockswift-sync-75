@@ -433,15 +433,16 @@ function PlanejamentoPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><Compass className="size-6" /> Abastecimento</h1>
           <p className="text-sm text-muted-foreground">
-            {metodo === "COBERTURA"
-              ? "Sugestão = (CMD × Cob. Alvo + Demanda Extra) − Estoque · limitada ao saldo em Alm_SP_Fabrica/Processo · Granéis: abastecem o lote FEFO inteiro"
-              : "Se Estoque < Mín ⇒ Sugestão = Ideal − Estoque (limitado ao Máx)"}
+            {metodo === "COBERTURA" && "Sugestão = (CMD × Cob. Alvo × Sazonalidade + Demanda Extra) − Estoque · limitada ao saldo em Alm_SP_Fabrica/Processo · Granéis: lote FEFO inteiro"}
+            {metodo === "MINMAX" && "Se Estoque < Mín ⇒ Sugestão = Ideal − Estoque (limitado ao Máx) · Ideal/Máx ajustados por sazonalidade ativa"}
+            {metodo === "AUTO" && "Método por SKU: classe A/B → Por Demanda · classe C → Mín/Ideal/Máx · com override manual e ajuste sazonal automático"}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
           <Tabs value={metodo} onValueChange={(v) => setMetodo(v as Metodo)}>
             <TabsList>
-              <TabsTrigger value="COBERTURA">Por Demanda (Cobertura)</TabsTrigger>
+              <TabsTrigger value="AUTO">Auto (ABC)</TabsTrigger>
+              <TabsTrigger value="COBERTURA">Por Demanda</TabsTrigger>
               <TabsTrigger value="MINMAX">Mín / Ideal / Máx</TabsTrigger>
             </TabsList>
           </Tabs>
