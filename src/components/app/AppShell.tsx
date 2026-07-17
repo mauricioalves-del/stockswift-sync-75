@@ -5,7 +5,7 @@ import {
   Users as UsersIcon, ScrollText, Settings as SettingsIcon, LogOut, Menu, X,
   Sun, Moon, Wifi, WifiOff, RefreshCw, Layers, FolderTree, Package, BarChart3,
   Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp, Warehouse, Mail,
-  Compass, Sparkles, Settings2, Boxes, Truck, AlertTriangle,
+  Compass, Sparkles, Settings2, Boxes, Truck, AlertTriangle, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -93,6 +93,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const online = useOnlineStatus();
   const { theme, toggle } = useTheme();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("magio.sidebar.collapsed") === "1";
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("magio.sidebar.collapsed", collapsed ? "1" : "0");
+    }
+  }, [collapsed]);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const qc = useQueryClient();
 
@@ -136,8 +145,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex bg-background">
-      <aside className="hidden lg:flex w-64 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
-        <SidebarContent items={visible} pathname={pathname} />
+      <aside className={cn(
+        "hidden lg:flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-[width] duration-200",
+        collapsed ? "w-16" : "w-64",
+      )}>
+        <SidebarContent items={visible} pathname={pathname} collapsed={collapsed} onExpand={() => setCollapsed(false)} />
       </aside>
 
       {open && (
@@ -157,6 +169,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2 px-4 lg:px-6 h-14">
             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)}>
               <Menu className="size-5" />
+            </Button>
+            <Button
+              variant="ghost" size="icon"
+              className="hidden lg:inline-flex"
+              onClick={() => setCollapsed((c) => !c)}
+              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+              title={collapsed ? "Expandir menu" : "Recolher menu"}
+            >
+              {collapsed ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
             </Button>
 
             <div className="lg:hidden flex items-center gap-2 mr-auto">
@@ -201,11 +222,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 function SidebarContent({
-  items, pathname, onNavigate,
+  items, pathname, onNavigate, collapsed, onExpand,
 }: {
   items: (NavItem | NavGroup)[];
   pathname: string;
   onNavigate?: () => void;
+  collapsed?: boolean;
+  onExpand?: () => void;
 }) {
   // Estado de grupos abertos — default: o grupo que contém a rota ativa
   const initialOpen = useMemo(() => {
@@ -219,22 +242,36 @@ function SidebarContent({
 
   return (
     <>
-      <div className="flex items-center gap-3 px-5 h-16 border-b border-sidebar-border">
-        <div className="size-10 rounded-lg flex items-center justify-center"
+      <div className={cn("flex items-center gap-3 border-b border-sidebar-border h-16", collapsed ? "px-3 justify-center" : "px-5")}>
+        <div className="size-10 rounded-lg flex items-center justify-center shrink-0"
           style={{ background: "var(--gradient-gold)" }}>
           <Leaf className="size-5 text-sidebar-primary-foreground" />
         </div>
-        <div>
-          <div className="font-semibold leading-tight tracking-tight">Mágio Chocolates</div>
-          <div className="text-[10px] text-sidebar-foreground/60 leading-tight uppercase tracking-widest">Amazônia Premium</div>
-        </div>
+        {!collapsed && (
+          <div>
+            <div className="font-semibold leading-tight tracking-tight">Mágio Chocolates</div>
+            <div className="text-[10px] text-sidebar-foreground/60 leading-tight uppercase tracking-widest">Amazônia Premium</div>
+          </div>
+        )}
       </div>
       <nav className="flex-1 overflow-y-auto py-3 space-y-0.5">
         {items.map((n) => {
-          if (!isGroup(n)) return <NavLeaf key={n.to} item={n} pathname={pathname} onNavigate={onNavigate} />;
+          if (!isGroup(n)) return <NavLeaf key={n.to} item={n} pathname={pathname} onNavigate={onNavigate} collapsed={collapsed} />;
           const opened = openGroups[n.id] ?? false;
           const Icon = n.icon;
           const anyActive = n.items.some((i) => pathname.startsWith(i.to));
+          if (collapsed) {
+            return (
+              <button
+                key={n.id} title={n.label} aria-label={n.label}
+                onClick={() => { onExpand?.(); setOpenGroups((s) => ({ ...s, [n.id]: true })); }}
+                className={cn("w-full flex items-center justify-center my-0.5 py-2 rounded-md transition-colors",
+                  anyActive ? "text-sidebar-foreground bg-sidebar-accent" : "text-sidebar-foreground/80 hover:bg-sidebar-accent")}
+              >
+                <Icon className="size-4" />
+              </button>
+            );
+          }
           return (
             <div key={n.id}>
               <button onClick={() => setOpenGroups((s) => ({ ...s, [n.id]: !opened }))}
@@ -253,16 +290,29 @@ function SidebarContent({
           );
         })}
       </nav>
-      <div className="p-3 text-[10px] text-sidebar-foreground/50 border-t border-sidebar-border">
-        © {new Date().getFullYear()} · Mágio Chocolates · Inventário
-      </div>
+      {!collapsed && (
+        <div className="p-3 text-[10px] text-sidebar-foreground/50 border-t border-sidebar-border">
+          © {new Date().getFullYear()} · Mágio Chocolates · Inventário
+        </div>
+      )}
     </>
   );
 }
 
-function NavLeaf({ item, pathname, onNavigate, compact }: { item: NavItem; pathname: string; onNavigate?: () => void; compact?: boolean }) {
+function NavLeaf({ item, pathname, onNavigate, compact, collapsed }: { item: NavItem; pathname: string; onNavigate?: () => void; compact?: boolean; collapsed?: boolean }) {
   const Icon = item.icon;
   const active = pathname === item.to || (item.to !== "/dashboard" && pathname.startsWith(item.to + "/"));
+  if (collapsed) {
+    return (
+      <Link to={item.to} onClick={onNavigate} title={item.label} aria-label={item.label}
+        className={cn("flex items-center justify-center py-2 mx-2 rounded-md transition-colors",
+          active
+            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+            : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground")}>
+        <Icon className="size-4" />
+      </Link>
+    );
+  }
   return (
     <Link to={item.to} onClick={onNavigate}
       className={cn("flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
