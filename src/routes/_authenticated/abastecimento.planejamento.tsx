@@ -535,6 +535,8 @@ function PlanejamentoPage() {
                   <TableHead>Produto</TableHead>
                   <TableHead>Destino</TableHead>
                   <TableHead>Abastecido por</TableHead>
+                  {metodo === "AUTO" && <TableHead>Método</TableHead>}
+                  <TableHead>Sazon.</TableHead>
                   <TableHead className="text-right">Estoque</TableHead>
                   <TableHead className="text-right">CMD</TableHead>
                   <TableHead className="text-right">Base</TableHead>
@@ -549,15 +551,24 @@ function PlanejamentoPage() {
                 </TableRow></TableHeader>
 
                 <TableBody>
-                  {linhasFiltradas.slice(0, 500).map((l) => (
+                  {linhasFiltradas.slice(0, 500).map((l) => {
+                    const sug = sugestaoDe(l);
+                    return (
                     <TableRow key={`${l.origem}|${l.sku}`}>
                       <TableCell className="font-mono text-xs">
                         {l.sku}
+                        {l.classe_abc && <Badge variant="outline" className="ml-1 text-[10px]">{l.classe_abc}</Badge>}
                         {l.is_granel && <Badge variant="outline" className="ml-1 text-[10px]">Granel</Badge>}
                       </TableCell>
                       <TableCell className="text-xs max-w-xs truncate">{l.produto}</TableCell>
                       <TableCell className="text-xs">{l.origem}</TableCell>
                       <TableCell className="text-xs font-medium">{l.origem_abastecimento}</TableCell>
+                      {metodo === "AUTO" && (
+                        <TableCell className="text-xs">
+                          <MetodoBadge metodo={l.metodo_efetivo} fonte={l.metodo_fonte} />
+                        </TableCell>
+                      )}
+                      <TableCell><SazonBadge indice={l.indice_sazonal} nomes={l.sazonal_nomes} /></TableCell>
                       <TableCell className="text-right tabular-nums">{formatNum(l.estoque)}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.sem_base ? "—" : l.cmd.toFixed(2)}</TableCell>
                       <TableCell className="text-right tabular-nums text-xs text-muted-foreground">{l.dias_base}/{l.janela_dias}</TableCell>
@@ -574,12 +585,13 @@ function PlanejamentoPage() {
                       <TableCell className="text-right tabular-nums text-xs">
                         {l.lote_fefo ? <span className="font-mono">{l.lote_fefo} ({formatNum(l.lote_fefo_qtd)})</span> : "—"}
                       </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums">{formatNum(l.sugestao)}</TableCell>
-                      <TableCell className="text-right tabular-nums">R$ {formatNum(l.valor_reposicao)}</TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums">{formatNum(sug)}</TableCell>
+                      <TableCell className="text-right tabular-nums">R$ {formatNum(sug * l.custo_unitario)}</TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                   {linhasFiltradas.length === 0 && (
-                    <TableRow><TableCell colSpan={15} className="text-center text-muted-foreground text-sm py-6">
+                    <TableRow><TableCell colSpan={metodo === "AUTO" ? 17 : 16} className="text-center text-muted-foreground text-sm py-6">
                       Sem dados. Cadastre parâmetros e importe consumo.
                     </TableCell></TableRow>
                   )}
