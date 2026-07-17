@@ -40,7 +40,9 @@ type Linha = {
   demanda_extra: number; necessidade: number; sugestao: number; custo_unitario: number; valor_reposicao: number;
   minimo: number; ideal: number; maximo: number; sugestao_minmax: number;
   supplier_disp: number; lote_fefo: string | null; lote_fefo_qtd: number; is_granel: boolean;
+  dias_base: number; janela_dias: number; sem_base: boolean;
 };
+
 
 
 function PlanejamentoPage() {
