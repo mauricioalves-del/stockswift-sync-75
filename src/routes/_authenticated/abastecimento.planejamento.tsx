@@ -75,11 +75,11 @@ function PlanejamentoPage() {
   });
 
   const consumoQ = useQuery({
-    queryKey: ["planejamento_consumo", origensAtivas.join(",")],
+    queryKey: ["planejamento_consumo_90d", origensAtivas.join(",")],
     enabled: origensAtivas.length > 0,
     queryFn: async () => {
       const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - 30);
+      cutoff.setDate(cutoff.getDate() - 90);
       const iso = cutoff.toISOString().slice(0, 10);
       const { data } = await supabase.from("historico_consumo" as never)
         .select("origem, sku, quantidade, data_movimento")
@@ -179,18 +179,37 @@ function PlanejamentoPage() {
       else stockMap.set(key, { qtd: Number(e.quantidade), desc: e.descricao ?? e.id_produto, custo: Number(e.custo_unitario) });
     }
 
-    // CMD real: numerador = total vendido; denominador = dias com estoque disponível (proxy: dias distintos com venda > 0)
-    const JANELA_DIAS = 30;
-    const consumoMap = new Map<string, number>();
-    const diasMap = new Map<string, Set<string>>();
+    // CMD ponderado por janelas (7/30/90 dias)
+    // Cada janela: CMD_i = total_vendido_i / dias_com_venda_i (elimina viés de ruptura)
+    // CMD final = média ponderada (peso maior para janelas recentes)
+    const JANELAS = [
+      { dias: 7, peso: 0.5 },
+      { dias: 30, peso: 0.3 },
+      { dias: 90, peso: 0.2 },
+    ];
+    const hojeDate = new Date();
+    const cutoffs = JANELAS.map((j) => {
+      const d = new Date(hojeDate);
+      d.setDate(d.getDate() - j.dias);
+      return d.toISOString().slice(0, 10);
+    });
+
+    // Para cada janela: consumo total e set de dias com venda por chave
+    const consumoJanela: Map<string, number>[] = JANELAS.map(() => new Map());
+    const diasJanela: Map<string, Set<string>>[] = JANELAS.map(() => new Map());
     for (const c of (consumoQ.data ?? [])) {
       const qtd = Number(c.quantidade);
       if (qtd <= 0) continue;
       const key = `${c.origem}|${c.sku}`;
-      consumoMap.set(key, (consumoMap.get(key) ?? 0) + qtd);
-      const set = diasMap.get(key) ?? new Set<string>();
-      set.add(String(c.data_movimento).slice(0, 10));
-      diasMap.set(key, set);
+      const dia = String(c.data_movimento).slice(0, 10);
+      for (let i = 0; i < JANELAS.length; i++) {
+        if (dia >= cutoffs[i]) {
+          consumoJanela[i].set(key, (consumoJanela[i].get(key) ?? 0) + qtd);
+          const set = diasJanela[i].get(key) ?? new Set<string>();
+          set.add(dia);
+          diasJanela[i].set(key, set);
+        }
+      }
     }
 
     const demandaMap = new Map<string, number>();
@@ -204,10 +223,23 @@ function PlanejamentoPage() {
       const [origem, sku] = key.split("|");
       const p = paramsMap.get(origem);
       if (!p) continue;
-      const consumoTotal = consumoMap.get(key) ?? 0;
-      const diasBase = (diasMap.get(key)?.size) ?? 0;
-      const cmd = diasBase > 0 ? consumoTotal / diasBase : 0;
-      const semBase = diasBase === 0;
+
+      // Computa CMD por janela e blend ponderado (apenas janelas com base)
+      const cmds: { cmd: number; peso: number; dias: number }[] = [];
+      for (let i = 0; i < JANELAS.length; i++) {
+        const total = consumoJanela[i].get(key) ?? 0;
+        const dias = diasJanela[i].get(key)?.size ?? 0;
+        if (dias > 0 && total > 0) {
+          cmds.push({ cmd: total / dias, peso: JANELAS[i].peso, dias });
+        }
+      }
+      const pesoTotal = cmds.reduce((a, b) => a + b.peso, 0);
+      const cmd = pesoTotal > 0 ? cmds.reduce((a, b) => a + b.cmd * b.peso, 0) / pesoTotal : 0;
+      // Base: maior janela com histórico (mais representativa) — para exibição
+      const diasBase = cmds.length > 0 ? Math.max(...cmds.map((c) => c.dias)) : 0;
+      const janelaBase = cmds.length > 0 ? Math.max(...cmds.map((c) => JANELAS.find((j) => j.peso === c.peso)?.dias ?? 0)) : 30;
+      const semBase = cmd === 0;
+
       const cobertura_atual = cmd > 0 ? s.qtd / cmd : 999;
       const cobertura_alvo = p.cobertura_dias;
       const demanda_extra = demandaMap.get(key) ?? 0;
@@ -258,7 +290,7 @@ function PlanejamentoPage() {
         lote_fefo: fefo?.lote ?? null,
         lote_fefo_qtd: fefo?.qtd ?? 0,
         is_granel,
-        dias_base: diasBase, janela_dias: JANELA_DIAS, sem_base: semBase,
+        dias_base: diasBase, janela_dias: janelaBase, sem_base: semBase,
 
       });
     }
