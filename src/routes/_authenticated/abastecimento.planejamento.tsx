@@ -468,17 +468,17 @@ function PlanejamentoPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <KPI label="SKUs" value={String(kpis.total)} />
-        {metodo === "COBERTURA" ? (
-          <>
-            <KPI label="Abaixo da cobertura" value={String(kpis.abaixo)} tone="warning" />
-            <KPI label="Cobertura < 3 dias" value={String(kpis.criticos)} tone="danger" />
-            <KPI label="Cobertura média" value={`${kpis.cobMedia.toFixed(1)} d`} />
-          </>
-        ) : (
+        {metodo === "MINMAX" ? (
           <>
             <KPI label="Abaixo do mínimo" value={String(kpis.abaixoMin)} tone="danger" />
             <KPI label="Acima do máximo" value={String(kpis.acimaMax)} tone="warning" />
             <KPI label="A repor" value={String(sugeridosCount)} />
+          </>
+        ) : (
+          <>
+            <KPI label="Abaixo da cobertura" value={String(kpis.abaixo)} tone="warning" />
+            <KPI label="Cobertura < 3 dias" value={String(kpis.criticos)} tone="danger" />
+            <KPI label="Cobertura média" value={`${kpis.cobMedia.toFixed(1)} d`} />
           </>
         )}
         <KPI label="Valor reposição" value={`R$ ${formatNum(kpis.valor)}`} />
