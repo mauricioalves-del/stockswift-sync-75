@@ -708,3 +708,41 @@ function SazonBadge({ indice, nomes }: { indice: number; nomes: string[] }) {
     <Badge className={`${tone} text-[10px]`} title={nomes.join(", ")}>{label}</Badge>
   );
 }
+
+function exportarExcel(linhas: Linha[], metodo: Metodo) {
+  if (!linhas.length) return;
+  const sugestaoDe = (l: Linha) => metodo === "MINMAX" ? l.sugestao_minmax : metodo === "AUTO" ? (l.metodo_efetivo === "MIN_IDEAL_MAX" ? l.sugestao_minmax : l.sugestao) : l.sugestao;
+  const rows = linhas.map((l) => ({
+    "SKU": l.sku,
+    "Produto": l.produto,
+    "Almox (destino)": l.origem,
+    "Almox (fornecedor)": l.origem_abastecimento,
+    "Classe ABC": l.classe_abc ?? "",
+    "Método": l.metodo_efetivo === "POR_DEMANDA" ? "Por Demanda" : "Mín/Máx",
+    "Fonte método": l.metodo_fonte,
+    "Estoque": Number(l.estoque.toFixed(3)),
+    "CMD (ponderado)": Number(l.cmd.toFixed(3)),
+    "Base (dias)": l.janela_dias,
+    "Cobertura atual (d)": Number(l.cobertura_atual.toFixed(1)),
+    "Cobertura alvo (d)": l.cobertura_alvo,
+    "Demanda extra": Number(l.demanda_extra.toFixed(3)),
+    "Mínimo": Number(l.minimo.toFixed(3)),
+    "Ideal": Number(l.ideal.toFixed(3)),
+    "Máximo": Number(l.maximo.toFixed(3)),
+    "Índice sazonal": Number(l.indice_sazonal.toFixed(3)),
+    "Períodos sazonais": l.sazonal_nomes.join(", "),
+    "Necessidade": Number(l.necessidade.toFixed(3)),
+    "Sugestão": Number(sugestaoDe(l).toFixed(3)),
+    "Disp. Fornecedor": Number(l.supplier_disp.toFixed(3)),
+    "Lote FEFO": l.lote_fefo ?? "",
+    "Qtd Lote FEFO": Number(l.lote_fefo_qtd.toFixed(3)),
+    "Granel": l.is_granel ? "Sim" : "Não",
+    "Custo unitário": Number((l.custo_unitario ?? 0).toFixed(4)),
+    "Valor reposição (R$)": Number(l.valor_reposicao.toFixed(2)),
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Planejamento");
+  const stamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `Abastecimento_Planejamento_${metodo}_${stamp}.xlsx`);
+}
