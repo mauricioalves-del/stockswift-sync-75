@@ -682,3 +682,25 @@ function ConfiancaBadge({ diasBase, janela }: { diasBase: number; janela: number
   if (ratio >= 0.4) return <Badge className="bg-warning/20 text-warning-foreground text-[10px]">Média</Badge>;
   return <Badge className="bg-destructive/15 text-destructive text-[10px]">Baixa</Badge>;
 }
+
+function MetodoBadge({ metodo, fonte }: { metodo: "POR_DEMANDA" | "MIN_IDEAL_MAX"; fonte: "override" | "abc" | "default" }) {
+  const label = metodo === "POR_DEMANDA" ? "Por Demanda" : "Mín/Máx";
+  const src = fonte === "override" ? "manual" : fonte === "abc" ? "ABC" : "default";
+  const tone = metodo === "POR_DEMANDA" ? "bg-primary/10 text-primary" : "bg-muted text-foreground";
+  return (
+    <div className="flex flex-col gap-0.5">
+      <Badge className={`${tone} text-[10px]`}>{label}</Badge>
+      <span className="text-[9px] text-muted-foreground">{src}</span>
+    </div>
+  );
+}
+
+function SazonBadge({ indice, nomes }: { indice: number; nomes: string[] }) {
+  if (!indice || indice === 1) return <span className="text-xs text-muted-foreground">—</span>;
+  const pct = Math.round((indice - 1) * 100);
+  const tone = indice > 1 ? "bg-warning/20 text-warning-foreground" : "bg-blue-500/15 text-blue-700 dark:text-blue-400";
+  const label = `${pct > 0 ? "+" : ""}${pct}%`;
+  return (
+    <Badge className={`${tone} text-[10px]`} title={nomes.join(", ")}>{label}</Badge>
+  );
+}
