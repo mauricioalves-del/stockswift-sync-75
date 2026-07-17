@@ -586,3 +586,11 @@ function MinMaxBadge({ estoque, min, ideal, max }: { estoque: number; min: numbe
   return <Badge className="bg-warning/20 text-warning-foreground">🟡 Atenção</Badge>;
 }
 
+
+function ConfiancaBadge({ diasBase, janela }: { diasBase: number; janela: number }) {
+  if (janela <= 0 || diasBase === 0) return <Badge variant="outline" className="text-[10px]">Sem base</Badge>;
+  const ratio = diasBase / janela;
+  if (ratio >= 0.7) return <Badge className="bg-success/15 text-success text-[10px]">Alta</Badge>;
+  if (ratio >= 0.4) return <Badge className="bg-warning/20 text-warning-foreground text-[10px]">Média</Badge>;
+  return <Badge className="bg-destructive/15 text-destructive text-[10px]">Baixa</Badge>;
+}
