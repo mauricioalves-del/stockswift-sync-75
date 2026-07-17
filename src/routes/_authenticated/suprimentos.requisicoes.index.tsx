@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardList, Plus, Loader2, Check, X, Trash2, PackageCheck, Printer } from "lucide-react";
+import { ClipboardList, Plus, Loader2, Check, X, Trash2, PackageCheck, Printer, Trash } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useRole } from "@/hooks/useRole";
 import { formatBRL } from "@/lib/inventory";
@@ -52,6 +53,7 @@ function RequisicoesPage() {
   const [rejeitarOpen, setRejeitarOpen] = useState<Req | null>(null);
   const [motivoRej, setMotivoRej] = useState("");
   const [separarOpen, setSepararOpen] = useState<Req | null>(null);
+  const [excluirOpen, setExcluirOpen] = useState<Req | null>(null);
 
   const q = useQuery({
     queryKey: ["requisicoes", statusF],
@@ -109,6 +111,27 @@ function RequisicoesPage() {
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Requisição cancelada"); qc.invalidateQueries({ queryKey: ["requisicoes"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const excluir = useMutation({
+    mutationFn: async (r: Req) => {
+      const { data: u } = await supabase.auth.getUser();
+      const { error: e1 } = await supabase.from("requisicao_itens" as never).delete().eq("requisicao_id", r.id);
+      if (e1) throw e1;
+      const { error: e2 } = await supabase.from("requisicoes" as never).delete().eq("id", r.id);
+      if (e2) throw e2;
+      await supabase.from("auditoria").insert({
+        entidade: "requisicoes", entidade_id: r.id, acao: "EXCLUSAO",
+        usuario: u.user?.id, dados_antes: r as never,
+        observacao: `Exclusão da requisição ${r.numero} (status ${r.status})`,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Requisição excluída");
+      setExcluirOpen(null);
+      qc.invalidateQueries({ queryKey: ["requisicoes"] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -201,6 +224,11 @@ function RequisicoesPage() {
                               <Trash2 className="size-4 text-muted-foreground" />
                             </Button>
                           )}
+                          {isAdmin && (
+                            <Button size="sm" variant="ghost" onClick={() => setExcluirOpen(r)} title="Excluir definitivamente">
+                              <Trash className="size-4 text-destructive" />
+                            </Button>
+                          )}
                           <Button asChild size="sm" variant="link">
                             <Link to="/suprimentos/requisicoes/$id" params={{ id: r.id }}>Ver</Link>
                           </Button>
@@ -241,6 +269,28 @@ function RequisicoesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!excluirOpen} onOpenChange={(o) => !o && setExcluirOpen(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir requisição {excluirOpen?.numero}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é permanente. A requisição e todos os seus itens serão removidos do sistema.
+              Estoques já movimentados por separações anteriores NÃO serão revertidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={excluir.isPending}
+              onClick={(e) => { e.preventDefault(); if (excluirOpen) excluir.mutate(excluirOpen); }}
+            >
+              {excluir.isPending && <Loader2 className="size-4 mr-1 animate-spin" />} Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
