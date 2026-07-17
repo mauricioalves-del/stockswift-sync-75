@@ -258,6 +258,8 @@ function PlanejamentoPage() {
         lote_fefo: fefo?.lote ?? null,
         lote_fefo_qtd: fefo?.qtd ?? 0,
         is_granel,
+        dias_base: diasBase, janela_dias: JANELA_DIAS, sem_base: semBase,
+
       });
     }
     return out.sort((a, b) => a.cobertura_atual - b.cobertura_atual);
