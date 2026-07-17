@@ -40,7 +40,9 @@ type Linha = {
   demanda_extra: number; necessidade: number; sugestao: number; custo_unitario: number; valor_reposicao: number;
   minimo: number; ideal: number; maximo: number; sugestao_minmax: number;
   supplier_disp: number; lote_fefo: string | null; lote_fefo_qtd: number; is_granel: boolean;
+  dias_base: number; janela_dias: number; sem_base: boolean;
 };
+
 
 
 function PlanejamentoPage() {
@@ -177,10 +179,18 @@ function PlanejamentoPage() {
       else stockMap.set(key, { qtd: Number(e.quantidade), desc: e.descricao ?? e.id_produto, custo: Number(e.custo_unitario) });
     }
 
+    // CMD real: numerador = total vendido; denominador = dias com estoque disponível (proxy: dias distintos com venda > 0)
+    const JANELA_DIAS = 30;
     const consumoMap = new Map<string, number>();
+    const diasMap = new Map<string, Set<string>>();
     for (const c of (consumoQ.data ?? [])) {
+      const qtd = Number(c.quantidade);
+      if (qtd <= 0) continue;
       const key = `${c.origem}|${c.sku}`;
-      consumoMap.set(key, (consumoMap.get(key) ?? 0) + Number(c.quantidade));
+      consumoMap.set(key, (consumoMap.get(key) ?? 0) + qtd);
+      const set = diasMap.get(key) ?? new Set<string>();
+      set.add(String(c.data_movimento).slice(0, 10));
+      diasMap.set(key, set);
     }
 
     const demandaMap = new Map<string, number>();
@@ -194,13 +204,16 @@ function PlanejamentoPage() {
       const [origem, sku] = key.split("|");
       const p = paramsMap.get(origem);
       if (!p) continue;
-      const consumo30 = consumoMap.get(key) ?? 0;
-      const cmd = consumo30 / 30;
+      const consumoTotal = consumoMap.get(key) ?? 0;
+      const diasBase = (diasMap.get(key)?.size) ?? 0;
+      const cmd = diasBase > 0 ? consumoTotal / diasBase : 0;
+      const semBase = diasBase === 0;
       const cobertura_atual = cmd > 0 ? s.qtd / cmd : 999;
       const cobertura_alvo = p.cobertura_dias;
       const demanda_extra = demandaMap.get(key) ?? 0;
-      const necessidade = cmd * cobertura_alvo + demanda_extra;
+      const necessidade = semBase ? demanda_extra : cmd * cobertura_alvo + demanda_extra;
       let sugestao = Math.max(0, necessidade - s.qtd);
+
 
       // Regras de suprimento: só abastece do que existe em Alm_SP_Fabrica / Alm_SP_Processo
       const supKey = `${p.origem_abastecimento}|${sku}`;
@@ -245,6 +258,8 @@ function PlanejamentoPage() {
         lote_fefo: fefo?.lote ?? null,
         lote_fefo_qtd: fefo?.qtd ?? 0,
         is_granel,
+        dias_base: diasBase, janela_dias: JANELA_DIAS, sem_base: semBase,
+
       });
     }
     return out.sort((a, b) => a.cobertura_atual - b.cobertura_atual);
@@ -446,6 +461,8 @@ function PlanejamentoPage() {
                   <TableHead>Abastecido por</TableHead>
                   <TableHead className="text-right">Estoque</TableHead>
                   <TableHead className="text-right">CMD</TableHead>
+                  <TableHead className="text-right">Base</TableHead>
+                  <TableHead>Confiança</TableHead>
                   <TableHead className="text-right">Cob. Atual</TableHead>
                   <TableHead className="text-right">Cob. Alvo</TableHead>
                   <TableHead className="text-right">Dem. Extra</TableHead>
@@ -454,6 +471,7 @@ function PlanejamentoPage() {
                   <TableHead className="text-right">Sugestão</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                 </TableRow></TableHeader>
+
                 <TableBody>
                   {linhasFiltradas.slice(0, 500).map((l) => (
                     <TableRow key={`${l.origem}|${l.sku}`}>
@@ -465,8 +483,11 @@ function PlanejamentoPage() {
                       <TableCell className="text-xs">{l.origem}</TableCell>
                       <TableCell className="text-xs font-medium">{l.origem_abastecimento}</TableCell>
                       <TableCell className="text-right tabular-nums">{formatNum(l.estoque)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{l.cmd.toFixed(2)}</TableCell>
-                      <TableCell className="text-right"><CoberturaBadge dias={l.cobertura_atual} /></TableCell>
+                      <TableCell className="text-right tabular-nums">{l.sem_base ? "—" : l.cmd.toFixed(2)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs text-muted-foreground">{l.dias_base}/{l.janela_dias}</TableCell>
+                      <TableCell><ConfiancaBadge diasBase={l.dias_base} janela={l.janela_dias} /></TableCell>
+                      <TableCell className="text-right">{l.sem_base ? <Badge variant="outline" className="text-[10px]">Sem base</Badge> : <CoberturaBadge dias={l.cobertura_atual} />}</TableCell>
+
                       <TableCell className="text-right tabular-nums">{l.cobertura_alvo}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.demanda_extra > 0 ? `+${formatNum(l.demanda_extra)}` : "—"}</TableCell>
                       <TableCell className="text-right tabular-nums text-xs">
@@ -482,7 +503,7 @@ function PlanejamentoPage() {
                     </TableRow>
                   ))}
                   {linhasFiltradas.length === 0 && (
-                    <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground text-sm py-6">
+                    <TableRow><TableCell colSpan={15} className="text-center text-muted-foreground text-sm py-6">
                       Sem dados. Cadastre parâmetros e importe consumo.
                     </TableCell></TableRow>
                   )}
@@ -539,6 +560,7 @@ function PlanejamentoPage() {
 }
 
 function CoberturaBadge({ dias }: { dias: number }) {
+
   const txt = dias >= 999 ? "∞" : dias.toFixed(1);
   const tone = dias >= 8 ? "bg-success/15 text-success"
     : dias >= 5 ? "bg-warning/20 text-warning-foreground"
@@ -564,3 +586,11 @@ function MinMaxBadge({ estoque, min, ideal, max }: { estoque: number; min: numbe
   return <Badge className="bg-warning/20 text-warning-foreground">🟡 Atenção</Badge>;
 }
 
+
+function ConfiancaBadge({ diasBase, janela }: { diasBase: number; janela: number }) {
+  if (janela <= 0 || diasBase === 0) return <Badge variant="outline" className="text-[10px]">Sem base</Badge>;
+  const ratio = diasBase / janela;
+  if (ratio >= 0.7) return <Badge className="bg-success/15 text-success text-[10px]">Alta</Badge>;
+  if (ratio >= 0.4) return <Badge className="bg-warning/20 text-warning-foreground text-[10px]">Média</Badge>;
+  return <Badge className="bg-destructive/15 text-destructive text-[10px]">Baixa</Badge>;
+}
