@@ -520,14 +520,14 @@ function PlanejamentoPage() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <TrendingUp className="size-4" />
-            {metodo === "COBERTURA" ? "Cobertura por SKU" : "Mín / Ideal / Máx por SKU"}
+            {metodo === "MINMAX" ? "Mín / Ideal / Máx por SKU" : metodo === "AUTO" ? "Cobertura por SKU (Auto ABC + Sazonalidade)" : "Cobertura por SKU"}
           </CardTitle>
           <CardDescription>
-            {metodo === "COBERTURA" ? "Ordenado pelos mais críticos." : "Vermelho: abaixo do mínimo · Amarelo: entre mín e ideal · Verde: ok · Azul: excesso"}
+            {metodo === "MINMAX" ? "Vermelho: abaixo do mínimo · Amarelo: entre mín e ideal · Verde: ok · Azul: excesso" : "Ordenado pelos mais críticos."}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? <Loader2 className="animate-spin" /> : metodo === "COBERTURA" ? (
+          {loading ? <Loader2 className="animate-spin" /> : metodo !== "MINMAX" ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow>
