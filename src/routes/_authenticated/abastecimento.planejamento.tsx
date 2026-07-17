@@ -55,7 +55,7 @@ function PlanejamentoPage() {
   const [origemF, setOrigemF] = useState<string>("__all");
   const [buscaF, setBuscaF] = useState("");
   const [grupoF, setGrupoF] = useState<string>("__all");
-  const [metodo, setMetodo] = useState<Metodo>("COBERTURA");
+  const [metodo, setMetodo] = useState<Metodo>("AUTO");
 
 
   const paramsQ = useQuery({
