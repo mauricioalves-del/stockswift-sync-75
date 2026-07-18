@@ -111,10 +111,11 @@ export async function parsePlanilhaBaixas(
   const sheet = wb.Sheets["BAIXA"] ?? wb.Sheets[wb.SheetNames[0]];
   if (!sheet) throw new Error('Aba "BAIXA" não encontrada');
 
-  const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+  const data = normalizeSheetRows(XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
     range: 1,
     defval: "",
-  });
+  }));
+
 
   const catMap = new Map(catalogo.map((c) => [String(c.sku).trim(), c]));
   const motivoMap = new Map(motivos.map((m) => [m.descricao.toUpperCase().trim(), m]));
