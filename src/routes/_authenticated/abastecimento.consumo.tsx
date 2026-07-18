@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import * as XLSX from "xlsx";
+import { normalizeSheetRows, pickCI } from "@/lib/xlsx-utils";
+
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
