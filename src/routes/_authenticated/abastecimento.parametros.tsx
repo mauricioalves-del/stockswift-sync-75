@@ -229,12 +229,9 @@ function LinhaParam({ p, onSalvar, origens }: { p: Parametro; onSalvar: (p: Para
 }
 
 function pick(r: Record<string, unknown>, ...keys: string[]): string {
-  for (const k of keys) {
-    const v = r[k];
-    if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
-  }
-  return "";
+  return pickCI(r, ...keys);
 }
+
 
 function ProdutosReposicaoCard() {
   const qc = useQueryClient();
