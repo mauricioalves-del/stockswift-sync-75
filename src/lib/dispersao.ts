@@ -109,7 +109,8 @@ function toAnoMes(s: string): string {
 export function parseBomPlanilha(file: ArrayBuffer): BomRow[] {
   const wb = XLSX.read(file, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" });
+  const rows = normalizeSheetRows(XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" }));
+
   return rows.map((r, i) => {
     const id_produto = pick(r, "IDProduto", "ID_Produto", "id_produto");
     const id_item = pick(r, "IDItem", "ID_Item", "id_item");
