@@ -36,12 +36,9 @@ const SHEET_NAME = "Lote_Sistema";
 const REQUIRED = ["Id_produto", "descricao", "um", "Origem", "Qtd", "Lote", "Unidade", "Custo_Vlr"];
 
 function pick(r: Record<string, unknown>, ...keys: string[]): string {
-  for (const k of keys) {
-    const v = r[k];
-    if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
-  }
-  return "";
+  return pickCI(r, ...keys);
 }
+
 
 function ImportarPage() {
   const { canWrite } = useRole();
