@@ -47,7 +47,7 @@ function ImportarFamiliasPage() {
     const buf = await f.arrayBuffer();
     const wb = XLSX.read(buf);
     const sheet = wb.Sheets[wb.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+    const data = normalizeSheetRows(XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" }));
     const errs: string[] = [];
     const parsed: ParsedRow[] = [];
     data.forEach((r, i) => {
