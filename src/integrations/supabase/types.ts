@@ -1193,6 +1193,137 @@ export type Database = {
         }
         Relationships: []
       }
+      necessidade_materiais_op: {
+        Row: {
+          created_at: string
+          eh_semiacabado: boolean
+          id: string
+          id_item: string
+          item: string | null
+          op_filha_id: string | null
+          op_id: string
+          qtd_consumo_real: number | null
+          qtd_necessaria: number
+          saldo_disponivel_no_calculo: number | null
+          status_disponibilidade: string | null
+          um: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          eh_semiacabado?: boolean
+          id?: string
+          id_item: string
+          item?: string | null
+          op_filha_id?: string | null
+          op_id: string
+          qtd_consumo_real?: number | null
+          qtd_necessaria: number
+          saldo_disponivel_no_calculo?: number | null
+          status_disponibilidade?: string | null
+          um?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          eh_semiacabado?: boolean
+          id?: string
+          id_item?: string
+          item?: string | null
+          op_filha_id?: string | null
+          op_id?: string
+          qtd_consumo_real?: number | null
+          qtd_necessaria?: number
+          saldo_disponivel_no_calculo?: number | null
+          status_disponibilidade?: string | null
+          um?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "necessidade_materiais_op_op_filha_id_fkey"
+            columns: ["op_filha_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "necessidade_materiais_op_op_id_fkey"
+            columns: ["op_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ordens_producao: {
+        Row: {
+          almoxarifado_producao: string | null
+          created_at: string
+          criado_por: string | null
+          data_conclusao_real: string | null
+          data_inicio_real: string | null
+          data_planejada: string | null
+          desc_produto: string | null
+          id: string
+          numero_op: string
+          op_pai_id: string | null
+          origem_demanda: string
+          produto: string
+          quantidade_planejada: number
+          quantidade_produzida_real: number | null
+          referencia_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          almoxarifado_producao?: string | null
+          created_at?: string
+          criado_por?: string | null
+          data_conclusao_real?: string | null
+          data_inicio_real?: string | null
+          data_planejada?: string | null
+          desc_produto?: string | null
+          id?: string
+          numero_op: string
+          op_pai_id?: string | null
+          origem_demanda?: string
+          produto: string
+          quantidade_planejada: number
+          quantidade_produzida_real?: number | null
+          referencia_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          almoxarifado_producao?: string | null
+          created_at?: string
+          criado_por?: string | null
+          data_conclusao_real?: string | null
+          data_inicio_real?: string | null
+          data_planejada?: string | null
+          desc_produto?: string | null
+          id?: string
+          numero_op?: string
+          op_pai_id?: string | null
+          origem_demanda?: string
+          produto?: string
+          quantidade_planejada?: number
+          quantidade_produzida_real?: number | null
+          referencia_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordens_producao_op_pai_id_fkey"
+            columns: ["op_pai_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       origens: {
         Row: {
           ativo: boolean

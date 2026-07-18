@@ -1,71 +1,67 @@
+# Módulo PCP — Planejamento e Controle de Produção
 
-# Pilar Produção — Módulo Dispersão de Lote
+Novo módulo dentro do pilar **Produção**, ao lado de Dispersão de Lote. Reaproveita `ficha_tecnica_bom`, `estoque_sistemico` e `producao_consumo` já existentes. Vou entregar em ondas para não estourar créditos — cada onda validável isoladamente.
 
-Vou entregar em ondas para não estourar créditos. Cada onda é validável isoladamente. Antes de começar, uma decisão que precisa do seu OK:
+## Decisões que preciso confirmar antes de codar
 
-## Decisão de escopo (antes de codar)
+1. **Perfil responsável pelo PCP**: o prompt assume `GERENTE` como operador. Confirmo que uso **ADMINISTRADOR + GERENTE** com permissão de Cancelar restrita ao Admin, ou existe um perfil dedicado que devo usar?
+2. **Almoxarifado de produção**: qual origem alimenta a lista? Uso os mesmos códigos de `origens`/`usuario_almoxarifados` já cadastrados (mesmo padrão de Baixas Operacionais)?
+3. **Estoque para disponibilidade**: hoje o projeto tem `estoque_sistemico` (saldo agregado por SKU/almox). Não vejo tabela `estoque_lotes` separada — o cruzamento de disponibilidade será feito contra `estoque_sistemico` filtrado por almoxarifado da OP. OK?
 
-**Sincronização automática vs upload manual (item 1.3):** Hoje o único fluxo automático que existe no projeto é o do Lote_Sistema (estoque). A Ficha Técnica e a Ficha Técnica Consumo não têm integração pronta com o ERP de origem. Montar sincronização automática nova é um projeto de integração à parte (credenciais, agendamento, mapeamento). Proposta: **começar com upload manual mensal** (mesmo padrão de ABC/Baixas) e deixar as tabelas prontas para depois plugar um sync automático sem migração. Confirmar antes de prosseguir.
+Se estiver tudo OK, sigo pela **Onda 1**.
 
-## Onda 1 — Base de dados + importação (mínimo viável)
+## Onda 1 — Modelo de dados + catálogo de módulo
 
 Migração:
-- `ficha_tecnica_bom` (recursiva, com `linha_origem`, `custo`, `tem_filho`, `gera_oc`) — também servirá ao PCP depois.
-- `producao_consumo` (uma linha por material/OP, com `ano_mes`, `qtd_consumo`, `qtd_previsto`, `qtd_dif` gerado).
-- `dispersao_causa_raiz` e `dispersao_acoes_corretivas`.
-- `parametros_dispersao` (faixas Normal/Atenção/Crítico editáveis — default 5% / 15%).
-- Inserir módulo `PRODUCAO_DISPERSAO` em `modulos_sistema`.
-- GRANTs + RLS: leitura autenticado; escrita Admin/Coordenador; ações corretivas Admin/Coordenador/Gerente conforme matriz.
+- `ordens_producao` com todos os campos do item 1, incluindo `op_pai_id` autorreferente e `origem_demanda` (enum `MANUAL` | `SUGESTAO_ABASTECIMENTO`).
+- `necessidade_materiais_op` com FK para `ordens_producao` e `op_filha_id` autorreferente (via `ordens_producao`).
+- GRANTs + RLS: leitura para autenticados; escrita para ADMINISTRADOR/GERENTE; Cancelar só ADMINISTRADOR (via `has_role`).
+- Inserir `PRODUCAO_PCP` em `modulos_sistema`.
+- Triggers `update_updated_at_column` nas duas.
 
-Tela `/producao/dispersao/importar`:
-- Reaproveitar o padrão do `ImportarBaixasDialog` (upload xlsx, prévia OK/ERRO, gravar em lote).
-- Dois botões: "Importar Ficha Técnica (BOM)" e "Importar Consumo por OP".
-- Botão "Baixar Modelo" para cada.
+## Onda 2 — Motor de explosão de BOM (núcleo, isolado)
 
-## Onda 2 — Cálculos + Visão Geral (Dashboard)
+`src/lib/pcp-bom.ts`:
+- `explodirBOM(idProduto, qtd, bomRows)` recursivo, retornando lista consolidada de folhas (matéria-prima) + itens intermediários `gera_oc = S` marcados como `eh_semiacabado`.
+- Proteção contra ciclo (Set de visitados na cadeia).
+- Multiplicação em cascata da quantidade.
+- Teste manual no console com um produto de 2 níveis antes de partir para tela.
 
-Utilitário `src/lib/dispersao.ts`:
-- `percentualDispersao(dif, previsto)` com tratamento de "Consumo Não Previsto" e zero real.
-- `custoDesvio(dif, custoUnit)` retornando `{ perda, sobra }` separados.
-- `classificar(pct, faixas)` → Normal | Atenção | Crítico.
+## Onda 3 — Criação e detalhe da OP (manual)
 
-Tela `/producao/dispersao` (Visão Geral):
-- KPIs: OPs analisadas, % dispersão média, custo perda, custo sobra, materiais críticos, OPs críticas, ações abertas, ações concluídas no período.
-- Dois Top 10 lado a lado: por **|%|** e por **R$** (nunca somados).
-- Gráficos: dispersão % por mês, por linha/origem, ações por status (recharts).
+- Rota `src/routes/_authenticated/producao.pcp.tsx` — quadro/lista com filtros (Produto, Status, Período, Almoxarifado).
+- Rota `src/routes/_authenticated/producao.pcp.$id.tsx` — detalhe:
+  - Cabeçalho da OP + ações de status.
+  - Tabela de necessidade (resultado do explodir) com badge Suficiente/Insuficiente comparando contra `estoque_sistemico` do almoxarifado.
+  - Botão "Gerar Demanda Extra" por linha insuficiente (reaproveita `demanda_extra` já existente).
+- Diálogo "Nova OP" (produto autocomplete a partir de `id_produto` distinto em `ficha_tecnica_bom`, quantidade, data, almoxarifado).
+- Ao criar OP: rodar explosão e gravar `necessidade_materiais_op` em batch.
 
-## Onda 3 — Lista Detalhada + Drill-down
+## Onda 4 — Ciclo de status + fechamento em `producao_consumo`
 
-Tela `/producao/dispersao/lista`:
-- Filtros: AnoMes, Produto, Material, Linha/Origem, Classificação.
-- Colunas conforme spec, com badge colorido.
-- Ao clicar num material (na Visão Geral ou na lista) → drill-down `/producao/dispersao/material/$id` com todas as OPs daquele material ordenadas por |dispersão|.
+- Ações Planejada → Liberada → Em Produção → Concluída + Cancelar.
+- Liberada permite avanço mesmo com pendência de material (com aviso).
+- Concluir abre diálogo: `quantidade_produzida_real` + edição do consumo real por material (pré-preenchido com o previsto de `necessidade_materiais_op`).
+- Ao salvar Conclusão: inserir uma linha em `producao_consumo` por material (AnoMes derivado de `data_conclusao_real`, `qtd_previsto` da necessidade, `qtd_consumo` do formulário) — fechando o ciclo com Dispersão de Lote sem novo upload.
 
-## Onda 4 — Causa Raiz + Ações Corretivas (fecha o ciclo)
+## Onda 5 — OP filha para semiacabados
 
-- No drill-down e na lista, botão "Classificar causa" (Admin/Coord/Gerente) → dialog com dropdown de causas fixas + observação.
-- Botão "Abrir ação corretiva" → dialog com descrição, responsável, status inicial "Identificada".
-- Nova tela `/producao/dispersao/acoes`: lista filtrável por status/causa/responsável; concluir só Admin/Coord.
+- Na tabela de necessidade, botão "Gerar OP para este item" nas linhas `eh_semiacabado = true` e sem `op_filha_id`.
+- Cria nova `ordens_producao` com `op_pai_id`, roda explosão dela, atualiza `op_filha_id` na necessidade do pai.
+- Indicador visual (badge/link) nas linhas com filha já gerada, clicável para navegar até a OP filha.
 
-## Onda 5 — Configurações + Permissões
+## Onda 6 — Sugestões de OP a partir do Abastecimento
 
-- `/config/dispersao`: edição das faixas (Admin).
-- Registrar o módulo na matriz de perfis existente.
-- Entrada no menu principal: novo grupo **Produção** com subitem **Dispersão de Lote**, seguindo o padrão colapsável do `AppShell`.
+- Rota `src/routes/_authenticated/producao.pcp.sugestoes.tsx`:
+  - Query cruza sugestões de abastecimento (`parametros_abastecimento`/planejamento existente) com `DISTINCT id_produto` de `ficha_tecnica_bom`.
+  - Ação "Aceitar e Gerar OP" cria a OP com `origem_demanda = SUGESTAO_ABASTECIMENTO` e `referencia_id`.
 
-## Onda 6 — Análises avançadas (só depois das anteriores validadas)
+## Onda 7 — Navegação + permissões
 
-- **Ficha Técnica × Previsto Operacional**: aba própria comparando razão oficial (`ficha_tecnica_bom.qtd`) vs razão implícita nas OPs. Requer coluna adicional em `producao_consumo` para quantidade produzida da OP — se essa info não existir na planilha, sinalizo e deixamos essa aba desabilitada até você trazer o campo.
-- **Cascata de Semiacabados**: flag "Insumo é Produto/Semiacabado" (join entre `producao_consumo.material` e `producao_consumo.produto`) + view "Cascata" mostrando propagação.
+- Adicionar item **PCP** ao grupo Produção no `AppShell` (colapsável já existente).
+- Gate por perfil nas ações de escrita (`useRole`).
+- Registrar rota nas permissões da matriz existente.
 
 ## Validação final
 
-Depois da Onda 3 pedir que você faça o upload de abr–jun/2026 e conferimos juntos se o item com desvio −2.658 aparece como Crítico e disponível para virar ação corretiva.
-
-## Perguntas antes de começar
-
-1. Confirmar **upload manual mensal** em vez de sync automático agora? (posso pedir os dois arquivos-modelo depois)
-2. **Menu**: criar novo grupo raiz "Produção" no `AppShell` ao lado de Suprimentos/Gestão, correto?
-3. **Quantidade produzida da OP** para validação 2.5: sua planilha `Ficha Técnica Consumo` tem esse campo? Se não, deixo a aba 2.5 pendente até você fornecer.
-
-Se estiver OK, começo pela **Onda 1** (migração + importação).
+Ciclo end-to-end: criar OP manual de produto com 2+ níveis, gerar OP filha do semiacabado, concluir ambas, verificar que aparecem em Dispersão de Lote sem upload manual.
