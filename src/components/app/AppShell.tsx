@@ -62,6 +62,12 @@ const NAV: (NavItem | NavGroup)[] = [
     ],
   },
   {
+    id: "producao", label: "Produção", icon: Factory, role: "any",
+    items: [
+      { to: "/producao/dispersao", label: "Dispersão de Lote", icon: GitCompareArrows, role: "any" },
+    ],
+  },
+  {
     id: "gestao", label: "Gestão", icon: TrendingUp, role: "any",
     items: [
       { to: "/gestao/minhas-tarefas", label: "Minhas Tarefas", icon: ClipboardList, role: "any" },
