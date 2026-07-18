@@ -41,12 +41,9 @@ export type CatalogoProduto = {
 };
 
 function pick(r: Record<string, unknown>, ...keys: string[]): string {
-  for (const k of keys) {
-    const v = r[k];
-    if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
-  }
-  return "";
+  return pickCI(r, ...keys);
 }
+
 
 function toIsoDate(s: string): string {
   if (!s) return "";
