@@ -223,7 +223,7 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
                       <TableCell>
                         {r.status === "OK"
                           ? <Badge variant="outline" className="text-success border-success/30">OK</Badge>
-                          : <Badge variant="outline" className="text-destructive border-destructive/30" title={r.erros.join("; ")}>ERRO</Badge>}
+                          : <span className="inline-flex items-center gap-2"><Badge variant="outline" className="text-destructive border-destructive/30" title={r.erros.join("; ")}>ERRO</Badge><span className="text-xs text-destructive/80">{r.erros.join("; ")}</span></span>}
                       </TableCell>
                     </TableRow>
                   ))}
