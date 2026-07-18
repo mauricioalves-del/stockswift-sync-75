@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ type Modo = "BOM" | "CONSUMO";
 
 export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
   const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [rowsBom, setRowsBom] = useState<BomRow[]>([]);
   const [rowsCon, setRowsCon] = useState<ConsumoRow[]>([]);
@@ -120,9 +121,11 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
           <Button variant="outline" size="sm" onClick={baixarModelo} className="gap-2">
             <Download className="size-4" /> Baixar Modelo
           </Button>
-          <label className="inline-flex items-center gap-2 text-sm">
-            <input type="file" accept=".xlsx,.xls" onChange={handleFile} className="text-sm" />
-          </label>
+          <Button variant="default" size="sm" onClick={() => fileInputRef.current?.click()} disabled={busy} className="gap-2">
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+            Importar Planilha
+          </Button>
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
           {filename && <span className="text-xs text-muted-foreground inline-flex items-center gap-1"><FileSpreadsheet className="size-3.5" /> {filename}</span>}
         </div>
 
