@@ -69,12 +69,9 @@ export type ConsumoRow = {
 };
 
 function pick(r: Record<string, unknown>, ...keys: string[]): string {
-  for (const k of keys) {
-    const v = r[k];
-    if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
-  }
-  return "";
+  return pickCI(r, ...keys);
 }
+
 function num(s: string | number | undefined | null): number {
   if (s === null || s === undefined || s === "") return 0;
   if (typeof s === "number") return Number.isFinite(s) ? s : 0;
