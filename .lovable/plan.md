@@ -1,110 +1,71 @@
 
-# Motor de Previsão de Demanda do Abastecimento
+# Pilar Produção — Módulo Dispersão de Lote
 
-Escopo: substituir a lógica de CMD dentro da engine já existente do módulo Abastecimento, sem recriar telas. Entregar em ondas, cada uma validável isoladamente para não desperdiçar créditos.
+Vou entregar em ondas para não estourar créditos. Cada onda é validável isoladamente. Antes de começar, uma decisão que precisa do seu OK:
 
-## Onda 1 — Correção do viés de ruptura (item 1)
+## Decisão de escopo (antes de codar)
 
-Onde: função de cálculo do CMD usada em `abastecimento.planejamento.tsx` / `abastecimento.consumo.tsx`.
+**Sincronização automática vs upload manual (item 1.3):** Hoje o único fluxo automático que existe no projeto é o do Lote_Sistema (estoque). A Ficha Técnica e a Ficha Técnica Consumo não têm integração pronta com o ERP de origem. Montar sincronização automática nova é um projeto de integração à parte (credenciais, agendamento, mapeamento). Proposta: **começar com upload manual mensal** (mesmo padrão de ABC/Baixas) e deixar as tabelas prontas para depois plugar um sync automático sem migração. Confirmar antes de prosseguir.
 
-Mudança:
-- Numerador: total vendido no período (mantém).
-- Denominador: passa a ser **dias com estoque disponível** em vez de dias corridos.
-- Fonte dos "dias com estoque disponível" (nesta ordem, o que existir primeiro):
-  1. Snapshot diário de saldo, se já sincronizado.
-  2. Fallback: dias distintos em `historico_consumo` com venda > 0 **∪** dias em que houve entrada em `estoque_sistemico` naquele SKU/almoxarifado.
-- Nunca deixar denominador = 0: se `dias_disponiveis = 0`, marcar CMD como `null` e classificar amostra como "Sem base" (não sugerir compra por demanda).
+## Onda 1 — Base de dados + importação (mínimo viável)
 
-Validação: comparar CMD antigo × novo em 10 SKUs com ruptura recente antes de liberar geral.
+Migração:
+- `ficha_tecnica_bom` (recursiva, com `linha_origem`, `custo`, `tem_filho`, `gera_oc`) — também servirá ao PCP depois.
+- `producao_consumo` (uma linha por material/OP, com `ano_mes`, `qtd_consumo`, `qtd_previsto`, `qtd_dif` gerado).
+- `dispersao_causa_raiz` e `dispersao_acoes_corretivas`.
+- `parametros_dispersao` (faixas Normal/Atenção/Crítico editáveis — default 5% / 15%).
+- Inserir módulo `PRODUCAO_DISPERSAO` em `modulos_sistema`.
+- GRANTs + RLS: leitura autenticado; escrita Admin/Coordenador; ações corretivas Admin/Coordenador/Gerente conforme matriz.
 
-## Onda 2 — Transparência da amostra (item 3)
+Tela `/producao/dispersao/importar`:
+- Reaproveitar o padrão do `ImportarBaixasDialog` (upload xlsx, prévia OK/ERRO, gravar em lote).
+- Dois botões: "Importar Ficha Técnica (BOM)" e "Importar Consumo por OP".
+- Botão "Baixar Modelo" para cada.
 
-Adicionar à linha da tabela de Cobertura duas colunas discretas:
-- `Dias base` (ex.: "9/30").
-- Badge de confiança: **Alta** ≥70%, **Média** 40–70%, **Baixa** <40%, **Sem base** quando denominador 0.
+## Onda 2 — Cálculos + Visão Geral (Dashboard)
 
-Sem mudar nenhuma fórmula — só exposição do que a Onda 1 já calculou.
+Utilitário `src/lib/dispersao.ts`:
+- `percentualDispersao(dif, previsto)` com tratamento de "Consumo Não Previsto" e zero real.
+- `custoDesvio(dif, custoUnit)` retornando `{ perda, sobra }` separados.
+- `classificar(pct, faixas)` → Normal | Atenção | Crítico.
 
-## Onda 3 — Janela ponderada (item 2)
+Tela `/producao/dispersao` (Visão Geral):
+- KPIs: OPs analisadas, % dispersão média, custo perda, custo sobra, materiais críticos, OPs críticas, ações abertas, ações concluídas no período.
+- Dois Top 10 lado a lado: por **|%|** e por **R$** (nunca somados).
+- Gráficos: dispersão % por mês, por linha/origem, ações por status (recharts).
 
-Novos parâmetros em `parametros_abastecimento` (linha global, editáveis em Configurações):
-- `janela_semanas` (default 4).
-- `pesos_semanais` (default `[3,2,1,1]`, tamanho = janela).
+## Onda 3 — Lista Detalhada + Drill-down
 
-Cálculo:
-```
-CMD = Σ(venda_semana_i × peso_i) / Σ(dias_disponiveis_semana_i × peso_i)
-```
-Semana = janela de 7 dias contados de trás pra frente a partir de hoje.
+Tela `/producao/dispersao/lista`:
+- Filtros: AnoMes, Produto, Material, Linha/Origem, Classificação.
+- Colunas conforme spec, com badge colorido.
+- Ao clicar num material (na Visão Geral ou na lista) → drill-down `/producao/dispersao/material/$id` com todas as OPs daquele material ordenadas por |dispersão|.
 
-Fallback: se `janela_semanas` ou pesos ausentes/ inválidos → cai no cálculo simples da Onda 1.
+## Onda 4 — Causa Raiz + Ações Corretivas (fecha o ciclo)
 
-## Onda 4 — Seleção automática de método por ABC (item 4)
+- No drill-down e na lista, botão "Classificar causa" (Admin/Coord/Gerente) → dialog com dropdown de causas fixas + observação.
+- Botão "Abrir ação corretiva" → dialog com descrição, responsável, status inicial "Identificada".
+- Nova tela `/producao/dispersao/acoes`: lista filtrável por status/causa/responsável; concluir só Admin/Coord.
 
-Em `parametros_abastecimento` acrescentar coluna `metodo_override` (nullable) por SKU. Regra na leitura:
-- `metodo_override` presente → usar esse.
-- Senão: classe A/B → `POR_DEMANDA`; classe C → `MIN_IDEAL_MAX`; sem classe → mantém default atual.
+## Onda 5 — Configurações + Permissões
 
-Na UI de parâmetros do SKU, mostrar o método efetivo + fonte ("automático por ABC" / "manual").
+- `/config/dispersao`: edição das faixas (Admin).
+- Registrar o módulo na matriz de perfis existente.
+- Entrada no menu principal: novo grupo **Produção** com subitem **Dispersão de Lote**, seguindo o padrão colapsável do `AppShell`.
 
-## Onda 5 — Sazonalidade (item 5)
+## Onda 6 — Análises avançadas (só depois das anteriores validadas)
 
-### 5.1 Nova tabela `periodos_sazonais`
-```
-id, nome, data_inicio date, data_fim date,
-recorrente_anual bool,
-escopo_tipo text ('EMPRESA'|'GRUPO'|'FAMILIA'|'SKU'),
-escopo_valor text,          -- código do grupo/família/sku, null se EMPRESA
-indice_multiplicador numeric,
-origem_indice text ('MANUAL'|'AUTOMATICO'),
-ativo bool default true,
-criado_por, created_at, updated_at
-```
-Migração inclui GRANTs, RLS (leitura autenticado, escrita GERENTE/ADMIN), e `ALTER TABLE parametros_abastecimento ADD COLUMN metodo_override text`.
+- **Ficha Técnica × Previsto Operacional**: aba própria comparando razão oficial (`ficha_tecnica_bom.qtd`) vs razão implícita nas OPs. Requer coluna adicional em `producao_consumo` para quantidade produzida da OP — se essa info não existir na planilha, sinalizo e deixamos essa aba desabilitada até você trazer o campo.
+- **Cascata de Semiacabados**: flag "Insumo é Produto/Semiacabado" (join entre `producao_consumo.material` e `producao_consumo.produto`) + view "Cascata" mostrando propagação.
 
-### 5.2 Tela nova `/config/sazonalidade`
-CRUD simples reaproveitando o layout de `motivos-baixa.tsx`. Campos: nome, datas, recorrente, escopo (dropdown tipo + input valor), índice, ativo. Botão "Calcular do histórico" (só habilita quando há ≥ 1 ano de `historico_consumo` para o escopo) que preenche o índice usando:
-```
-indice = venda_media_diaria_dentro_do_periodo_ano_anterior /
-         venda_media_diaria_fora_do_periodo_mesmo_ano
-```
-Após a data_fim passar, exibir linha comparativa "previsto × realizado" na própria row.
+## Validação final
 
-### 5.3 Aplicação no cálculo
-Nova função `cmdAjustadoParaJanela(cmdBase, sku, grupo, familia, janelaDias)`:
-- Para cada dia da janela de cobertura alvo, verifica períodos ativos que casam com escopo do SKU (recorrente_anual expande a data no ano corrente).
-- Se casa → `cmd_dia = cmdBase × indice`. Senão → `cmdBase`.
-- Retorna `{ necessidade, motivo }` onde `motivo` traz "+X% por sazonalidade: <nome> em Y dias" quando aplicável.
+Depois da Onda 3 pedir que você faça o upload de abr–jun/2026 e conferimos juntos se o item com desvio −2.658 aparece como Crítico e disponível para virar ação corretiva.
 
-Sugestão final = `necessidade + demanda_extra_aprovada − saldo_atual − em_pedido` (mantém a lógica atual, só troca o `cmd × dias`).
+## Perguntas antes de começar
 
-### 5.4 Reflexo em Min/Ideal/Máx
-Durante um período sazonal ativo cujo escopo casa com o SKU, aplicar `ideal_efetivo = ideal × indice`, `max_efetivo = max × indice`. Ao expirar, volta ao valor cadastrado (nada é gravado — cálculo em runtime).
+1. Confirmar **upload manual mensal** em vez de sync automático agora? (posso pedir os dois arquivos-modelo depois)
+2. **Menu**: criar novo grupo raiz "Produção" no `AppShell` ao lado de Suprimentos/Gestão, correto?
+3. **Quantidade produzida da OP** para validação 2.5: sua planilha `Ficha Técnica Consumo` tem esse campo? Se não, deixo a aba 2.5 pendente até você fornecer.
 
-## Onda 6 — Sincronização do ciclo (item 6)
-Reaproveita o mesmo trigger de recálculo já existente na tela de Abastecimento; só troca a função chamada. Sem cron novo.
-
-## Ordem sugerida de entrega
-1. Onda 1 (fórmula) + Onda 2 (badges) na mesma leva — impacto direto, baixo custo.
-2. Onda 3 (janela ponderada) + parâmetros editáveis.
-3. Onda 4 (auto ABC).
-4. Onda 5 completa (migração + tela + aplicação no cálculo), começando pelo cadastro manual do índice; automático como botão opcional.
-
-## Detalhes técnicos
-
-**Arquivos previstos:**
-- `src/lib/cmd.ts` — nova função `calcularCMD(sku, almox, opts)` centralizando a lógica (usada por planejamento e consumo).
-- `src/lib/sazonalidade.ts` — resolução de períodos aplicáveis + índice.
-- `src/routes/_authenticated/abastecimento.planejamento.tsx` — trocar chamada + novas colunas.
-- `src/routes/_authenticated/abastecimento.consumo.tsx` — trocar chamada + badges.
-- `src/routes/_authenticated/abastecimento.parametros.tsx` — inputs de janela/pesos e override de método.
-- `src/routes/_authenticated/config.sazonalidade.tsx` — nova tela.
-- `src/components/app/AppShell.tsx` — entrada de menu.
-- Migração: `periodos_sazonais` + `parametros_abastecimento.metodo_override` + GRANTs + RLS.
-
-**Pontos de atenção:**
-- Consultar `historico_consumo` uma vez por leva de SKUs e reduzir em memória (evitar N+1 na tela de Abastecimento com centenas de linhas).
-- Cache no queryClient com key incluindo `janela_semanas` e `pesos_semanais` para invalidar quando o parâmetro mudar.
-- Períodos recorrentes: normalizar para o ano corrente na hora de comparar com a janela (ex.: Páscoa 2026).
-
-Confirma essa ordem? Posso começar pelas **Ondas 1 + 2** já.
+Se estiver OK, começo pela **Onda 1** (migração + importação).
