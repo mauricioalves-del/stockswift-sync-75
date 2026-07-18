@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Upload, Sparkles, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { normalizeSheetRows } from "@/lib/xlsx-utils";
+
 
 export const Route = createFileRoute("/_authenticated/abc")({
   component: AbcPage,
