@@ -139,7 +139,7 @@ export function parseBomPlanilha(file: ArrayBuffer): BomRow[] {
 export function parseConsumoPlanilha(file: ArrayBuffer): ConsumoRow[] {
   const wb = XLSX.read(file, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" });
+  const rows = normalizeSheetRows(XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" }));
   return rows.map((r, i) => {
     const ano_mes = toAnoMes(pick(r, "AnoMes", "Ano_Mes", "ano_mes", "Período", "Periodo"));
     const id_op = pick(r, "IDOP", "ID_OP", "id_op", "OP");
