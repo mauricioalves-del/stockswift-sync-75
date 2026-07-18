@@ -1,5 +1,7 @@
 // Utilidades do módulo Dispersão de Lote (Produção)
 import * as XLSX from "xlsx";
+import { normalizeSheetRows, pickCI } from "./xlsx-utils";
+
 
 export type Faixas = { atencao: number; critico: number };
 export const FAIXAS_DEFAULT: Faixas = { atencao: 5, critico: 15 };
