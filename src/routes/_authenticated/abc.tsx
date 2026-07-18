@@ -178,7 +178,7 @@ function AbcPage() {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf);
       const sh = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<any>(sh);
+      const rows = normalizeSheetRows(XLSX.utils.sheet_to_json<any>(sh));
       const today = new Date();
       const mapped = rows.map((r) => {
         const codigo = String(r.codigo_produto ?? r.sku ?? r.SKU ?? r.codigo ?? "").trim();
