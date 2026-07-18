@@ -6,6 +6,7 @@ import {
   Sun, Moon, Wifi, WifiOff, RefreshCw, Layers, FolderTree, Package, BarChart3,
   Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp, Warehouse, Mail,
   Compass, Sparkles, Settings2, Boxes, Truck, AlertTriangle, PanelLeftClose, PanelLeftOpen,
+  Factory, GitCompareArrows,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -58,6 +59,12 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/abastecimento/consumo", label: "Importar Consumo", icon: TrendingUp, role: "write" },
       { to: "/abastecimento/parametros", label: "Parâmetros Abastecimento", icon: Settings2, role: "admin" },
       { to: "/config/sazonalidade", label: "Sazonalidade", icon: Sparkles, role: "admin" },
+    ],
+  },
+  {
+    id: "producao", label: "Produção", icon: Factory, role: "any",
+    items: [
+      { to: "/producao/dispersao", label: "Dispersão de Lote", icon: GitCompareArrows, role: "any" },
     ],
   },
   {
