@@ -60,11 +60,12 @@ function ImportarPage() {
       const wb = XLSX.read(buf);
       const sheet = wb.Sheets[SHEET_NAME] ?? wb.Sheets[wb.SheetNames[0]];
       if (!sheet) { setErrors([`Aba "${SHEET_NAME}" não encontrada`]); return; }
-      const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+      const data = normalizeSheetRows(XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" }));
       if (data.length === 0) { setErrors(["Planilha vazia"]); return; }
-      const sample = data[0];
-      const missing = REQUIRED.filter((k) => !(k in sample));
+      const headerKeys = new Set(Object.keys(data[0]).map((k) => k.trim().toLowerCase()));
+      const missing = REQUIRED.filter((k) => !headerKeys.has(k.trim().toLowerCase()));
       if (missing.length) { setErrors([`Colunas obrigatórias ausentes: ${missing.join(", ")}`]); return; }
+
 
       const errs: string[] = [];
       const parsed: Row[] = [];
