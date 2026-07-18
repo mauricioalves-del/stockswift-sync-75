@@ -34,6 +34,7 @@ import { Route as AuthenticatedMissoesIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedConfigIndexRouteImport } from './routes/_authenticated/config.index'
 import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_authenticated/suprimentos.estoque'
 import { Route as AuthenticatedSuprimentosDashboardRouteImport } from './routes/_authenticated/suprimentos.dashboard'
+import { Route as AuthenticatedProducaoDispersaoRouteImport } from './routes/_authenticated/producao.dispersao'
 import { Route as AuthenticatedMissoesIdRouteImport } from './routes/_authenticated/missoes.$id'
 import { Route as AuthenticatedGestaoPlanejamentoRouteImport } from './routes/_authenticated/gestao.planejamento'
 import { Route as AuthenticatedGestaoModelosChecklistRouteImport } from './routes/_authenticated/gestao.modelos-checklist'
@@ -42,12 +43,14 @@ import { Route as AuthenticatedConfigSazonalidadeRouteImport } from './routes/_a
 import { Route as AuthenticatedConfigResendRouteImport } from './routes/_authenticated/config.resend'
 import { Route as AuthenticatedConfigPerfisRouteImport } from './routes/_authenticated/config.perfis'
 import { Route as AuthenticatedConfigInventarioRouteImport } from './routes/_authenticated/config.inventario'
+import { Route as AuthenticatedConfigDispersaoRouteImport } from './routes/_authenticated/config.dispersao'
 import { Route as AuthenticatedAbastecimentoPlanejamentoRouteImport } from './routes/_authenticated/abastecimento.planejamento'
 import { Route as AuthenticatedAbastecimentoParametrosRouteImport } from './routes/_authenticated/abastecimento.parametros'
 import { Route as AuthenticatedAbastecimentoDemandasRouteImport } from './routes/_authenticated/abastecimento.demandas'
 import { Route as AuthenticatedAbastecimentoConsumoRouteImport } from './routes/_authenticated/abastecimento.consumo'
 import { Route as AuthenticatedSuprimentosRequisicoesIndexRouteImport } from './routes/_authenticated/suprimentos.requisicoes.index'
 import { Route as AuthenticatedSuprimentosRequisicoesIdRouteImport } from './routes/_authenticated/suprimentos.requisicoes.$id'
+import { Route as AuthenticatedProducaoMaterialMaterialRouteImport } from './routes/_authenticated/producao.material.$material'
 import { Route as AuthenticatedSuprimentosRequisicoesIdFichaRouteImport } from './routes/_authenticated/suprimentos.requisicoes.$id.ficha'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -181,6 +184,12 @@ const AuthenticatedSuprimentosDashboardRoute =
     path: '/suprimentos/dashboard',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedProducaoDispersaoRoute =
+  AuthenticatedProducaoDispersaoRouteImport.update({
+    id: '/producao/dispersao',
+    path: '/producao/dispersao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMissoesIdRoute = AuthenticatedMissoesIdRouteImport.update({
   id: '/missoes/$id',
   path: '/missoes/$id',
@@ -228,6 +237,12 @@ const AuthenticatedConfigInventarioRoute =
     path: '/config/inventario',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedConfigDispersaoRoute =
+  AuthenticatedConfigDispersaoRouteImport.update({
+    id: '/config/dispersao',
+    path: '/config/dispersao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAbastecimentoPlanejamentoRoute =
   AuthenticatedAbastecimentoPlanejamentoRouteImport.update({
     id: '/abastecimento/planejamento',
@@ -264,6 +279,12 @@ const AuthenticatedSuprimentosRequisicoesIdRoute =
     path: '/suprimentos/requisicoes/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedProducaoMaterialMaterialRoute =
+  AuthenticatedProducaoMaterialMaterialRouteImport.update({
+    id: '/producao/material/$material',
+    path: '/producao/material/$material',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSuprimentosRequisicoesIdFichaRoute =
   AuthenticatedSuprimentosRequisicoesIdFichaRouteImport.update({
     id: '/ficha',
@@ -296,6 +317,7 @@ export interface FileRoutesByFullPath {
   '/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  '/config/dispersao': typeof AuthenticatedConfigDispersaoRoute
   '/config/inventario': typeof AuthenticatedConfigInventarioRoute
   '/config/perfis': typeof AuthenticatedConfigPerfisRoute
   '/config/resend': typeof AuthenticatedConfigResendRoute
@@ -304,10 +326,12 @@ export interface FileRoutesByFullPath {
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
+  '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/config/': typeof AuthenticatedConfigIndexRoute
   '/missoes/': typeof AuthenticatedMissoesIndexRoute
+  '/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
   '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
   '/suprimentos/requisicoes/': typeof AuthenticatedSuprimentosRequisicoesIndexRoute
   '/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
@@ -337,6 +361,7 @@ export interface FileRoutesByTo {
   '/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  '/config/dispersao': typeof AuthenticatedConfigDispersaoRoute
   '/config/inventario': typeof AuthenticatedConfigInventarioRoute
   '/config/perfis': typeof AuthenticatedConfigPerfisRoute
   '/config/resend': typeof AuthenticatedConfigResendRoute
@@ -345,10 +370,12 @@ export interface FileRoutesByTo {
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
+  '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/config': typeof AuthenticatedConfigIndexRoute
   '/missoes': typeof AuthenticatedMissoesIndexRoute
+  '/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
   '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
   '/suprimentos/requisicoes': typeof AuthenticatedSuprimentosRequisicoesIndexRoute
   '/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
@@ -380,6 +407,7 @@ export interface FileRoutesById {
   '/_authenticated/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
   '/_authenticated/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/_authenticated/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  '/_authenticated/config/dispersao': typeof AuthenticatedConfigDispersaoRoute
   '/_authenticated/config/inventario': typeof AuthenticatedConfigInventarioRoute
   '/_authenticated/config/perfis': typeof AuthenticatedConfigPerfisRoute
   '/_authenticated/config/resend': typeof AuthenticatedConfigResendRoute
@@ -388,10 +416,12 @@ export interface FileRoutesById {
   '/_authenticated/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/_authenticated/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/_authenticated/missoes/$id': typeof AuthenticatedMissoesIdRoute
+  '/_authenticated/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
   '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/_authenticated/config/': typeof AuthenticatedConfigIndexRoute
   '/_authenticated/missoes/': typeof AuthenticatedMissoesIndexRoute
+  '/_authenticated/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
   '/_authenticated/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
   '/_authenticated/suprimentos/requisicoes/': typeof AuthenticatedSuprimentosRequisicoesIndexRoute
   '/_authenticated/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
@@ -423,6 +453,7 @@ export interface FileRouteTypes {
     | '/abastecimento/demandas'
     | '/abastecimento/parametros'
     | '/abastecimento/planejamento'
+    | '/config/dispersao'
     | '/config/inventario'
     | '/config/perfis'
     | '/config/resend'
@@ -431,10 +462,12 @@ export interface FileRouteTypes {
     | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
     | '/missoes/$id'
+    | '/producao/dispersao'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
     | '/config/'
     | '/missoes/'
+    | '/producao/material/$material'
     | '/suprimentos/requisicoes/$id'
     | '/suprimentos/requisicoes/'
     | '/suprimentos/requisicoes/$id/ficha'
@@ -464,6 +497,7 @@ export interface FileRouteTypes {
     | '/abastecimento/demandas'
     | '/abastecimento/parametros'
     | '/abastecimento/planejamento'
+    | '/config/dispersao'
     | '/config/inventario'
     | '/config/perfis'
     | '/config/resend'
@@ -472,10 +506,12 @@ export interface FileRouteTypes {
     | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
     | '/missoes/$id'
+    | '/producao/dispersao'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
     | '/config'
     | '/missoes'
+    | '/producao/material/$material'
     | '/suprimentos/requisicoes/$id'
     | '/suprimentos/requisicoes'
     | '/suprimentos/requisicoes/$id/ficha'
@@ -506,6 +542,7 @@ export interface FileRouteTypes {
     | '/_authenticated/abastecimento/demandas'
     | '/_authenticated/abastecimento/parametros'
     | '/_authenticated/abastecimento/planejamento'
+    | '/_authenticated/config/dispersao'
     | '/_authenticated/config/inventario'
     | '/_authenticated/config/perfis'
     | '/_authenticated/config/resend'
@@ -514,10 +551,12 @@ export interface FileRouteTypes {
     | '/_authenticated/gestao/modelos-checklist'
     | '/_authenticated/gestao/planejamento'
     | '/_authenticated/missoes/$id'
+    | '/_authenticated/producao/dispersao'
     | '/_authenticated/suprimentos/dashboard'
     | '/_authenticated/suprimentos/estoque'
     | '/_authenticated/config/'
     | '/_authenticated/missoes/'
+    | '/_authenticated/producao/material/$material'
     | '/_authenticated/suprimentos/requisicoes/$id'
     | '/_authenticated/suprimentos/requisicoes/'
     | '/_authenticated/suprimentos/requisicoes/$id/ficha'
@@ -707,6 +746,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSuprimentosDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/producao/dispersao': {
+      id: '/_authenticated/producao/dispersao'
+      path: '/producao/dispersao'
+      fullPath: '/producao/dispersao'
+      preLoaderRoute: typeof AuthenticatedProducaoDispersaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/missoes/$id': {
       id: '/_authenticated/missoes/$id'
       path: '/missoes/$id'
@@ -763,6 +809,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfigInventarioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/config/dispersao': {
+      id: '/_authenticated/config/dispersao'
+      path: '/config/dispersao'
+      fullPath: '/config/dispersao'
+      preLoaderRoute: typeof AuthenticatedConfigDispersaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/abastecimento/planejamento': {
       id: '/_authenticated/abastecimento/planejamento'
       path: '/abastecimento/planejamento'
@@ -803,6 +856,13 @@ declare module '@tanstack/react-router' {
       path: '/suprimentos/requisicoes/$id'
       fullPath: '/suprimentos/requisicoes/$id'
       preLoaderRoute: typeof AuthenticatedSuprimentosRequisicoesIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/producao/material/$material': {
+      id: '/_authenticated/producao/material/$material'
+      path: '/producao/material/$material'
+      fullPath: '/producao/material/$material'
+      preLoaderRoute: typeof AuthenticatedProducaoMaterialMaterialRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/suprimentos/requisicoes/$id/ficha': {
@@ -852,6 +912,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbastecimentoDemandasRoute: typeof AuthenticatedAbastecimentoDemandasRoute
   AuthenticatedAbastecimentoParametrosRoute: typeof AuthenticatedAbastecimentoParametrosRoute
   AuthenticatedAbastecimentoPlanejamentoRoute: typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  AuthenticatedConfigDispersaoRoute: typeof AuthenticatedConfigDispersaoRoute
   AuthenticatedConfigInventarioRoute: typeof AuthenticatedConfigInventarioRoute
   AuthenticatedConfigPerfisRoute: typeof AuthenticatedConfigPerfisRoute
   AuthenticatedConfigResendRoute: typeof AuthenticatedConfigResendRoute
@@ -860,10 +921,12 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGestaoModelosChecklistRoute: typeof AuthenticatedGestaoModelosChecklistRoute
   AuthenticatedGestaoPlanejamentoRoute: typeof AuthenticatedGestaoPlanejamentoRoute
   AuthenticatedMissoesIdRoute: typeof AuthenticatedMissoesIdRoute
+  AuthenticatedProducaoDispersaoRoute: typeof AuthenticatedProducaoDispersaoRoute
   AuthenticatedSuprimentosDashboardRoute: typeof AuthenticatedSuprimentosDashboardRoute
   AuthenticatedSuprimentosEstoqueRoute: typeof AuthenticatedSuprimentosEstoqueRoute
   AuthenticatedConfigIndexRoute: typeof AuthenticatedConfigIndexRoute
   AuthenticatedMissoesIndexRoute: typeof AuthenticatedMissoesIndexRoute
+  AuthenticatedProducaoMaterialMaterialRoute: typeof AuthenticatedProducaoMaterialMaterialRoute
   AuthenticatedSuprimentosRequisicoesIdRoute: typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
   AuthenticatedSuprimentosRequisicoesIndexRoute: typeof AuthenticatedSuprimentosRequisicoesIndexRoute
 }
@@ -894,6 +957,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedAbastecimentoParametrosRoute,
   AuthenticatedAbastecimentoPlanejamentoRoute:
     AuthenticatedAbastecimentoPlanejamentoRoute,
+  AuthenticatedConfigDispersaoRoute: AuthenticatedConfigDispersaoRoute,
   AuthenticatedConfigInventarioRoute: AuthenticatedConfigInventarioRoute,
   AuthenticatedConfigPerfisRoute: AuthenticatedConfigPerfisRoute,
   AuthenticatedConfigResendRoute: AuthenticatedConfigResendRoute,
@@ -903,11 +967,14 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedGestaoModelosChecklistRoute,
   AuthenticatedGestaoPlanejamentoRoute: AuthenticatedGestaoPlanejamentoRoute,
   AuthenticatedMissoesIdRoute: AuthenticatedMissoesIdRoute,
+  AuthenticatedProducaoDispersaoRoute: AuthenticatedProducaoDispersaoRoute,
   AuthenticatedSuprimentosDashboardRoute:
     AuthenticatedSuprimentosDashboardRoute,
   AuthenticatedSuprimentosEstoqueRoute: AuthenticatedSuprimentosEstoqueRoute,
   AuthenticatedConfigIndexRoute: AuthenticatedConfigIndexRoute,
   AuthenticatedMissoesIndexRoute: AuthenticatedMissoesIndexRoute,
+  AuthenticatedProducaoMaterialMaterialRoute:
+    AuthenticatedProducaoMaterialMaterialRoute,
   AuthenticatedSuprimentosRequisicoesIdRoute:
     AuthenticatedSuprimentosRequisicoesIdRouteWithChildren,
   AuthenticatedSuprimentosRequisicoesIndexRoute:
