@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Upload, Sparkles, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { normalizeSheetRows } from "@/lib/xlsx-utils";
+
 
 export const Route = createFileRoute("/_authenticated/abc")({
   component: AbcPage,
@@ -176,7 +178,7 @@ function AbcPage() {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf);
       const sh = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<any>(sh);
+      const rows = normalizeSheetRows(XLSX.utils.sheet_to_json<any>(sh));
       const today = new Date();
       const mapped = rows.map((r) => {
         const codigo = String(r.codigo_produto ?? r.sku ?? r.SKU ?? r.codigo ?? "").trim();

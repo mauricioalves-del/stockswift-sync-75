@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import * as XLSX from "xlsx";
+import { normalizeSheetRows } from "@/lib/xlsx-utils";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -45,7 +47,7 @@ function ImportarFamiliasPage() {
     const buf = await f.arrayBuffer();
     const wb = XLSX.read(buf);
     const sheet = wb.Sheets[wb.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+    const data = normalizeSheetRows(XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" }));
     const errs: string[] = [];
     const parsed: ParsedRow[] = [];
     data.forEach((r, i) => {

@@ -1,4 +1,6 @@
 import * as XLSX from "xlsx";
+import { normalizeSheetRows, pickCI } from "./xlsx-utils";
+
 
 export type ParsedRow = {
   linha: number;
@@ -39,12 +41,9 @@ export type CatalogoProduto = {
 };
 
 function pick(r: Record<string, unknown>, ...keys: string[]): string {
-  for (const k of keys) {
-    const v = r[k];
-    if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
-  }
-  return "";
+  return pickCI(r, ...keys);
 }
+
 
 function toIsoDate(s: string): string {
   if (!s) return "";
@@ -112,10 +111,11 @@ export async function parsePlanilhaBaixas(
   const sheet = wb.Sheets["BAIXA"] ?? wb.Sheets[wb.SheetNames[0]];
   if (!sheet) throw new Error('Aba "BAIXA" não encontrada');
 
-  const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+  const data = normalizeSheetRows(XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
     range: 1,
     defval: "",
-  });
+  }));
+
 
   const catMap = new Map(catalogo.map((c) => [String(c.sku).trim(), c]));
   const motivoMap = new Map(motivos.map((m) => [m.descricao.toUpperCase().trim(), m]));

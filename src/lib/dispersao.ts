@@ -1,5 +1,7 @@
 // Utilidades do módulo Dispersão de Lote (Produção)
 import * as XLSX from "xlsx";
+import { normalizeSheetRows, pickCI } from "./xlsx-utils";
+
 
 export type Faixas = { atencao: number; critico: number };
 export const FAIXAS_DEFAULT: Faixas = { atencao: 5, critico: 15 };
@@ -67,12 +69,9 @@ export type ConsumoRow = {
 };
 
 function pick(r: Record<string, unknown>, ...keys: string[]): string {
-  for (const k of keys) {
-    const v = r[k];
-    if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
-  }
-  return "";
+  return pickCI(r, ...keys);
 }
+
 function num(s: string | number | undefined | null): number {
   if (s === null || s === undefined || s === "") return 0;
   if (typeof s === "number") return Number.isFinite(s) ? s : 0;
@@ -110,7 +109,8 @@ function toAnoMes(s: string): string {
 export function parseBomPlanilha(file: ArrayBuffer): BomRow[] {
   const wb = XLSX.read(file, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" });
+  const rows = normalizeSheetRows(XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" }));
+
   return rows.map((r, i) => {
     const id_produto = pick(r, "IDProduto", "ID_Produto", "id_produto");
     const id_item = pick(r, "IDItem", "ID_Item", "id_item");
@@ -139,7 +139,7 @@ export function parseBomPlanilha(file: ArrayBuffer): BomRow[] {
 export function parseConsumoPlanilha(file: ArrayBuffer): ConsumoRow[] {
   const wb = XLSX.read(file, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" });
+  const rows = normalizeSheetRows(XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" }));
   return rows.map((r, i) => {
     const ano_mes = toAnoMes(pick(r, "AnoMes", "Ano_Mes", "ano_mes", "Período", "Periodo"));
     const id_op = pick(r, "IDOP", "ID_OP", "id_op", "OP");

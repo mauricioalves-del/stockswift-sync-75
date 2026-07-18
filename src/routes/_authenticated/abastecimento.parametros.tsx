@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
+import { normalizeSheetRows, pickCI } from "@/lib/xlsx-utils";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -227,12 +229,9 @@ function LinhaParam({ p, onSalvar, origens }: { p: Parametro; onSalvar: (p: Para
 }
 
 function pick(r: Record<string, unknown>, ...keys: string[]): string {
-  for (const k of keys) {
-    const v = r[k];
-    if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
-  }
-  return "";
+  return pickCI(r, ...keys);
 }
+
 
 function ProdutosReposicaoCard() {
   const qc = useQueryClient();
@@ -293,7 +292,7 @@ function ProdutosReposicaoCard() {
       const buf = await f.arrayBuffer();
       const wb = XLSX.read(buf);
       const sheet = wb.Sheets[wb.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+      const data = normalizeSheetRows(XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" }));
       if (data.length === 0) { setErrors(["Planilha vazia"]); return; }
 
       const errs: string[] = [];
