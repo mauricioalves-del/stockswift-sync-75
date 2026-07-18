@@ -386,6 +386,103 @@ export type Database = {
         }
         Relationships: []
       }
+      dispersao_acoes_corretivas: {
+        Row: {
+          aberto_por: string | null
+          ano_mes: string | null
+          created_at: string
+          data_abertura: string
+          data_conclusao: string | null
+          descricao_acao: string
+          fechado_por: string | null
+          id: string
+          material: string | null
+          producao_consumo_id: string | null
+          responsavel: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          aberto_por?: string | null
+          ano_mes?: string | null
+          created_at?: string
+          data_abertura?: string
+          data_conclusao?: string | null
+          descricao_acao: string
+          fechado_por?: string | null
+          id?: string
+          material?: string | null
+          producao_consumo_id?: string | null
+          responsavel?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          aberto_por?: string | null
+          ano_mes?: string | null
+          created_at?: string
+          data_abertura?: string
+          data_conclusao?: string | null
+          descricao_acao?: string
+          fechado_por?: string | null
+          id?: string
+          material?: string | null
+          producao_consumo_id?: string | null
+          responsavel?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispersao_acoes_corretivas_producao_consumo_id_fkey"
+            columns: ["producao_consumo_id"]
+            isOneToOne: false
+            referencedRelation: "producao_consumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dispersao_causa_raiz: {
+        Row: {
+          causa: string
+          classificado_em: string
+          classificado_por: string | null
+          created_at: string
+          id: string
+          observacao: string | null
+          producao_consumo_id: string
+          updated_at: string
+        }
+        Insert: {
+          causa: string
+          classificado_em?: string
+          classificado_por?: string | null
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          producao_consumo_id: string
+          updated_at?: string
+        }
+        Update: {
+          causa?: string
+          classificado_em?: string
+          classificado_por?: string | null
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          producao_consumo_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispersao_causa_raiz_producao_consumo_id_fkey"
+            columns: ["producao_consumo_id"]
+            isOneToOne: false
+            referencedRelation: "producao_consumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estoque_sistemico: {
         Row: {
           cliente: string
@@ -460,6 +557,63 @@ export type Database = {
           descricao_produto?: string | null
           familia?: string
           id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ficha_tecnica_bom: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          custo: number
+          gera_oc: boolean
+          id: string
+          id_item: string
+          id_produto: string
+          id_subconjunto: string | null
+          item: string | null
+          item_unidade: string | null
+          linha_origem: string | null
+          produto: string | null
+          qtd: number
+          subconjunto: string | null
+          tem_filho: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          custo?: number
+          gera_oc?: boolean
+          id?: string
+          id_item: string
+          id_produto: string
+          id_subconjunto?: string | null
+          item?: string | null
+          item_unidade?: string | null
+          linha_origem?: string | null
+          produto?: string | null
+          qtd?: number
+          subconjunto?: string | null
+          tem_filho?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          custo?: number
+          gera_oc?: boolean
+          id?: string
+          id_item?: string
+          id_produto?: string
+          id_subconjunto?: string | null
+          item?: string | null
+          item_unidade?: string | null
+          linha_origem?: string | null
+          produto?: string | null
+          qtd?: number
+          subconjunto?: string | null
+          tem_filho?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -1105,6 +1259,27 @@ export type Database = {
         }
         Relationships: []
       }
+      parametros_dispersao: {
+        Row: {
+          id: number
+          limite_atencao_pct: number
+          limite_critico_pct: number
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          limite_atencao_pct?: number
+          limite_critico_pct?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          limite_atencao_pct?: number
+          limite_critico_pct?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       parametros_inventario: {
         Row: {
           almoxarifado_id: string
@@ -1263,6 +1438,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      producao_consumo: {
+        Row: {
+          ano_mes: string
+          created_at: string
+          criado_por: string | null
+          desc_material: string | null
+          desc_produto: string | null
+          id: string
+          id_op: string
+          material: string
+          produto: string | null
+          qtd_consumo: number
+          qtd_dif: number | null
+          qtd_previsto: number
+          qtd_produzida: number | null
+          um: string | null
+          updated_at: string
+        }
+        Insert: {
+          ano_mes: string
+          created_at?: string
+          criado_por?: string | null
+          desc_material?: string | null
+          desc_produto?: string | null
+          id?: string
+          id_op: string
+          material: string
+          produto?: string | null
+          qtd_consumo?: number
+          qtd_dif?: number | null
+          qtd_previsto?: number
+          qtd_produzida?: number | null
+          um?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ano_mes?: string
+          created_at?: string
+          criado_por?: string | null
+          desc_material?: string | null
+          desc_produto?: string | null
+          id?: string
+          id_op?: string
+          material?: string
+          produto?: string | null
+          qtd_consumo?: number
+          qtd_dif?: number | null
+          qtd_previsto?: number
+          qtd_produzida?: number | null
+          um?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       produtos_reposicao: {
         Row: {
