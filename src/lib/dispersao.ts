@@ -73,7 +73,24 @@ function pick(r: Record<string, unknown>, ...keys: string[]): string {
   }
   return "";
 }
-function num(s: string): number { if (!s) return 0; const n = Number(s.replace(/\./g, "").replace(",", ".")); return Number.isNaN(n) ? Number(s) || 0 : n; }
+function num(s: string | number | undefined | null): number {
+  if (s === null || s === undefined || s === "") return 0;
+  if (typeof s === "number") return Number.isFinite(s) ? s : 0;
+  const raw = String(s).trim();
+  if (!raw) return 0;
+  const hasDot = raw.includes(".");
+  const hasComma = raw.includes(",");
+  let normalized = raw;
+  if (hasDot && hasComma) {
+    // pt-BR: "1.234,56" — ponto é separador de milhar, vírgula é decimal
+    normalized = raw.replace(/\./g, "").replace(",", ".");
+  } else if (hasComma) {
+    // "0,7" — vírgula é decimal
+    normalized = raw.replace(",", ".");
+  } // se só ponto, é decimal padrão — não mexer
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : 0;
+}
 function boolFrom(s: string): boolean { const v = s.toLowerCase(); return v === "sim" || v === "s" || v === "true" || v === "1"; }
 
 function toAnoMes(s: string): string {
