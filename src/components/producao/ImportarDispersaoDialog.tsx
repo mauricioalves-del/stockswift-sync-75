@@ -138,6 +138,33 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
           </div>
         )}
 
+        {total > 0 && (() => {
+          const rowsAll = isBom ? rowsBom : rowsCon;
+          const errRows = rowsAll.filter((r) => r.status === "ERRO");
+          if (errRows.length === 0) return null;
+          const counts = new Map<string, number>();
+          for (const r of errRows) for (const e of r.erros) counts.set(e, (counts.get(e) ?? 0) + 1);
+          const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+          const dominante = top[0];
+          const todasIguais = dominante && dominante[1] === errRows.length;
+          return (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm space-y-1">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <AlertCircle className="size-4" />
+                {todasIguais
+                  ? `${errRows.length} linha(s) com erro pelo mesmo motivo — confira o cabeçalho:`
+                  : `${errRows.length} linha(s) com erro. Motivos mais frequentes:`}
+              </div>
+              <ul className="list-disc pl-6 text-muted-foreground">
+                {top.map(([msg, n]) => (
+                  <li key={msg}><span className="text-foreground font-medium">{n}×</span> {msg}</li>
+                ))}
+              </ul>
+            </div>
+          );
+        })()}
+
+
         <div className="max-h-[400px] overflow-auto border rounded-md">
           <Table>
             <TableHeader>
