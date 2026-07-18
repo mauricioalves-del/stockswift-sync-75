@@ -1,4 +1,6 @@
 import * as XLSX from "xlsx";
+import { normalizeSheetRows, pickCI } from "./xlsx-utils";
+
 
 export type ParsedRow = {
   linha: number;
