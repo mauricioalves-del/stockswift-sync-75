@@ -268,7 +268,32 @@ function RupturaPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <AddProdutoPicker produtos={produtosQ.data ?? []} onPick={addLinha} disabled={produtosQ.isLoading} />
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Grupo</label>
+              <Select value={grupoSel} onValueChange={(v) => { setGrupoSel(v); setFamiliaSel("__all__"); }}>
+                <SelectTrigger className="w-56 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(gruposQ.data ?? []).map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Família</label>
+              <Select value={familiaSel} onValueChange={setFamiliaSel}>
+                <SelectTrigger className="w-56 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todas</SelectItem>
+                  {familiasDisponiveis.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <AddProdutoPicker produtos={produtosFiltrados} onPick={addLinha} disabled={produtosQ.isLoading} />
+            <div className="text-xs text-muted-foreground ml-auto">
+              {produtosFiltrados.length} produto(s) · {produtosFiltrados.filter((p) => !p.temBom).length} sem ficha técnica
+            </div>
+          </div>
+
           {linhas.length === 0 && (
             <div className="text-sm text-muted-foreground py-6 text-center border border-dashed rounded-md">
               Nenhum produto na simulação. Adicione produtos ou carregue da sugestão.
