@@ -42,17 +42,20 @@ function RupturaPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Produtos fabricados (id_produto distintos em ficha_tecnica_bom)
+  // Produtos ACABADOS que possuem ficha técnica
   const produtosQ = useQuery({
-    queryKey: ["ruptura", "produtos-fabricados"],
+    queryKey: ["ruptura", "produtos-acabados"],
     queryFn: async (): Promise<Produto[]> => {
-      const { data } = await (supabase as any)
-        .from("ficha_tecnica_bom")
-        .select("id_produto,produto")
-        .limit(20000);
+      const [{ data: bom }, { data: grupos }] = await Promise.all([
+        (supabase as any).from("ficha_tecnica_bom").select("id_produto,produto").limit(20000),
+        (supabase as any).from("grupo_produtos").select("codigo_produto,grupo").eq("grupo", "Produto Acabado"),
+      ]);
+      const acabados = new Set<string>(((grupos ?? []) as { codigo_produto: string }[]).map((g) => g.codigo_produto));
       const uniq = new Map<string, string>();
-      for (const r of (data ?? []) as { id_produto: string; produto: string | null }[]) {
-        if (!uniq.has(r.id_produto)) uniq.set(r.id_produto, r.produto ?? r.id_produto);
+      for (const r of (bom ?? []) as { id_produto: string; produto: string | null }[]) {
+        if (acabados.has(r.id_produto) && !uniq.has(r.id_produto)) {
+          uniq.set(r.id_produto, r.produto ?? r.id_produto);
+        }
       }
       return Array.from(uniq.entries())
         .map(([id, nome]) => ({ id, nome }))
@@ -117,24 +120,27 @@ function RupturaPage() {
   const resultado = useMemo(() => {
     const bom = bomQ.data ?? [];
     const saldos = saldoQ.data ?? {};
-    // Necessidade por insumo → { qtd, um, contribs: [{id_produto, nome, qtd}] }
+    // Necessidade por insumo folha → { qtd, um, contribs: [{id_produto, nome, qtd, caminho}] }
     const agg = new Map<string, {
       id_item: string; item: string | null; um: string | null;
-      necessidade: number; contribs: { id_produto: string; nome: string; qtd: number }[];
+      necessidade: number;
+      contribs: { id_produto: string; nome: string; qtd: number; caminho: { id: string; nome: string | null }[] }[];
     }>();
     for (const linha of linhas) {
       if (!linha.quantidade || linha.quantidade <= 0) continue;
       const nec = explodirBOM(linha.id_produto, linha.quantidade, bom as BomLinha[]);
       for (const n of nec as NecessidadeItem[]) {
+        if (n.eh_semiacabado) continue; // ruptura só na folha (matéria-prima real)
+        const contrib = { id_produto: linha.id_produto, nome: linha.nome, qtd: n.qtd_necessaria, caminho: n.caminho };
         const cur = agg.get(n.id_item);
         if (cur) {
           cur.necessidade += n.qtd_necessaria;
-          cur.contribs.push({ id_produto: linha.id_produto, nome: linha.nome, qtd: n.qtd_necessaria });
+          cur.contribs.push(contrib);
         } else {
           agg.set(n.id_item, {
             id_item: n.id_item, item: n.item, um: n.um,
             necessidade: n.qtd_necessaria,
-            contribs: [{ id_produto: linha.id_produto, nome: linha.nome, qtd: n.qtd_necessaria }],
+            contribs: [contrib],
           });
         }
       }
@@ -304,7 +310,7 @@ function RupturaPage() {
       </Card>
 
       <Dialog open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Origem da necessidade — {drillItem?.id_item}</DialogTitle></DialogHeader>
           {drillItem && (
             <div className="space-y-2">
@@ -314,7 +320,7 @@ function RupturaPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Produto simulado</TableHead>
+                    <TableHead>Caminho na estrutura</TableHead>
                     <TableHead className="text-right">Puxa</TableHead>
                     <TableHead className="text-right">%</TableHead>
                   </TableRow>
@@ -326,8 +332,16 @@ function RupturaPage() {
                     .map((c, i) => (
                     <TableRow key={i}>
                       <TableCell>
-                        <div className="text-sm font-medium">{c.id_produto}</div>
-                        <div className="text-xs text-muted-foreground">{c.nome}</div>
+                        <div className="text-xs text-muted-foreground break-words">
+                          {c.caminho.map((p, idx) => (
+                            <span key={idx}>
+                              {idx > 0 && <span className="mx-1 text-muted-foreground/60">→</span>}
+                              <span className={idx === 0 ? "font-medium text-foreground" : ""}>
+                                {p.nome ?? p.id}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{fmt(c.qtd)}</TableCell>
                       <TableCell className="text-right tabular-nums">

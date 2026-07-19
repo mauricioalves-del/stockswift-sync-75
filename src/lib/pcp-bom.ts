@@ -19,6 +19,7 @@ export type NecessidadeItem = {
   um: string | null;
   qtd_necessaria: number;
   eh_semiacabado: boolean;
+  caminho: { id: string; nome: string | null }[]; // do produto raiz até o item (inclusivo)
 };
 
 /** Explode uma BOM a partir de um produto raiz. Consolida por id_item somando quantidades. */
@@ -34,42 +35,52 @@ export function explodirBOM(
     porProduto.set(r.id_produto, arr);
   }
 
-  const acc = new Map<string, NecessidadeItem>();
+  const out: NecessidadeItem[] = [];
 
-  function walk(idPai: string, mult: number, visitados: Set<string>) {
+  function walk(
+    idPai: string,
+    nomePai: string | null,
+    mult: number,
+    visitados: Set<string>,
+    caminho: { id: string; nome: string | null }[],
+  ) {
     if (visitados.has(idPai)) return; // proteção contra ciclo
     const filhos = porProduto.get(idPai);
     if (!filhos || filhos.length === 0) return;
     const next = new Set(visitados); next.add(idPai);
+    const pathHere = [...caminho, { id: idPai, nome: nomePai }];
     for (const f of filhos) {
       const qtdTotal = (f.qtd || 0) * mult;
       const temFilho = !!f.tem_filho;
       const geraOc = !!f.gera_oc;
-      // Item é folha (matéria-prima real) OU semiacabado (gera OC, mas tem filhos)
       const ehFolha = !temFilho;
       const ehSemi = temFilho && geraOc;
 
-      if (ehFolha || ehSemi) {
-        const prev = acc.get(f.id_item);
-        if (prev) {
-          prev.qtd_necessaria += qtdTotal;
-        } else {
-          acc.set(f.id_item, {
-            id_item: f.id_item,
-            item: f.item,
-            um: f.item_unidade,
-            qtd_necessaria: qtdTotal,
-            eh_semiacabado: ehSemi,
-          });
-        }
+      if (ehFolha) {
+        out.push({
+          id_item: f.id_item,
+          item: f.item,
+          um: f.item_unidade,
+          qtd_necessaria: qtdTotal,
+          eh_semiacabado: false,
+          caminho: [...pathHere, { id: f.id_item, nome: f.item }],
+        });
+      } else if (ehSemi) {
+        out.push({
+          id_item: f.id_item,
+          item: f.item,
+          um: f.item_unidade,
+          qtd_necessaria: qtdTotal,
+          eh_semiacabado: true,
+          caminho: [...pathHere, { id: f.id_item, nome: f.item }],
+        });
       }
-      // Continua descendo se tiver filhos
-      if (temFilho) walk(f.id_item, qtdTotal, next);
+      if (temFilho) walk(f.id_item, f.item, qtdTotal, next, pathHere);
     }
   }
 
-  walk(idProduto, qtdPlanejada, new Set());
-  return Array.from(acc.values()).sort((a, b) => a.id_item.localeCompare(b.id_item));
+  walk(idProduto, null, qtdPlanejada, new Set(), []);
+  return out;
 }
 
 /** Carrega todas as linhas de BOM alcançáveis a partir do produto (busca ampla). */
