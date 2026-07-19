@@ -31,16 +31,19 @@ const ALMOX_FABRICA = "Alm_SP_Fabrica";
 const LOJA_DEFAULT = "Alm_SP_Loja";
 const ORIGENS_NAO_LOJA = new Set(["Alm_SP_Fabrica", "Alm_SP_Processo", "Alm_SP_Qualidade"]);
 
-type LinhaSim = { id_produto: string; nome: string; quantidade: number };
+type LinhaSim = { id_produto: string; nome: string; quantidade: number; local: boolean };
 
-type Produto = { id: string; nome: string; familia: string | null; temBom: boolean };
+type Produto = { id: string; nome: string; familia: string | null; temBom: boolean; local: boolean };
 
 function RupturaPage() {
   const nav = useNavigate();
+  const search = Route.useSearch();
   const [linhas, setLinhas] = useState<LinhaSim[]>([]);
   const [drill, setDrill] = useState<string | null>(null);
   const [grupoSel, setGrupoSel] = useState<string>("Produto Acabado");
   const [familiaSel, setFamiliaSel] = useState<string>("__all__");
+  const [almoxLoja, setAlmoxLoja] = useState<string>(LOJA_DEFAULT);
+
 
   // BOM completa (memoizada via react-query)
   const bomQ = useQuery({
