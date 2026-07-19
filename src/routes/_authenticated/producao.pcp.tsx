@@ -518,11 +518,11 @@ function RupturaPage() {
 
       <Dialog open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>Origem da necessidade — {drillItem?.id_item}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Origem da necessidade — {drillItem?.item ?? drillItem?.id_item}</DialogTitle></DialogHeader>
           {drillItem && (
             <div className="space-y-2">
               <div className="text-xs text-muted-foreground">
-                {drillItem.item} · Necessidade total: <b>{fmt(drillItem.necessidade)}</b> {drillItem.um ?? ""}
+                <span className="font-mono">{drillItem.id_item}</span> · Necessidade total: <b>{fmt(drillItem.necessidade)}</b> {drillItem.um ?? ""}
               </div>
               <Table>
                 <TableHeader>
