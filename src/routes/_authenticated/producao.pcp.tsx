@@ -35,6 +35,8 @@ function RupturaPage() {
   const nav = useNavigate();
   const [linhas, setLinhas] = useState<LinhaSim[]>([]);
   const [drill, setDrill] = useState<string | null>(null);
+  const [grupoSel, setGrupoSel] = useState<string>("Produto Acabado");
+  const [familiaSel, setFamiliaSel] = useState<string>("__all__");
 
   // BOM completa (memoizada via react-query)
   const bomQ = useQuery({
@@ -43,24 +45,74 @@ function RupturaPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Produtos ACABADOS que possuem ficha técnica
+  // Lista de grupos (todos)
+  const gruposQ = useQuery({
+    queryKey: ["ruptura", "grupos"],
+    queryFn: async (): Promise<string[]> => {
+      const { data } = await (supabase as any).from("grupo_produtos").select("grupo");
+      return Array.from(new Set(((data ?? []) as { grupo: string }[]).map((d) => d.grupo).filter(Boolean))).sort();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Produtos do Grupo selecionado (TODOS, incluindo sem ficha técnica)
   const produtosQ = useQuery({
-    queryKey: ["ruptura", "produtos-acabados"],
+    queryKey: ["ruptura", "produtos", grupoSel],
     queryFn: async (): Promise<Produto[]> => {
-      const [{ data: bom }, { data: grupos }] = await Promise.all([
-        (supabase as any).from("ficha_tecnica_bom").select("id_produto,produto").limit(20000),
-        (supabase as any).from("grupo_produtos").select("codigo_produto,grupo").eq("grupo", "Produto Acabado"),
-      ]);
-      const acabados = new Set<string>(((grupos ?? []) as { codigo_produto: string }[]).map((g) => g.codigo_produto));
-      const uniq = new Map<string, string>();
-      for (const r of (bom ?? []) as { id_produto: string; produto: string | null }[]) {
-        if (acabados.has(r.id_produto) && !uniq.has(r.id_produto)) {
-          uniq.set(r.id_produto, r.produto ?? r.id_produto);
+      // 1. Códigos do grupo selecionado (paginado)
+      const codigosGrupo: string[] = [];
+      let from = 0; const size = 1000;
+      while (true) {
+        const { data, error } = await (supabase as any)
+          .from("grupo_produtos").select("codigo_produto")
+          .eq("grupo", grupoSel).range(from, from + size - 1);
+        if (error) throw error;
+        const rows = (data ?? []) as { codigo_produto: string }[];
+        codigosGrupo.push(...rows.map((r) => r.codigo_produto));
+        if (rows.length < size) break;
+        from += size;
+      }
+      if (!codigosGrupo.length) return [];
+
+      // 2. Famílias + descrição (via familias) — paginado por lotes de 500 IN
+      const familiaByCod = new Map<string, string | null>();
+      const descByCod = new Map<string, string>();
+      for (let i = 0; i < codigosGrupo.length; i += 500) {
+        const slice = codigosGrupo.slice(i, i + 500);
+        const { data } = await (supabase as any)
+          .from("familias").select("codigo_produto,familia,descricao_produto").in("codigo_produto", slice);
+        for (const r of (data ?? []) as { codigo_produto: string; familia: string | null; descricao_produto: string | null }[]) {
+          familiaByCod.set(r.codigo_produto, r.familia ?? null);
+          if (r.descricao_produto) descByCod.set(r.codigo_produto, r.descricao_produto);
         }
       }
-      return Array.from(uniq.entries())
-        .map(([id, nome]) => ({ id, nome }))
-        .sort((a, b) => a.nome.localeCompare(b.nome));
+
+      // 3. Descrições fallback via ficha_tecnica_bom (id_produto=produto)
+      for (let i = 0; i < codigosGrupo.length; i += 500) {
+        const slice = codigosGrupo.slice(i, i + 500).filter((c) => !descByCod.has(c));
+        if (!slice.length) continue;
+        const { data } = await (supabase as any)
+          .from("ficha_tecnica_bom").select("id_produto,produto").in("id_produto", slice);
+        for (const r of (data ?? []) as { id_produto: string; produto: string | null }[]) {
+          if (r.produto && !descByCod.has(r.id_produto)) descByCod.set(r.id_produto, r.produto);
+        }
+      }
+
+      // 4. Set de produtos com BOM cadastrada
+      const comBom = new Set<string>();
+      for (let i = 0; i < codigosGrupo.length; i += 500) {
+        const slice = codigosGrupo.slice(i, i + 500);
+        const { data } = await (supabase as any)
+          .from("ficha_tecnica_bom").select("id_produto").in("id_produto", slice);
+        for (const r of (data ?? []) as { id_produto: string }[]) comBom.add(r.id_produto);
+      }
+
+      return codigosGrupo.map((id) => ({
+        id,
+        nome: descByCod.get(id) ?? id,
+        familia: familiaByCod.get(id) ?? null,
+        temBom: comBom.has(id),
+      })).sort((a, b) => a.nome.localeCompare(b.nome));
     },
   });
 
