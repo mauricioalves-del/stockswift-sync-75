@@ -68,7 +68,8 @@ function RupturaPage() {
           .eq("grupo", grupoSel).range(from, from + size - 1);
         if (error) throw error;
         const rows = (data ?? []) as { codigo_produto: string }[];
-        codigosGrupo.push(...rows.map((r) => r.codigo_produto));
+        codigosGrupo.push(...rows.map((r) => (r.codigo_produto ?? "").trim()).filter(Boolean));
+
         if (rows.length < size) break;
         from += size;
       }
