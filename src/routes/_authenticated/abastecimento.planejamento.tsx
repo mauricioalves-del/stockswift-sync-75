@@ -364,16 +364,19 @@ function PlanejamentoPage() {
   };
 
   const kpis = useMemo(() => {
+    // Produtos Locais não têm saldo próprio de verdade — são montados na loja.
+    // Excluí-los evita alarme falso de "Sem Estoque" / "Cobertura crítica".
+    const paraKpi = linhasFiltradas.filter((l) => !locais.has(l.sku));
     const total = linhasFiltradas.length;
-    const abaixo = linhasFiltradas.filter((l) => l.cobertura_atual < l.cobertura_alvo).length;
-    const criticos = linhasFiltradas.filter((l) => l.cobertura_atual < 3).length;
-    const abaixoMin = linhasFiltradas.filter((l) => l.minimo > 0 && l.estoque < l.minimo).length;
-    const acimaMax = linhasFiltradas.filter((l) => l.maximo > 0 && l.estoque > l.maximo).length;
-    const valor = linhasFiltradas.reduce((s, l) => s + sugestaoDe(l) * l.custo_unitario, 0);
-    const cobMedia = total ? linhasFiltradas.reduce((s, l) => s + Math.min(l.cobertura_atual, 60), 0) / total : 0;
+    const abaixo = paraKpi.filter((l) => l.cobertura_atual < l.cobertura_alvo).length;
+    const criticos = paraKpi.filter((l) => l.cobertura_atual < 3).length;
+    const abaixoMin = paraKpi.filter((l) => l.minimo > 0 && l.estoque < l.minimo).length;
+    const acimaMax = paraKpi.filter((l) => l.maximo > 0 && l.estoque > l.maximo).length;
+    const valor = paraKpi.reduce((s, l) => s + sugestaoDe(l) * l.custo_unitario, 0);
+    const cobMedia = paraKpi.length ? paraKpi.reduce((s, l) => s + Math.min(l.cobertura_atual, 60), 0) / paraKpi.length : 0;
     return { total, abaixo, criticos, valor, cobMedia, abaixoMin, acimaMax };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linhasFiltradas, metodo]);
+  }, [linhasFiltradas, metodo, locais]);
 
 
   const loading = paramsQ.isLoading || estoqueQ.isLoading;
