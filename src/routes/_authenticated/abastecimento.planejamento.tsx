@@ -387,6 +387,7 @@ function PlanejamentoPage() {
   const gerarPedido = useMutation({
     mutationFn: async () => {
       const sugeridos = linhasFiltradas
+        .filter((l) => !locais.has(l.sku)) // produto local nunca é reposto por transferência
         .map((l) => ({ ...l, _sug: sugestaoDe(l), _metodo: metodo === "AUTO" ? l.metodo_efetivo : (metodo === "MINMAX" ? "MIN_IDEAL_MAX" : "POR_DEMANDA") }))
         .filter((l) => l._sug > 0);
       if (sugeridos.length === 0) throw new Error("Nenhum item com sugestão de reposição.");
