@@ -68,7 +68,8 @@ function RupturaPage() {
           .eq("grupo", grupoSel).range(from, from + size - 1);
         if (error) throw error;
         const rows = (data ?? []) as { codigo_produto: string }[];
-        codigosGrupo.push(...rows.map((r) => r.codigo_produto));
+        codigosGrupo.push(...rows.map((r) => (r.codigo_produto ?? "").trim()).filter(Boolean));
+
         if (rows.length < size) break;
         from += size;
       }
@@ -82,30 +83,36 @@ function RupturaPage() {
         const { data } = await (supabase as any)
           .from("familias").select("codigo_produto,familia,descricao_produto").in("codigo_produto", slice);
         for (const r of (data ?? []) as { codigo_produto: string; familia: string | null; descricao_produto: string | null }[]) {
-          familiaByCod.set(r.codigo_produto, r.familia ?? null);
-          if (r.descricao_produto) descByCod.set(r.codigo_produto, r.descricao_produto);
+          const cod = (r.codigo_produto ?? "").trim();
+          familiaByCod.set(cod, r.familia ?? null);
+          if (r.descricao_produto) descByCod.set(cod, r.descricao_produto);
         }
       }
 
-      // 3. Descrições fallback via ficha_tecnica_bom (id_produto=produto)
-      for (let i = 0; i < codigosGrupo.length; i += 500) {
-        const slice = codigosGrupo.slice(i, i + 500).filter((c) => !descByCod.has(c));
-        if (!slice.length) continue;
-        const { data } = await (supabase as any)
-          .from("ficha_tecnica_bom").select("id_produto,produto").in("id_produto", slice);
-        for (const r of (data ?? []) as { id_produto: string; produto: string | null }[]) {
-          if (r.produto && !descByCod.has(r.id_produto)) descByCod.set(r.id_produto, r.produto);
-        }
-      }
 
-      // 4. Set de produtos com BOM cadastrada
+      // 3+4. Fallback de descrição e set de produtos com BOM cadastrada.
+      // IMPORTANTE: ficha_tecnica_bom tem >13k linhas (multinível). Um .in() com 500 códigos
+      // estoura o limite default de 1000 linhas do PostgREST e trunca a resposta, marcando
+      // produtos legítimos como "Sem Ficha Técnica". Solução: varrer a tabela paginando por range,
+      // coletando ids distintos e nomes — sem filtro IN.
       const comBom = new Set<string>();
-      for (let i = 0; i < codigosGrupo.length; i += 500) {
-        const slice = codigosGrupo.slice(i, i + 500);
-        const { data } = await (supabase as any)
-          .from("ficha_tecnica_bom").select("id_produto").in("id_produto", slice);
-        for (const r of (data ?? []) as { id_produto: string }[]) comBom.add(r.id_produto);
+      const codigosSet = new Set(codigosGrupo.map((c) => (c ?? "").trim()));
+      let bomFrom = 0; const bomSize = 1000;
+      while (true) {
+        const { data, error } = await (supabase as any)
+          .from("ficha_tecnica_bom").select("id_produto,produto").range(bomFrom, bomFrom + bomSize - 1);
+        if (error) throw error;
+        const rows = (data ?? []) as { id_produto: string; produto: string | null }[];
+        for (const r of rows) {
+          const id = (r.id_produto ?? "").trim();
+          if (!codigosSet.has(id)) continue;
+          comBom.add(id);
+          if (r.produto && !descByCod.has(id)) descByCod.set(id, r.produto);
+        }
+        if (rows.length < bomSize) break;
+        bomFrom += bomSize;
       }
+
 
       return codigosGrupo.map((id) => ({
         id,
