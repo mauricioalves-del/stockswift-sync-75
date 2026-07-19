@@ -247,10 +247,12 @@ function RupturaPage() {
   // ============ CÁLCULO ============
   const resultado = useMemo(() => {
     const bom = bomQ.data ?? [];
-    const saldos = saldoQ.data ?? {};
-    // Necessidade por insumo folha → { qtd, um, contribs: [{id_produto, nome, qtd, caminho}] }
+    const saldosFab = saldoQ.data ?? {};
+    const saldosLoja = saldoLojaQ.data ?? {};
+    // Chave por (id_item + origem_estoque) para permitir mesmo insumo em dois almoxes
     const agg = new Map<string, {
       id_item: string; item: string | null; um: string | null;
+      origem_estoque: "Fábrica" | "Loja";
       necessidade: number;
       contribs: { id_produto: string; nome: string; qtd: number; caminho: { id: string; nome: string | null }[] }[];
     }>();
@@ -258,32 +260,59 @@ function RupturaPage() {
       if (!linha.quantidade || linha.quantidade <= 0) continue;
       const nec = explodirBOM(linha.id_produto, linha.quantidade, bom as BomLinha[]);
       for (const n of nec as NecessidadeItem[]) {
-        if (n.eh_semiacabado) continue; // ruptura só na folha (matéria-prima real)
-        const contrib = { id_produto: linha.id_produto, nome: linha.nome, qtd: n.qtd_necessaria, caminho: n.caminho };
-        const cur = agg.get(n.id_item);
-        if (cur) {
-          cur.necessidade += n.qtd_necessaria;
-          cur.contribs.push(contrib);
+        // Regra:
+        // - Produto normal: só folhas (matéria-prima), origem = Fábrica.
+        // - Produto Local: folhas → Loja; semiacabados → Fábrica.
+        let origem: "Fábrica" | "Loja";
+        if (linha.local) {
+          origem = n.eh_semiacabado ? "Fábrica" : "Loja";
         } else {
-          agg.set(n.id_item, {
-            id_item: n.id_item, item: n.item, um: n.um,
-            necessidade: n.qtd_necessaria,
-            contribs: [contrib],
-          });
+          if (n.eh_semiacabado) continue;
+          origem = "Fábrica";
         }
+        const key = `${n.id_item}|${origem}`;
+        const contrib = { id_produto: linha.id_produto, nome: linha.nome, qtd: n.qtd_necessaria, caminho: n.caminho };
+        const cur = agg.get(key);
+        if (cur) { cur.necessidade += n.qtd_necessaria; cur.contribs.push(contrib); }
+        else agg.set(key, { id_item: n.id_item, item: n.item, um: n.um, origem_estoque: origem, necessidade: n.qtd_necessaria, contribs: [contrib] });
       }
     }
     const rows = Array.from(agg.values()).map((r) => {
-      const saldo = saldos[r.id_item] ?? 0;
+      const saldo = r.origem_estoque === "Loja" ? (saldosLoja[r.id_item] ?? 0) : (saldosFab[r.id_item] ?? 0);
       const diff = saldo - r.necessidade;
       return { ...r, saldo, diff, insuf: diff < 0 };
     });
     rows.sort((a, b) => a.diff - b.diff);
     const totalInsuf = rows.filter((r) => r.insuf).length;
     return { rows, totalInsuf };
-  }, [linhas, bomQ.data, saldoQ.data]);
+  }, [linhas, bomQ.data, saldoQ.data, saldoLojaQ.data]);
 
-  const drillItem = drill ? resultado.rows.find((r) => r.id_item === drill) ?? null : null;
+  const drillItem = drill ? resultado.rows.find((r) => `${r.id_item}|${r.origem_estoque}` === drill) ?? null : null;
+  const hasLocal = linhas.some((l) => l.local);
+
+  // Auto-load produto vindo por ?produto=SKU
+  useEffect(() => {
+    const sku = search.produto;
+    if (!sku) return;
+    const list = produtosQ.data ?? [];
+    if (!list.length) return;
+    if (linhas.some((l) => l.id_produto === sku)) return;
+    const p = list.find((x) => x.id === sku);
+    if (p && p.temBom) addLinha(p);
+    // se o produto não está no grupo atual, tenta em qualquer grupo:
+    // buscamos o flag "local" pontualmente
+    else if (!p) {
+      (async () => {
+        const [{ data: gp }, { data: fam }] = await Promise.all([
+          (supabase as any).from("grupo_produtos").select("eh_produto_local").eq("codigo_produto", sku).maybeSingle(),
+          (supabase as any).from("familias").select("descricao_produto").eq("codigo_produto", sku).maybeSingle(),
+        ]);
+        const local = !!(gp?.eh_produto_local);
+        setLinhas((prev) => prev.some((l) => l.id_produto === sku) ? prev : [...prev, { id_produto: sku, nome: fam?.descricao_produto ?? sku, quantidade: 1, local }]);
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.produto, produtosQ.data]);
 
   function gerarDemandaExtra(item: { id_item: string; item: string | null; diff: number }) {
     const falta = Math.abs(item.diff);
