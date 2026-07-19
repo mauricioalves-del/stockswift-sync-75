@@ -183,7 +183,7 @@ function RupturaPage() {
     }
     setLinhas((prev) => prev.some((l) => l.id_produto === p.id)
       ? prev
-      : [...prev, { id_produto: p.id, nome: p.nome, quantidade: 1 }]);
+      : [...prev, { id_produto: p.id, nome: p.nome, quantidade: 1, local: p.local }]);
   }
   function updQtd(id: string, q: number) {
     setLinhas((prev) => prev.map((l) => l.id_produto === id ? { ...l, quantidade: q } : l));
