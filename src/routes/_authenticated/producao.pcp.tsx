@@ -488,10 +488,11 @@ function RupturaPage() {
                     )}
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
               {!resultado.rows.length && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
                     {linhas.length === 0 ? "Adicione produtos para simular." : "Nenhum insumo calculado. Verifique a Ficha Técnica dos produtos."}
                   </TableCell>
                 </TableRow>
