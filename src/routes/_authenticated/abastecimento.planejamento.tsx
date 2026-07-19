@@ -573,12 +573,14 @@ function PlanejamentoPage() {
                 <TableBody>
                   {linhasFiltradas.slice(0, 500).map((l) => {
                     const sug = sugestaoDe(l);
+                    const isLocal = locais.has(l.sku);
                     return (
                     <TableRow key={`${l.origem}|${l.sku}`}>
                       <TableCell className="font-mono text-xs">
                         {l.sku}
                         {l.classe_abc && <Badge variant="outline" className="ml-1 text-[10px]">{l.classe_abc}</Badge>}
                         {l.is_granel && <Badge variant="outline" className="ml-1 text-[10px]">Granel</Badge>}
+                        {isLocal && <Badge className="ml-1 text-[10px] bg-blue-500/15 text-blue-700 dark:text-blue-400">Local</Badge>}
                       </TableCell>
                       <TableCell className="text-xs max-w-xs truncate">{l.produto}</TableCell>
                       <TableCell className="text-xs">{l.origem}</TableCell>
@@ -593,7 +595,20 @@ function PlanejamentoPage() {
                       <TableCell className="text-right tabular-nums">{l.sem_base ? "—" : l.cmd.toFixed(2)}</TableCell>
                       <TableCell className="text-right tabular-nums text-xs text-muted-foreground">{l.dias_base}/{l.janela_dias}</TableCell>
                       <TableCell><ConfiancaBadge diasBase={l.dias_base} janela={l.janela_dias} /></TableCell>
-                      <TableCell className="text-right">{l.sem_base ? <Badge variant="outline" className="text-[10px]">Sem base</Badge> : <CoberturaBadge dias={l.cobertura_atual} />}</TableCell>
+                      <TableCell className="text-right">
+                        {isLocal ? (
+                          <Link
+                            to="/producao/pcp"
+                            search={{ produto: l.sku } as never}
+                            className="inline-block"
+                            title="Produto montado na loja — ver disponibilidade de insumos"
+                          >
+                            <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400 text-[10px] hover:bg-blue-500/25">
+                              Produto Local — ver insumos
+                            </Badge>
+                          </Link>
+                        ) : l.sem_base ? <Badge variant="outline" className="text-[10px]">Sem base</Badge> : <CoberturaBadge dias={l.cobertura_atual} />}
+                      </TableCell>
 
                       <TableCell className="text-right tabular-nums">{l.cobertura_alvo}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.demanda_extra > 0 ? `+${formatNum(l.demanda_extra)}` : "—"}</TableCell>
@@ -605,8 +620,8 @@ function PlanejamentoPage() {
                       <TableCell className="text-right tabular-nums text-xs">
                         {l.lote_fefo ? <span className="font-mono">{l.lote_fefo} ({formatNum(l.lote_fefo_qtd)})</span> : "—"}
                       </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums">{formatNum(sug)}</TableCell>
-                      <TableCell className="text-right tabular-nums">R$ {formatNum(sug * l.custo_unitario)}</TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums">{isLocal ? "—" : formatNum(sug)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{isLocal ? "—" : `R$ ${formatNum(sug * l.custo_unitario)}`}</TableCell>
                     </TableRow>
                     );
                   })}
