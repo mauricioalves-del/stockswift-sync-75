@@ -121,11 +121,25 @@ function RupturaPage() {
       }
 
 
+      // 5. Flag "Produto Local" (paginado)
+      const locais = new Set<string>();
+      let lfrom = 0; const lsize = 1000;
+      while (true) {
+        const { data, error } = await (supabase as any)
+          .from("grupo_produtos").select("codigo_produto,eh_produto_local").eq("eh_produto_local", true).range(lfrom, lfrom + lsize - 1);
+        if (error) break;
+        const rows = (data ?? []) as { codigo_produto: string }[];
+        for (const r of rows) locais.add((r.codigo_produto ?? "").trim());
+        if (rows.length < lsize) break;
+        lfrom += lsize;
+      }
+
       return codigosGrupo.map((id) => ({
         id,
         nome: descByCod.get(id) ?? id,
         familia: familiaByCod.get(id) ?? null,
         temBom: comBom.has(id),
+        local: locais.has(id),
       })).sort((a, b) => a.nome.localeCompare(b.nome));
     },
   });
