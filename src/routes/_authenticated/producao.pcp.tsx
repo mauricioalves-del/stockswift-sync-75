@@ -399,10 +399,10 @@ function RupturaPage() {
                   <TableRow key={l.id_produto}>
                     <TableCell>
                       <div className="text-sm font-medium flex items-center gap-2">
-                        {l.id_produto}
+                        {l.nome}
                         {l.local && <Badge className="text-[10px] bg-blue-500/15 text-blue-700 dark:text-blue-400"><Store className="h-3 w-3 mr-1" />Local</Badge>}
                       </div>
-                      <div className="text-xs text-muted-foreground">{l.nome}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono">{l.id_produto}</div>
                     </TableCell>
                     <TableCell className="text-right">
                       <Input
