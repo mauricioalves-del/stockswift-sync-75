@@ -622,6 +622,7 @@ export type Database = {
         Row: {
           codigo_produto: string
           created_at: string
+          eh_produto_local: boolean
           grupo: string
           id: string
           updated_at: string
@@ -629,6 +630,7 @@ export type Database = {
         Insert: {
           codigo_produto: string
           created_at?: string
+          eh_produto_local?: boolean
           grupo: string
           id?: string
           updated_at?: string
@@ -636,6 +638,7 @@ export type Database = {
         Update: {
           codigo_produto?: string
           created_at?: string
+          eh_produto_local?: boolean
           grupo?: string
           id?: string
           updated_at?: string
