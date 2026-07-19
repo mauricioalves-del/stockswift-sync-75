@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,12 +14,13 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Plus, Sparkles, Trash2, Search, PackageSearch, FileWarning } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Plus, Sparkles, Trash2, Search, PackageSearch, FileWarning, Store, Factory } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { carregarBomCompleta, explodirBOM, type BomLinha, type NecessidadeItem } from "@/lib/pcp-bom";
 
 export const Route = createFileRoute("/_authenticated/producao/pcp")({
   component: RupturaPage,
+  validateSearch: (s) => z.object({ produto: z.string().optional() }).parse(s),
   head: () => ({ meta: [
     { title: "Planejamento de Produção — Análise de Ruptura" },
     { name: "description", content: "Simulação de necessidade de matérias-primas versus saldo do Almox_Fábrica." },
@@ -26,6 +28,8 @@ export const Route = createFileRoute("/_authenticated/producao/pcp")({
 });
 
 const ALMOX_FABRICA = "Alm_SP_Fabrica";
+const LOJA_DEFAULT = "Alm_SP_Loja";
+const ORIGENS_NAO_LOJA = new Set(["Alm_SP_Fabrica", "Alm_SP_Processo", "Alm_SP_Qualidade"]);
 
 type LinhaSim = { id_produto: string; nome: string; quantidade: number };
 
