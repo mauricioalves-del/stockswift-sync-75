@@ -202,11 +202,12 @@ function RupturaPage() {
       const fabricados = new Set<string>((produtosQ.data ?? []).filter((p) => p.temBom).map((p) => p.id));
       const saldos: Record<string, number> = {};
       for (const r of (est ?? []) as any[]) saldos[r.id_produto] = (saldos[r.id_produto] ?? 0) + Number(r.quantidade || 0);
+      const locaisSet = new Set<string>((produtosQ.data ?? []).filter((p) => p.local).map((p) => p.id));
       const novas: LinhaSim[] = ((rep ?? []) as any[])
         .filter((r) => fabricados.has(r.id_produto))
         .map((r) => {
           const sug = Math.max(0, Number(r.estoque_ideal ?? 0) - (saldos[r.id_produto] ?? 0));
-          return { id_produto: r.id_produto, nome: r.descricao ?? r.id_produto, quantidade: sug };
+          return { id_produto: r.id_produto, nome: r.descricao ?? r.id_produto, quantidade: sug, local: locaisSet.has(r.id_produto) };
         })
         .filter((l) => l.quantidade > 0);
       if (!novas.length) { toast.info("Sem sugestões de abastecimento para produtos fabricados."); return; }
