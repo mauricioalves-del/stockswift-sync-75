@@ -310,7 +310,7 @@ function RupturaPage() {
       </Card>
 
       <Dialog open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Origem da necessidade — {drillItem?.id_item}</DialogTitle></DialogHeader>
           {drillItem && (
             <div className="space-y-2">
@@ -320,7 +320,7 @@ function RupturaPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Produto simulado</TableHead>
+                    <TableHead>Caminho na estrutura</TableHead>
                     <TableHead className="text-right">Puxa</TableHead>
                     <TableHead className="text-right">%</TableHead>
                   </TableRow>
@@ -332,8 +332,16 @@ function RupturaPage() {
                     .map((c, i) => (
                     <TableRow key={i}>
                       <TableCell>
-                        <div className="text-sm font-medium">{c.id_produto}</div>
-                        <div className="text-xs text-muted-foreground">{c.nome}</div>
+                        <div className="text-xs text-muted-foreground break-words">
+                          {c.caminho.map((p, idx) => (
+                            <span key={idx}>
+                              {idx > 0 && <span className="mx-1 text-muted-foreground/60">→</span>}
+                              <span className={idx === 0 ? "font-medium text-foreground" : ""}>
+                                {p.nome ?? p.id}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{fmt(c.qtd)}</TableCell>
                       <TableCell className="text-right tabular-nums">
