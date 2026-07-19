@@ -171,7 +171,7 @@ function RupturaPage() {
           .select("id_produto,descricao,estoque_ideal").eq("ativo", true),
         (supabase as any).from("estoque_sistemico").select("id_produto,quantidade"),
       ]);
-      const fabricados = new Set<string>((produtosQ.data ?? []).map((p) => p.id));
+      const fabricados = new Set<string>((produtosQ.data ?? []).filter((p) => p.temBom).map((p) => p.id));
       const saldos: Record<string, number> = {};
       for (const r of (est ?? []) as any[]) saldos[r.id_produto] = (saldos[r.id_produto] ?? 0) + Number(r.quantidade || 0);
       const novas: LinhaSim[] = ((rep ?? []) as any[])
