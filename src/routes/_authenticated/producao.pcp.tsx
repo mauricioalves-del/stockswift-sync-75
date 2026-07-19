@@ -144,6 +144,34 @@ function RupturaPage() {
     },
   });
 
+  // Saldo do Almox Loja (para insumos de acabamento de Produto Local)
+  const saldoLojaQ = useQuery({
+    queryKey: ["ruptura", "saldo-loja", almoxLoja],
+    queryFn: async (): Promise<Record<string, number>> => {
+      const { data } = await (supabase as any)
+        .from("estoque_sistemico").select("id_produto,quantidade,origem")
+        .eq("origem", almoxLoja);
+      const map: Record<string, number> = {};
+      for (const r of (data ?? []) as { id_produto: string; quantidade: number }[]) {
+        map[r.id_produto] = (map[r.id_produto] ?? 0) + Number(r.quantidade || 0);
+      }
+      return map;
+    },
+    staleTime: 60 * 1000,
+    enabled: !!almoxLoja,
+  });
+
+  // Lista de almoxarifados de loja (origens que não são Fábrica/Processo/Qualidade)
+  const origensQ = useQuery({
+    queryKey: ["ruptura", "origens-loja"],
+    queryFn: async (): Promise<string[]> => {
+      const { data } = await (supabase as any).from("origens").select("codigo_origem");
+      return ((data ?? []) as { codigo_origem: string }[])
+        .map((r) => r.codigo_origem).filter((o) => o && !ORIGENS_NAO_LOJA.has(o)).sort();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Saldo do Almox_Fábrica agregado por id_produto
   const saldoQ = useQuery({
     queryKey: ["ruptura", "saldo-fabrica"],
