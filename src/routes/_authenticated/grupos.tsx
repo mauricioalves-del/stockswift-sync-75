@@ -88,6 +88,14 @@ function GruposPage() {
     qc.invalidateQueries({ queryKey: ["grupos-distintos"] });
   }
 
+  async function toggleLocal(id: string, atual: boolean) {
+    const { error } = await (supabase as any).from("grupo_produtos").update({ eh_produto_local: !atual }).eq("id", id);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["grupos"] });
+    qc.invalidateQueries({ queryKey: ["produtos-locais"] });
+  }
+
+
   if (!canWrite) return <div className="p-8 text-center text-muted-foreground">Sem permissão.</div>;
 
   return (
@@ -163,12 +171,29 @@ function GruposPage() {
           </div>
           <div className="overflow-x-auto border rounded-lg max-h-96 overflow-y-auto">
             <Table>
-              <TableHeader><TableRow><TableHead>Grupo</TableHead><TableHead>Código</TableHead>{isAdmin && <TableHead className="w-16"></TableHead>}</TableRow></TableHeader>
+              <TableHeader><TableRow>
+                <TableHead>Grupo</TableHead>
+                <TableHead>Código</TableHead>
+                <TableHead className="w-32">Produto Local?</TableHead>
+                {isAdmin && <TableHead className="w-16"></TableHead>}
+              </TableRow></TableHeader>
               <TableBody>
                 {(existentes ?? []).slice(0, 500).map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>{r.grupo}</TableCell>
                     <TableCell className="font-mono text-xs">{r.codigo_produto}</TableCell>
+                    <TableCell>
+                      <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="size-4 accent-primary"
+                          checked={!!(r as any).eh_produto_local}
+                          disabled={!canWrite}
+                          onChange={() => toggleLocal(r.id, !!(r as any).eh_produto_local)}
+                        />
+                        {(r as any).eh_produto_local ? <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400 text-[10px]">Local</Badge> : <span className="text-muted-foreground">—</span>}
+                      </label>
+                    </TableCell>
                     {isAdmin && (
                       <TableCell>
                         <Button size="icon" variant="ghost" onClick={() => excluir(r.id)}><Trash2 className="size-3.5 text-destructive" /></Button>
@@ -179,6 +204,7 @@ function GruposPage() {
               </TableBody>
             </Table>
           </div>
+
         </CardContent>
       </Card>
     </div>

@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,12 +14,13 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Plus, Sparkles, Trash2, Search, PackageSearch, FileWarning } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Plus, Sparkles, Trash2, Search, PackageSearch, FileWarning, Store, Factory } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { carregarBomCompleta, explodirBOM, type BomLinha, type NecessidadeItem } from "@/lib/pcp-bom";
 
 export const Route = createFileRoute("/_authenticated/producao/pcp")({
   component: RupturaPage,
+  validateSearch: (s) => z.object({ produto: z.string().optional() }).parse(s),
   head: () => ({ meta: [
     { title: "Planejamento de Produção — Análise de Ruptura" },
     { name: "description", content: "Simulação de necessidade de matérias-primas versus saldo do Almox_Fábrica." },
@@ -26,17 +28,22 @@ export const Route = createFileRoute("/_authenticated/producao/pcp")({
 });
 
 const ALMOX_FABRICA = "Alm_SP_Fabrica";
+const LOJA_DEFAULT = "Alm_SP_Loja";
+const ORIGENS_NAO_LOJA = new Set(["Alm_SP_Fabrica", "Alm_SP_Processo", "Alm_SP_Qualidade"]);
 
-type LinhaSim = { id_produto: string; nome: string; quantidade: number };
+type LinhaSim = { id_produto: string; nome: string; quantidade: number; local: boolean };
 
-type Produto = { id: string; nome: string; familia: string | null; temBom: boolean };
+type Produto = { id: string; nome: string; familia: string | null; temBom: boolean; local: boolean };
 
 function RupturaPage() {
   const nav = useNavigate();
+  const search = Route.useSearch();
   const [linhas, setLinhas] = useState<LinhaSim[]>([]);
   const [drill, setDrill] = useState<string | null>(null);
   const [grupoSel, setGrupoSel] = useState<string>("Produto Acabado");
   const [familiaSel, setFamiliaSel] = useState<string>("__all__");
+  const [almoxLoja, setAlmoxLoja] = useState<string>(LOJA_DEFAULT);
+
 
   // BOM completa (memoizada via react-query)
   const bomQ = useQuery({
@@ -114,13 +121,55 @@ function RupturaPage() {
       }
 
 
+      // 5. Flag "Produto Local" (paginado)
+      const locais = new Set<string>();
+      let lfrom = 0; const lsize = 1000;
+      while (true) {
+        const { data, error } = await (supabase as any)
+          .from("grupo_produtos").select("codigo_produto,eh_produto_local").eq("eh_produto_local", true).range(lfrom, lfrom + lsize - 1);
+        if (error) break;
+        const rows = (data ?? []) as { codigo_produto: string }[];
+        for (const r of rows) locais.add((r.codigo_produto ?? "").trim());
+        if (rows.length < lsize) break;
+        lfrom += lsize;
+      }
+
       return codigosGrupo.map((id) => ({
         id,
         nome: descByCod.get(id) ?? id,
         familia: familiaByCod.get(id) ?? null,
         temBom: comBom.has(id),
+        local: locais.has(id),
       })).sort((a, b) => a.nome.localeCompare(b.nome));
     },
+  });
+
+  // Saldo do Almox Loja (para insumos de acabamento de Produto Local)
+  const saldoLojaQ = useQuery({
+    queryKey: ["ruptura", "saldo-loja", almoxLoja],
+    queryFn: async (): Promise<Record<string, number>> => {
+      const { data } = await (supabase as any)
+        .from("estoque_sistemico").select("id_produto,quantidade,origem")
+        .eq("origem", almoxLoja);
+      const map: Record<string, number> = {};
+      for (const r of (data ?? []) as { id_produto: string; quantidade: number }[]) {
+        map[r.id_produto] = (map[r.id_produto] ?? 0) + Number(r.quantidade || 0);
+      }
+      return map;
+    },
+    staleTime: 60 * 1000,
+    enabled: !!almoxLoja,
+  });
+
+  // Lista de almoxarifados de loja (origens que não são Fábrica/Processo/Qualidade)
+  const origensQ = useQuery({
+    queryKey: ["ruptura", "origens-loja"],
+    queryFn: async (): Promise<string[]> => {
+      const { data } = await (supabase as any).from("origens").select("codigo_origem");
+      return ((data ?? []) as { codigo_origem: string }[])
+        .map((r) => r.codigo_origem).filter((o) => o && !ORIGENS_NAO_LOJA.has(o)).sort();
+    },
+    staleTime: 5 * 60 * 1000,
   });
 
   // Saldo do Almox_Fábrica agregado por id_produto
@@ -162,7 +211,7 @@ function RupturaPage() {
     }
     setLinhas((prev) => prev.some((l) => l.id_produto === p.id)
       ? prev
-      : [...prev, { id_produto: p.id, nome: p.nome, quantidade: 1 }]);
+      : [...prev, { id_produto: p.id, nome: p.nome, quantidade: 1, local: p.local }]);
   }
   function updQtd(id: string, q: number) {
     setLinhas((prev) => prev.map((l) => l.id_produto === id ? { ...l, quantidade: q } : l));
@@ -181,11 +230,12 @@ function RupturaPage() {
       const fabricados = new Set<string>((produtosQ.data ?? []).filter((p) => p.temBom).map((p) => p.id));
       const saldos: Record<string, number> = {};
       for (const r of (est ?? []) as any[]) saldos[r.id_produto] = (saldos[r.id_produto] ?? 0) + Number(r.quantidade || 0);
+      const locaisSet = new Set<string>((produtosQ.data ?? []).filter((p) => p.local).map((p) => p.id));
       const novas: LinhaSim[] = ((rep ?? []) as any[])
         .filter((r) => fabricados.has(r.id_produto))
         .map((r) => {
           const sug = Math.max(0, Number(r.estoque_ideal ?? 0) - (saldos[r.id_produto] ?? 0));
-          return { id_produto: r.id_produto, nome: r.descricao ?? r.id_produto, quantidade: sug };
+          return { id_produto: r.id_produto, nome: r.descricao ?? r.id_produto, quantidade: sug, local: locaisSet.has(r.id_produto) };
         })
         .filter((l) => l.quantidade > 0);
       if (!novas.length) { toast.info("Sem sugestões de abastecimento para produtos fabricados."); return; }
@@ -197,10 +247,12 @@ function RupturaPage() {
   // ============ CÁLCULO ============
   const resultado = useMemo(() => {
     const bom = bomQ.data ?? [];
-    const saldos = saldoQ.data ?? {};
-    // Necessidade por insumo folha → { qtd, um, contribs: [{id_produto, nome, qtd, caminho}] }
+    const saldosFab = saldoQ.data ?? {};
+    const saldosLoja = saldoLojaQ.data ?? {};
+    // Chave por (id_item + origem_estoque) para permitir mesmo insumo em dois almoxes
     const agg = new Map<string, {
       id_item: string; item: string | null; um: string | null;
+      origem_estoque: "Fábrica" | "Loja";
       necessidade: number;
       contribs: { id_produto: string; nome: string; qtd: number; caminho: { id: string; nome: string | null }[] }[];
     }>();
@@ -208,34 +260,61 @@ function RupturaPage() {
       if (!linha.quantidade || linha.quantidade <= 0) continue;
       const nec = explodirBOM(linha.id_produto, linha.quantidade, bom as BomLinha[]);
       for (const n of nec as NecessidadeItem[]) {
-        if (n.eh_semiacabado) continue; // ruptura só na folha (matéria-prima real)
-        const contrib = { id_produto: linha.id_produto, nome: linha.nome, qtd: n.qtd_necessaria, caminho: n.caminho };
-        const cur = agg.get(n.id_item);
-        if (cur) {
-          cur.necessidade += n.qtd_necessaria;
-          cur.contribs.push(contrib);
+        // Regra:
+        // - Produto normal: só folhas (matéria-prima), origem = Fábrica.
+        // - Produto Local: folhas → Loja; semiacabados → Fábrica.
+        let origem: "Fábrica" | "Loja";
+        if (linha.local) {
+          origem = n.eh_semiacabado ? "Fábrica" : "Loja";
         } else {
-          agg.set(n.id_item, {
-            id_item: n.id_item, item: n.item, um: n.um,
-            necessidade: n.qtd_necessaria,
-            contribs: [contrib],
-          });
+          if (n.eh_semiacabado) continue;
+          origem = "Fábrica";
         }
+        const key = `${n.id_item}|${origem}`;
+        const contrib = { id_produto: linha.id_produto, nome: linha.nome, qtd: n.qtd_necessaria, caminho: n.caminho };
+        const cur = agg.get(key);
+        if (cur) { cur.necessidade += n.qtd_necessaria; cur.contribs.push(contrib); }
+        else agg.set(key, { id_item: n.id_item, item: n.item, um: n.um, origem_estoque: origem, necessidade: n.qtd_necessaria, contribs: [contrib] });
       }
     }
     const rows = Array.from(agg.values()).map((r) => {
-      const saldo = saldos[r.id_item] ?? 0;
+      const saldo = r.origem_estoque === "Loja" ? (saldosLoja[r.id_item] ?? 0) : (saldosFab[r.id_item] ?? 0);
       const diff = saldo - r.necessidade;
       return { ...r, saldo, diff, insuf: diff < 0 };
     });
     rows.sort((a, b) => a.diff - b.diff);
     const totalInsuf = rows.filter((r) => r.insuf).length;
     return { rows, totalInsuf };
-  }, [linhas, bomQ.data, saldoQ.data]);
+  }, [linhas, bomQ.data, saldoQ.data, saldoLojaQ.data]);
 
-  const drillItem = drill ? resultado.rows.find((r) => r.id_item === drill) ?? null : null;
+  const drillItem = drill ? resultado.rows.find((r) => `${r.id_item}|${r.origem_estoque}` === drill) ?? null : null;
+  const hasLocal = linhas.some((l) => l.local);
 
-  function gerarDemandaExtra(item: { id_item: string; item: string | null; diff: number }) {
+  // Auto-load produto vindo por ?produto=SKU
+  useEffect(() => {
+    const sku = search.produto;
+    if (!sku) return;
+    const list = produtosQ.data ?? [];
+    if (!list.length) return;
+    if (linhas.some((l) => l.id_produto === sku)) return;
+    const p = list.find((x) => x.id === sku);
+    if (p && p.temBom) addLinha(p);
+    // se o produto não está no grupo atual, tenta em qualquer grupo:
+    // buscamos o flag "local" pontualmente
+    else if (!p) {
+      (async () => {
+        const [{ data: gp }, { data: fam }] = await Promise.all([
+          (supabase as any).from("grupo_produtos").select("eh_produto_local").eq("codigo_produto", sku).maybeSingle(),
+          (supabase as any).from("familias").select("descricao_produto").eq("codigo_produto", sku).maybeSingle(),
+        ]);
+        const local = !!(gp?.eh_produto_local);
+        setLinhas((prev) => prev.some((l) => l.id_produto === sku) ? prev : [...prev, { id_produto: sku, nome: fam?.descricao_produto ?? sku, quantidade: 1, local }]);
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.produto, produtosQ.data]);
+
+  function gerarDemandaExtra(item: { id_item: string; item: string | null; diff: number; origem_estoque: "Fábrica" | "Loja" }) {
     const falta = Math.abs(item.diff);
     nav({
       to: "/abastecimento/demandas",
@@ -243,7 +322,7 @@ function RupturaPage() {
         sku: item.id_item,
         produto: item.item ?? "",
         quantidade: falta,
-        origem: ALMOX_FABRICA,
+        origem: item.origem_estoque === "Loja" ? almoxLoja : ALMOX_FABRICA,
         motivo: "Ruptura de produção (simulação)",
       } as never,
     });
@@ -319,7 +398,10 @@ function RupturaPage() {
                 {linhas.map((l) => (
                   <TableRow key={l.id_produto}>
                     <TableCell>
-                      <div className="text-sm font-medium">{l.id_produto}</div>
+                      <div className="text-sm font-medium flex items-center gap-2">
+                        {l.id_produto}
+                        {l.local && <Badge className="text-[10px] bg-blue-500/15 text-blue-700 dark:text-blue-400"><Store className="h-3 w-3 mr-1" />Local</Badge>}
+                      </div>
                       <div className="text-xs text-muted-foreground">{l.nome}</div>
                     </TableCell>
                     <TableCell className="text-right">
@@ -350,6 +432,17 @@ function RupturaPage() {
               <AlertTriangle className="h-4 w-4" /> Ruptura por matéria-prima
             </CardTitle>
             <div className="ml-auto flex items-center gap-2 text-xs">
+              {hasLocal && (
+                <div className="flex items-center gap-1">
+                  <label className="text-muted-foreground">Almox Loja:</label>
+                  <Select value={almoxLoja} onValueChange={setAlmoxLoja}>
+                    <SelectTrigger className="h-7 w-40 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(origensQ.data ?? [almoxLoja]).map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <Badge variant="outline">{resultado.rows.length} insumos</Badge>
               {resultado.totalInsuf > 0
                 ? <Badge className="bg-destructive/15 text-destructive border-destructive/30">{resultado.totalInsuf} insuficiente(s)</Badge>
@@ -362,24 +455,34 @@ function RupturaPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Matéria-Prima</TableHead>
+                <TableHead>Origem</TableHead>
                 <TableHead className="text-right">Necessidade</TableHead>
-                <TableHead className="text-right">Saldo {ALMOX_FABRICA}</TableHead>
+                <TableHead className="text-right">Saldo</TableHead>
                 <TableHead className="text-right">Diferença</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {resultado.rows.map((r) => (
+              {resultado.rows.map((r) => {
+                const key = `${r.id_item}|${r.origem_estoque}`;
+                return (
                 <TableRow
-                  key={r.id_item}
+                  key={key}
                   className={r.insuf ? "bg-destructive/5 hover:bg-destructive/10" : "hover:bg-muted/40"}
                 >
                   <TableCell>
-                    <button className="text-left" onClick={() => setDrill(r.id_item)}>
+                    <button className="text-left" onClick={() => setDrill(key)}>
                       <div className="text-sm font-medium underline-offset-2 hover:underline">{r.id_item}</div>
                       <div className="text-xs text-muted-foreground">{r.item ?? ""} {r.um ? `· ${r.um}` : ""}</div>
                     </button>
+                  </TableCell>
+                  <TableCell>
+                    {r.origem_estoque === "Loja" ? (
+                      <Badge variant="outline" className="text-[10px]"><Store className="h-3 w-3 mr-1" />{almoxLoja}</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px]"><Factory className="h-3 w-3 mr-1" />{ALMOX_FABRICA}</Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{fmt(r.necessidade)}</TableCell>
                   <TableCell className="text-right tabular-nums">{fmt(r.saldo)}</TableCell>
@@ -399,10 +502,11 @@ function RupturaPage() {
                     )}
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
               {!resultado.rows.length && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
                     {linhas.length === 0 ? "Adicione produtos para simular." : "Nenhum insumo calculado. Verifique a Ficha Técnica dos produtos."}
                   </TableCell>
                 </TableRow>

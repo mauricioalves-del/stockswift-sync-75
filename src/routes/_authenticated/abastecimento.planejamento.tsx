@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
@@ -163,6 +163,17 @@ function PlanejamentoPage() {
     },
   });
 
+  const locaisQ = useQuery({
+    queryKey: ["produtos-locais"],
+    queryFn: async (): Promise<Set<string>> => {
+      const { data } = await (supabase as any)
+        .from("grupo_produtos").select("codigo_produto").eq("eh_produto_local", true);
+      return new Set(((data ?? []) as { codigo_produto: string }[]).map((r) => (r.codigo_produto ?? "").trim()));
+    },
+    staleTime: 5 * 60_000,
+  });
+  const locais = locaisQ.data ?? new Set<string>();
+
   const gruposDistintos = useMemo(
     () => Array.from(new Set((gruposQ.data ?? []).map((g) => g.grupo).filter(Boolean))).sort(),
     [gruposQ.data]
@@ -171,6 +182,7 @@ function PlanejamentoPage() {
     if (grupoF === "__all") return null;
     return new Set((gruposQ.data ?? []).filter((g) => g.grupo === grupoF).map((g) => g.codigo_produto));
   }, [gruposQ.data, grupoF]);
+
 
   const linhas: Linha[] = useMemo(() => {
     if (!paramsQ.data) return [];
@@ -352,16 +364,19 @@ function PlanejamentoPage() {
   };
 
   const kpis = useMemo(() => {
+    // Produtos Locais não têm saldo próprio de verdade — são montados na loja.
+    // Excluí-los evita alarme falso de "Sem Estoque" / "Cobertura crítica".
+    const paraKpi = linhasFiltradas.filter((l) => !locais.has(l.sku));
     const total = linhasFiltradas.length;
-    const abaixo = linhasFiltradas.filter((l) => l.cobertura_atual < l.cobertura_alvo).length;
-    const criticos = linhasFiltradas.filter((l) => l.cobertura_atual < 3).length;
-    const abaixoMin = linhasFiltradas.filter((l) => l.minimo > 0 && l.estoque < l.minimo).length;
-    const acimaMax = linhasFiltradas.filter((l) => l.maximo > 0 && l.estoque > l.maximo).length;
-    const valor = linhasFiltradas.reduce((s, l) => s + sugestaoDe(l) * l.custo_unitario, 0);
-    const cobMedia = total ? linhasFiltradas.reduce((s, l) => s + Math.min(l.cobertura_atual, 60), 0) / total : 0;
+    const abaixo = paraKpi.filter((l) => l.cobertura_atual < l.cobertura_alvo).length;
+    const criticos = paraKpi.filter((l) => l.cobertura_atual < 3).length;
+    const abaixoMin = paraKpi.filter((l) => l.minimo > 0 && l.estoque < l.minimo).length;
+    const acimaMax = paraKpi.filter((l) => l.maximo > 0 && l.estoque > l.maximo).length;
+    const valor = paraKpi.reduce((s, l) => s + sugestaoDe(l) * l.custo_unitario, 0);
+    const cobMedia = paraKpi.length ? paraKpi.reduce((s, l) => s + Math.min(l.cobertura_atual, 60), 0) / paraKpi.length : 0;
     return { total, abaixo, criticos, valor, cobMedia, abaixoMin, acimaMax };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linhasFiltradas, metodo]);
+  }, [linhasFiltradas, metodo, locais]);
 
 
   const loading = paramsQ.isLoading || estoqueQ.isLoading;
@@ -372,6 +387,7 @@ function PlanejamentoPage() {
   const gerarPedido = useMutation({
     mutationFn: async () => {
       const sugeridos = linhasFiltradas
+        .filter((l) => !locais.has(l.sku)) // produto local nunca é reposto por transferência
         .map((l) => ({ ...l, _sug: sugestaoDe(l), _metodo: metodo === "AUTO" ? l.metodo_efetivo : (metodo === "MINMAX" ? "MIN_IDEAL_MAX" : "POR_DEMANDA") }))
         .filter((l) => l._sug > 0);
       if (sugeridos.length === 0) throw new Error("Nenhum item com sugestão de reposição.");
@@ -557,12 +573,14 @@ function PlanejamentoPage() {
                 <TableBody>
                   {linhasFiltradas.slice(0, 500).map((l) => {
                     const sug = sugestaoDe(l);
+                    const isLocal = locais.has(l.sku);
                     return (
                     <TableRow key={`${l.origem}|${l.sku}`}>
                       <TableCell className="font-mono text-xs">
                         {l.sku}
                         {l.classe_abc && <Badge variant="outline" className="ml-1 text-[10px]">{l.classe_abc}</Badge>}
                         {l.is_granel && <Badge variant="outline" className="ml-1 text-[10px]">Granel</Badge>}
+                        {isLocal && <Badge className="ml-1 text-[10px] bg-blue-500/15 text-blue-700 dark:text-blue-400">Local</Badge>}
                       </TableCell>
                       <TableCell className="text-xs max-w-xs truncate">{l.produto}</TableCell>
                       <TableCell className="text-xs">{l.origem}</TableCell>
@@ -577,7 +595,20 @@ function PlanejamentoPage() {
                       <TableCell className="text-right tabular-nums">{l.sem_base ? "—" : l.cmd.toFixed(2)}</TableCell>
                       <TableCell className="text-right tabular-nums text-xs text-muted-foreground">{l.dias_base}/{l.janela_dias}</TableCell>
                       <TableCell><ConfiancaBadge diasBase={l.dias_base} janela={l.janela_dias} /></TableCell>
-                      <TableCell className="text-right">{l.sem_base ? <Badge variant="outline" className="text-[10px]">Sem base</Badge> : <CoberturaBadge dias={l.cobertura_atual} />}</TableCell>
+                      <TableCell className="text-right">
+                        {isLocal ? (
+                          <Link
+                            to="/producao/pcp"
+                            search={{ produto: l.sku } as never}
+                            className="inline-block"
+                            title="Produto montado na loja — ver disponibilidade de insumos"
+                          >
+                            <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400 text-[10px] hover:bg-blue-500/25">
+                              Produto Local — ver insumos
+                            </Badge>
+                          </Link>
+                        ) : l.sem_base ? <Badge variant="outline" className="text-[10px]">Sem base</Badge> : <CoberturaBadge dias={l.cobertura_atual} />}
+                      </TableCell>
 
                       <TableCell className="text-right tabular-nums">{l.cobertura_alvo}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.demanda_extra > 0 ? `+${formatNum(l.demanda_extra)}` : "—"}</TableCell>
@@ -589,8 +620,8 @@ function PlanejamentoPage() {
                       <TableCell className="text-right tabular-nums text-xs">
                         {l.lote_fefo ? <span className="font-mono">{l.lote_fefo} ({formatNum(l.lote_fefo_qtd)})</span> : "—"}
                       </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums">{formatNum(sug)}</TableCell>
-                      <TableCell className="text-right tabular-nums">R$ {formatNum(sug * l.custo_unitario)}</TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums">{isLocal ? "—" : formatNum(sug)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{isLocal ? "—" : `R$ ${formatNum(sug * l.custo_unitario)}`}</TableCell>
                     </TableRow>
                     );
                   })}
