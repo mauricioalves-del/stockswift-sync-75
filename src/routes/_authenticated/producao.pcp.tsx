@@ -441,24 +441,34 @@ function RupturaPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Matéria-Prima</TableHead>
+                <TableHead>Origem</TableHead>
                 <TableHead className="text-right">Necessidade</TableHead>
-                <TableHead className="text-right">Saldo {ALMOX_FABRICA}</TableHead>
+                <TableHead className="text-right">Saldo</TableHead>
                 <TableHead className="text-right">Diferença</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {resultado.rows.map((r) => (
+              {resultado.rows.map((r) => {
+                const key = `${r.id_item}|${r.origem_estoque}`;
+                return (
                 <TableRow
-                  key={r.id_item}
+                  key={key}
                   className={r.insuf ? "bg-destructive/5 hover:bg-destructive/10" : "hover:bg-muted/40"}
                 >
                   <TableCell>
-                    <button className="text-left" onClick={() => setDrill(r.id_item)}>
+                    <button className="text-left" onClick={() => setDrill(key)}>
                       <div className="text-sm font-medium underline-offset-2 hover:underline">{r.id_item}</div>
                       <div className="text-xs text-muted-foreground">{r.item ?? ""} {r.um ? `· ${r.um}` : ""}</div>
                     </button>
+                  </TableCell>
+                  <TableCell>
+                    {r.origem_estoque === "Loja" ? (
+                      <Badge variant="outline" className="text-[10px]"><Store className="h-3 w-3 mr-1" />{almoxLoja}</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px]"><Factory className="h-3 w-3 mr-1" />{ALMOX_FABRICA}</Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{fmt(r.necessidade)}</TableCell>
                   <TableCell className="text-right tabular-nums">{fmt(r.saldo)}</TableCell>
