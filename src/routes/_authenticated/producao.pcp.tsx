@@ -473,8 +473,8 @@ function RupturaPage() {
                 >
                   <TableCell>
                     <button className="text-left" onClick={() => setDrill(key)}>
-                      <div className="text-sm font-medium underline-offset-2 hover:underline">{r.id_item}</div>
-                      <div className="text-xs text-muted-foreground">{r.item ?? ""} {r.um ? `· ${r.um}` : ""}</div>
+                      <div className="text-sm font-medium underline-offset-2 hover:underline">{r.item ?? r.id_item}{r.um ? <span className="text-xs text-muted-foreground font-normal"> · {r.um}</span> : null}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono">{r.id_item}</div>
                     </button>
                   </TableCell>
                   <TableCell>
