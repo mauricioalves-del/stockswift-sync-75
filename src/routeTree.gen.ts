@@ -36,6 +36,7 @@ import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_a
 import { Route as AuthenticatedSuprimentosDashboardRouteImport } from './routes/_authenticated/suprimentos.dashboard'
 import { Route as AuthenticatedProducaoPcpRouteImport } from './routes/_authenticated/producao.pcp'
 import { Route as AuthenticatedProducaoDispersaoRouteImport } from './routes/_authenticated/producao.dispersao'
+import { Route as AuthenticatedProducaoAuditoriaFtRouteImport } from './routes/_authenticated/producao.auditoria-ft'
 import { Route as AuthenticatedMissoesIdRouteImport } from './routes/_authenticated/missoes.$id'
 import { Route as AuthenticatedGestaoPlanejamentoRouteImport } from './routes/_authenticated/gestao.planejamento'
 import { Route as AuthenticatedGestaoModelosChecklistRouteImport } from './routes/_authenticated/gestao.modelos-checklist'
@@ -197,6 +198,12 @@ const AuthenticatedProducaoDispersaoRoute =
     path: '/producao/dispersao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedProducaoAuditoriaFtRoute =
+  AuthenticatedProducaoAuditoriaFtRouteImport.update({
+    id: '/producao/auditoria-ft',
+    path: '/producao/auditoria-ft',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMissoesIdRoute = AuthenticatedMissoesIdRouteImport.update({
   id: '/missoes/$id',
   path: '/missoes/$id',
@@ -333,6 +340,7 @@ export interface FileRoutesByFullPath {
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
+  '/producao/auditoria-ft': typeof AuthenticatedProducaoAuditoriaFtRoute
   '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
   '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
@@ -378,6 +386,7 @@ export interface FileRoutesByTo {
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
+  '/producao/auditoria-ft': typeof AuthenticatedProducaoAuditoriaFtRoute
   '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
   '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
@@ -425,6 +434,7 @@ export interface FileRoutesById {
   '/_authenticated/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/_authenticated/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/_authenticated/missoes/$id': typeof AuthenticatedMissoesIdRoute
+  '/_authenticated/producao/auditoria-ft': typeof AuthenticatedProducaoAuditoriaFtRoute
   '/_authenticated/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
   '/_authenticated/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
@@ -472,6 +482,7 @@ export interface FileRouteTypes {
     | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
     | '/missoes/$id'
+    | '/producao/auditoria-ft'
     | '/producao/dispersao'
     | '/producao/pcp'
     | '/suprimentos/dashboard'
@@ -517,6 +528,7 @@ export interface FileRouteTypes {
     | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
     | '/missoes/$id'
+    | '/producao/auditoria-ft'
     | '/producao/dispersao'
     | '/producao/pcp'
     | '/suprimentos/dashboard'
@@ -563,6 +575,7 @@ export interface FileRouteTypes {
     | '/_authenticated/gestao/modelos-checklist'
     | '/_authenticated/gestao/planejamento'
     | '/_authenticated/missoes/$id'
+    | '/_authenticated/producao/auditoria-ft'
     | '/_authenticated/producao/dispersao'
     | '/_authenticated/producao/pcp'
     | '/_authenticated/suprimentos/dashboard'
@@ -773,6 +786,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProducaoDispersaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/producao/auditoria-ft': {
+      id: '/_authenticated/producao/auditoria-ft'
+      path: '/producao/auditoria-ft'
+      fullPath: '/producao/auditoria-ft'
+      preLoaderRoute: typeof AuthenticatedProducaoAuditoriaFtRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/missoes/$id': {
       id: '/_authenticated/missoes/$id'
       path: '/missoes/$id'
@@ -941,6 +961,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGestaoModelosChecklistRoute: typeof AuthenticatedGestaoModelosChecklistRoute
   AuthenticatedGestaoPlanejamentoRoute: typeof AuthenticatedGestaoPlanejamentoRoute
   AuthenticatedMissoesIdRoute: typeof AuthenticatedMissoesIdRoute
+  AuthenticatedProducaoAuditoriaFtRoute: typeof AuthenticatedProducaoAuditoriaFtRoute
   AuthenticatedProducaoDispersaoRoute: typeof AuthenticatedProducaoDispersaoRoute
   AuthenticatedProducaoPcpRoute: typeof AuthenticatedProducaoPcpRoute
   AuthenticatedSuprimentosDashboardRoute: typeof AuthenticatedSuprimentosDashboardRoute
@@ -988,6 +1009,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedGestaoModelosChecklistRoute,
   AuthenticatedGestaoPlanejamentoRoute: AuthenticatedGestaoPlanejamentoRoute,
   AuthenticatedMissoesIdRoute: AuthenticatedMissoesIdRoute,
+  AuthenticatedProducaoAuditoriaFtRoute: AuthenticatedProducaoAuditoriaFtRoute,
   AuthenticatedProducaoDispersaoRoute: AuthenticatedProducaoDispersaoRoute,
   AuthenticatedProducaoPcpRoute: AuthenticatedProducaoPcpRoute,
   AuthenticatedSuprimentosDashboardRoute:
