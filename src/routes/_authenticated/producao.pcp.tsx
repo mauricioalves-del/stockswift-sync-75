@@ -399,10 +399,10 @@ function RupturaPage() {
                   <TableRow key={l.id_produto}>
                     <TableCell>
                       <div className="text-sm font-medium flex items-center gap-2">
-                        {l.id_produto}
+                        {l.nome}
                         {l.local && <Badge className="text-[10px] bg-blue-500/15 text-blue-700 dark:text-blue-400"><Store className="h-3 w-3 mr-1" />Local</Badge>}
                       </div>
-                      <div className="text-xs text-muted-foreground">{l.nome}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono">{l.id_produto}</div>
                     </TableCell>
                     <TableCell className="text-right">
                       <Input
@@ -473,8 +473,8 @@ function RupturaPage() {
                 >
                   <TableCell>
                     <button className="text-left" onClick={() => setDrill(key)}>
-                      <div className="text-sm font-medium underline-offset-2 hover:underline">{r.id_item}</div>
-                      <div className="text-xs text-muted-foreground">{r.item ?? ""} {r.um ? `· ${r.um}` : ""}</div>
+                      <div className="text-sm font-medium underline-offset-2 hover:underline">{r.item ?? r.id_item}{r.um ? <span className="text-xs text-muted-foreground font-normal"> · {r.um}</span> : null}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono">{r.id_item}</div>
                     </button>
                   </TableCell>
                   <TableCell>
@@ -518,11 +518,11 @@ function RupturaPage() {
 
       <Dialog open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>Origem da necessidade — {drillItem?.id_item}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Origem da necessidade — {drillItem?.item ?? drillItem?.id_item}</DialogTitle></DialogHeader>
           {drillItem && (
             <div className="space-y-2">
               <div className="text-xs text-muted-foreground">
-                {drillItem.item} · Necessidade total: <b>{fmt(drillItem.necessidade)}</b> {drillItem.um ?? ""}
+                <span className="font-mono">{drillItem.id_item}</span> · Necessidade total: <b>{fmt(drillItem.necessidade)}</b> {drillItem.um ?? ""}
               </div>
               <Table>
                 <TableHeader>
@@ -589,11 +589,11 @@ function AddProdutoPicker({ produtos, onPick, disabled }: { produtos: Produto[];
                   className={!p.temBom ? "opacity-70" : ""}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs">{p.id}</span>
-                      <span className="truncate text-sm">{p.nome}</span>
+                    <div className="truncate text-sm font-medium">{p.nome}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-2">
+                      <span className="font-mono">{p.id}</span>
+                      <span>· {p.familia ?? "Sem família"}</span>
                     </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">{p.familia ?? "Sem família"}</div>
                   </div>
                   {!p.temBom && (
                     <Badge variant="outline" className="ml-2 shrink-0 text-[10px] border-warning/40 text-warning">
