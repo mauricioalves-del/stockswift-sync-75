@@ -83,10 +83,12 @@ function RupturaPage() {
         const { data } = await (supabase as any)
           .from("familias").select("codigo_produto,familia,descricao_produto").in("codigo_produto", slice);
         for (const r of (data ?? []) as { codigo_produto: string; familia: string | null; descricao_produto: string | null }[]) {
-          familiaByCod.set(r.codigo_produto, r.familia ?? null);
-          if (r.descricao_produto) descByCod.set(r.codigo_produto, r.descricao_produto);
+          const cod = (r.codigo_produto ?? "").trim();
+          familiaByCod.set(cod, r.familia ?? null);
+          if (r.descricao_produto) descByCod.set(cod, r.descricao_produto);
         }
       }
+
 
       // 3+4. Fallback de descrição e set de produtos com BOM cadastrada.
       // IMPORTANTE: ficha_tecnica_bom tem >13k linhas (multinível). Um .in() com 500 códigos
