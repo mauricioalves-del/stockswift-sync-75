@@ -133,8 +133,26 @@ function RupturaPage() {
     staleTime: 60 * 1000,
   });
 
+  // Famílias derivadas dos produtos do grupo atual
+  const familiasDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of produtosQ.data ?? []) if (p.familia) set.add(p.familia);
+    return Array.from(set).sort();
+  }, [produtosQ.data]);
+
+  // Lista filtrada exibida no picker (aplica filtro de família)
+  const produtosFiltrados = useMemo(() => {
+    const list = produtosQ.data ?? [];
+    if (familiaSel === "__all__") return list;
+    return list.filter((p) => p.familia === familiaSel);
+  }, [produtosQ.data, familiaSel]);
+
   // ============ AÇÕES ============
   function addLinha(p: Produto) {
+    if (!p.temBom) {
+      toast.error("Este produto não tem Ficha Técnica cadastrada — não é possível calcular a necessidade de matéria-prima.");
+      return;
+    }
     setLinhas((prev) => prev.some((l) => l.id_produto === p.id)
       ? prev
       : [...prev, { id_produto: p.id, nome: p.nome, quantidade: 1 }]);
