@@ -51,8 +51,6 @@ import { Route as AuthenticatedAbastecimentoDemandasRouteImport } from './routes
 import { Route as AuthenticatedAbastecimentoConsumoRouteImport } from './routes/_authenticated/abastecimento.consumo'
 import { Route as AuthenticatedSuprimentosRequisicoesIndexRouteImport } from './routes/_authenticated/suprimentos.requisicoes.index'
 import { Route as AuthenticatedSuprimentosRequisicoesIdRouteImport } from './routes/_authenticated/suprimentos.requisicoes.$id'
-import { Route as AuthenticatedProducaoPcpSugestoesRouteImport } from './routes/_authenticated/producao.pcp.sugestoes'
-import { Route as AuthenticatedProducaoPcpIdRouteImport } from './routes/_authenticated/producao.pcp.$id'
 import { Route as AuthenticatedProducaoMaterialMaterialRouteImport } from './routes/_authenticated/producao.material.$material'
 import { Route as AuthenticatedSuprimentosRequisicoesIdFichaRouteImport } from './routes/_authenticated/suprimentos.requisicoes.$id.ficha'
 
@@ -288,18 +286,6 @@ const AuthenticatedSuprimentosRequisicoesIdRoute =
     path: '/suprimentos/requisicoes/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedProducaoPcpSugestoesRoute =
-  AuthenticatedProducaoPcpSugestoesRouteImport.update({
-    id: '/sugestoes',
-    path: '/sugestoes',
-    getParentRoute: () => AuthenticatedProducaoPcpRoute,
-  } as any)
-const AuthenticatedProducaoPcpIdRoute =
-  AuthenticatedProducaoPcpIdRouteImport.update({
-    id: '/$id',
-    path: '/$id',
-    getParentRoute: () => AuthenticatedProducaoPcpRoute,
-  } as any)
 const AuthenticatedProducaoMaterialMaterialRoute =
   AuthenticatedProducaoMaterialMaterialRouteImport.update({
     id: '/producao/material/$material',
@@ -348,14 +334,12 @@ export interface FileRoutesByFullPath {
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
-  '/producao/pcp': typeof AuthenticatedProducaoPcpRouteWithChildren
+  '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/config/': typeof AuthenticatedConfigIndexRoute
   '/missoes/': typeof AuthenticatedMissoesIndexRoute
   '/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
-  '/producao/pcp/$id': typeof AuthenticatedProducaoPcpIdRoute
-  '/producao/pcp/sugestoes': typeof AuthenticatedProducaoPcpSugestoesRoute
   '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
   '/suprimentos/requisicoes/': typeof AuthenticatedSuprimentosRequisicoesIndexRoute
   '/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
@@ -395,14 +379,12 @@ export interface FileRoutesByTo {
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
-  '/producao/pcp': typeof AuthenticatedProducaoPcpRouteWithChildren
+  '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/config': typeof AuthenticatedConfigIndexRoute
   '/missoes': typeof AuthenticatedMissoesIndexRoute
   '/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
-  '/producao/pcp/$id': typeof AuthenticatedProducaoPcpIdRoute
-  '/producao/pcp/sugestoes': typeof AuthenticatedProducaoPcpSugestoesRoute
   '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
   '/suprimentos/requisicoes': typeof AuthenticatedSuprimentosRequisicoesIndexRoute
   '/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
@@ -444,14 +426,12 @@ export interface FileRoutesById {
   '/_authenticated/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/_authenticated/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/_authenticated/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
-  '/_authenticated/producao/pcp': typeof AuthenticatedProducaoPcpRouteWithChildren
+  '/_authenticated/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/_authenticated/config/': typeof AuthenticatedConfigIndexRoute
   '/_authenticated/missoes/': typeof AuthenticatedMissoesIndexRoute
   '/_authenticated/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
-  '/_authenticated/producao/pcp/$id': typeof AuthenticatedProducaoPcpIdRoute
-  '/_authenticated/producao/pcp/sugestoes': typeof AuthenticatedProducaoPcpSugestoesRoute
   '/_authenticated/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
   '/_authenticated/suprimentos/requisicoes/': typeof AuthenticatedSuprimentosRequisicoesIndexRoute
   '/_authenticated/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
@@ -499,8 +479,6 @@ export interface FileRouteTypes {
     | '/config/'
     | '/missoes/'
     | '/producao/material/$material'
-    | '/producao/pcp/$id'
-    | '/producao/pcp/sugestoes'
     | '/suprimentos/requisicoes/$id'
     | '/suprimentos/requisicoes/'
     | '/suprimentos/requisicoes/$id/ficha'
@@ -546,8 +524,6 @@ export interface FileRouteTypes {
     | '/config'
     | '/missoes'
     | '/producao/material/$material'
-    | '/producao/pcp/$id'
-    | '/producao/pcp/sugestoes'
     | '/suprimentos/requisicoes/$id'
     | '/suprimentos/requisicoes'
     | '/suprimentos/requisicoes/$id/ficha'
@@ -594,8 +570,6 @@ export interface FileRouteTypes {
     | '/_authenticated/config/'
     | '/_authenticated/missoes/'
     | '/_authenticated/producao/material/$material'
-    | '/_authenticated/producao/pcp/$id'
-    | '/_authenticated/producao/pcp/sugestoes'
     | '/_authenticated/suprimentos/requisicoes/$id'
     | '/_authenticated/suprimentos/requisicoes/'
     | '/_authenticated/suprimentos/requisicoes/$id/ficha'
@@ -904,20 +878,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSuprimentosRequisicoesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/producao/pcp/sugestoes': {
-      id: '/_authenticated/producao/pcp/sugestoes'
-      path: '/sugestoes'
-      fullPath: '/producao/pcp/sugestoes'
-      preLoaderRoute: typeof AuthenticatedProducaoPcpSugestoesRouteImport
-      parentRoute: typeof AuthenticatedProducaoPcpRoute
-    }
-    '/_authenticated/producao/pcp/$id': {
-      id: '/_authenticated/producao/pcp/$id'
-      path: '/$id'
-      fullPath: '/producao/pcp/$id'
-      preLoaderRoute: typeof AuthenticatedProducaoPcpIdRouteImport
-      parentRoute: typeof AuthenticatedProducaoPcpRoute
-    }
     '/_authenticated/producao/material/$material': {
       id: '/_authenticated/producao/material/$material'
       path: '/producao/material/$material'
@@ -934,23 +894,6 @@ declare module '@tanstack/react-router' {
     }
   }
 }
-
-interface AuthenticatedProducaoPcpRouteChildren {
-  AuthenticatedProducaoPcpIdRoute: typeof AuthenticatedProducaoPcpIdRoute
-  AuthenticatedProducaoPcpSugestoesRoute: typeof AuthenticatedProducaoPcpSugestoesRoute
-}
-
-const AuthenticatedProducaoPcpRouteChildren: AuthenticatedProducaoPcpRouteChildren =
-  {
-    AuthenticatedProducaoPcpIdRoute: AuthenticatedProducaoPcpIdRoute,
-    AuthenticatedProducaoPcpSugestoesRoute:
-      AuthenticatedProducaoPcpSugestoesRoute,
-  }
-
-const AuthenticatedProducaoPcpRouteWithChildren =
-  AuthenticatedProducaoPcpRoute._addFileChildren(
-    AuthenticatedProducaoPcpRouteChildren,
-  )
 
 interface AuthenticatedSuprimentosRequisicoesIdRouteChildren {
   AuthenticatedSuprimentosRequisicoesIdFichaRoute: typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
@@ -999,7 +942,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGestaoPlanejamentoRoute: typeof AuthenticatedGestaoPlanejamentoRoute
   AuthenticatedMissoesIdRoute: typeof AuthenticatedMissoesIdRoute
   AuthenticatedProducaoDispersaoRoute: typeof AuthenticatedProducaoDispersaoRoute
-  AuthenticatedProducaoPcpRoute: typeof AuthenticatedProducaoPcpRouteWithChildren
+  AuthenticatedProducaoPcpRoute: typeof AuthenticatedProducaoPcpRoute
   AuthenticatedSuprimentosDashboardRoute: typeof AuthenticatedSuprimentosDashboardRoute
   AuthenticatedSuprimentosEstoqueRoute: typeof AuthenticatedSuprimentosEstoqueRoute
   AuthenticatedConfigIndexRoute: typeof AuthenticatedConfigIndexRoute
@@ -1046,7 +989,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedGestaoPlanejamentoRoute: AuthenticatedGestaoPlanejamentoRoute,
   AuthenticatedMissoesIdRoute: AuthenticatedMissoesIdRoute,
   AuthenticatedProducaoDispersaoRoute: AuthenticatedProducaoDispersaoRoute,
-  AuthenticatedProducaoPcpRoute: AuthenticatedProducaoPcpRouteWithChildren,
+  AuthenticatedProducaoPcpRoute: AuthenticatedProducaoPcpRoute,
   AuthenticatedSuprimentosDashboardRoute:
     AuthenticatedSuprimentosDashboardRoute,
   AuthenticatedSuprimentosEstoqueRoute: AuthenticatedSuprimentosEstoqueRoute,
@@ -1072,13 +1015,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
