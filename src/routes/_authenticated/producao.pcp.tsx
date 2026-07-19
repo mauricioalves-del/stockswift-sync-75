@@ -398,7 +398,10 @@ function RupturaPage() {
                 {linhas.map((l) => (
                   <TableRow key={l.id_produto}>
                     <TableCell>
-                      <div className="text-sm font-medium">{l.id_produto}</div>
+                      <div className="text-sm font-medium flex items-center gap-2">
+                        {l.id_produto}
+                        {l.local && <Badge className="text-[10px] bg-blue-500/15 text-blue-700 dark:text-blue-400"><Store className="h-3 w-3 mr-1" />Local</Badge>}
+                      </div>
                       <div className="text-xs text-muted-foreground">{l.nome}</div>
                     </TableCell>
                     <TableCell className="text-right">
