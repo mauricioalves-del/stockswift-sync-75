@@ -429,6 +429,17 @@ function RupturaPage() {
               <AlertTriangle className="h-4 w-4" /> Ruptura por matéria-prima
             </CardTitle>
             <div className="ml-auto flex items-center gap-2 text-xs">
+              {hasLocal && (
+                <div className="flex items-center gap-1">
+                  <label className="text-muted-foreground">Almox Loja:</label>
+                  <Select value={almoxLoja} onValueChange={setAlmoxLoja}>
+                    <SelectTrigger className="h-7 w-40 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(origensQ.data ?? [almoxLoja]).map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <Badge variant="outline">{resultado.rows.length} insumos</Badge>
               {resultado.totalInsuf > 0
                 ? <Badge className="bg-destructive/15 text-destructive border-destructive/30">{resultado.totalInsuf} insuficiente(s)</Badge>
