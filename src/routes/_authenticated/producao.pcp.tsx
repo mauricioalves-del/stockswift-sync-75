@@ -13,7 +13,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Plus, Sparkles, Trash2, Search, PackageSearch } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Plus, Sparkles, Trash2, Search, PackageSearch, FileWarning } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { carregarBomCompleta, explodirBOM, type BomLinha, type NecessidadeItem } from "@/lib/pcp-bom";
 
 export const Route = createFileRoute("/_authenticated/producao/pcp")({
@@ -28,12 +29,14 @@ const ALMOX_FABRICA = "Alm_SP_Fabrica";
 
 type LinhaSim = { id_produto: string; nome: string; quantidade: number };
 
-type Produto = { id: string; nome: string };
+type Produto = { id: string; nome: string; familia: string | null; temBom: boolean };
 
 function RupturaPage() {
   const nav = useNavigate();
   const [linhas, setLinhas] = useState<LinhaSim[]>([]);
   const [drill, setDrill] = useState<string | null>(null);
+  const [grupoSel, setGrupoSel] = useState<string>("Produto Acabado");
+  const [familiaSel, setFamiliaSel] = useState<string>("__all__");
 
   // BOM completa (memoizada via react-query)
   const bomQ = useQuery({
@@ -42,24 +45,74 @@ function RupturaPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Produtos ACABADOS que possuem ficha técnica
+  // Lista de grupos (todos)
+  const gruposQ = useQuery({
+    queryKey: ["ruptura", "grupos"],
+    queryFn: async (): Promise<string[]> => {
+      const { data } = await (supabase as any).from("grupo_produtos").select("grupo");
+      return Array.from(new Set(((data ?? []) as { grupo: string }[]).map((d) => d.grupo).filter(Boolean))).sort();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Produtos do Grupo selecionado (TODOS, incluindo sem ficha técnica)
   const produtosQ = useQuery({
-    queryKey: ["ruptura", "produtos-acabados"],
+    queryKey: ["ruptura", "produtos", grupoSel],
     queryFn: async (): Promise<Produto[]> => {
-      const [{ data: bom }, { data: grupos }] = await Promise.all([
-        (supabase as any).from("ficha_tecnica_bom").select("id_produto,produto").limit(20000),
-        (supabase as any).from("grupo_produtos").select("codigo_produto,grupo").eq("grupo", "Produto Acabado"),
-      ]);
-      const acabados = new Set<string>(((grupos ?? []) as { codigo_produto: string }[]).map((g) => g.codigo_produto));
-      const uniq = new Map<string, string>();
-      for (const r of (bom ?? []) as { id_produto: string; produto: string | null }[]) {
-        if (acabados.has(r.id_produto) && !uniq.has(r.id_produto)) {
-          uniq.set(r.id_produto, r.produto ?? r.id_produto);
+      // 1. Códigos do grupo selecionado (paginado)
+      const codigosGrupo: string[] = [];
+      let from = 0; const size = 1000;
+      while (true) {
+        const { data, error } = await (supabase as any)
+          .from("grupo_produtos").select("codigo_produto")
+          .eq("grupo", grupoSel).range(from, from + size - 1);
+        if (error) throw error;
+        const rows = (data ?? []) as { codigo_produto: string }[];
+        codigosGrupo.push(...rows.map((r) => r.codigo_produto));
+        if (rows.length < size) break;
+        from += size;
+      }
+      if (!codigosGrupo.length) return [];
+
+      // 2. Famílias + descrição (via familias) — paginado por lotes de 500 IN
+      const familiaByCod = new Map<string, string | null>();
+      const descByCod = new Map<string, string>();
+      for (let i = 0; i < codigosGrupo.length; i += 500) {
+        const slice = codigosGrupo.slice(i, i + 500);
+        const { data } = await (supabase as any)
+          .from("familias").select("codigo_produto,familia,descricao_produto").in("codigo_produto", slice);
+        for (const r of (data ?? []) as { codigo_produto: string; familia: string | null; descricao_produto: string | null }[]) {
+          familiaByCod.set(r.codigo_produto, r.familia ?? null);
+          if (r.descricao_produto) descByCod.set(r.codigo_produto, r.descricao_produto);
         }
       }
-      return Array.from(uniq.entries())
-        .map(([id, nome]) => ({ id, nome }))
-        .sort((a, b) => a.nome.localeCompare(b.nome));
+
+      // 3. Descrições fallback via ficha_tecnica_bom (id_produto=produto)
+      for (let i = 0; i < codigosGrupo.length; i += 500) {
+        const slice = codigosGrupo.slice(i, i + 500).filter((c) => !descByCod.has(c));
+        if (!slice.length) continue;
+        const { data } = await (supabase as any)
+          .from("ficha_tecnica_bom").select("id_produto,produto").in("id_produto", slice);
+        for (const r of (data ?? []) as { id_produto: string; produto: string | null }[]) {
+          if (r.produto && !descByCod.has(r.id_produto)) descByCod.set(r.id_produto, r.produto);
+        }
+      }
+
+      // 4. Set de produtos com BOM cadastrada
+      const comBom = new Set<string>();
+      for (let i = 0; i < codigosGrupo.length; i += 500) {
+        const slice = codigosGrupo.slice(i, i + 500);
+        const { data } = await (supabase as any)
+          .from("ficha_tecnica_bom").select("id_produto").in("id_produto", slice);
+        for (const r of (data ?? []) as { id_produto: string }[]) comBom.add(r.id_produto);
+      }
+
+      return codigosGrupo.map((id) => ({
+        id,
+        nome: descByCod.get(id) ?? id,
+        familia: familiaByCod.get(id) ?? null,
+        temBom: comBom.has(id),
+      })).sort((a, b) => a.nome.localeCompare(b.nome));
     },
   });
 
@@ -80,8 +133,26 @@ function RupturaPage() {
     staleTime: 60 * 1000,
   });
 
+  // Famílias derivadas dos produtos do grupo atual
+  const familiasDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of produtosQ.data ?? []) if (p.familia) set.add(p.familia);
+    return Array.from(set).sort();
+  }, [produtosQ.data]);
+
+  // Lista filtrada exibida no picker (aplica filtro de família)
+  const produtosFiltrados = useMemo(() => {
+    const list = produtosQ.data ?? [];
+    if (familiaSel === "__all__") return list;
+    return list.filter((p) => p.familia === familiaSel);
+  }, [produtosQ.data, familiaSel]);
+
   // ============ AÇÕES ============
   function addLinha(p: Produto) {
+    if (!p.temBom) {
+      toast.error("Este produto não tem Ficha Técnica cadastrada — não é possível calcular a necessidade de matéria-prima.");
+      return;
+    }
     setLinhas((prev) => prev.some((l) => l.id_produto === p.id)
       ? prev
       : [...prev, { id_produto: p.id, nome: p.nome, quantidade: 1 }]);
@@ -100,7 +171,7 @@ function RupturaPage() {
           .select("id_produto,descricao,estoque_ideal").eq("ativo", true),
         (supabase as any).from("estoque_sistemico").select("id_produto,quantidade"),
       ]);
-      const fabricados = new Set<string>((produtosQ.data ?? []).map((p) => p.id));
+      const fabricados = new Set<string>((produtosQ.data ?? []).filter((p) => p.temBom).map((p) => p.id));
       const saldos: Record<string, number> = {};
       for (const r of (est ?? []) as any[]) saldos[r.id_produto] = (saldos[r.id_produto] ?? 0) + Number(r.quantidade || 0);
       const novas: LinhaSim[] = ((rep ?? []) as any[])
@@ -197,7 +268,32 @@ function RupturaPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <AddProdutoPicker produtos={produtosQ.data ?? []} onPick={addLinha} disabled={produtosQ.isLoading} />
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Grupo</label>
+              <Select value={grupoSel} onValueChange={(v) => { setGrupoSel(v); setFamiliaSel("__all__"); }}>
+                <SelectTrigger className="w-56 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(gruposQ.data ?? []).map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Família</label>
+              <Select value={familiaSel} onValueChange={setFamiliaSel}>
+                <SelectTrigger className="w-56 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todas</SelectItem>
+                  {familiasDisponiveis.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <AddProdutoPicker produtos={produtosFiltrados} onPick={addLinha} disabled={produtosQ.isLoading} />
+            <div className="text-xs text-muted-foreground ml-auto">
+              {produtosFiltrados.length} produto(s) · {produtosFiltrados.filter((p) => !p.temBom).length} sem ficha técnica
+            </div>
+          </div>
+
           {linhas.length === 0 && (
             <div className="text-sm text-muted-foreground py-6 text-center border border-dashed rounded-md">
               Nenhum produto na simulação. Adicione produtos ou carregue da sugestão.
@@ -368,16 +464,31 @@ function AddProdutoPicker({ produtos, onPick, disabled }: { produtos: Produto[];
           <Search className="h-4 w-4 mr-1" /> Adicionar produto…
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="p-0 w-[420px]" align="start">
+      <PopoverContent className="p-0 w-[520px]" align="start">
         <Command>
-          <CommandInput placeholder="Buscar por código ou nome…" />
+          <CommandInput placeholder="Buscar por código, nome ou família…" />
           <CommandList>
-            <CommandEmpty>Nenhum produto fabricado encontrado.</CommandEmpty>
+            <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
             <CommandGroup>
-              {produtos.slice(0, 500).map((p) => (
-                <CommandItem key={p.id} value={`${p.id} ${p.nome}`} onSelect={() => { onPick(p); setOpen(false); }}>
-                  <span className="font-mono text-xs mr-2">{p.id}</span>
-                  <span className="truncate">{p.nome}</span>
+              {produtos.slice(0, 800).map((p) => (
+                <CommandItem
+                  key={p.id}
+                  value={`${p.id} ${p.nome} ${p.familia ?? ""}`}
+                  onSelect={() => { onPick(p); setOpen(false); }}
+                  className={!p.temBom ? "opacity-70" : ""}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs">{p.id}</span>
+                      <span className="truncate text-sm">{p.nome}</span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{p.familia ?? "Sem família"}</div>
+                  </div>
+                  {!p.temBom && (
+                    <Badge variant="outline" className="ml-2 shrink-0 text-[10px] border-warning/40 text-warning">
+                      <FileWarning className="h-3 w-3 mr-1" />Sem Ficha Técnica
+                    </Badge>
+                  )}
                 </CommandItem>
               ))}
             </CommandGroup>
