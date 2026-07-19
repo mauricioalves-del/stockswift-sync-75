@@ -8,10 +8,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, FileSpreadsheet, Loader2, AlertCircle, Trash2, Leaf } from "lucide-react";
+import { Upload, FileSpreadsheet, Loader2, AlertCircle, Trash2, Leaf, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useRole } from "@/hooks/useRole";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/importar-familias")({
   component: ImportarFamiliasPage,
@@ -27,6 +30,30 @@ function ImportarFamiliasPage() {
   const [errors, setErrors] = useState<string[]>([]);
   const [filename, setFilename] = useState("");
   const [importing, setImporting] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualCodigo, setManualCodigo] = useState("");
+  const [manualDescricao, setManualDescricao] = useState("");
+  const [manualFamilia, setManualFamilia] = useState("");
+  const [savingManual, setSavingManual] = useState(false);
+
+  async function salvarManual() {
+    const codigo = manualCodigo.trim();
+    const familia = manualFamilia.trim();
+    const descricao = manualDescricao.trim();
+    if (!codigo) return toast.error("Informe o código do produto");
+    if (!familia) return toast.error("Informe a família");
+    setSavingManual(true);
+    const { error } = await supabase
+      .from("familias")
+      .upsert({ codigo_produto: codigo, descricao_produto: descricao, familia }, { onConflict: "codigo_produto" });
+    setSavingManual(false);
+    if (error) return toast.error(error.message);
+    toast.success("Família cadastrada");
+    setManualCodigo(""); setManualDescricao(""); setManualFamilia("");
+    setManualOpen(false);
+    qc.invalidateQueries({ queryKey: ["familias"] });
+    qc.invalidateQueries({ queryKey: ["familias-distintas"] });
+  }
 
   const { data: existentes } = useQuery({
     queryKey: ["familias"],
@@ -102,7 +129,40 @@ function ImportarFamiliasPage() {
       </div>
 
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-6 space-y-4">
+          <div className="flex justify-end">
+            <Dialog open={manualOpen} onOpenChange={setManualOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2"><Plus className="size-4" /> Cadastrar manualmente</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Cadastrar Família</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs">Código Produto *</Label>
+                    <Input value={manualCodigo} onChange={(e) => setManualCodigo(e.target.value)} placeholder="Ex.: 05004047" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Produto (descrição)</Label>
+                    <Input value={manualDescricao} onChange={(e) => setManualDescricao(e.target.value)} placeholder="Descrição do produto" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Família *</Label>
+                    <Input value={manualFamilia} onChange={(e) => setManualFamilia(e.target.value)} placeholder="Ex.: Granéis" list="familias-existentes" />
+                    <datalist id="familias-existentes">
+                      {Object.keys(resumo).map((f) => <option key={f} value={f} />)}
+                    </datalist>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setManualOpen(false)} disabled={savingManual}>Cancelar</Button>
+                  <Button onClick={salvarManual} disabled={savingManual}>
+                    {savingManual ? <><Loader2 className="size-4 animate-spin mr-2" /> Salvando...</> : "Salvar"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
           <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-border rounded-xl p-8 cursor-pointer hover:bg-accent/30">
             <Upload className="size-8 text-primary" />
             <div className="text-center">
