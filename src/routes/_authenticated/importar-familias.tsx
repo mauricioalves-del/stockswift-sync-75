@@ -30,6 +30,30 @@ function ImportarFamiliasPage() {
   const [errors, setErrors] = useState<string[]>([]);
   const [filename, setFilename] = useState("");
   const [importing, setImporting] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualCodigo, setManualCodigo] = useState("");
+  const [manualDescricao, setManualDescricao] = useState("");
+  const [manualFamilia, setManualFamilia] = useState("");
+  const [savingManual, setSavingManual] = useState(false);
+
+  async function salvarManual() {
+    const codigo = manualCodigo.trim();
+    const familia = manualFamilia.trim();
+    const descricao = manualDescricao.trim();
+    if (!codigo) return toast.error("Informe o código do produto");
+    if (!familia) return toast.error("Informe a família");
+    setSavingManual(true);
+    const { error } = await supabase
+      .from("familias")
+      .upsert({ codigo_produto: codigo, descricao_produto: descricao, familia }, { onConflict: "codigo_produto" });
+    setSavingManual(false);
+    if (error) return toast.error(error.message);
+    toast.success("Família cadastrada");
+    setManualCodigo(""); setManualDescricao(""); setManualFamilia("");
+    setManualOpen(false);
+    qc.invalidateQueries({ queryKey: ["familias"] });
+    qc.invalidateQueries({ queryKey: ["familias-distintas"] });
+  }
 
   const { data: existentes } = useQuery({
     queryKey: ["familias"],
