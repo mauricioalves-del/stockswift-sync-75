@@ -19,6 +19,7 @@ export type NecessidadeItem = {
   um: string | null;
   qtd_necessaria: number;
   eh_semiacabado: boolean;
+  caminho: { id: string; nome: string | null }[]; // do produto raiz até o item (inclusivo)
 };
 
 /** Explode uma BOM a partir de um produto raiz. Consolida por id_item somando quantidades. */
