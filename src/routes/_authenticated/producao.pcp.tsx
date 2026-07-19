@@ -464,16 +464,31 @@ function AddProdutoPicker({ produtos, onPick, disabled }: { produtos: Produto[];
           <Search className="h-4 w-4 mr-1" /> Adicionar produto…
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="p-0 w-[420px]" align="start">
+      <PopoverContent className="p-0 w-[520px]" align="start">
         <Command>
-          <CommandInput placeholder="Buscar por código ou nome…" />
+          <CommandInput placeholder="Buscar por código, nome ou família…" />
           <CommandList>
-            <CommandEmpty>Nenhum produto fabricado encontrado.</CommandEmpty>
+            <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
             <CommandGroup>
-              {produtos.slice(0, 500).map((p) => (
-                <CommandItem key={p.id} value={`${p.id} ${p.nome}`} onSelect={() => { onPick(p); setOpen(false); }}>
-                  <span className="font-mono text-xs mr-2">{p.id}</span>
-                  <span className="truncate">{p.nome}</span>
+              {produtos.slice(0, 800).map((p) => (
+                <CommandItem
+                  key={p.id}
+                  value={`${p.id} ${p.nome} ${p.familia ?? ""}`}
+                  onSelect={() => { onPick(p); setOpen(false); }}
+                  className={!p.temBom ? "opacity-70" : ""}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs">{p.id}</span>
+                      <span className="truncate text-sm">{p.nome}</span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{p.familia ?? "Sem família"}</div>
+                  </div>
+                  {!p.temBom && (
+                    <Badge variant="outline" className="ml-2 shrink-0 text-[10px] border-warning/40 text-warning">
+                      <FileWarning className="h-3 w-3 mr-1" />Sem Ficha Técnica
+                    </Badge>
+                  )}
                 </CommandItem>
               ))}
             </CommandGroup>
