@@ -88,6 +88,14 @@ function GruposPage() {
     qc.invalidateQueries({ queryKey: ["grupos-distintos"] });
   }
 
+  async function toggleLocal(id: string, atual: boolean) {
+    const { error } = await (supabase as any).from("grupo_produtos").update({ eh_produto_local: !atual }).eq("id", id);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["grupos"] });
+    qc.invalidateQueries({ queryKey: ["produtos-locais"] });
+  }
+
+
   if (!canWrite) return <div className="p-8 text-center text-muted-foreground">Sem permissão.</div>;
 
   return (
