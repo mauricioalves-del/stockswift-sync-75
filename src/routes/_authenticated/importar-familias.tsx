@@ -129,7 +129,40 @@ function ImportarFamiliasPage() {
       </div>
 
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-6 space-y-4">
+          <div className="flex justify-end">
+            <Dialog open={manualOpen} onOpenChange={setManualOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2"><Plus className="size-4" /> Cadastrar manualmente</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Cadastrar Família</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs">Código Produto *</Label>
+                    <Input value={manualCodigo} onChange={(e) => setManualCodigo(e.target.value)} placeholder="Ex.: 05004047" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Produto (descrição)</Label>
+                    <Input value={manualDescricao} onChange={(e) => setManualDescricao(e.target.value)} placeholder="Descrição do produto" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Família *</Label>
+                    <Input value={manualFamilia} onChange={(e) => setManualFamilia(e.target.value)} placeholder="Ex.: Granéis" list="familias-existentes" />
+                    <datalist id="familias-existentes">
+                      {Object.keys(resumo).map((f) => <option key={f} value={f} />)}
+                    </datalist>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setManualOpen(false)} disabled={savingManual}>Cancelar</Button>
+                  <Button onClick={salvarManual} disabled={savingManual}>
+                    {savingManual ? <><Loader2 className="size-4 animate-spin mr-2" /> Salvando...</> : "Salvar"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
           <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-border rounded-xl p-8 cursor-pointer hover:bg-accent/30">
             <Upload className="size-8 text-primary" />
             <div className="text-center">
