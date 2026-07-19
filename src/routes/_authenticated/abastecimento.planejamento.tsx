@@ -163,6 +163,17 @@ function PlanejamentoPage() {
     },
   });
 
+  const locaisQ = useQuery({
+    queryKey: ["produtos-locais"],
+    queryFn: async (): Promise<Set<string>> => {
+      const { data } = await (supabase as any)
+        .from("grupo_produtos").select("codigo_produto").eq("eh_produto_local", true);
+      return new Set(((data ?? []) as { codigo_produto: string }[]).map((r) => (r.codigo_produto ?? "").trim()));
+    },
+    staleTime: 5 * 60_000,
+  });
+  const locais = locaisQ.data ?? new Set<string>();
+
   const gruposDistintos = useMemo(
     () => Array.from(new Set((gruposQ.data ?? []).map((g) => g.grupo).filter(Boolean))).sort(),
     [gruposQ.data]
@@ -171,6 +182,7 @@ function PlanejamentoPage() {
     if (grupoF === "__all") return null;
     return new Set((gruposQ.data ?? []).filter((g) => g.grupo === grupoF).map((g) => g.codigo_produto));
   }, [gruposQ.data, grupoF]);
+
 
   const linhas: Linha[] = useMemo(() => {
     if (!paramsQ.data) return [];
