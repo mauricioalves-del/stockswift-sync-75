@@ -29,7 +29,7 @@ const ALMOX_FABRICA = "Alm_SP_Fabrica";
 
 type LinhaSim = { id_produto: string; nome: string; quantidade: number };
 
-type Produto = { id: string; nome: string };
+type Produto = { id: string; nome: string; familia: string | null; temBom: boolean };
 
 function RupturaPage() {
   const nav = useNavigate();
