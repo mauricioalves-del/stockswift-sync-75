@@ -120,24 +120,27 @@ function RupturaPage() {
   const resultado = useMemo(() => {
     const bom = bomQ.data ?? [];
     const saldos = saldoQ.data ?? {};
-    // Necessidade por insumo → { qtd, um, contribs: [{id_produto, nome, qtd}] }
+    // Necessidade por insumo folha → { qtd, um, contribs: [{id_produto, nome, qtd, caminho}] }
     const agg = new Map<string, {
       id_item: string; item: string | null; um: string | null;
-      necessidade: number; contribs: { id_produto: string; nome: string; qtd: number }[];
+      necessidade: number;
+      contribs: { id_produto: string; nome: string; qtd: number; caminho: { id: string; nome: string | null }[] }[];
     }>();
     for (const linha of linhas) {
       if (!linha.quantidade || linha.quantidade <= 0) continue;
       const nec = explodirBOM(linha.id_produto, linha.quantidade, bom as BomLinha[]);
       for (const n of nec as NecessidadeItem[]) {
+        if (n.eh_semiacabado) continue; // ruptura só na folha (matéria-prima real)
+        const contrib = { id_produto: linha.id_produto, nome: linha.nome, qtd: n.qtd_necessaria, caminho: n.caminho };
         const cur = agg.get(n.id_item);
         if (cur) {
           cur.necessidade += n.qtd_necessaria;
-          cur.contribs.push({ id_produto: linha.id_produto, nome: linha.nome, qtd: n.qtd_necessaria });
+          cur.contribs.push(contrib);
         } else {
           agg.set(n.id_item, {
             id_item: n.id_item, item: n.item, um: n.um,
             necessidade: n.qtd_necessaria,
-            contribs: [{ id_produto: linha.id_produto, nome: linha.nome, qtd: n.qtd_necessaria }],
+            contribs: [contrib],
           });
         }
       }
