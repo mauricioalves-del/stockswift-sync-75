@@ -42,17 +42,20 @@ function RupturaPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Produtos fabricados (id_produto distintos em ficha_tecnica_bom)
+  // Produtos ACABADOS que possuem ficha técnica
   const produtosQ = useQuery({
-    queryKey: ["ruptura", "produtos-fabricados"],
+    queryKey: ["ruptura", "produtos-acabados"],
     queryFn: async (): Promise<Produto[]> => {
-      const { data } = await (supabase as any)
-        .from("ficha_tecnica_bom")
-        .select("id_produto,produto")
-        .limit(20000);
+      const [{ data: bom }, { data: grupos }] = await Promise.all([
+        (supabase as any).from("ficha_tecnica_bom").select("id_produto,produto").limit(20000),
+        (supabase as any).from("grupo_produtos").select("codigo_produto,grupo").eq("grupo", "Produto Acabado"),
+      ]);
+      const acabados = new Set<string>(((grupos ?? []) as { codigo_produto: string }[]).map((g) => g.codigo_produto));
       const uniq = new Map<string, string>();
-      for (const r of (data ?? []) as { id_produto: string; produto: string | null }[]) {
-        if (!uniq.has(r.id_produto)) uniq.set(r.id_produto, r.produto ?? r.id_produto);
+      for (const r of (bom ?? []) as { id_produto: string; produto: string | null }[]) {
+        if (acabados.has(r.id_produto) && !uniq.has(r.id_produto)) {
+          uniq.set(r.id_produto, r.produto ?? r.id_produto);
+        }
       }
       return Array.from(uniq.entries())
         .map(([id, nome]) => ({ id, nome }))
