@@ -314,7 +314,7 @@ function RupturaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.produto, produtosQ.data]);
 
-  function gerarDemandaExtra(item: { id_item: string; item: string | null; diff: number }) {
+  function gerarDemandaExtra(item: { id_item: string; item: string | null; diff: number; origem_estoque: "Fábrica" | "Loja" }) {
     const falta = Math.abs(item.diff);
     nav({
       to: "/abastecimento/demandas",
@@ -322,7 +322,7 @@ function RupturaPage() {
         sku: item.id_item,
         produto: item.item ?? "",
         quantidade: falta,
-        origem: ALMOX_FABRICA,
+        origem: item.origem_estoque === "Loja" ? almoxLoja : ALMOX_FABRICA,
         motivo: "Ruptura de produção (simulação)",
       } as never,
     });
