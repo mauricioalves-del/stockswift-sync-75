@@ -66,8 +66,8 @@ function RupturaPage() {
     queryFn: async (): Promise<Record<string, number>> => {
       const { data } = await (supabase as any)
         .from("estoque_sistemico")
-        .select("id_produto,quantidade,id_local")
-        .eq("id_local", ALMOX_FABRICA);
+        .select("id_produto,quantidade,origem")
+        .eq("origem", ALMOX_FABRICA);
       const map: Record<string, number> = {};
       for (const r of (data ?? []) as { id_produto: string; quantidade: number }[]) {
         map[r.id_produto] = (map[r.id_produto] ?? 0) + Number(r.quantidade || 0);
