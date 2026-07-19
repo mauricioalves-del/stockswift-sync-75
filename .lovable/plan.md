@@ -1,67 +1,58 @@
-# Módulo PCP — Planejamento e Controle de Produção
+# Correção Ficha Técnica (global) + Conceito de "Produto Local"
 
-Novo módulo dentro do pilar **Produção**, ao lado de Dispersão de Lote. Reaproveita `ficha_tecnica_bom`, `estoque_sistemico` e `producao_consumo` já existentes. Vou entregar em ondas para não estourar créditos — cada onda validável isoladamente.
+Duas frentes independentes, entregues em ordem para minimizar retrabalho. A 1 resolve a causa raiz de gaps de Ficha Técnica; a 2 introduz o conceito de Produto Local e ajusta Cobertura e Ruptura para tratá-lo.
 
-## Decisões que preciso confirmar antes de codar
+## 1. Ficha Técnica — auditoria global
 
-1. **Perfil responsável pelo PCP**: o prompt assume `GERENTE` como operador. Confirmo que uso **ADMINISTRADOR + GERENTE** com permissão de Cancelar restrita ao Admin, ou existe um perfil dedicado que devo usar?
-2. **Almoxarifado de produção**: qual origem alimenta a lista? Uso os mesmos códigos de `origens`/`usuario_almoxarifados` já cadastrados (mesmo padrão de Baixas Operacionais)?
-3. **Estoque para disponibilidade**: hoje o projeto tem `estoque_sistemico` (saldo agregado por SKU/almox). Não vejo tabela `estoque_lotes` separada — o cruzamento de disponibilidade será feito contra `estoque_sistemico` filtrado por almoxarifado da OP. OK?
+### 1.1 Reimportação e normalização consistente
+- Revisar o importador de `ficha_tecnica_bom` (`src/routes/_authenticated/producao.dispersao.tsx` e `src/lib/dispersao.ts` — ou o script atual usado) para aplicar `trim()` + preservação de zeros à esquerda em **todas** as colunas de código (`id_produto`, `id_item`), não só em pontos já corrigidos.
+- Ao final da importação, exibir banner com: linhas lidas do arquivo × linhas gravadas × linhas ignoradas (com motivo). Se divergir, listar os SKUs descartados.
+- Instrução ao usuário: reimportar o arquivo mestre completo antes de rodar a Auditoria (passo 1.2) para garantir base atualizada.
 
-Se estiver tudo OK, sigo pela **Onda 1**.
+### 1.2 Nova tela: Auditoria de Ficha Técnica
+- Rota: `src/routes/_authenticated/producao.auditoria-ft.tsx` (grupo Produção no `AppShell`).
+- Fonte "Produtos Acabados": `grupo_produtos`/`familias` filtrado por Grupo = "Produto Acabado" (mesma regra do PCP).
+- Fonte "COM Ficha": `DISTINCT id_produto` de `ficha_tecnica_bom`, com paginação por `range` (mesma varredura usada em PCP para contornar o teto de 1000 linhas).
+- UI: 3 cards de KPI (Total PA, COM FT, SEM FT) + tabela nominal dos SEM FT (SKU, descrição, família), exportável para Excel e com busca.
+- Comparação sempre com `trim()` dos dois lados.
 
-## Onda 1 — Modelo de dados + catálogo de módulo
+## 2. Produto Local
 
-Migração:
-- `ordens_producao` com todos os campos do item 1, incluindo `op_pai_id` autorreferente e `origem_demanda` (enum `MANUAL` | `SUGESTAO_ABASTECIMENTO`).
-- `necessidade_materiais_op` com FK para `ordens_producao` e `op_filha_id` autorreferente (via `ordens_producao`).
-- GRANTs + RLS: leitura para autenticados; escrita para ADMINISTRADOR/GERENTE; Cancelar só ADMINISTRADOR (via `has_role`).
-- Inserir `PRODUCAO_PCP` em `modulos_sistema`.
-- Triggers `update_updated_at_column` nas duas.
+### 2.1 Modelo de dados
+- Migração: adicionar coluna `eh_produto_local BOOLEAN NOT NULL DEFAULT false` em `grupo_produtos` (tabela do Cadastro que já guarda os SKUs).
+- Sem tabela paralela — o flag mora no Cadastro. Semear os dois SKUs confirmados: `05304029` e `05304043`.
+- Atualizar tela de Cadastro (Grupos/Produtos) para expor um switch "É Produto Local?" com permissão restrita a ADMIN/GERENTE.
 
-## Onda 2 — Motor de explosão de BOM (núcleo, isolado)
+### 2.2 Cobertura de Abastecimento
+- No cálculo/UI de Cobertura (rota de planejamento/abastecimento existente), pular a classificação "Sem Estoque" quando `eh_produto_local = true`.
+- Renderizar badge dedicado: "Produto Local — ver insumos" com `Link` para `producao.pcp` já com o SKU pré-selecionado (via search param `?produto=<sku>`).
+- Ajustar a rota de PCP para aceitar `?produto=` e disparar automaticamente a análise.
 
-`src/lib/pcp-bom.ts`:
-- `explodirBOM(idProduto, qtd, bomRows)` recursivo, retornando lista consolidada de folhas (matéria-prima) + itens intermediários `gera_oc = S` marcados como `eh_semiacabado`.
-- Proteção contra ciclo (Set de visitados na cadeia).
-- Multiplicação em cascata da quantidade.
-- Teste manual no console com um produto de 2 níveis antes de partir para tela.
+### 2.3 Análise de Ruptura com dupla fonte de estoque
+- Em `producao.pcp.tsx`: quando o produto raiz for Produto Local, além de `Alm_SP_Fabrica`, buscar também o Almox da Loja do usuário (via `useMeusAlmoxarifados`) — se o usuário tiver múltiplos, selector com padrão no primeiro.
+- Regra de origem por insumo: se o insumo é um **semiacabado** (tem entrada como `id_produto` na BOM e/ou marcado com `gera_oc`), consulta saldo em `Alm_SP_Fabrica`; caso contrário (folha, insumo de acabamento), consulta saldo no Almox da Loja.
+- Adicionar coluna "Origem do Estoque" na tabela de necessidade (Fábrica / Loja), preenchida por essa regra.
+- Reaproveitar o motor `explodirBOM` em `src/lib/pcp-bom.ts` — só troca a fonte consultada por linha.
 
-## Onda 3 — Criação e detalhe da OP (manual)
+### 2.4 Validação end-to-end
+- SKU `05304043`: some da lista de "Sem Estoque" em Cobertura, aparece com badge de Produto Local.
+- Ao clicar no badge, abre PCP → mostra insumo `05104132` com Origem = Fábrica e os demais (Gotas, Praliné, Leite, Calda) com Origem = Loja.
 
-- Rota `src/routes/_authenticated/producao.pcp.tsx` — quadro/lista com filtros (Produto, Status, Período, Almoxarifado).
-- Rota `src/routes/_authenticated/producao.pcp.$id.tsx` — detalhe:
-  - Cabeçalho da OP + ações de status.
-  - Tabela de necessidade (resultado do explodir) com badge Suficiente/Insuficiente comparando contra `estoque_sistemico` do almoxarifado.
-  - Botão "Gerar Demanda Extra" por linha insuficiente (reaproveita `demanda_extra` já existente).
-- Diálogo "Nova OP" (produto autocomplete a partir de `id_produto` distinto em `ficha_tecnica_bom`, quantidade, data, almoxarifado).
-- Ao criar OP: rodar explosão e gravar `necessidade_materiais_op` em batch.
+## Detalhes técnicos
 
-## Onda 4 — Ciclo de status + fechamento em `producao_consumo`
+- Sem novas Edge Functions — tudo em rota + queries diretas via `supabase` (RLS já cobre leitura autenticada nas tabelas envolvidas).
+- Migração única: `ALTER TABLE public.grupo_produtos ADD COLUMN eh_produto_local BOOLEAN NOT NULL DEFAULT false;` + `UPDATE` para os 2 SKUs semente. Sem novas RLS/GRANT (tabela existente).
+- Auditoria de FT e PCP fazem varredura paginada de `ficha_tecnica_bom` (padrão já usado). Nada de `.in()` estourando o limite de 1000.
+- Sem mexer em `src/integrations/supabase/*` autogen.
 
-- Ações Planejada → Liberada → Em Produção → Concluída + Cancelar.
-- Liberada permite avanço mesmo com pendência de material (com aviso).
-- Concluir abre diálogo: `quantidade_produzida_real` + edição do consumo real por material (pré-preenchido com o previsto de `necessidade_materiais_op`).
-- Ao salvar Conclusão: inserir uma linha em `producao_consumo` por material (AnoMes derivado de `data_conclusao_real`, `qtd_previsto` da necessidade, `qtd_consumo` do formulário) — fechando o ciclo com Dispersão de Lote sem novo upload.
+## Ordem de execução (para aprovação)
 
-## Onda 5 — OP filha para semiacabados
+1. Migração `eh_produto_local` + semente.
+2. Tela Auditoria de FT + link no menu Produção.
+3. Reforço de normalização no importador de FT (com banner de contagem).
+4. Cadastro: switch "É Produto Local?".
+5. Cobertura: pular Sem Estoque + badge/link.
+6. PCP: aceitar `?produto=`, adicionar dupla fonte de estoque + coluna Origem.
+7. Validação manual com `05304043`.
 
-- Na tabela de necessidade, botão "Gerar OP para este item" nas linhas `eh_semiacabado = true` e sem `op_filha_id`.
-- Cria nova `ordens_producao` com `op_pai_id`, roda explosão dela, atualiza `op_filha_id` na necessidade do pai.
-- Indicador visual (badge/link) nas linhas com filha já gerada, clicável para navegar até a OP filha.
-
-## Onda 6 — Sugestões de OP a partir do Abastecimento
-
-- Rota `src/routes/_authenticated/producao.pcp.sugestoes.tsx`:
-  - Query cruza sugestões de abastecimento (`parametros_abastecimento`/planejamento existente) com `DISTINCT id_produto` de `ficha_tecnica_bom`.
-  - Ação "Aceitar e Gerar OP" cria a OP com `origem_demanda = SUGESTAO_ABASTECIMENTO` e `referencia_id`.
-
-## Onda 7 — Navegação + permissões
-
-- Adicionar item **PCP** ao grupo Produção no `AppShell` (colapsável já existente).
-- Gate por perfil nas ações de escrita (`useRole`).
-- Registrar rota nas permissões da matriz existente.
-
-## Validação final
-
-Ciclo end-to-end: criar OP manual de produto com 2+ níveis, gerar OP filha do semiacabado, concluir ambas, verificar que aparecem em Dispersão de Lote sem upload manual.
+Confirme para eu seguir — ou aponte o que quer ajustar antes.
