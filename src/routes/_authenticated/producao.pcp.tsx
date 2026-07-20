@@ -113,10 +113,17 @@ function RupturaPage() {
       const comBom = new Set<string>();
       const descFtb = new Map<string, string>();
       const codigosSet = new Set(codigosGrupo.map((c) => (c ?? "").trim()));
+      // Paginação com ordenação estável — sem .order(), o PostgREST não garante
+      // consistência entre páginas e pode duplicar/pular linhas, deixando SKUs
+      // sem descrição (o que fazia o fallback antigo mostrar "Produto Acabado"
+      // vindo de familias.descricao_produto).
       let bomFrom = 0; const bomSize = 1000;
       while (true) {
         const { data, error } = await (supabase as any)
-          .from("ficha_tecnica_bom").select("id_produto,produto").range(bomFrom, bomFrom + bomSize - 1);
+          .from("ficha_tecnica_bom").select("id_produto,produto")
+          .order("id_produto", { ascending: true })
+          .order("id_item", { ascending: true })
+          .range(bomFrom, bomFrom + bomSize - 1);
         if (error) throw error;
         const rows = (data ?? []) as { id_produto: string; produto: string | null }[];
         for (const r of rows) {
@@ -127,6 +134,30 @@ function RupturaPage() {
         }
         if (rows.length < bomSize) break;
         bomFrom += bomSize;
+      }
+
+      // Fallback direcionado: para SKUs do grupo que continuam sem descrição
+      // válida, consulta ficha_tecnica_bom em lotes com .in() (também paginado
+      // internamente, pois um id_produto pode ter muitas linhas de BOM).
+      const faltando = codigosGrupo.filter((id) => !descFtb.has(id));
+      for (let i = 0; i < faltando.length; i += 200) {
+        const slice = faltando.slice(i, i + 200);
+        let f = 0; const s = 1000;
+        while (true) {
+          const { data } = await (supabase as any)
+            .from("ficha_tecnica_bom").select("id_produto,produto")
+            .in("id_produto", slice)
+            .order("id_produto", { ascending: true })
+            .range(f, f + s - 1);
+          const rows = (data ?? []) as { id_produto: string; produto: string | null }[];
+          for (const r of rows) {
+            const id = (r.id_produto ?? "").trim();
+            comBom.add(id);
+            if (!isDescricaoInvalida(r.produto) && !descFtb.has(id)) descFtb.set(id, r.produto!.trim());
+          }
+          if (rows.length < s) break;
+          f += s;
+        }
       }
 
 
