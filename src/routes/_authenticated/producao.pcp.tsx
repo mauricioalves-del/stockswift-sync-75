@@ -559,7 +559,7 @@ function RupturaPage() {
         <CardHeader className="pb-2">
           <div className="flex flex-wrap items-center gap-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" /> Ruptura por matéria-prima
+              <AlertTriangle className="h-4 w-4" /> Ruptura por Insumo
             </CardTitle>
             <div className="ml-auto flex items-center gap-2 text-xs">
               {hasLocal && (
