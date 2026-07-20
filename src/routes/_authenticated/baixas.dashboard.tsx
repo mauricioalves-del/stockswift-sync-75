@@ -13,20 +13,18 @@ import { BarChart3, TrendingUp, AlertTriangle, PackageMinus } from "lucide-react
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, Cell,
 } from "recharts";
+import type { ReactNode } from "react";
 
 export const Route = createFileRoute("/_authenticated/baixas/dashboard")({
   component: BaixasDashboard,
   head: () => ({ meta: [{ title: "Dashboard Baixas Operacionais" }] }),
 });
 
-// Paleta consistente por motivo (usada em todos os gráficos)
+// Paleta BI consistente por motivo — cores vivas legíveis em fundo escuro
 const PALETTE = [
-  "hsl(var(--primary))",
-  "hsl(var(--destructive))",
-  "hsl(var(--warning))",
-  "hsl(var(--info))",
-  "hsl(var(--success))",
-  "#8B5CF6", "#EC4899", "#14B8A6", "#F59E0B", "#6366F1", "#22C55E", "#EF4444",
+  "#4FC3F7", "#F48FB1", "#81C784", "#FFB74D", "#BA68C8",
+  "#E57373", "#4DD0E1", "#FFD54F", "#9575CD", "#4DB6AC",
+  "#F06292", "#AED581", "#7986CB", "#DCE775", "#FF8A65",
 ];
 
 type Classif = "Controlado" | "Operacional" | "Investimento";
@@ -43,8 +41,44 @@ function isoDaysAgo(n: number) {
 function monthKey(iso: string) { return iso.slice(0, 7); }
 function fmtMonth(k: string) {
   const [y, m] = k.split("-");
-  const nomes = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-  return `${nomes[Number(m) - 1]}/${y.slice(2)}`;
+  const nomes = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  return nomes[Number(m) - 1] ?? k;
+}
+function fmtMil(v: number) {
+  if (Math.abs(v) >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1)} Mi`;
+  if (Math.abs(v) >= 1_000) return `R$ ${(v / 1_000).toFixed(1)} Mil`;
+  return `R$ ${v.toFixed(0)}`;
+}
+
+// Painel padrão BI: fundo escuro, título centralizado no topo
+function BiPanel({ title, legend, children, className = "" }: { title: string; legend?: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-xl border border-border/40 bg-[hsl(220_18%_12%)] text-slate-100 shadow-lg overflow-hidden ${className}`}>
+      <div className="px-4 pt-3 pb-2 text-center">
+        <div className="text-sm font-semibold tracking-wide">{title}</div>
+      </div>
+      {legend && (
+        <div className="px-4 pb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-300">
+          {legend}
+        </div>
+      )}
+      <div className="p-3">{children}</div>
+    </div>
+  );
+}
+
+function MotivoLegend({ items }: { items: { id: string; nome: string; cor: string }[] }) {
+  return (
+    <>
+      <span className="font-semibold text-slate-400 mr-1">Motivo</span>
+      {items.map((m) => (
+        <span key={m.id} className="inline-flex items-center gap-1">
+          <span className="inline-block size-2 rounded-full" style={{ background: m.cor }} />
+          <span className="truncate max-w-[110px]">{m.nome}</span>
+        </span>
+      ))}
+    </>
+  );
 }
 
 function BaixasDashboard() {
