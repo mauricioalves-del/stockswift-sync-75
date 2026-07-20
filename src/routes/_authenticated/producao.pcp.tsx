@@ -274,6 +274,30 @@ function RupturaPage() {
     return produto?.nome ?? descricaoValida(descricaoFallback, gruposQ.data ?? []) ?? SEM_DESCRICAO;
   }
 
+  async function buscarProdutoPontual(sku: string) {
+    const codigo = codigoNormalizado(sku);
+    const [{ data: gp }, { data: fam }, { data: ftb }, { data: estoque }] = await Promise.all([
+      (supabase as any).from("grupo_produtos").select("eh_produto_local").eq("codigo_produto", codigo).maybeSingle(),
+      (supabase as any).from("familias").select("descricao_produto").eq("codigo_produto", codigo).maybeSingle(),
+      (supabase as any).from("ficha_tecnica_bom").select("produto").eq("id_produto", codigo).not("produto", "is", null).limit(20),
+      (supabase as any).from("estoque_sistemico").select("descricao").eq("id_produto", codigo).not("descricao", "is", null).limit(20),
+    ]);
+    const grupos = gruposQ.data ?? [];
+    const descFtb = ((ftb ?? []) as { produto: string | null }[])
+      .map((r) => descricaoValida(r.produto, grupos))
+      .find(Boolean);
+    const descEstoque = ((estoque ?? []) as { descricao: string | null }[])
+      .map((r) => descricaoValida(r.descricao, grupos))
+      .find(Boolean);
+    const descFamilia = descricaoValida(fam?.descricao_produto, grupos);
+    return {
+      id_produto: codigo,
+      nome: descFtb ?? descEstoque ?? descFamilia ?? SEM_DESCRICAO,
+      quantidade: 1,
+      local: !!gp?.eh_produto_local,
+    } satisfies LinhaSim;
+  }
+
   function updQtd(id: string, q: number) {
     setLinhas((prev) => prev.map((l) => l.id_produto === id ? { ...l, quantidade: q } : l));
   }
@@ -365,13 +389,8 @@ function RupturaPage() {
     // buscamos o flag "local" pontualmente
     else if (!p) {
       (async () => {
-        const [{ data: gp }, { data: fam }] = await Promise.all([
-          (supabase as any).from("grupo_produtos").select("eh_produto_local").eq("codigo_produto", sku).maybeSingle(),
-          (supabase as any).from("familias").select("descricao_produto").eq("codigo_produto", sku).maybeSingle(),
-        ]);
-        const local = !!(gp?.eh_produto_local);
-        const nome = nomeProduto(sku, fam?.descricao_produto);
-        setLinhas((prev) => prev.some((l) => l.id_produto === sku) ? prev : [...prev, { id_produto: sku, nome, quantidade: 1, local }]);
+        const linha = await buscarProdutoPontual(sku);
+        setLinhas((prev) => prev.some((l) => l.id_produto === linha.id_produto) ? prev : [...prev, linha]);
       })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
