@@ -30,6 +30,20 @@ export const Route = createFileRoute("/_authenticated/producao/pcp")({
 const ALMOX_FABRICA = "Alm_SP_Fabrica";
 const LOJA_DEFAULT = "Alm_SP_Loja";
 const ORIGENS_NAO_LOJA = new Set(["Alm_SP_Fabrica", "Alm_SP_Processo", "Alm_SP_Qualidade"]);
+const SEM_DESCRICAO = "Sem descrição cadastrada";
+
+function codigoNormalizado(value: string | null | undefined) {
+  return (value ?? "").trim();
+}
+
+function descricaoValida(value: string | null | undefined, grupos: readonly string[] = []) {
+  const text = (value ?? "").trim();
+  if (!text) return null;
+  const normalized = text.toLowerCase();
+  const gruposSet = new Set(grupos.map((g) => g.trim().toLowerCase()).filter(Boolean));
+  if (gruposSet.has(normalized)) return null;
+  return text;
+}
 
 type LinhaSim = { id_produto: string; nome: string; quantidade: number; local: boolean };
 
@@ -85,13 +99,7 @@ function RupturaPage() {
       // 2. Famílias + descrição (via familias) — paginado por lotes de 500 IN
       // Alguns registros vêm com descricao_produto preenchido com o próprio nome do Grupo
       // (ex.: "Produto Acabado"). Tratamos isso como descrição inválida.
-      const gruposConhecidos = new Set((gruposQ.data ?? []).map((g) => g.toLowerCase()));
-      const isDescricaoInvalida = (s: string | null | undefined) => {
-        if (!s) return true;
-        const t = s.trim().toLowerCase();
-        if (!t) return true;
-        return gruposConhecidos.has(t);
-      };
+      const gruposConhecidos = gruposQ.data ?? [];
       const familiaByCod = new Map<string, string | null>();
       const descFamilias = new Map<string, string>();
       for (let i = 0; i < codigosGrupo.length; i += 500) {
@@ -99,9 +107,10 @@ function RupturaPage() {
         const { data } = await (supabase as any)
           .from("familias").select("codigo_produto,familia,descricao_produto").in("codigo_produto", slice);
         for (const r of (data ?? []) as { codigo_produto: string; familia: string | null; descricao_produto: string | null }[]) {
-          const cod = (r.codigo_produto ?? "").trim();
+          const cod = codigoNormalizado(r.codigo_produto);
           familiaByCod.set(cod, r.familia ?? null);
-          if (!isDescricaoInvalida(r.descricao_produto)) descFamilias.set(cod, r.descricao_produto!.trim());
+          const desc = descricaoValida(r.descricao_produto, gruposConhecidos);
+          if (desc) descFamilias.set(cod, desc);
         }
       }
 
@@ -112,7 +121,7 @@ function RupturaPage() {
       // coletando ids distintos e nomes — sem filtro IN.
       const comBom = new Set<string>();
       const descFtb = new Map<string, string>();
-      const codigosSet = new Set(codigosGrupo.map((c) => (c ?? "").trim()));
+      const codigosSet = new Set(codigosGrupo.map(codigoNormalizado));
       // Paginação com ordenação estável — sem .order(), o PostgREST não garante
       // consistência entre páginas e pode duplicar/pular linhas, deixando SKUs
       // sem descrição (o que fazia o fallback antigo mostrar "Produto Acabado"
@@ -127,10 +136,11 @@ function RupturaPage() {
         if (error) throw error;
         const rows = (data ?? []) as { id_produto: string; produto: string | null }[];
         for (const r of rows) {
-          const id = (r.id_produto ?? "").trim();
+          const id = codigoNormalizado(r.id_produto);
           if (!codigosSet.has(id)) continue;
           comBom.add(id);
-          if (!isDescricaoInvalida(r.produto) && !descFtb.has(id)) descFtb.set(id, r.produto!.trim());
+          const desc = descricaoValida(r.produto, gruposConhecidos);
+          if (desc && !descFtb.has(id)) descFtb.set(id, desc);
         }
         if (rows.length < bomSize) break;
         bomFrom += bomSize;
@@ -151,9 +161,10 @@ function RupturaPage() {
             .range(f, f + s - 1);
           const rows = (data ?? []) as { id_produto: string; produto: string | null }[];
           for (const r of rows) {
-            const id = (r.id_produto ?? "").trim();
+            const id = codigoNormalizado(r.id_produto);
             comBom.add(id);
-            if (!isDescricaoInvalida(r.produto) && !descFtb.has(id)) descFtb.set(id, r.produto!.trim());
+            const desc = descricaoValida(r.produto, gruposConhecidos);
+            if (desc && !descFtb.has(id)) descFtb.set(id, desc);
           }
           if (rows.length < s) break;
           f += s;
@@ -177,7 +188,7 @@ function RupturaPage() {
       // Preferência: ficha_tecnica_bom (nome real) > familias (se válido) > "Sem descrição cadastrada"
       return codigosGrupo.map((id) => ({
         id,
-        nome: descFtb.get(id) ?? descFamilias.get(id) ?? "Sem descrição cadastrada",
+        nome: descFtb.get(id) ?? descFamilias.get(id) ?? SEM_DESCRICAO,
         familia: familiaByCod.get(id) ?? null,
         temBom: comBom.has(id),
         local: locais.has(id),
@@ -256,6 +267,13 @@ function RupturaPage() {
       ? prev
       : [...prev, { id_produto: p.id, nome: p.nome, quantidade: 1, local: p.local }]);
   }
+
+  function nomeProduto(id: string, descricaoFallback?: string | null) {
+    const sku = codigoNormalizado(id);
+    const produto = (produtosQ.data ?? []).find((p) => p.id === sku);
+    return produto?.nome ?? descricaoValida(descricaoFallback, gruposQ.data ?? []) ?? SEM_DESCRICAO;
+  }
+
   function updQtd(id: string, q: number) {
     setLinhas((prev) => prev.map((l) => l.id_produto === id ? { ...l, quantidade: q } : l));
   }
@@ -278,7 +296,8 @@ function RupturaPage() {
         .filter((r) => fabricados.has(r.id_produto))
         .map((r) => {
           const sug = Math.max(0, Number(r.estoque_ideal ?? 0) - (saldos[r.id_produto] ?? 0));
-          return { id_produto: r.id_produto, nome: r.descricao ?? r.id_produto, quantidade: sug, local: locaisSet.has(r.id_produto) };
+          const id = codigoNormalizado(r.id_produto);
+          return { id_produto: id, nome: nomeProduto(id, r.descricao), quantidade: sug, local: locaisSet.has(id) };
         })
         .filter((l) => l.quantidade > 0);
       if (!novas.length) { toast.info("Sem sugestões de abastecimento para produtos fabricados."); return; }
@@ -351,11 +370,22 @@ function RupturaPage() {
           (supabase as any).from("familias").select("descricao_produto").eq("codigo_produto", sku).maybeSingle(),
         ]);
         const local = !!(gp?.eh_produto_local);
-        setLinhas((prev) => prev.some((l) => l.id_produto === sku) ? prev : [...prev, { id_produto: sku, nome: fam?.descricao_produto ?? sku, quantidade: 1, local }]);
+        const nome = nomeProduto(sku, fam?.descricao_produto);
+        setLinhas((prev) => prev.some((l) => l.id_produto === sku) ? prev : [...prev, { id_produto: sku, nome, quantidade: 1, local }]);
       })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.produto, produtosQ.data]);
+
+  useEffect(() => {
+    if (!produtosQ.data?.length) return;
+    setLinhas((prev) => prev.map((linha) => {
+      const nomeAtual = descricaoValida(linha.nome, gruposQ.data ?? []);
+      if (nomeAtual && nomeAtual !== SEM_DESCRICAO) return linha;
+      const produto = produtosQ.data.find((p) => p.id === linha.id_produto);
+      return produto?.nome ? { ...linha, nome: produto.nome } : linha;
+    }));
+  }, [produtosQ.data, gruposQ.data]);
 
   function gerarDemandaExtra(item: { id_item: string; item: string | null; diff: number; origem_estoque: "Fábrica" | "Loja" }) {
     const falta = Math.abs(item.diff);
