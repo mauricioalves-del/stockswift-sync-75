@@ -83,8 +83,17 @@ function RupturaPage() {
       if (!codigosGrupo.length) return [];
 
       // 2. Famílias + descrição (via familias) — paginado por lotes de 500 IN
+      // Alguns registros vêm com descricao_produto preenchido com o próprio nome do Grupo
+      // (ex.: "Produto Acabado"). Tratamos isso como descrição inválida.
+      const gruposConhecidos = new Set((gruposQ.data ?? []).map((g) => g.toLowerCase()));
+      const isDescricaoInvalida = (s: string | null | undefined) => {
+        if (!s) return true;
+        const t = s.trim().toLowerCase();
+        if (!t) return true;
+        return gruposConhecidos.has(t);
+      };
       const familiaByCod = new Map<string, string | null>();
-      const descByCod = new Map<string, string>();
+      const descFamilias = new Map<string, string>();
       for (let i = 0; i < codigosGrupo.length; i += 500) {
         const slice = codigosGrupo.slice(i, i + 500);
         const { data } = await (supabase as any)
@@ -92,17 +101,17 @@ function RupturaPage() {
         for (const r of (data ?? []) as { codigo_produto: string; familia: string | null; descricao_produto: string | null }[]) {
           const cod = (r.codigo_produto ?? "").trim();
           familiaByCod.set(cod, r.familia ?? null);
-          if (r.descricao_produto) descByCod.set(cod, r.descricao_produto);
+          if (!isDescricaoInvalida(r.descricao_produto)) descFamilias.set(cod, r.descricao_produto!.trim());
         }
       }
 
-
-      // 3+4. Fallback de descrição e set de produtos com BOM cadastrada.
+      // 3+4. Descrição via ficha_tecnica_bom (nome real do produto) e set de produtos com BOM.
       // IMPORTANTE: ficha_tecnica_bom tem >13k linhas (multinível). Um .in() com 500 códigos
       // estoura o limite default de 1000 linhas do PostgREST e trunca a resposta, marcando
       // produtos legítimos como "Sem Ficha Técnica". Solução: varrer a tabela paginando por range,
       // coletando ids distintos e nomes — sem filtro IN.
       const comBom = new Set<string>();
+      const descFtb = new Map<string, string>();
       const codigosSet = new Set(codigosGrupo.map((c) => (c ?? "").trim()));
       let bomFrom = 0; const bomSize = 1000;
       while (true) {
@@ -114,7 +123,7 @@ function RupturaPage() {
           const id = (r.id_produto ?? "").trim();
           if (!codigosSet.has(id)) continue;
           comBom.add(id);
-          if (r.produto && !descByCod.has(id)) descByCod.set(id, r.produto);
+          if (!isDescricaoInvalida(r.produto) && !descFtb.has(id)) descFtb.set(id, r.produto!.trim());
         }
         if (rows.length < bomSize) break;
         bomFrom += bomSize;
@@ -134,15 +143,18 @@ function RupturaPage() {
         lfrom += lsize;
       }
 
+      // Preferência: ficha_tecnica_bom (nome real) > familias (se válido) > "Sem descrição cadastrada"
       return codigosGrupo.map((id) => ({
         id,
-        nome: descByCod.get(id) ?? id,
+        nome: descFtb.get(id) ?? descFamilias.get(id) ?? "Sem descrição cadastrada",
         familia: familiaByCod.get(id) ?? null,
         temBom: comBom.has(id),
         local: locais.has(id),
       })).sort((a, b) => a.nome.localeCompare(b.nome));
     },
+    enabled: !!gruposQ.data,
   });
+
 
   // Saldo do Almox Loja (para insumos de acabamento de Produto Local)
   const saldoLojaQ = useQuery({
@@ -398,12 +410,14 @@ function RupturaPage() {
                 {linhas.map((l) => (
                   <TableRow key={l.id_produto}>
                     <TableCell>
-                      <div className="text-sm font-medium flex items-center gap-2">
-                        {l.nome}
+                      <div className="text-sm flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-muted-foreground">{l.id_produto}</span>
+                        <span className="text-muted-foreground">—</span>
+                        <span className="font-medium">{l.nome}</span>
                         {l.local && <Badge className="text-[10px] bg-blue-500/15 text-blue-700 dark:text-blue-400"><Store className="h-3 w-3 mr-1" />Local</Badge>}
                       </div>
-                      <div className="text-[10px] text-muted-foreground font-mono">{l.id_produto}</div>
                     </TableCell>
+
                     <TableCell className="text-right">
                       <Input
                         type="number" min={0} step="any"
@@ -589,12 +603,16 @@ function AddProdutoPicker({ produtos, onPick, disabled }: { produtos: Produto[];
                   className={!p.temBom ? "opacity-70" : ""}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="truncate text-sm font-medium">{p.nome}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-2">
-                      <span className="font-mono">{p.id}</span>
-                      <span>· {p.familia ?? "Sem família"}</span>
+                    <div className="truncate text-sm">
+                      <span className="font-mono text-muted-foreground">{p.id}</span>
+                      <span className="text-muted-foreground"> — </span>
+                      <span className="font-medium">{p.nome}</span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      {p.familia ?? "Sem família"}
                     </div>
                   </div>
+
                   {!p.temBom && (
                     <Badge variant="outline" className="ml-2 shrink-0 text-[10px] border-warning/40 text-warning">
                       <FileWarning className="h-3 w-3 mr-1" />Sem Ficha Técnica
