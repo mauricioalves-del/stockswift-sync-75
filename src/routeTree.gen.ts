@@ -28,10 +28,10 @@ import { Route as AuthenticatedGruposRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedEmailsRouteImport } from './routes/_authenticated/emails'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedContarRouteImport } from './routes/_authenticated/contar'
-import { Route as AuthenticatedBaixasRouteImport } from './routes/_authenticated/baixas'
 import { Route as AuthenticatedAbcRouteImport } from './routes/_authenticated/abc'
 import { Route as AuthenticatedMissoesIndexRouteImport } from './routes/_authenticated/missoes.index'
 import { Route as AuthenticatedConfigIndexRouteImport } from './routes/_authenticated/config.index'
+import { Route as AuthenticatedBaixasIndexRouteImport } from './routes/_authenticated/baixas.index'
 import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_authenticated/suprimentos.estoque'
 import { Route as AuthenticatedSuprimentosDashboardRouteImport } from './routes/_authenticated/suprimentos.dashboard'
 import { Route as AuthenticatedProducaoPcpRouteImport } from './routes/_authenticated/producao.pcp'
@@ -153,11 +153,6 @@ const AuthenticatedContarRoute = AuthenticatedContarRouteImport.update({
   path: '/contar',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedBaixasRoute = AuthenticatedBaixasRouteImport.update({
-  id: '/baixas',
-  path: '/baixas',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedAbcRoute = AuthenticatedAbcRouteImport.update({
   id: '/abc',
   path: '/abc',
@@ -173,6 +168,12 @@ const AuthenticatedConfigIndexRoute =
   AuthenticatedConfigIndexRouteImport.update({
     id: '/config/',
     path: '/config/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedBaixasIndexRoute =
+  AuthenticatedBaixasIndexRouteImport.update({
+    id: '/baixas/',
+    path: '/baixas/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSuprimentosEstoqueRoute =
@@ -260,9 +261,9 @@ const AuthenticatedConfigDispersaoRoute =
   } as any)
 const AuthenticatedBaixasDashboardRoute =
   AuthenticatedBaixasDashboardRouteImport.update({
-    id: '/dashboard',
-    path: '/dashboard',
-    getParentRoute: () => AuthenticatedBaixasRoute,
+    id: '/baixas/dashboard',
+    path: '/baixas/dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAbastecimentoPlanejamentoRoute =
   AuthenticatedAbastecimentoPlanejamentoRouteImport.update({
@@ -318,7 +319,6 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/abc': typeof AuthenticatedAbcRoute
-  '/baixas': typeof AuthenticatedBaixasRouteWithChildren
   '/contar': typeof AuthenticatedContarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/emails': typeof AuthenticatedEmailsRoute
@@ -353,6 +353,7 @@ export interface FileRoutesByFullPath {
   '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/baixas/': typeof AuthenticatedBaixasIndexRoute
   '/config/': typeof AuthenticatedConfigIndexRoute
   '/missoes/': typeof AuthenticatedMissoesIndexRoute
   '/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
@@ -365,7 +366,6 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/abc': typeof AuthenticatedAbcRoute
-  '/baixas': typeof AuthenticatedBaixasRouteWithChildren
   '/contar': typeof AuthenticatedContarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/emails': typeof AuthenticatedEmailsRoute
@@ -400,6 +400,7 @@ export interface FileRoutesByTo {
   '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/baixas': typeof AuthenticatedBaixasIndexRoute
   '/config': typeof AuthenticatedConfigIndexRoute
   '/missoes': typeof AuthenticatedMissoesIndexRoute
   '/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
@@ -414,7 +415,6 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/abc': typeof AuthenticatedAbcRoute
-  '/_authenticated/baixas': typeof AuthenticatedBaixasRouteWithChildren
   '/_authenticated/contar': typeof AuthenticatedContarRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/emails': typeof AuthenticatedEmailsRoute
@@ -449,6 +449,7 @@ export interface FileRoutesById {
   '/_authenticated/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/_authenticated/baixas/': typeof AuthenticatedBaixasIndexRoute
   '/_authenticated/config/': typeof AuthenticatedConfigIndexRoute
   '/_authenticated/missoes/': typeof AuthenticatedMissoesIndexRoute
   '/_authenticated/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
@@ -463,7 +464,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/abc'
-    | '/baixas'
     | '/contar'
     | '/dashboard'
     | '/emails'
@@ -498,6 +498,7 @@ export interface FileRouteTypes {
     | '/producao/pcp'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
+    | '/baixas/'
     | '/config/'
     | '/missoes/'
     | '/producao/material/$material'
@@ -510,7 +511,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/abc'
-    | '/baixas'
     | '/contar'
     | '/dashboard'
     | '/emails'
@@ -545,6 +545,7 @@ export interface FileRouteTypes {
     | '/producao/pcp'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
+    | '/baixas'
     | '/config'
     | '/missoes'
     | '/producao/material/$material'
@@ -558,7 +559,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/abc'
-    | '/_authenticated/baixas'
     | '/_authenticated/contar'
     | '/_authenticated/dashboard'
     | '/_authenticated/emails'
@@ -593,6 +593,7 @@ export interface FileRouteTypes {
     | '/_authenticated/producao/pcp'
     | '/_authenticated/suprimentos/dashboard'
     | '/_authenticated/suprimentos/estoque'
+    | '/_authenticated/baixas/'
     | '/_authenticated/config/'
     | '/_authenticated/missoes/'
     | '/_authenticated/producao/material/$material'
@@ -743,13 +744,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContarRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/baixas': {
-      id: '/_authenticated/baixas'
-      path: '/baixas'
-      fullPath: '/baixas'
-      preLoaderRoute: typeof AuthenticatedBaixasRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/abc': {
       id: '/_authenticated/abc'
       path: '/abc'
@@ -769,6 +763,13 @@ declare module '@tanstack/react-router' {
       path: '/config'
       fullPath: '/config/'
       preLoaderRoute: typeof AuthenticatedConfigIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/baixas/': {
+      id: '/_authenticated/baixas/'
+      path: '/baixas'
+      fullPath: '/baixas/'
+      preLoaderRoute: typeof AuthenticatedBaixasIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/suprimentos/estoque': {
@@ -871,10 +872,10 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/baixas/dashboard': {
       id: '/_authenticated/baixas/dashboard'
-      path: '/dashboard'
+      path: '/baixas/dashboard'
       fullPath: '/baixas/dashboard'
       preLoaderRoute: typeof AuthenticatedBaixasDashboardRouteImport
-      parentRoute: typeof AuthenticatedBaixasRoute
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/abastecimento/planejamento': {
       id: '/_authenticated/abastecimento/planejamento'
@@ -935,17 +936,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AuthenticatedBaixasRouteChildren {
-  AuthenticatedBaixasDashboardRoute: typeof AuthenticatedBaixasDashboardRoute
-}
-
-const AuthenticatedBaixasRouteChildren: AuthenticatedBaixasRouteChildren = {
-  AuthenticatedBaixasDashboardRoute: AuthenticatedBaixasDashboardRoute,
-}
-
-const AuthenticatedBaixasRouteWithChildren =
-  AuthenticatedBaixasRoute._addFileChildren(AuthenticatedBaixasRouteChildren)
-
 interface AuthenticatedSuprimentosRequisicoesIdRouteChildren {
   AuthenticatedSuprimentosRequisicoesIdFichaRoute: typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
 }
@@ -963,7 +953,6 @@ const AuthenticatedSuprimentosRequisicoesIdRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbcRoute: typeof AuthenticatedAbcRoute
-  AuthenticatedBaixasRoute: typeof AuthenticatedBaixasRouteWithChildren
   AuthenticatedContarRoute: typeof AuthenticatedContarRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEmailsRoute: typeof AuthenticatedEmailsRoute
@@ -983,6 +972,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbastecimentoDemandasRoute: typeof AuthenticatedAbastecimentoDemandasRoute
   AuthenticatedAbastecimentoParametrosRoute: typeof AuthenticatedAbastecimentoParametrosRoute
   AuthenticatedAbastecimentoPlanejamentoRoute: typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  AuthenticatedBaixasDashboardRoute: typeof AuthenticatedBaixasDashboardRoute
   AuthenticatedConfigDispersaoRoute: typeof AuthenticatedConfigDispersaoRoute
   AuthenticatedConfigInventarioRoute: typeof AuthenticatedConfigInventarioRoute
   AuthenticatedConfigPerfisRoute: typeof AuthenticatedConfigPerfisRoute
@@ -997,6 +987,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProducaoPcpRoute: typeof AuthenticatedProducaoPcpRoute
   AuthenticatedSuprimentosDashboardRoute: typeof AuthenticatedSuprimentosDashboardRoute
   AuthenticatedSuprimentosEstoqueRoute: typeof AuthenticatedSuprimentosEstoqueRoute
+  AuthenticatedBaixasIndexRoute: typeof AuthenticatedBaixasIndexRoute
   AuthenticatedConfigIndexRoute: typeof AuthenticatedConfigIndexRoute
   AuthenticatedMissoesIndexRoute: typeof AuthenticatedMissoesIndexRoute
   AuthenticatedProducaoMaterialMaterialRoute: typeof AuthenticatedProducaoMaterialMaterialRoute
@@ -1006,7 +997,6 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAbcRoute: AuthenticatedAbcRoute,
-  AuthenticatedBaixasRoute: AuthenticatedBaixasRouteWithChildren,
   AuthenticatedContarRoute: AuthenticatedContarRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEmailsRoute: AuthenticatedEmailsRoute,
@@ -1030,6 +1020,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedAbastecimentoParametrosRoute,
   AuthenticatedAbastecimentoPlanejamentoRoute:
     AuthenticatedAbastecimentoPlanejamentoRoute,
+  AuthenticatedBaixasDashboardRoute: AuthenticatedBaixasDashboardRoute,
   AuthenticatedConfigDispersaoRoute: AuthenticatedConfigDispersaoRoute,
   AuthenticatedConfigInventarioRoute: AuthenticatedConfigInventarioRoute,
   AuthenticatedConfigPerfisRoute: AuthenticatedConfigPerfisRoute,
@@ -1046,6 +1037,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSuprimentosDashboardRoute:
     AuthenticatedSuprimentosDashboardRoute,
   AuthenticatedSuprimentosEstoqueRoute: AuthenticatedSuprimentosEstoqueRoute,
+  AuthenticatedBaixasIndexRoute: AuthenticatedBaixasIndexRoute,
   AuthenticatedConfigIndexRoute: AuthenticatedConfigIndexRoute,
   AuthenticatedMissoesIndexRoute: AuthenticatedMissoesIndexRoute,
   AuthenticatedProducaoMaterialMaterialRoute:
