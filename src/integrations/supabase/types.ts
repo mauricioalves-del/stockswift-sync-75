@@ -1196,6 +1196,41 @@ export type Database = {
         }
         Relationships: []
       }
+      motivo_classificacao_prejuizo: {
+        Row: {
+          ativo: boolean
+          classificacao: string
+          created_at: string
+          id: string
+          motivo_baixa_id: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          classificacao: string
+          created_at?: string
+          id?: string
+          motivo_baixa_id: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          classificacao?: string
+          created_at?: string
+          id?: string
+          motivo_baixa_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "motivo_classificacao_prejuizo_motivo_baixa_id_fkey"
+            columns: ["motivo_baixa_id"]
+            isOneToOne: true
+            referencedRelation: "motivo_baixa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       necessidade_materiais_op: {
         Row: {
           created_at: string
@@ -1389,6 +1424,39 @@ export type Database = {
           metodo_override?: string | null
           origem?: string
           origem_abastecimento?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      parametros_alerta_baixas: {
+        Row: {
+          ativo: boolean
+          chave: string | null
+          created_at: string
+          escopo: string
+          id: string
+          limite_percentual_variacao_mom: number
+          limite_valor: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          chave?: string | null
+          created_at?: string
+          escopo: string
+          id?: string
+          limite_percentual_variacao_mom?: number
+          limite_valor?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          chave?: string | null
+          created_at?: string
+          escopo?: string
+          id?: string
+          limite_percentual_variacao_mom?: number
+          limite_valor?: number
           updated_at?: string
         }
         Relationships: []
