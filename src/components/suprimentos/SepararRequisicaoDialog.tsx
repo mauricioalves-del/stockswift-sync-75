@@ -35,6 +35,101 @@ type LinhaState = {
   faltou: number;          // qtd que não conseguimos alocar via FEFO
 };
 
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+}
+
+function imprimirFichaSeparacao(
+  requisicao: Req | null,
+  itens: Item[],
+  linhas: Record<string, LinhaState>,
+  lotesMap: Record<string, Lote[]>,
+) {
+  if (!requisicao) return;
+  const rows: string[] = [];
+  for (const i of itens) {
+    const l = linhas[i.id];
+    const lotesDisp = lotesMap[i.id_produto] ?? [];
+    const totalDisp = lotesDisp.reduce((s, x) => s + x.quantidade, 0);
+    const qSol = Number(i.quantidade_solicitada);
+    const qSep = Number(l?.qtdSeparar ?? 0);
+    const primeiro = lotesDisp[0];
+    const loteHtml = primeiro
+      ? `<div style="font-family:monospace">${escapeHtml(primeiro.lote || "—")}</div>
+         <div style="color:#555;font-size:9pt">val: ${primeiro.data_validade ? new Date(primeiro.data_validade).toLocaleDateString("pt-BR") : "—"}</div>
+         ${(l?.alocacoes.length ?? 0) > 1 ? `<div style="color:#a15c00;font-size:8pt">+ ${(l!.alocacoes.length - 1)} lote(s) em cascata</div>` : ""}`
+      : `<span style="color:#c00">Sem estoque</span>`;
+    const motivoHtml = qSep < qSol
+      ? escapeHtml(l?.motivo || "—")
+      : (qSep > 0 ? `<span style="background:#dcfce7;color:#166534;padding:2px 6px;border-radius:4px;font-size:9pt">Total</span>` : "");
+    rows.push(`
+      <tr>
+        <td class="check">☐</td>
+        <td><div style="font-family:monospace;font-size:10pt">${escapeHtml(i.id_produto)}</div>
+            <div style="color:#555;font-size:10pt">${escapeHtml(i.descricao)}</div></td>
+        <td class="num">${formatNum(qSol)} ${escapeHtml(i.unidade || "")}</td>
+        <td>${loteHtml}</td>
+        <td class="num">${formatNum(totalDisp)}</td>
+        <td class="num" style="font-weight:600">${formatNum(qSep)}</td>
+        <td>${motivoHtml}</td>
+      </tr>
+    `);
+  }
+  const totalSolic = itens.reduce((s, i) => s + Number(i.quantidade_solicitada), 0);
+  const totalSep = itens.reduce((s, i) => s + Number(linhas[i.id]?.qtdSeparar ?? 0), 0);
+
+  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Ficha ${escapeHtml(requisicao.numero)}</title>
+    <style>
+      @page { size: A4; margin: 12mm; }
+      body { font-family: system-ui, sans-serif; color: #000; margin: 0; padding: 16px; }
+      h1 { font-size: 16pt; margin: 0; }
+      .head { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; display:flex; justify-content:space-between; align-items:baseline; }
+      .meta { font-size: 10pt; color: #444; margin-bottom: 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 10.5pt; }
+      th, td { border: 1px solid #333; padding: 4px 6px; text-align: left; vertical-align: top; }
+      th { background: #eee; font-weight: 600; }
+      .num { text-align: right; font-variant-numeric: tabular-nums; }
+      .check { width: 24px; text-align: center; }
+      .totais { margin-top: 8px; display:flex; justify-content:space-between; font-size: 10pt; }
+      .sig { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; font-size: 10pt; }
+      .sig div { border-top: 1px solid #000; padding-top: 4px; text-align: center; }
+      @media print { .no-print { display: none !important; } }
+    </style></head><body>
+    <div class="head">
+      <h1>Ficha de Separação</h1>
+      <div style="font-size:12pt;font-weight:600">${escapeHtml(requisicao.numero)}</div>
+    </div>
+    <div class="meta">
+      Origem: <b>${escapeHtml(requisicao.origem_fornecedora)}</b> → Destino: <b>${escapeHtml(requisicao.origem_solicitante)}</b>
+      &nbsp;·&nbsp; Emitida em ${new Date().toLocaleString("pt-BR")}
+    </div>
+    <table>
+      <thead><tr>
+        <th class="check">☐</th>
+        <th style="width:26%">SKU / Produto</th>
+        <th class="num" style="width:10%">Solic.</th>
+        <th style="width:20%">Lote (FEFO)</th>
+        <th class="num" style="width:8%">Disp.</th>
+        <th class="num" style="width:10%">Qtd Separada</th>
+        <th>Motivo (se &lt; solic.)</th>
+      </tr></thead>
+      <tbody>${rows.join("") || `<tr><td colspan="7" style="text-align:center;padding:16px">Nenhum item.</td></tr>`}</tbody>
+    </table>
+    <div class="totais">
+      <span>Total solicitado: <b>${formatNum(totalSolic)}</b></span>
+      <span>Total a separar: <b>${formatNum(totalSep)}</b></span>
+    </div>
+    <div class="sig">
+      <div>Nome / Assinatura de quem separou</div>
+      <div>Data / Hora</div>
+    </div>
+    <script>window.addEventListener("load", () => setTimeout(() => window.print(), 300));</script>
+    </body></html>`;
+  const w = window.open("", "_blank", "width=900,height=1000");
+  if (!w) { toast.error("Bloqueio de pop-up impediu abrir a ficha."); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
 export function SepararRequisicaoDialog({
   requisicao, open, onClose,
 }: { requisicao: Req | null; open: boolean; onClose: () => void }) {
