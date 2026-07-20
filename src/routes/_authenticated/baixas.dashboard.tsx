@@ -226,7 +226,7 @@ function BaixasDashboard() {
       const cls = motTop ? motivoClassif.get(motTop) : undefined;
       const investigar = r.total > limSKU || cls === "Operacional";
       return { ...r, classif: investigar ? "Investigar" : "Controlado" as const };
-    }).sort((a, b) => b.total - a.total).slice(0, 15);
+    }).sort((a, b) => b.total - a.total).slice(0, 10);
 
     // Funil por setor
     const funil = [...porSetor.entries()]
@@ -387,7 +387,7 @@ function BaixasDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Ranking SKU */}
-        <BiPanel title="Ranking de SKU — Top Baixas" className="lg:col-span-1">
+        <BiPanel title="Ranking de SKU — Top 10 Baixas" className="lg:col-span-1">
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="text-slate-400 border-b border-slate-700">
