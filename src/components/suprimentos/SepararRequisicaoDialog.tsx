@@ -305,8 +305,8 @@ export function SepararRequisicaoDialog({
         <DialogFooter className="flex-wrap gap-2">
           <Button
             variant="outline"
-            onClick={() => { if (requisicao) { window.open(`/suprimentos/requisicoes/${requisicao.id}/ficha`, "_blank"); } }}
-            disabled={!requisicao}
+            onClick={() => imprimirFichaSeparacao(requisicao, itensQ.data ?? [], linhas, lotesQ.data ?? {})}
+            disabled={!requisicao || loading}
           >
             <Printer className="size-4 mr-1" /> Imprimir ficha
           </Button>
