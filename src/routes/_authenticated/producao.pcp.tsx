@@ -271,7 +271,9 @@ function RupturaPage() {
   function nomeProduto(id: string, descricaoFallback?: string | null) {
     const sku = codigoNormalizado(id);
     const produto = (produtosQ.data ?? []).find((p) => p.id === sku);
-    return produto?.nome ?? descricaoValida(descricaoFallback, gruposQ.data ?? []) ?? SEM_DESCRICAO;
+    const nomeLista = descricaoValida(produto?.nome, gruposQ.data ?? []);
+    if (nomeLista && nomeLista !== SEM_DESCRICAO) return nomeLista;
+    return descricaoValida(descricaoFallback, gruposQ.data ?? []) ?? SEM_DESCRICAO;
   }
 
   async function buscarProdutoPontual(sku: string) {
@@ -384,7 +386,17 @@ function RupturaPage() {
     if (!list.length) return;
     if (linhas.some((l) => l.id_produto === sku)) return;
     const p = list.find((x) => x.id === sku);
-    if (p && p.temBom) addLinha(p);
+    if (p && p.temBom) {
+      const nome = nomeProduto(sku, p.nome);
+      if (nome !== SEM_DESCRICAO) {
+        addLinha({ ...p, nome });
+      } else {
+        (async () => {
+          const linha = await buscarProdutoPontual(sku);
+          setLinhas((prev) => prev.some((l) => l.id_produto === linha.id_produto) ? prev : [...prev, linha]);
+        })();
+      }
+    }
     // se o produto não está no grupo atual, tenta em qualquer grupo:
     // buscamos o flag "local" pontualmente
     else if (!p) {
