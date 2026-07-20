@@ -13,20 +13,18 @@ import { BarChart3, TrendingUp, AlertTriangle, PackageMinus } from "lucide-react
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, Cell,
 } from "recharts";
+import type { ReactNode } from "react";
 
 export const Route = createFileRoute("/_authenticated/baixas/dashboard")({
   component: BaixasDashboard,
   head: () => ({ meta: [{ title: "Dashboard Baixas Operacionais" }] }),
 });
 
-// Paleta consistente por motivo (usada em todos os gráficos)
+// Paleta BI consistente por motivo — cores vivas legíveis em fundo escuro
 const PALETTE = [
-  "hsl(var(--primary))",
-  "hsl(var(--destructive))",
-  "hsl(var(--warning))",
-  "hsl(var(--info))",
-  "hsl(var(--success))",
-  "#8B5CF6", "#EC4899", "#14B8A6", "#F59E0B", "#6366F1", "#22C55E", "#EF4444",
+  "#4FC3F7", "#F48FB1", "#81C784", "#FFB74D", "#BA68C8",
+  "#E57373", "#4DD0E1", "#FFD54F", "#9575CD", "#4DB6AC",
+  "#F06292", "#AED581", "#7986CB", "#DCE775", "#FF8A65",
 ];
 
 type Classif = "Controlado" | "Operacional" | "Investimento";
@@ -43,8 +41,44 @@ function isoDaysAgo(n: number) {
 function monthKey(iso: string) { return iso.slice(0, 7); }
 function fmtMonth(k: string) {
   const [y, m] = k.split("-");
-  const nomes = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-  return `${nomes[Number(m) - 1]}/${y.slice(2)}`;
+  const nomes = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  return nomes[Number(m) - 1] ?? k;
+}
+function fmtMil(v: number) {
+  if (Math.abs(v) >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1)} Mi`;
+  if (Math.abs(v) >= 1_000) return `R$ ${(v / 1_000).toFixed(1)} Mil`;
+  return `R$ ${v.toFixed(0)}`;
+}
+
+// Painel padrão BI: fundo escuro, título centralizado no topo
+function BiPanel({ title, legend, children, className = "" }: { title: string; legend?: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-xl border border-border/40 bg-[hsl(220_18%_12%)] text-slate-100 shadow-lg overflow-hidden ${className}`}>
+      <div className="px-4 pt-3 pb-2 text-center">
+        <div className="text-sm font-semibold tracking-wide">{title}</div>
+      </div>
+      {legend && (
+        <div className="px-4 pb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-300">
+          {legend}
+        </div>
+      )}
+      <div className="p-3">{children}</div>
+    </div>
+  );
+}
+
+function MotivoLegend({ items }: { items: { id: string; nome: string; cor: string }[] }) {
+  return (
+    <>
+      <span className="font-semibold text-slate-400 mr-1">Motivo</span>
+      {items.map((m) => (
+        <span key={m.id} className="inline-flex items-center gap-1">
+          <span className="inline-block size-2 rounded-full" style={{ background: m.cor }} />
+          <span className="truncate max-w-[110px]">{m.nome}</span>
+        </span>
+      ))}
+    </>
+  );
 }
 
 function BaixasDashboard() {
@@ -308,273 +342,265 @@ function BaixasDashboard() {
         </div>
       </div>
 
-      {/* Resumo executivo */}
-      <Card>
-        <CardContent className="p-5">
-          {loading ? (
-            <div className="text-sm text-muted-foreground">Carregando…</div>
-          ) : (
-            <p className="text-base leading-relaxed">
-              Prejuízo total de <strong className="text-destructive">{formatBRL(view.totalPrejuizo)}</strong> no período.{" "}
-              <strong>{view.motivoDestaquePct.toFixed(1)}%</strong> concentrado em <strong>{view.motivoDestaqueNome}</strong>.{" "}
-              Maior impacto no setor: <strong>{view.setorTop}</strong> e grupo: <strong>{view.grupoTop}</strong>.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {/* Resumo executivo — barra escura full width */}
+      <div className="rounded-xl border border-border/40 bg-[hsl(220_18%_10%)] text-slate-100 px-5 py-4">
+        <div className="text-xs uppercase tracking-wider text-slate-400 mb-1">Resumo Executivo</div>
+        {loading ? (
+          <div className="text-sm text-slate-400">Carregando…</div>
+        ) : (
+          <p className="text-lg font-semibold leading-snug">
+            Prejuízo total de <span className="text-white">{formatBRL(view.totalPrejuizo)}</span> no período.{" "}
+            <span className="text-white">{view.motivoDestaquePct.toFixed(1)}%</span> concentrado em{" "}
+            <span className="text-white">{view.motivoDestaqueNome}</span>. Maior impacto no setor:{" "}
+            <span className="text-white">{view.setorTop}</span> e grupo:{" "}
+            <span className="text-white">{view.grupoTop}</span>.
+          </p>
+        )}
+      </div>
 
-      {/* KPI cards por motivo */}
-      <Card>
-        <CardHeader><CardTitle className="text-base">Acompanhamento por Motivo</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {view.kpiMotivos.map((m) => (
-              <div key={m.id} className="rounded-md border overflow-hidden">
-                <div className="h-1.5" style={{ background: m.cor }} />
-                <div className="p-3">
-                  <div className="text-xs text-muted-foreground truncate" title={m.nome}>{m.nome}</div>
-                  <div className="text-lg font-bold tabular-nums">{formatBRL(m.valor)}</div>
-                  {m.classificacao && (
-                    <Badge className={`mt-1 text-[10px] ${CLASSIF_TONE[m.classificacao]}`} variant="outline">{m.classificacao}</Badge>
-                  )}
+      {/* Painel de Acompanhamento — tiles coloridos proporcionais ao valor */}
+      <BiPanel title="Painel de Acompanhamento" legend={<MotivoLegend items={view.motivosKeys} />}>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12 gap-2 items-end min-h-[180px]">
+          {view.kpiMotivos.map((m) => {
+            const max = view.kpiMotivos[0]?.valor || 1;
+            const h = Math.max(28, Math.round((m.valor / max) * 140));
+            return (
+              <div key={m.id} className="flex flex-col items-center gap-1">
+                <div
+                  className="w-full rounded-sm flex items-start justify-center pt-1 text-[11px] font-semibold text-slate-900 tabular-nums"
+                  style={{ background: m.cor, height: h }}
+                  title={`${m.nome}: ${formatBRL(m.valor)}`}
+                >
+                  {m.valor > 0 ? fmtMil(m.valor).replace("R$ ", "") : ""}
+                </div>
+                <div className="text-[10px] text-slate-300 text-center leading-tight line-clamp-2 min-h-[24px]" title={m.nome}>
+                  {m.nome}
                 </div>
               </div>
-            ))}
-            {view.kpiMotivos.length === 0 && (
-              <div className="col-span-full text-sm text-muted-foreground py-6 text-center">Sem baixas no período.</div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            );
+          })}
+          {view.kpiMotivos.length === 0 && (
+            <div className="col-span-full text-sm text-slate-400 py-6 text-center">Sem baixas no período.</div>
+          )}
+        </div>
+      </BiPanel>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Ranking SKU */}
-        <Card>
-          <CardHeader><CardTitle className="text-base flex items-center gap-2"><PackageMinus className="size-4" /> Ranking de SKU — Top Baixas</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">#</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-center">Classificação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+        <BiPanel title="Ranking de SKU — Top Baixas" className="lg:col-span-1">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="text-slate-400 border-b border-slate-700">
+                <tr>
+                  <th className="text-left py-1.5 pr-2">Ranking</th>
+                  <th className="text-left py-1.5">Descrição</th>
+                  <th className="text-right py-1.5 px-2">Total Baixas</th>
+                  <th className="text-center py-1.5">Classif.</th>
+                </tr>
+              </thead>
+              <tbody>
                 {view.rankingSKU.map((r, i) => (
-                  <TableRow key={r.codigo}>
-                    <TableCell className="text-xs">{i + 1}</TableCell>
-                    <TableCell className="text-xs">
-                      <div className="font-medium">{r.descricao}</div>
-                      <div className="text-muted-foreground">{r.codigo}</div>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-xs">{formatBRL(r.total)}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="outline" className={r.classif === "Investigar" ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}>
-                        {r.classif}
+                  <tr key={r.codigo} className="border-b border-slate-800/60">
+                    <td className="py-1.5 pr-2 tabular-nums">{i + 1}</td>
+                    <td className="py-1.5">
+                      <div className="font-medium text-slate-100">{r.codigo} - {r.descricao}</div>
+                    </td>
+                    <td className="text-right tabular-nums py-1.5 px-2">{formatBRL(r.total)}</td>
+                    <td className="text-center py-1.5">
+                      <Badge variant="outline" className={r.classif === "Investigar" ? "bg-destructive/20 text-destructive border-destructive/40" : "bg-success/20 text-success border-success/40"}>
+                        {r.classif === "Investigar" ? "Investimento" : "Controlado"}
                       </Badge>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ))}
-                {view.rankingSKU.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">—</TableCell></TableRow>}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                {view.rankingSKU.length === 0 && <tr><td colSpan={4} className="text-center text-slate-500 py-6">—</td></tr>}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-slate-600">
+                  <td className="py-1.5 font-semibold" colSpan={2}>Total</td>
+                  <td className="text-right tabular-nums font-semibold py-1.5 px-2">
+                    {formatBRL(view.rankingSKU.reduce((s, r) => s + r.total, 0))}
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </BiPanel>
 
         {/* Funil por Setor */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">Apuração por Linha Operacional</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {view.funil.map((f, i) => {
-                const max = view.funil[0]?.valor || 1;
-                const pct = (f.valor / max) * 100;
-                return (
-                  <div key={f.nome} className="flex items-center gap-3">
-                    <div className="w-32 text-xs truncate" title={f.nome}>{f.nome}</div>
-                    <div className="flex-1 h-6 rounded bg-muted overflow-hidden relative">
-                      <div className="h-full" style={{ width: `${pct}%`, background: PALETTE[i % PALETTE.length] }} />
-                      <div className="absolute inset-0 flex items-center px-2 text-xs font-medium tabular-nums">
-                        {formatBRL(f.valor)}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              {view.funil.length === 0 && <div className="text-sm text-muted-foreground py-6 text-center">—</div>}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        <BiPanel title="Apuração por Linha Operacional" className="lg:col-span-1">
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={view.funil} margin={{ top: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
+              <XAxis dataKey="nome" tick={{ fontSize: 10, fill: "#cbd5e1" }} />
+              <YAxis tickFormatter={(v) => fmtMil(Number(v))} tick={{ fontSize: 10, fill: "#cbd5e1" }} />
+              <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} formatter={(v: number) => formatBRL(v)} />
+              <Bar dataKey="valor" fill="#4FC3F7" radius={[4, 4, 0, 0]}>
+                <LabelList dataKey="valor" position="top" formatter={(v: number) => v.toFixed(0)} style={{ fontSize: 10, fill: "#e2e8f0" }} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </BiPanel>
 
-      {/* Barras horizontais empilhadas por Grupo */}
-      <Card>
-        <CardHeader><CardTitle className="text-base">Apuração por Grupo de Produto</CardTitle></CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={Math.max(240, view.grupoStack.length * 42)}>
-            <BarChart data={view.grupoStack} layout="vertical" margin={{ left: 40, right: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
-              <XAxis type="number" tickFormatter={(v) => formatBRL(Number(v))} />
-              <YAxis type="category" dataKey="grupo" width={140} />
-              <Tooltip formatter={(v: number) => formatBRL(v)} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
+        {/* Barras horizontais empilhadas por Grupo */}
+        <BiPanel title="Apuração por Grupo de Produto" legend={<MotivoLegend items={view.motivosKeys.slice(0, 6)} />} className="lg:col-span-1">
+          <ResponsiveContainer width="100%" height={Math.max(240, view.grupoStack.length * 40)}>
+            <BarChart data={view.grupoStack} layout="vertical" margin={{ left: 20, right: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
+              <XAxis type="number" tickFormatter={(v) => fmtMil(Number(v))} tick={{ fontSize: 10, fill: "#cbd5e1" }} />
+              <YAxis type="category" dataKey="grupo" width={110} tick={{ fontSize: 10, fill: "#cbd5e1" }} />
+              <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} formatter={(v: number) => formatBRL(v)} />
               {view.motivosKeys.map((m) => (
                 <Bar key={m.id} dataKey={m.nome} stackId="a" fill={m.cor} />
               ))}
             </BarChart>
           </ResponsiveContainer>
-        </CardContent>
-      </Card>
+        </BiPanel>
+      </div>
 
       {/* Colunas empilhadas por Centro de Custo */}
-      <Card>
-        <CardHeader><CardTitle className="text-base">Baixas por Centro de Custo</CardTitle></CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={340}>
-            <BarChart data={view.setorStack} margin={{ left: 20, right: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
-              <XAxis dataKey="setor" tick={{ fontSize: 11 }} />
-              <YAxis tickFormatter={(v) => formatBRL(Number(v))} tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => formatBRL(v)} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              {view.motivosKeys.map((m) => (
-                <Bar key={m.id} dataKey={m.nome} stackId="a" fill={m.cor} />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <BiPanel title="Baixas por Centro de Custo" legend={<MotivoLegend items={view.motivosKeys} />}>
+        <ResponsiveContainer width="100%" height={360}>
+          <BarChart data={view.setorStack} margin={{ left: 20, right: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
+            <XAxis dataKey="setor" tick={{ fontSize: 11, fill: "#cbd5e1" }} />
+            <YAxis tickFormatter={(v) => fmtMil(Number(v))} tick={{ fontSize: 10, fill: "#cbd5e1" }} />
+            <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} formatter={(v: number) => formatBRL(v)} />
+            {view.motivosKeys.map((m) => (
+              <Bar key={m.id} dataKey={m.nome} stackId="a" fill={m.cor} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </BiPanel>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Ranking por Setor */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">Ranking por Setor</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">#</TableHead>
-                  <TableHead>Setor</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-center">Alerta</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {view.rankingSetor.map((r) => (
-                  <TableRow key={r.setor}>
-                    <TableCell className="text-xs">{r.rank}</TableCell>
-                    <TableCell className="text-xs">{r.setor}</TableCell>
-                    <TableCell className="text-right tabular-nums text-xs">{formatBRL(r.total)}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="outline" className={r.alerta ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}>
-                        {r.alerta ? <><AlertTriangle className="size-3 mr-1" />Alerta</> : "Controle OK"}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-              <TableFooter>
-                <TableRow>
-                  <TableCell colSpan={2} className="text-xs font-semibold">Total</TableCell>
-                  <TableCell className="text-right text-xs font-semibold tabular-nums">
-                    {formatBRL(view.rankingSetor.reduce((s, r) => s + r.total, 0))}
-                  </TableCell>
-                  <TableCell />
-                </TableRow>
-              </TableFooter>
-            </Table>
-          </CardContent>
-        </Card>
+        <BiPanel title="Ranking por Setor">
+          <table className="w-full text-xs">
+            <thead className="text-slate-400 border-b border-slate-700">
+              <tr>
+                <th className="text-left py-1.5">Rank<br />Setor</th>
+                <th className="text-left py-1.5">Setor</th>
+                <th className="text-right py-1.5">Total Baixas</th>
+                <th className="text-center py-1.5">Alerta Prejuízo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {view.rankingSetor.map((r) => (
+                <tr key={r.setor} className="border-b border-slate-800/60">
+                  <td className="py-1.5 tabular-nums">{r.rank}</td>
+                  <td className="py-1.5">{r.setor}</td>
+                  <td className="text-right tabular-nums py-1.5">{formatBRL(r.total)}</td>
+                  <td className="text-center py-1.5">
+                    <Badge variant="outline" className={r.alerta ? "bg-destructive/20 text-destructive border-destructive/40" : "bg-success/20 text-success border-success/40"}>
+                      {r.alerta ? <><AlertTriangle className="size-3 mr-1" />Alerta</> : "Controle OK"}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-slate-600">
+                <td colSpan={2} className="text-xs font-semibold py-1.5">{view.rankingSetor.length}</td>
+                <td className="text-right text-xs font-semibold tabular-nums py-1.5">
+                  {formatBRL(view.rankingSetor.reduce((s, r) => s + r.total, 0))}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </BiPanel>
 
         {/* Tabela por Motivo */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">Baixas por Motivo</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Motivo</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right w-16">%</TableHead>
-                  <TableHead className="text-center">Classificação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {view.tabelaMotivo.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="text-xs">{r.motivo}</TableCell>
-                    <TableCell className="text-right tabular-nums text-xs">{formatBRL(r.total)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-xs">{r.pct.toFixed(1)}%</TableCell>
-                    <TableCell className="text-center">
-                      {r.classificacao ? (
-                        <Badge variant="outline" className={CLASSIF_TONE[r.classificacao]}>{r.classificacao}</Badge>
-                      ) : <span className="text-muted-foreground text-xs">—</span>}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-              <TableFooter>
-                <TableRow>
-                  <TableCell className="text-xs font-semibold">Total</TableCell>
-                  <TableCell className="text-right text-xs font-semibold tabular-nums">
-                    {formatBRL(view.tabelaMotivo.reduce((s, r) => s + r.total, 0))}
-                  </TableCell>
-                  <TableCell className="text-right text-xs font-semibold">100%</TableCell>
-                  <TableCell />
-                </TableRow>
-              </TableFooter>
-            </Table>
-          </CardContent>
-        </Card>
+        <BiPanel title="Baixas por Motivo">
+          <table className="w-full text-xs">
+            <thead className="text-slate-400 border-b border-slate-700">
+              <tr>
+                <th className="text-left py-1.5">Motivo</th>
+                <th className="text-right py-1.5">Total por Motivo</th>
+                <th className="text-right py-1.5 w-14">%</th>
+                <th className="text-center py-1.5">Classif. Prejuízo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {view.tabelaMotivo.map((r) => (
+                <tr key={r.id} className="border-b border-slate-800/60">
+                  <td className="py-1.5">{r.motivo}</td>
+                  <td className="text-right tabular-nums py-1.5">{formatBRL(r.total)}</td>
+                  <td className="text-right tabular-nums py-1.5">{r.pct.toFixed(2)}%</td>
+                  <td className="text-center py-1.5">
+                    {r.classificacao ? (
+                      <Badge variant="outline" className={CLASSIF_TONE[r.classificacao]}>{r.classificacao}</Badge>
+                    ) : <span className="text-slate-500">—</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-slate-600">
+                <td className="text-xs font-semibold py-1.5">Total</td>
+                <td className="text-right text-xs font-semibold tabular-nums py-1.5">
+                  {formatBRL(view.tabelaMotivo.reduce((s, r) => s + r.total, 0))}
+                </td>
+                <td className="text-right text-xs font-semibold py-1.5">100,00%</td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </BiPanel>
+
+        {/* Ranking por Solicitante */}
+        <BiPanel title="Ranking por Solicitante">
+          <table className="w-full text-xs">
+            <thead className="text-slate-400 border-b border-slate-700">
+              <tr>
+                <th className="text-left py-1.5">Rank<br />Solicitante</th>
+                <th className="text-left py-1.5">Solicitante</th>
+                <th className="text-right py-1.5">Total por Solicitante</th>
+              </tr>
+            </thead>
+            <tbody>
+              {view.rankingSolic.map((r, i) => (
+                <tr key={r.nome + i} className="border-b border-slate-800/60">
+                  <td className="py-1.5 tabular-nums">{i + 1}</td>
+                  <td className="py-1.5">{r.nome}</td>
+                  <td className="text-right tabular-nums py-1.5">{formatBRL(r.total)}</td>
+                </tr>
+              ))}
+              {view.rankingSolic.length === 0 && <tr><td colSpan={3} className="text-center text-slate-500 py-6">—</td></tr>}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-slate-600">
+                <td colSpan={2} className="py-1.5 font-semibold">{view.rankingSolic.length}</td>
+                <td className="text-right tabular-nums font-semibold py-1.5">
+                  {formatBRL(view.rankingSolic.reduce((s, r) => s + r.total, 0))}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </BiPanel>
       </div>
 
-      {/* Ranking por Solicitante + MoM */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader><CardTitle className="text-base">Ranking por Solicitante</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">#</TableHead>
-                  <TableHead>Solicitante</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {view.rankingSolic.map((r, i) => (
-                  <TableRow key={r.nome + i}>
-                    <TableCell className="text-xs">{i + 1}</TableCell>
-                    <TableCell className="text-xs">{r.nome}</TableCell>
-                    <TableCell className="text-right tabular-nums text-xs">{formatBRL(r.total)}</TableCell>
-                  </TableRow>
-                ))}
-                {view.rankingSolic.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">—</TableCell></TableRow>}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+      {/* MoM — colunas azuis com rótulo em R$ Mil */}
+      <BiPanel title="MOM">
+        <ResponsiveContainer width="100%" height={340}>
+          <BarChart data={mom} margin={{ top: 26, left: 30, right: 20, bottom: 10 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
+            <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Mês", position: "insideBottom", offset: -4, fill: "#94a3b8", fontSize: 11 }} />
+            <YAxis tickFormatter={(v) => fmtMil(Number(v))} tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Total Baixas Período", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }} />
+            <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} formatter={(v: number) => formatBRL(v)} />
+            <Bar dataKey="total" fill="#4FC3F7" radius={[3, 3, 0, 0]}>
+              <LabelList dataKey="total" position="top" formatter={(v: number) => fmtMil(v)} style={{ fontSize: 10, fill: "#e2e8f0" }} />
+              {mom.map((_, i) => <Cell key={i} fill="#4FC3F7" />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </BiPanel>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="size-4" /> Tendência Mês a Mês (12m)</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={mom} margin={{ top: 20, left: 20, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
-                <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={(v) => formatBRL(Number(v))} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => formatBRL(v)} />
-                <Bar dataKey="total" fill="hsl(var(--primary))">
-                  <LabelList dataKey="total" position="top" formatter={(v: number) => formatBRL(v)} style={{ fontSize: 10 }} />
-                  {mom.map((_, i) => <Cell key={i} fill="hsl(var(--primary))" />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Ícone TrendingUp e Legend usados como marcadores visuais (não remover) */}
+      <div className="hidden"><TrendingUp /><Legend /></div>
     </div>
   );
 }
+
