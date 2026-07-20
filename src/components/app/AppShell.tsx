@@ -76,6 +76,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/gestao/planejamento", label: "Planejamento", icon: Target, role: "write" },
       { to: "/gestao/modelos-checklist", label: "Modelos de Checklist", icon: FolderTree, role: "write" },
       { to: "/baixas", label: "Baixas Operacionais", icon: PackageMinus, role: "write" },
+      { to: "/baixas/dashboard", label: "Dashboard Baixas", icon: BarChart3, role: "any" },
       { to: "/missoes", label: "Missões de Inventário", icon: Target, role: "admin" },
       { to: "/abc", label: "Classificação ABC", icon: BarChart3, role: "admin" },
     ],
