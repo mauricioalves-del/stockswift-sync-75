@@ -584,7 +584,8 @@ function RupturaPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Matéria-Prima</TableHead>
+                <TableHead>Insumo</TableHead>
+                <TableHead>Tipo</TableHead>
                 <TableHead>Origem</TableHead>
                 <TableHead className="text-right">Necessidade</TableHead>
                 <TableHead className="text-right">Saldo</TableHead>
@@ -596,6 +597,7 @@ function RupturaPage() {
             <TableBody>
               {resultado.rows.map((r) => {
                 const key = `${r.id_item}|${r.origem_estoque}`;
+                const ehSub = r.tipo === "Subconjunto";
                 return (
                 <TableRow
                   key={key}
@@ -608,10 +610,23 @@ function RupturaPage() {
                     </button>
                   </TableCell>
                   <TableCell>
+                    {ehSub ? (
+                      <Badge variant="outline" className="text-[10px] border-blue-500/40 text-blue-700 dark:text-blue-400">Subconjunto</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px]">Matéria-Prima</Badge>
+                    )}
+                    {ehSub && r.suficiente_por_saldo && (
+                      <div className="text-[10px] text-muted-foreground mt-0.5">Saldo cobre — não desdobrado</div>
+                    )}
+                    {ehSub && r.descendeu && (
+                      <div className="text-[10px] text-muted-foreground mt-0.5">Desdobrado pela falta</div>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     {r.origem_estoque === "Loja" ? (
                       <Badge variant="outline" className="text-[10px]"><Store className="h-3 w-3 mr-1" />{almoxLoja}</Badge>
                     ) : (
-                      <Badge variant="outline" className="text-[10px]"><Factory className="h-3 w-3 mr-1" />{ALMOX_FABRICA}</Badge>
+                      <Badge variant="outline" className="text-[10px]"><Factory className="h-3 w-3 mr-1" />Produção</Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{fmt(r.necessidade)}</TableCell>
@@ -636,7 +651,7 @@ function RupturaPage() {
               })}
               {!resultado.rows.length && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
+                  <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
                     {linhas.length === 0 ? "Adicione produtos para simular." : "Nenhum insumo calculado. Verifique a Ficha Técnica dos produtos."}
                   </TableCell>
                 </TableRow>
