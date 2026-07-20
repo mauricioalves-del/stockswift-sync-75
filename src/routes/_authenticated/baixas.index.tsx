@@ -29,7 +29,7 @@ import { readEdgeFunctionFailure } from "@/lib/edge-function-errors";
 
 
 
-export const Route = createFileRoute("/_authenticated/baixas")({
+export const Route = createFileRoute("/_authenticated/baixas/")({
   component: BaixasPage,
   head: () => ({ meta: [{ title: "Baixas Operacionais" }] }),
 });
