@@ -16,7 +16,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, Plus, Sparkles, Trash2, Search, PackageSearch, FileWarning, Store, Factory } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { carregarBomCompleta, explodirBOM, type BomLinha, type NecessidadeItem } from "@/lib/pcp-bom";
+import { carregarBomCompleta, explodirSimulacao, type BomLinha, type ItemResultado } from "@/lib/pcp-bom";
 
 export const Route = createFileRoute("/_authenticated/producao/pcp")({
   component: RupturaPage,
