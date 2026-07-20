@@ -226,7 +226,7 @@ function BaixasDashboard() {
       const cls = motTop ? motivoClassif.get(motTop) : undefined;
       const investigar = r.total > limSKU || cls === "Operacional";
       return { ...r, classif: investigar ? "Investigar" : "Controlado" as const };
-    }).sort((a, b) => b.total - a.total).slice(0, 15);
+    }).sort((a, b) => b.total - a.total).slice(0, 10);
 
     // Funil por setor
     const funil = [...porSetor.entries()]
