@@ -603,12 +603,16 @@ function AddProdutoPicker({ produtos, onPick, disabled }: { produtos: Produto[];
                   className={!p.temBom ? "opacity-70" : ""}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="truncate text-sm font-medium">{p.nome}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-2">
-                      <span className="font-mono">{p.id}</span>
-                      <span>· {p.familia ?? "Sem família"}</span>
+                    <div className="truncate text-sm">
+                      <span className="font-mono text-muted-foreground">{p.id}</span>
+                      <span className="text-muted-foreground"> — </span>
+                      <span className="font-medium">{p.nome}</span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      {p.familia ?? "Sem família"}
                     </div>
                   </div>
+
                   {!p.temBom && (
                     <Badge variant="outline" className="ml-2 shrink-0 text-[10px] border-warning/40 text-warning">
                       <FileWarning className="h-3 w-3 mr-1" />Sem Ficha Técnica
