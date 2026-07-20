@@ -226,14 +226,18 @@ function RupturaPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Saldo do Almox_Fábrica agregado por id_produto
+  // Saldo somado nos almoxarifados de PRODUÇÃO (Fábrica + Processo + Qualidade).
+  // Usado tanto para netting de subconjuntos quanto para a checagem final de
+  // matéria-prima. Um único item pode ter estoque em mais de um almoxarifado
+  // de produção — a lógica soma todos os origens de produção.
   const saldoQ = useQuery({
-    queryKey: ["ruptura", "saldo-fabrica"],
+    queryKey: ["ruptura", "saldo-producao"],
     queryFn: async (): Promise<Record<string, number>> => {
+      const origensProducao = Array.from(ORIGENS_NAO_LOJA);
       const { data } = await (supabase as any)
         .from("estoque_sistemico")
         .select("id_produto,quantidade,origem")
-        .eq("origem", ALMOX_FABRICA);
+        .in("origem", origensProducao);
       const map: Record<string, number> = {};
       for (const r of (data ?? []) as { id_produto: string; quantidade: number }[]) {
         map[r.id_produto] = (map[r.id_produto] ?? 0) + Number(r.quantidade || 0);
