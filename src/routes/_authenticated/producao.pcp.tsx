@@ -337,40 +337,60 @@ function RupturaPage() {
   }
 
   // ============ CÁLCULO ============
+  // Motor novo (explodirSimulacao) faz netting por nível: antes de quebrar um
+  // subconjunto na sua composição, verifica se o saldo dele nos almoxes de
+  // produção cobre a necessidade. Se cobrir, PARA e não desdobra em MP.
   const resultado = useMemo(() => {
     const bom = bomQ.data ?? [];
-    const saldosFab = saldoQ.data ?? {};
+    const saldosProd = saldoQ.data ?? {};
     const saldosLoja = saldoLojaQ.data ?? {};
-    // Chave por (id_item + origem_estoque) para permitir mesmo insumo em dois almoxes
-    const agg = new Map<string, {
+
+    const itens = explodirSimulacao(
+      linhas.map((l) => ({ id_produto: l.id_produto, nome: l.nome, quantidade: l.quantidade, local: l.local })),
+      bom as BomLinha[],
+      saldosProd,
+    );
+
+    // Consolidar por (id_item + origem_estoque), preservando tipo (Subconjunto/MP).
+    // Um mesmo id_item não pode aparecer como Sub e MP porque `tem_filho` é fixo.
+    type Agg = {
       id_item: string; item: string | null; um: string | null;
       origem_estoque: "Fábrica" | "Loja";
+      tipo: "Subconjunto" | "Matéria-Prima";
       necessidade: number;
-      contribs: { id_produto: string; nome: string; qtd: number; caminho: { id: string; nome: string | null }[] }[];
-    }>();
-    for (const linha of linhas) {
-      if (!linha.quantidade || linha.quantidade <= 0) continue;
-      const nec = explodirBOM(linha.id_produto, linha.quantidade, bom as BomLinha[]);
-      for (const n of nec as NecessidadeItem[]) {
-        // Regra:
-        // - Produto normal: só folhas (matéria-prima), origem = Fábrica.
-        // - Produto Local: folhas → Loja; semiacabados → Fábrica.
-        let origem: "Fábrica" | "Loja";
-        if (linha.local) {
-          origem = n.eh_semiacabado ? "Fábrica" : "Loja";
-        } else {
-          if (n.eh_semiacabado) continue;
-          origem = "Fábrica";
-        }
-        const key = `${n.id_item}|${origem}`;
-        const contrib = { id_produto: linha.id_produto, nome: linha.nome, qtd: n.qtd_necessaria, caminho: n.caminho };
-        const cur = agg.get(key);
-        if (cur) { cur.necessidade += n.qtd_necessaria; cur.contribs.push(contrib); }
-        else agg.set(key, { id_item: n.id_item, item: n.item, um: n.um, origem_estoque: origem, necessidade: n.qtd_necessaria, contribs: [contrib] });
+      saldo_producao: number;
+      suficiente_por_saldo: boolean;
+      descendeu: boolean;
+      contribs: ItemResultado["contribs"];
+    };
+    const agg = new Map<string, Agg>();
+    for (const n of itens) {
+      const key = `${n.id_item}|${n.origem_estoque}`;
+      const cur = agg.get(key);
+      if (cur) {
+        cur.necessidade += n.necessidade;
+        cur.contribs.push(...n.contribs);
+        // Se qualquer contribuição desceu, marca como descendeu / não suficiente.
+        if (!n.suficiente_por_saldo) { cur.suficiente_por_saldo = false; cur.descendeu = true; }
+      } else {
+        agg.set(key, {
+          id_item: n.id_item, item: n.item, um: n.um,
+          origem_estoque: n.origem_estoque, tipo: n.tipo,
+          necessidade: n.necessidade,
+          saldo_producao: n.saldo_producao,
+          suficiente_por_saldo: n.suficiente_por_saldo,
+          descendeu: n.descendeu,
+          contribs: [...n.contribs],
+        });
       }
     }
+
     const rows = Array.from(agg.values()).map((r) => {
-      const saldo = r.origem_estoque === "Loja" ? (saldosLoja[r.id_item] ?? 0) : (saldosFab[r.id_item] ?? 0);
+      // Subconjunto → compara contra saldo de produção (já preenchido no motor).
+      // Matéria-Prima → compara contra Loja (produto local) ou Fábrica (saldo consolidado de produção).
+      const saldo = r.tipo === "Subconjunto"
+        ? r.saldo_producao
+        : (r.origem_estoque === "Loja" ? (saldosLoja[r.id_item] ?? 0) : (saldosProd[r.id_item] ?? 0));
       const diff = saldo - r.necessidade;
       return { ...r, saldo, diff, insuf: diff < 0 };
     });
