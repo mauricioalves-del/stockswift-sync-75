@@ -663,48 +663,112 @@ function RupturaPage() {
 
       <Dialog open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>Origem da necessidade — {drillItem?.item ?? drillItem?.id_item}</DialogTitle></DialogHeader>
-          {drillItem && (
-            <div className="space-y-2">
-              <div className="text-xs text-muted-foreground">
-                <span className="font-mono">{drillItem.id_item}</span> · Necessidade total: <b>{fmt(drillItem.necessidade)}</b> {drillItem.um ?? ""}
+          <DialogHeader><DialogTitle>Estrutura — {drillItem?.item ?? drillItem?.id_item}</DialogTitle></DialogHeader>
+          {drillItem && (() => {
+            const filhos = (bomQ.data ?? []).filter((b) => b.id_produto === drillItem.id_item);
+            const ehSub = drillItem.tipo === "Subconjunto";
+            const naoDesdobrado = ehSub && drillItem.suficiente_por_saldo;
+            return (
+              <div className="space-y-3">
+                <div className="text-xs text-muted-foreground">
+                  <span className="font-mono">{drillItem.id_item}</span> · Necessidade: <b>{fmt(drillItem.necessidade)}</b> {drillItem.um ?? ""}
+                  {ehSub && (<> · Saldo produção: <b>{fmt(drillItem.saldo_producao)}</b></>)}
+                </div>
+                {naoDesdobrado && (
+                  <div className="text-xs rounded-md border border-success/30 bg-success/10 text-success px-3 py-2">
+                    Saldo cobre a necessidade — a composição deste subconjunto não foi explodida na lista de ruptura.
+                  </div>
+                )}
+                {filhos.length === 0 ? (
+                  <div className="text-sm text-muted-foreground py-6 text-center border border-dashed rounded-md">
+                    Este item não possui composição cadastrada (folha na Ficha Técnica).
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-xs font-medium text-muted-foreground">
+                      Composição direta ({filhos.length} {filhos.length === 1 ? "item" : "itens"})
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Componente</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead className="text-right">Qtd unit.</TableHead>
+                          <TableHead className="text-right">Qtd total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filhos.slice().sort((a, b) => (b.qtd || 0) - (a.qtd || 0)).map((c, i) => {
+                          const total = (c.qtd || 0) * drillItem.necessidade;
+                          const ehFolha = !c.tem_filho;
+                          return (
+                            <TableRow key={`${c.id_item}-${i}`}>
+                              <TableCell>
+                                <div className="text-sm font-medium">{c.item ?? c.id_item}</div>
+                                <div className="text-[10px] text-muted-foreground font-mono">{c.id_item}</div>
+                              </TableCell>
+                              <TableCell>
+                                {ehFolha
+                                  ? <Badge variant="outline" className="text-[10px]">Matéria-Prima</Badge>
+                                  : <Badge variant="outline" className="text-[10px] border-blue-500/40 text-blue-700 dark:text-blue-400">Subconjunto</Badge>}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {fmt(c.qtd || 0)}{c.item_unidade ? <span className="text-xs text-muted-foreground"> {c.item_unidade}</span> : null}
+                              </TableCell>
+                              <TableCell className={`text-right tabular-nums ${naoDesdobrado ? "text-muted-foreground line-through" : "font-medium"}`}>
+                                {fmt(total)}{c.item_unidade ? <span className="text-xs text-muted-foreground"> {c.item_unidade}</span> : null}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </>
+                )}
+
+                {drillItem.contribs.length > 0 && (
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground py-1">
+                      Ver quem puxa este item
+                    </summary>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Produto que puxa</TableHead>
+                          <TableHead className="text-right">Puxa</TableHead>
+                          <TableHead className="text-right">%</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(() => {
+                          const agg = new Map<string, { nome: string; qtd: number }>();
+                          for (const c of drillItem.contribs) {
+                            const cur = agg.get(c.id_produto) ?? { nome: c.nome, qtd: 0 };
+                            cur.qtd += c.qtd;
+                            agg.set(c.id_produto, cur);
+                          }
+                          return Array.from(agg.entries())
+                            .sort((a, b) => b[1].qtd - a[1].qtd)
+                            .map(([id, v]) => (
+                              <TableRow key={id}>
+                                <TableCell>
+                                  <div className="text-xs font-medium">{v.nome}</div>
+                                  <div className="text-[10px] text-muted-foreground font-mono">{id}</div>
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">{fmt(v.qtd)}</TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {drillItem.necessidade > 0 ? ((v.qtd / drillItem.necessidade) * 100).toFixed(1) : "0"}%
+                                </TableCell>
+                              </TableRow>
+                            ));
+                        })()}
+                      </TableBody>
+                    </Table>
+                  </details>
+                )}
               </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Caminho na estrutura</TableHead>
-                    <TableHead className="text-right">Puxa</TableHead>
-                    <TableHead className="text-right">%</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {drillItem.contribs
-                    .slice()
-                    .sort((a, b) => b.qtd - a.qtd)
-                    .map((c, i) => (
-                    <TableRow key={i}>
-                      <TableCell>
-                        <div className="text-xs text-muted-foreground break-words">
-                          {c.caminho.map((p, idx) => (
-                            <span key={idx}>
-                              {idx > 0 && <span className="mx-1 text-muted-foreground/60">→</span>}
-                              <span className={idx === 0 ? "font-medium text-foreground" : ""}>
-                                {p.nome ?? p.id}
-                              </span>
-                            </span>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{fmt(c.qtd)}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {drillItem.necessidade > 0 ? ((c.qtd / drillItem.necessidade) * 100).toFixed(1) : "0"}%
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
