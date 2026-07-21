@@ -357,6 +357,35 @@ function BaixasDashboard() {
           <Button variant="outline" size="sm" onClick={() => { setFrom(isoDaysAgo(30)); setTo(todayISO()); }}>30d</Button>
           <Button variant="outline" size="sm" onClick={() => { setFrom(isoDaysAgo(60)); setTo(todayISO()); }}>60d</Button>
           <Button variant="outline" size="sm" onClick={() => { setFrom(isoDaysAgo(90)); setTo(todayISO()); }}>90d</Button>
+          <div>
+            <Label className="text-xs">Almoxarifado</Label>
+            <select
+              value={almoxFilter}
+              onChange={(e) => setAlmoxFilter(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm w-48"
+            >
+              <option value="__all__">Todos</option>
+              {view.almoxList.map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label className="text-xs">Motivo</Label>
+            <select
+              value={motivoFilter}
+              onChange={(e) => setMotivoFilter(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm w-48"
+            >
+              <option value="__all__">Todos</option>
+              {view.motivoList.map((m) => (
+                <option key={m.id} value={m.id}>{m.nome}</option>
+              ))}
+            </select>
+          </div>
+          {(almoxFilter !== "__all__" || motivoFilter !== "__all__") && (
+            <Button variant="ghost" size="sm" onClick={() => { setAlmoxFilter("__all__"); setMotivoFilter("__all__"); }}>Limpar</Button>
+          )}
         </div>
       </div>
 
@@ -364,6 +393,7 @@ function BaixasDashboard() {
       <div className="rounded-xl border border-border/40 bg-[hsl(220_18%_10%)] text-slate-100 px-5 py-4">
         <div className="text-xs uppercase tracking-wider text-slate-400 mb-1">Resumo Executivo</div>
         {loading ? (
+
           <div className="text-sm text-slate-400">Carregando…</div>
         ) : (
           <p className="text-lg font-semibold leading-snug">
