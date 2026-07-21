@@ -90,10 +90,21 @@ export function ImportarBaixasDialog() {
   const okCount = useMemo(() => rows.filter((r) => r.status === "OK").length, [rows]);
   const errCount = rows.length - okCount;
 
-  function baixarModelo() {
-    const catalogo = catalogoQ.data ?? [];
+  async function baixarModelo() {
+    let catalogo = catalogoQ.data ?? [];
     if (catalogo.length === 0) {
-      toast.error("Catálogo de produtos ainda não carregou. Aguarde alguns segundos.");
+      try {
+        catalogo = await qc.fetchQuery({
+          queryKey: ["baixas-catalogo-produtos"],
+          staleTime: 5 * 60 * 1000,
+        }) as CatalogoProduto[];
+      } catch {
+        toast.error("Falha ao carregar catálogo de produtos");
+        return;
+      }
+    }
+    if (!catalogo || catalogo.length === 0) {
+      toast.error("Nenhum produto no catálogo");
       return;
     }
     const blob = gerarModeloBaixas(catalogo);
