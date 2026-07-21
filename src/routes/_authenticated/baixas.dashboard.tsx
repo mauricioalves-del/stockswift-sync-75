@@ -84,6 +84,9 @@ function MotivoLegend({ items }: { items: { id: string; nome: string; cor: strin
 function BaixasDashboard() {
   const [from, setFrom] = useState<string>(isoDaysAgo(60));
   const [to, setTo] = useState<string>(todayISO());
+  const [almoxFilter, setAlmoxFilter] = useState<string>("__all__");
+  const [motivoFilter, setMotivoFilter] = useState<string>("__all__");
+
 
   const baixasQ = useQuery({
     queryKey: ["dash-baixas", from, to],
