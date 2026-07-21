@@ -47,7 +47,7 @@ export function ImportarBaixasDialog() {
 
   const catalogoQ = useQuery({
     queryKey: ["baixas-catalogo-produtos"],
-    enabled: open,
+    staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<CatalogoProduto[]> => {
       const [estoque, grupos, familias] = await Promise.all([
         (supabase as any).from("estoque_sistemico").select("id_produto, descricao, unidade, custo_unitario"),
