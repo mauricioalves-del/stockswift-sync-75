@@ -47,7 +47,7 @@ export function ImportarBaixasDialog() {
 
   const catalogoQ = useQuery({
     queryKey: ["baixas-catalogo-produtos"],
-    enabled: open,
+    staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<CatalogoProduto[]> => {
       const [estoque, grupos, familias] = await Promise.all([
         (supabase as any).from("estoque_sistemico").select("id_produto, descricao, unidade, custo_unitario"),
@@ -90,10 +90,14 @@ export function ImportarBaixasDialog() {
   const okCount = useMemo(() => rows.filter((r) => r.status === "OK").length, [rows]);
   const errCount = rows.length - okCount;
 
-  function baixarModelo() {
-    const catalogo = catalogoQ.data ?? [];
+  async function baixarModelo() {
+    let catalogo = catalogoQ.data ?? [];
     if (catalogo.length === 0) {
-      toast.error("Catálogo de produtos ainda não carregou. Aguarde alguns segundos.");
+      const res = await catalogoQ.refetch();
+      catalogo = res.data ?? [];
+    }
+    if (!catalogo || catalogo.length === 0) {
+      toast.error("Nenhum produto no catálogo");
       return;
     }
     const blob = gerarModeloBaixas(catalogo);
