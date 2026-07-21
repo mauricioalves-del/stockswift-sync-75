@@ -84,6 +84,9 @@ function MotivoLegend({ items }: { items: { id: string; nome: string; cor: strin
 function BaixasDashboard() {
   const [from, setFrom] = useState<string>(isoDaysAgo(60));
   const [to, setTo] = useState<string>(todayISO());
+  const [almoxFilter, setAlmoxFilter] = useState<string>("__all__");
+  const [motivoFilter, setMotivoFilter] = useState<string>("__all__");
+
 
   const baixasQ = useQuery({
     queryKey: ["dash-baixas", from, to],
@@ -141,12 +144,21 @@ function BaixasDashboard() {
   });
 
   const view = useMemo(() => {
-    const baixas = baixasQ.data ?? [];
+    const baixasRaw = baixasQ.data ?? [];
     const motivos = motivosQ.data ?? [];
     const classifs = classifQ.data ?? [];
     const grupos = gruposQ.data ?? [];
     const profiles = profilesQ.data ?? [];
     const alertas = alertasQ.data ?? [];
+
+    const baixas = baixasRaw.filter((b) =>
+      (almoxFilter === "__all__" || (b.id_local ?? "—") === almoxFilter) &&
+      (motivoFilter === "__all__" || b.motivo_baixa_id === motivoFilter)
+    );
+
+    const almoxOptions = [...new Set(baixasRaw.map((b) => b.id_local ?? "—"))].sort();
+    const motivoOptions = [...new Set(baixasRaw.map((b) => b.motivo_baixa_id).filter(Boolean))] as string[];
+
 
     const motivoNome = new Map(motivos.map((m) => [m.id, m.descricao]));
     const motivoClassif = new Map(classifs.map((c) => [c.motivo_baixa_id, c.classificacao]));
@@ -298,12 +310,18 @@ function BaixasDashboard() {
       id, nome: motivoNome.get(id) ?? id, cor: corMotivo.get(id) || PALETTE[0],
     }));
 
+    const almoxList = almoxOptions;
+    const motivoList = motivoOptions.map((id) => ({ id, nome: motivoNome.get(id) ?? id }))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+
     return {
       totalPrejuizo, motivoDestaqueNome, motivoDestaquePct, setorTop, grupoTop,
       kpiMotivos, rankingSKU, funil, grupoStack, setorStack, rankingSetor,
       tabelaMotivo, rankingSolic, motivosKeys,
+      almoxList, motivoList,
     };
-  }, [baixasQ.data, motivosQ.data, classifQ.data, gruposQ.data, profilesQ.data, alertasQ.data]);
+  }, [baixasQ.data, motivosQ.data, classifQ.data, gruposQ.data, profilesQ.data, alertasQ.data, almoxFilter, motivoFilter]);
+
 
   const mom = useMemo(() => {
     const rows = momQ.data ?? [];
@@ -339,6 +357,35 @@ function BaixasDashboard() {
           <Button variant="outline" size="sm" onClick={() => { setFrom(isoDaysAgo(30)); setTo(todayISO()); }}>30d</Button>
           <Button variant="outline" size="sm" onClick={() => { setFrom(isoDaysAgo(60)); setTo(todayISO()); }}>60d</Button>
           <Button variant="outline" size="sm" onClick={() => { setFrom(isoDaysAgo(90)); setTo(todayISO()); }}>90d</Button>
+          <div>
+            <Label className="text-xs">Almoxarifado</Label>
+            <select
+              value={almoxFilter}
+              onChange={(e) => setAlmoxFilter(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm w-48"
+            >
+              <option value="__all__">Todos</option>
+              {view.almoxList.map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label className="text-xs">Motivo</Label>
+            <select
+              value={motivoFilter}
+              onChange={(e) => setMotivoFilter(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm w-48"
+            >
+              <option value="__all__">Todos</option>
+              {view.motivoList.map((m) => (
+                <option key={m.id} value={m.id}>{m.nome}</option>
+              ))}
+            </select>
+          </div>
+          {(almoxFilter !== "__all__" || motivoFilter !== "__all__") && (
+            <Button variant="ghost" size="sm" onClick={() => { setAlmoxFilter("__all__"); setMotivoFilter("__all__"); }}>Limpar</Button>
+          )}
         </div>
       </div>
 
@@ -346,6 +393,7 @@ function BaixasDashboard() {
       <div className="rounded-xl border border-border/40 bg-[hsl(220_18%_10%)] text-slate-100 px-5 py-4">
         <div className="text-xs uppercase tracking-wider text-slate-400 mb-1">Resumo Executivo</div>
         {loading ? (
+
           <div className="text-sm text-slate-400">Carregando…</div>
         ) : (
           <p className="text-lg font-semibold leading-snug">
