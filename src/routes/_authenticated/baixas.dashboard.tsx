@@ -310,12 +310,18 @@ function BaixasDashboard() {
       id, nome: motivoNome.get(id) ?? id, cor: corMotivo.get(id) || PALETTE[0],
     }));
 
+    const almoxList = almoxOptions;
+    const motivoList = motivoOptions.map((id) => ({ id, nome: motivoNome.get(id) ?? id }))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+
     return {
       totalPrejuizo, motivoDestaqueNome, motivoDestaquePct, setorTop, grupoTop,
       kpiMotivos, rankingSKU, funil, grupoStack, setorStack, rankingSetor,
       tabelaMotivo, rankingSolic, motivosKeys,
+      almoxList, motivoList,
     };
-  }, [baixasQ.data, motivosQ.data, classifQ.data, gruposQ.data, profilesQ.data, alertasQ.data]);
+  }, [baixasQ.data, motivosQ.data, classifQ.data, gruposQ.data, profilesQ.data, alertasQ.data, almoxFilter, motivoFilter]);
+
 
   const mom = useMemo(() => {
     const rows = momQ.data ?? [];
