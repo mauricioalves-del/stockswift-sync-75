@@ -144,12 +144,21 @@ function BaixasDashboard() {
   });
 
   const view = useMemo(() => {
-    const baixas = baixasQ.data ?? [];
+    const baixasRaw = baixasQ.data ?? [];
     const motivos = motivosQ.data ?? [];
     const classifs = classifQ.data ?? [];
     const grupos = gruposQ.data ?? [];
     const profiles = profilesQ.data ?? [];
     const alertas = alertasQ.data ?? [];
+
+    const baixas = baixasRaw.filter((b) =>
+      (almoxFilter === "__all__" || (b.id_local ?? "—") === almoxFilter) &&
+      (motivoFilter === "__all__" || b.motivo_baixa_id === motivoFilter)
+    );
+
+    const almoxOptions = [...new Set(baixasRaw.map((b) => b.id_local ?? "—"))].sort();
+    const motivoOptions = [...new Set(baixasRaw.map((b) => b.motivo_baixa_id).filter(Boolean))] as string[];
+
 
     const motivoNome = new Map(motivos.map((m) => [m.id, m.descricao]));
     const motivoClassif = new Map(classifs.map((c) => [c.motivo_baixa_id, c.classificacao]));
