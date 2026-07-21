@@ -100,6 +100,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const perms = usePermissions();
   const isCoord = role === "COORDENADOR_CONTROLE";
   const navigate = useNavigate();
+
+  const approvalQ = useQuery({
+    queryKey: ["me-approval"],
+    queryFn: async () => {
+      const uid = (await supabase.auth.getUser()).data.user?.id;
+      if (!uid) return { aprovado: true, email: "" };
+      const { data } = await (supabase as any).from("profiles").select("aprovado, email, nome").eq("id", uid).maybeSingle();
+      return { aprovado: data?.aprovado !== false, email: data?.email ?? "", nome: data?.nome ?? "" };
+    },
+    refetchInterval: 15000,
+  });
+
   const online = useOnlineStatus();
   const { theme, toggle } = useTheme();
   const [open, setOpen] = useState(false);
