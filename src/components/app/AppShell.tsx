@@ -100,6 +100,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const perms = usePermissions();
   const isCoord = role === "COORDENADOR_CONTROLE";
   const navigate = useNavigate();
+
+  const approvalQ = useQuery({
+    queryKey: ["me-approval"],
+    queryFn: async () => {
+      const uid = (await supabase.auth.getUser()).data.user?.id;
+      if (!uid) return { aprovado: true, email: "" };
+      const { data } = await (supabase as any).from("profiles").select("aprovado, email, nome").eq("id", uid).maybeSingle();
+      return { aprovado: data?.aprovado !== false, email: data?.email ?? "", nome: data?.nome ?? "" };
+    },
+    refetchInterval: 15000,
+  });
+
   const online = useOnlineStatus();
   const { theme, toggle } = useTheme();
   const [open, setOpen] = useState(false);
@@ -153,7 +165,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [canWrite, isAdmin, isCoord, perms.loading, perms.canView]);
 
+  if (approvalQ.data && approvalQ.data.aprovado === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="max-w-md w-full rounded-xl border border-border bg-card p-8 text-center shadow-lg space-y-4">
+          <div className="mx-auto size-14 rounded-full bg-warning/20 flex items-center justify-center">
+            <UsersIcon className="size-7 text-warning-foreground" />
+          </div>
+          <h1 className="text-xl font-bold">Cadastro aguardando aprovação</h1>
+          <p className="text-sm text-muted-foreground">
+            Olá{approvalQ.data.nome ? `, ${approvalQ.data.nome}` : ""}. Seu cadastro foi recebido e está aguardando
+            aprovação de um administrador. Você receberá acesso ao sistema assim que for aprovado.
+          </p>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              navigate({ to: "/auth", replace: true });
+            }}
+          >
+            <LogOut className="size-4 mr-1.5" /> Sair
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
+
     <div className="min-h-screen flex bg-background">
       <aside className={cn(
         "hidden lg:flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-[width] duration-200",

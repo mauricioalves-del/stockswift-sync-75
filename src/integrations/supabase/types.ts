@@ -1745,6 +1745,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          aprovado: boolean
           created_at: string
           email: string
           id: string
@@ -1753,6 +1754,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          aprovado?: boolean
           created_at?: string
           email: string
           id: string
@@ -1761,6 +1763,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          aprovado?: boolean
           created_at?: string
           email?: string
           id?: string
