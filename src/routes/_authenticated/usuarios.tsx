@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,9 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MultiSelect } from "@/components/ui/multi-select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
-import { Shield, ExternalLink } from "lucide-react";
+import { Shield, ExternalLink, UserCheck, Trash2, Clock } from "lucide-react";
+import { deleteUsuario } from "@/lib/usuarios.functions";
 import type { Database } from "@/integrations/supabase/types";
 
 type Role = Database["public"]["Enums"]["app_role"];
@@ -34,6 +41,8 @@ function UsuariosPage() {
   const { isAdmin, role } = useRole();
   const podeGerir = isAdmin || role === "COORDENADOR_CONTROLE";
   const qc = useQueryClient();
+  const deleteFn = useServerFn(deleteUsuario);
+  const [toDelete, setToDelete] = useState<{ id: string; nome: string } | null>(null);
 
   const perfisQ = useQuery({
     queryKey: ["perfis-ativos"],
@@ -63,11 +72,12 @@ function UsuariosPage() {
         supabase.from("user_roles").select("*"),
         (supabase as any).from("usuario_almoxarifados").select("user_id, codigo_origem"),
       ]);
-      const profiles = profilesRes.data ?? [];
+      const profiles = (profilesRes.data ?? []) as any[];
       const roles = rolesRes.data ?? [];
       const almox = (almoxRes.data ?? []) as { user_id: string; codigo_origem: string }[];
       return profiles.map((p) => ({
         ...p,
+        aprovado: Boolean(p.aprovado),
         role: (roles.find((r) => r.user_id === p.id)?.role ?? null) as Role | null,
         almoxes: almox.filter((a) => a.user_id === p.id).map((a) => a.codigo_origem),
       }));
@@ -106,6 +116,35 @@ function UsuariosPage() {
     qc.invalidateQueries({ queryKey: ["meus-almox"] });
   }
 
+  async function aprovar(userId: string, perfilRole: Role) {
+    // 1) atribui perfil
+    await supabase.from("user_roles").delete().eq("user_id", userId);
+    const { error: rErr } = await supabase.from("user_roles").insert({ user_id: userId, role: perfilRole });
+    if (rErr) return toast.error(rErr.message);
+    // 2) marca como aprovado
+    const { error: pErr } = await (supabase as any).from("profiles").update({ aprovado: true }).eq("id", userId);
+    if (pErr) return toast.error(pErr.message);
+    const me = (await supabase.auth.getUser()).data.user?.id;
+    await supabase.from("audit_logs").insert({
+      usuario: me, acao: "APROVAR_USUARIO", entidade: "profiles",
+      entidade_id: userId, payload: { role: perfilRole },
+    });
+    toast.success("Usuário aprovado");
+    qc.invalidateQueries({ queryKey: ["usuarios"] });
+  }
+
+  async function confirmDelete() {
+    if (!toDelete) return;
+    try {
+      await deleteFn({ data: { userId: toDelete.id } });
+      toast.success(`Usuário ${toDelete.nome} excluído`);
+      setToDelete(null);
+      qc.invalidateQueries({ queryKey: ["usuarios"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao excluir usuário");
+    }
+  }
+
   if (!podeGerir) return <div className="p-8 text-center text-muted-foreground">Acesso restrito.</div>;
 
   const perfis = perfisQ.data ?? [];
@@ -113,13 +152,18 @@ function UsuariosPage() {
     value: o.codigo_origem, label: o.descricao || o.codigo_origem,
   }));
 
+  const pendentes = (usuariosQ.data ?? []).filter((u) => !u.aprovado);
+  const ativos = (usuariosQ.data ?? []).filter((u) => u.aprovado);
+  const perfilPadrao: Role = (perfis.find((p) => p.role_key === "INVENTARIANTE")?.role_key
+    ?? perfis[0]?.role_key ?? "INVENTARIANTE") as Role;
+
   return (
     <div className="max-w-6xl mx-auto space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Usuários & Perfis</h1>
           <p className="text-sm text-muted-foreground">
-            Atribua um perfil e defina quais almoxarifados cada usuário pode acessar.
+            Aprove novos cadastros, atribua um perfil e defina quais almoxarifados cada usuário pode acessar.
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
@@ -129,8 +173,33 @@ function UsuariosPage() {
         </Button>
       </div>
 
+      {/* Aguardando aprovação */}
+      <Card className={pendentes.length > 0 ? "border-warning" : ""}>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Clock className="size-4 text-warning-foreground" />
+            Aguardando aprovação
+            <Badge variant="secondary">{pendentes.length}</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          {pendentes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum cadastro pendente.</p>
+          ) : (
+            <PendingTable
+              rows={pendentes}
+              perfis={perfis}
+              perfilPadrao={perfilPadrao}
+              onApprove={aprovar}
+              onDelete={(u) => setToDelete({ id: u.id, nome: u.nome || u.email || u.id })}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Ativos */}
       <Card>
-        <CardHeader><CardTitle className="text-base">{usuariosQ.data?.length ?? 0} usuário(s)</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{ativos.length} usuário(s) ativos</CardTitle></CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -140,10 +209,11 @@ function UsuariosPage() {
                 <TableHead className="w-44">Perfil</TableHead>
                 <TableHead>Nível</TableHead>
                 <TableHead className="w-72">Almoxarifados</TableHead>
+                <TableHead className="w-20 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {usuariosQ.data?.map((u) => {
+              {ativos.map((u) => {
                 const nivel = u.role ? NIVEL[u.role] : null;
                 const irrestrito = u.role === "ADMINISTRADOR" || u.role === "COORDENADOR_CONTROLE";
                 return (
@@ -177,6 +247,17 @@ function UsuariosPage() {
                         />
                       )}
                     </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setToDelete({ id: u.id, nome: u.nome || u.email || u.id })}
+                        title="Excluir usuário"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -189,6 +270,86 @@ function UsuariosPage() {
         Vazio = acesso a todos os almoxarifados. Uma ou mais seleções = acesso restrito a esses.
         Administrador e Coordenador de Controle sempre têm acesso irrestrito.
       </p>
+
+      <AlertDialog open={!!toDelete} onOpenChange={(open) => !open && setToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O usuário <strong>{toDelete?.nome}</strong> será removido permanentemente do sistema,
+              incluindo perfis e vínculos de almoxarifado. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+function PendingTable({
+  rows, perfis, perfilPadrao, onApprove, onDelete,
+}: {
+  rows: any[];
+  perfis: { id: string; nome: string; role_key: Role }[];
+  perfilPadrao: Role;
+  onApprove: (userId: string, role: Role) => void;
+  onDelete: (u: any) => void;
+}) {
+  const [sel, setSel] = useState<Record<string, Role>>({});
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Nome</TableHead>
+          <TableHead>E-mail</TableHead>
+          <TableHead className="w-56">Perfil a atribuir</TableHead>
+          <TableHead className="w-56 text-right">Ações</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((u) => {
+          const perfilSel = sel[u.id] ?? perfilPadrao;
+          return (
+            <TableRow key={u.id}>
+              <TableCell className="font-medium">{u.nome || "—"}</TableCell>
+              <TableCell className="text-sm text-muted-foreground">{u.email}</TableCell>
+              <TableCell>
+                <Select value={perfilSel} onValueChange={(v) => setSel((s) => ({ ...s, [u.id]: v as Role }))}>
+                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {perfis.map((p) => (
+                      <SelectItem key={p.id} value={p.role_key}>{p.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </TableCell>
+              <TableCell className="text-right space-x-1">
+                <Button size="sm" onClick={() => onApprove(u.id, perfilSel)}>
+                  <UserCheck className="size-4 mr-1" /> Aprovar
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => onDelete(u)}
+                  title="Recusar e excluir"
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 }
