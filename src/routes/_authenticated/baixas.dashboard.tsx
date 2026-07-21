@@ -331,9 +331,15 @@ function BaixasDashboard() {
       const k = monthKey(String(r.data_solicitacao));
       map.set(k, (map.get(k) ?? 0) + Number(r.valor_total || 0));
     });
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b))
+    const arr = [...map.entries()].sort(([a], [b]) => a.localeCompare(b))
       .map(([k, v]) => ({ mes: fmtMonth(k), total: v }));
+    return arr.map((r, i) => {
+      const prev = i > 0 ? arr[i - 1].total : 0;
+      const variacaoPct = i === 0 ? null : prev === 0 ? (r.total > 0 ? 100 : 0) : ((r.total - prev) / prev) * 100;
+      return { ...r, variacaoPct };
+    });
   }, [momQ.data]);
+
 
   const loading = baixasQ.isLoading || motivosQ.isLoading;
 
