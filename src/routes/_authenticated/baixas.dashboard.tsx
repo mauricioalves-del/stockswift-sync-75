@@ -643,19 +643,58 @@ function BaixasDashboard() {
           <BarChart data={mom} margin={{ top: 26, left: 30, right: 20, bottom: 10 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
             <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Mês", position: "insideBottom", offset: -4, fill: "#94a3b8", fontSize: 11 }} />
-            <YAxis tickFormatter={(v) => fmtMil(Number(v))} tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Total Baixas Período", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }} />
-            <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} formatter={(v: number) => formatBRL(v)} />
-            <Bar dataKey="total" fill="#4FC3F7" radius={[3, 3, 0, 0]}>
+      {/* MoM — colunas de total + linha de variação % vs mês anterior */}
+      <BiPanel title="MoM — Mês vs Mês Anterior">
+        <ResponsiveContainer width="100%" height={360}>
+          <ComposedChart data={mom} margin={{ top: 26, left: 30, right: 40, bottom: 10 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
+            <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Mês", position: "insideBottom", offset: -4, fill: "#94a3b8", fontSize: 11 }} />
+            <YAxis yAxisId="left" tickFormatter={(v) => fmtMil(Number(v))} tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Total Baixas (R$ Mil)", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }} />
+            <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Variação % MoM", angle: 90, position: "insideRight", fill: "#94a3b8", fontSize: 11 }} />
+            <Tooltip
+              contentStyle={{ background: "#0f172a", border: "1px solid #334155" }}
+              formatter={(v: number, name: string) => {
+                if (name === "Variação %") return v == null ? ["—", name] : [`${v.toFixed(1)}%`, name];
+                return [formatBRL(v), name];
+              }}
+            />
+            <Legend wrapperStyle={{ fontSize: 11, color: "#cbd5e1" }} />
+            <Bar yAxisId="left" dataKey="total" name="Total Baixas" fill="#4FC3F7" radius={[3, 3, 0, 0]}>
               <LabelList dataKey="total" position="top" formatter={(v: number) => fmtMil(v)} style={{ fontSize: 10, fill: "#e2e8f0" }} />
-              {mom.map((_, i) => <Cell key={i} fill="#4FC3F7" />)}
             </Bar>
-          </BarChart>
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="variacaoPct"
+              name="Variação %"
+              stroke="#FFB74D"
+              strokeWidth={2}
+              connectNulls
+              dot={(props: any) => {
+                const { cx, cy, payload } = props;
+                if (payload.variacaoPct == null) return <g />;
+                const up = payload.variacaoPct >= 0;
+                return <circle cx={cx} cy={cy} r={4} fill={up ? "#E57373" : "#81C784"} stroke="#0f172a" strokeWidth={1} />;
+              }}
+            >
+              <LabelList
+                dataKey="variacaoPct"
+                position="top"
+                formatter={(v: number) => (v == null ? "" : `${v >= 0 ? "▲" : "▼"} ${Math.abs(v).toFixed(1)}%`)}
+                style={{ fontSize: 10, fill: "#e2e8f0" }}
+              />
+            </Line>
+          </ComposedChart>
         </ResponsiveContainer>
+        <p className="text-xs text-slate-400 mt-2">
+          Linha indica evolução (▲ vermelho = aumento de baixas / involução) ou involução (▼ verde = redução / evolução positiva) em pontos percentuais vs mês anterior.
+        </p>
       </BiPanel>
 
-      {/* Ícone TrendingUp e Legend usados como marcadores visuais (não remover) */}
-      <div className="hidden"><TrendingUp /><Legend /></div>
+      {/* Ícone TrendingUp usado como marcador visual (não remover) */}
+      <div className="hidden"><TrendingUp /></div>
     </div>
   );
 }
+
 
