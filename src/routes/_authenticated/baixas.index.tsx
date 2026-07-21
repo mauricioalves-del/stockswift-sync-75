@@ -792,38 +792,140 @@ function FilaAprovacao() {
 
 function Historico() {
   const { data } = useBaixas(["APROVADA", "REPROVADA", "EXECUTADA"]);
+  const [busca, setBusca] = useState("");
+  const [motivoFiltro, setMotivoFiltro] = useState("__all__");
+  const [almoxFiltro, setAlmoxFiltro] = useState("__all__");
+  const [ordem, setOrdem] = useState<"desc" | "asc">("desc");
+
+  const motivosUnicos = useMemo(() => {
+    const s = new Set<string>();
+    for (const b of data ?? []) {
+      const d = (b as any).motivo?.descricao;
+      if (d) s.add(d);
+    }
+    return Array.from(s).sort();
+  }, [data]);
+
+  const almoxUnicos = useMemo(() => {
+    const s = new Set<string>();
+    for (const b of data ?? []) {
+      if ((b as any).id_local) s.add((b as any).id_local);
+    }
+    return Array.from(s).sort();
+  }, [data]);
+
+  const filtrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    const arr = (data ?? []).filter((b: any) => {
+      if (motivoFiltro !== "__all__" && (b.motivo?.descricao ?? "") !== motivoFiltro) return false;
+      if (almoxFiltro !== "__all__" && (b.id_local ?? "") !== almoxFiltro) return false;
+      if (!termo) return true;
+      return (
+        String(b.codigo_produto ?? "").toLowerCase().includes(termo) ||
+        String(b.lote ?? "").toLowerCase().includes(termo) ||
+        String(b.descricao ?? "").toLowerCase().includes(termo)
+      );
+    });
+    return [...arr].sort((a: any, b: any) => {
+      const va = Number(a.valor_total ?? 0);
+      const vb = Number(b.valor_total ?? 0);
+      return ordem === "desc" ? vb - va : va - vb;
+    });
+  }, [data, busca, motivoFiltro, almoxFiltro, ordem]);
+
+  const podeLimpar = busca || motivoFiltro !== "__all__" || almoxFiltro !== "__all__";
+
   return (
-    <Card>
-      <CardContent className="p-0 overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Código</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead className="text-right">Qtd</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
-              <TableHead>Motivo</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(data ?? []).map((b) => (
-              <TableRow key={b.id}>
-                <TableCell className="text-xs">{new Date(b.data_solicitacao).toLocaleDateString("pt-BR")}</TableCell>
-                <TableCell className="font-mono text-xs">{b.codigo_produto}</TableCell>
-                <TableCell className="max-w-xs truncate">{b.descricao}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatNum(Number(b.quantidade))}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatBRL(Number(b.valor_total))}</TableCell>
-                <TableCell className="text-xs">{b.motivo?.descricao ?? "—"}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="text-[10px]">{b.status_fluxo}</Badge>
-                </TableCell>
+    <div className="space-y-3">
+      <Card>
+        <CardContent className="p-3">
+          <div className="grid gap-2 md:grid-cols-[1fr_200px_200px_200px_auto]">
+            <Input
+              placeholder="Pesquisar por Código, Lote ou Descrição…"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
+            <Select value={motivoFiltro} onValueChange={setMotivoFiltro}>
+              <SelectTrigger><SelectValue placeholder="Motivo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todos os motivos</SelectItem>
+                {motivosUnicos.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={almoxFiltro} onValueChange={setAlmoxFiltro}>
+              <SelectTrigger><SelectValue placeholder="Almoxarifado" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todos os almox.</SelectItem>
+                {almoxUnicos.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={ordem} onValueChange={(v) => setOrdem(v as "desc" | "asc")}>
+              <SelectTrigger><SelectValue placeholder="Classificação" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="desc">Valor — Maior para menor</SelectItem>
+                <SelectItem value="asc">Valor — Menor para maior</SelectItem>
+              </SelectContent>
+            </Select>
+            {podeLimpar && (
+              <Button variant="ghost" onClick={() => { setBusca(""); setMotivoFiltro("__all__"); setAlmoxFiltro("__all__"); }}>
+                Limpar
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {filtrados.length} registro(s)
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Código</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead>Lote</TableHead>
+                <TableHead>Almox.</TableHead>
+                <TableHead className="text-right">Qtd</TableHead>
+                <TableHead
+                  className="text-right cursor-pointer select-none"
+                  onClick={() => setOrdem(ordem === "desc" ? "asc" : "desc")}
+                >
+                  Valor {ordem === "desc" ? "↓" : "↑"}
+                </TableHead>
+                <TableHead>Motivo</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {filtrados.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                    Nenhum registro para os filtros aplicados
+                  </TableCell>
+                </TableRow>
+              )}
+              {filtrados.map((b: any) => (
+                <TableRow key={b.id}>
+                  <TableCell className="text-xs">{new Date(b.data_solicitacao).toLocaleDateString("pt-BR")}</TableCell>
+                  <TableCell className="font-mono text-xs">{b.codigo_produto}</TableCell>
+                  <TableCell className="max-w-xs truncate">{b.descricao}</TableCell>
+                  <TableCell className="font-mono text-xs">{b.lote || "—"}</TableCell>
+                  <TableCell className="text-xs">{b.id_local || "—"}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatNum(Number(b.quantidade))}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatBRL(Number(b.valor_total))}</TableCell>
+                  <TableCell className="text-xs">{b.motivo?.descricao ?? "—"}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-[10px]">{b.status_fluxo}</Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
