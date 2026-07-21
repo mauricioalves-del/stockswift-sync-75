@@ -12,6 +12,7 @@ import { formatBRL } from "@/lib/inventory";
 import { BarChart3, TrendingUp, AlertTriangle, PackageMinus } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, Cell,
+  ComposedChart, Line,
 } from "recharts";
 import type { ReactNode } from "react";
 
