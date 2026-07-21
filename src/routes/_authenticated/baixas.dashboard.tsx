@@ -637,12 +637,6 @@ function BaixasDashboard() {
         </BiPanel>
       </div>
 
-      {/* MoM — colunas azuis com rótulo em R$ Mil */}
-      <BiPanel title="MOM">
-        <ResponsiveContainer width="100%" height={340}>
-          <BarChart data={mom} margin={{ top: 26, left: 30, right: 20, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
-            <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Mês", position: "insideBottom", offset: -4, fill: "#94a3b8", fontSize: 11 }} />
       {/* MoM — colunas de total + linha de variação % vs mês anterior */}
       <BiPanel title="MoM — Mês vs Mês Anterior">
         <ResponsiveContainer width="100%" height={360}>
