@@ -93,15 +93,8 @@ export function ImportarBaixasDialog() {
   async function baixarModelo() {
     let catalogo = catalogoQ.data ?? [];
     if (catalogo.length === 0) {
-      try {
-        catalogo = await qc.fetchQuery({
-          queryKey: ["baixas-catalogo-produtos"],
-          staleTime: 5 * 60 * 1000,
-        }) as CatalogoProduto[];
-      } catch {
-        toast.error("Falha ao carregar catálogo de produtos");
-        return;
-      }
+      const res = await catalogoQ.refetch();
+      catalogo = res.data ?? [];
     }
     if (!catalogo || catalogo.length === 0) {
       toast.error("Nenhum produto no catálogo");
