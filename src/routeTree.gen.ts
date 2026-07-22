@@ -34,6 +34,7 @@ import { Route as AuthenticatedConfigIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedBaixasIndexRouteImport } from './routes/_authenticated/baixas.index'
 import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_authenticated/suprimentos.estoque'
 import { Route as AuthenticatedSuprimentosDashboardRouteImport } from './routes/_authenticated/suprimentos.dashboard'
+import { Route as AuthenticatedProducaoSolicitacaoMateriaisRouteImport } from './routes/_authenticated/producao.solicitacao-materiais'
 import { Route as AuthenticatedProducaoPcpRouteImport } from './routes/_authenticated/producao.pcp'
 import { Route as AuthenticatedProducaoDispersaoRouteImport } from './routes/_authenticated/producao.dispersao'
 import { Route as AuthenticatedProducaoAuditoriaFtRouteImport } from './routes/_authenticated/producao.auditoria-ft'
@@ -186,6 +187,12 @@ const AuthenticatedSuprimentosDashboardRoute =
   AuthenticatedSuprimentosDashboardRouteImport.update({
     id: '/suprimentos/dashboard',
     path: '/suprimentos/dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedProducaoSolicitacaoMateriaisRoute =
+  AuthenticatedProducaoSolicitacaoMateriaisRouteImport.update({
+    id: '/producao/solicitacao-materiais',
+    path: '/producao/solicitacao-materiais',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedProducaoPcpRoute =
@@ -351,6 +358,7 @@ export interface FileRoutesByFullPath {
   '/producao/auditoria-ft': typeof AuthenticatedProducaoAuditoriaFtRoute
   '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
   '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
+  '/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/baixas/': typeof AuthenticatedBaixasIndexRoute
@@ -398,6 +406,7 @@ export interface FileRoutesByTo {
   '/producao/auditoria-ft': typeof AuthenticatedProducaoAuditoriaFtRoute
   '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
   '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
+  '/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/baixas': typeof AuthenticatedBaixasIndexRoute
@@ -447,6 +456,7 @@ export interface FileRoutesById {
   '/_authenticated/producao/auditoria-ft': typeof AuthenticatedProducaoAuditoriaFtRoute
   '/_authenticated/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
   '/_authenticated/producao/pcp': typeof AuthenticatedProducaoPcpRoute
+  '/_authenticated/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/_authenticated/baixas/': typeof AuthenticatedBaixasIndexRoute
@@ -496,6 +506,7 @@ export interface FileRouteTypes {
     | '/producao/auditoria-ft'
     | '/producao/dispersao'
     | '/producao/pcp'
+    | '/producao/solicitacao-materiais'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
     | '/baixas/'
@@ -543,6 +554,7 @@ export interface FileRouteTypes {
     | '/producao/auditoria-ft'
     | '/producao/dispersao'
     | '/producao/pcp'
+    | '/producao/solicitacao-materiais'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
     | '/baixas'
@@ -591,6 +603,7 @@ export interface FileRouteTypes {
     | '/_authenticated/producao/auditoria-ft'
     | '/_authenticated/producao/dispersao'
     | '/_authenticated/producao/pcp'
+    | '/_authenticated/producao/solicitacao-materiais'
     | '/_authenticated/suprimentos/dashboard'
     | '/_authenticated/suprimentos/estoque'
     | '/_authenticated/baixas/'
@@ -784,6 +797,13 @@ declare module '@tanstack/react-router' {
       path: '/suprimentos/dashboard'
       fullPath: '/suprimentos/dashboard'
       preLoaderRoute: typeof AuthenticatedSuprimentosDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/producao/solicitacao-materiais': {
+      id: '/_authenticated/producao/solicitacao-materiais'
+      path: '/producao/solicitacao-materiais'
+      fullPath: '/producao/solicitacao-materiais'
+      preLoaderRoute: typeof AuthenticatedProducaoSolicitacaoMateriaisRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/producao/pcp': {
@@ -985,6 +1005,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProducaoAuditoriaFtRoute: typeof AuthenticatedProducaoAuditoriaFtRoute
   AuthenticatedProducaoDispersaoRoute: typeof AuthenticatedProducaoDispersaoRoute
   AuthenticatedProducaoPcpRoute: typeof AuthenticatedProducaoPcpRoute
+  AuthenticatedProducaoSolicitacaoMateriaisRoute: typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   AuthenticatedSuprimentosDashboardRoute: typeof AuthenticatedSuprimentosDashboardRoute
   AuthenticatedSuprimentosEstoqueRoute: typeof AuthenticatedSuprimentosEstoqueRoute
   AuthenticatedBaixasIndexRoute: typeof AuthenticatedBaixasIndexRoute
@@ -1034,6 +1055,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProducaoAuditoriaFtRoute: AuthenticatedProducaoAuditoriaFtRoute,
   AuthenticatedProducaoDispersaoRoute: AuthenticatedProducaoDispersaoRoute,
   AuthenticatedProducaoPcpRoute: AuthenticatedProducaoPcpRoute,
+  AuthenticatedProducaoSolicitacaoMateriaisRoute:
+    AuthenticatedProducaoSolicitacaoMateriaisRoute,
   AuthenticatedSuprimentosDashboardRoute:
     AuthenticatedSuprimentosDashboardRoute,
   AuthenticatedSuprimentosEstoqueRoute: AuthenticatedSuprimentosEstoqueRoute,

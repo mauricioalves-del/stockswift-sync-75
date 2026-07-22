@@ -65,6 +65,7 @@ const NAV: (NavItem | NavGroup)[] = [
     id: "producao", label: "Produção", icon: Factory, role: "any",
     items: [
       { to: "/producao/pcp", label: "Análise de Ruptura", icon: Factory, role: "any" },
+      { to: "/producao/solicitacao-materiais", label: "Solicitação de Materiais", icon: ClipboardList, role: "write" },
       { to: "/producao/dispersao", label: "Dispersão de Lote", icon: GitCompareArrows, role: "any" },
       { to: "/producao/auditoria-ft", label: "Auditoria de Ficha Técnica", icon: ClipboardList, role: "write" },
     ],
