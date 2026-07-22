@@ -202,20 +202,20 @@ function RupturaPage() {
   const saldoLojaQ = useQuery({
     queryKey: ["ruptura", "saldo-loja", almoxLoja],
     queryFn: async (): Promise<Record<string, number>> => {
-      const { data } = await (supabase as any)
-        .from("estoque_sistemico").select("id_produto,quantidade,origem")
-        .eq("origem", almoxLoja);
+      const data = await fetchAll<{ id_produto: string; quantidade: number }>((f, t) =>
+        (supabase as any).from("estoque_sistemico")
+          .select("id_produto,quantidade,origem")
+          .eq("origem", almoxLoja)
+          .order("id_produto").range(f, t),
+      );
       const map: Record<string, number> = {};
-      for (const r of (data ?? []) as { id_produto: string; quantidade: number }[]) {
-        map[r.id_produto] = (map[r.id_produto] ?? 0) + Number(r.quantidade || 0);
-      }
+      for (const r of data) map[r.id_produto] = (map[r.id_produto] ?? 0) + Number(r.quantidade || 0);
       return map;
     },
     staleTime: 60 * 1000,
     enabled: !!almoxLoja,
   });
 
-  // Lista de almoxarifados de loja (origens que não são Fábrica/Processo/Qualidade)
   const origensQ = useQuery({
     queryKey: ["ruptura", "origens-loja"],
     queryFn: async (): Promise<string[]> => {
@@ -226,22 +226,18 @@ function RupturaPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Saldo somado nos almoxarifados de PRODUÇÃO (Fábrica + Processo + Qualidade).
-  // Usado tanto para netting de subconjuntos quanto para a checagem final de
-  // matéria-prima. Um único item pode ter estoque em mais de um almoxarifado
-  // de produção — a lógica soma todos os origens de produção.
   const saldoQ = useQuery({
     queryKey: ["ruptura", "saldo-producao"],
     queryFn: async (): Promise<Record<string, number>> => {
       const origensProducao = Array.from(ORIGENS_NAO_LOJA);
-      const { data } = await (supabase as any)
-        .from("estoque_sistemico")
-        .select("id_produto,quantidade,origem")
-        .in("origem", origensProducao);
+      const data = await fetchAll<{ id_produto: string; quantidade: number }>((f, t) =>
+        (supabase as any).from("estoque_sistemico")
+          .select("id_produto,quantidade,origem")
+          .in("origem", origensProducao)
+          .order("id_produto").range(f, t),
+      );
       const map: Record<string, number> = {};
-      for (const r of (data ?? []) as { id_produto: string; quantidade: number }[]) {
-        map[r.id_produto] = (map[r.id_produto] ?? 0) + Number(r.quantidade || 0);
-      }
+      for (const r of data) map[r.id_produto] = (map[r.id_produto] ?? 0) + Number(r.quantidade || 0);
       return map;
     },
     staleTime: 60 * 1000,
