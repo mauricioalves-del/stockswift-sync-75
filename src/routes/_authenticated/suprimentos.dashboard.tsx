@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAll } from "@/lib/fetch-all";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Truck, Boxes, ClipboardList, Compass, Sparkles, AlertTriangle } from "lucide-react";
@@ -15,10 +16,12 @@ export const Route = createFileRoute("/_authenticated/suprimentos/dashboard")({
 function SuprimentosDashboard() {
   const estoqueQ = useQuery({
     queryKey: ["dash_sup_estoque"],
-    queryFn: async () => {
-      const { data } = await supabase.from("estoque_sistemico").select("quantidade, custo_unitario, id_produto, origem").limit(10000);
-      return data ?? [];
-    },
+    queryFn: async () =>
+      fetchAll<{ quantidade: number; custo_unitario: number; id_produto: string; origem: string }>((from, to) =>
+        supabase.from("estoque_sistemico")
+          .select("quantidade, custo_unitario, id_produto, origem")
+          .order("id_produto").range(from, to),
+      ),
   });
 
   const reqQ = useQuery({

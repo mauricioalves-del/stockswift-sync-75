@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAll } from "@/lib/fetch-all";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
@@ -25,16 +26,15 @@ function Dashboard() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
-      const [invRes, estRes, recRes, gpRes, famRes] = await Promise.all([
-        supabase.from("inventario").select("id, status, acuracidade, divergencia, valor_divergencia, descricao, id_produto, id_local, data_contagem, usuario"),
-        supabase.from("estoque_sistemico").select("id_produto, lote, quantidade"),
-        supabase.from("recontagem").select("id, status"),
-        supabase.from("grupo_produtos").select("codigo_produto, grupo"),
-        supabase.from("familias").select("codigo_produto, familia"),
+      const [inv, est, rec, gpRows, famRows] = await Promise.all([
+        fetchAll<any>((f, t) => supabase.from("inventario").select("id, status, acuracidade, divergencia, valor_divergencia, descricao, id_produto, id_local, data_contagem, usuario").order("id").range(f, t)),
+        fetchAll<any>((f, t) => supabase.from("estoque_sistemico").select("id_produto, lote, quantidade").order("id_produto").range(f, t)),
+        fetchAll<any>((f, t) => supabase.from("recontagem").select("id, status").order("id").range(f, t)),
+        fetchAll<any>((f, t) => supabase.from("grupo_produtos").select("codigo_produto, grupo").order("codigo_produto").range(f, t)),
+        fetchAll<any>((f, t) => supabase.from("familias").select("codigo_produto, familia").order("codigo_produto").range(f, t)),
       ]);
-      const inv = invRes.data ?? [];
-      const est = estRes.data ?? [];
-      const rec = recRes.data ?? [];
+      const gpRes = { data: gpRows };
+      const famRes = { data: famRows };
       const grupoMap = new Map<string, string>((gpRes.data ?? []).map((r) => [r.codigo_produto, r.grupo]));
       const famMap = new Map<string, string>((famRes.data ?? []).map((r) => [r.codigo_produto, r.familia]));
       const totalPlanejado = new Set(est.map((e) => `${e.id_produto}|${e.lote}`)).size || est.length;

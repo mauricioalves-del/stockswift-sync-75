@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAll } from "@/lib/fetch-all";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,11 +74,13 @@ function PlanejamentoPage() {
     queryKey: ["planejamento_estoque", origensAtivas.join(",")],
     enabled: origensAtivas.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase.from("estoque_sistemico")
-        .select("id_produto, descricao, quantidade, custo_unitario, origem")
-        .in("origem", origensAtivas);
-      if (error) throw error;
-      return (data ?? []) as unknown as Estoque[];
+      const data = await fetchAll<Estoque>((f, t) =>
+        supabase.from("estoque_sistemico")
+          .select("id_produto, descricao, quantidade, custo_unitario, origem")
+          .in("origem", origensAtivas)
+          .order("id_produto").range(f, t),
+      );
+      return data;
     },
   });
 
@@ -88,11 +91,14 @@ function PlanejamentoPage() {
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - 90);
       const iso = cutoff.toISOString().slice(0, 10);
-      const { data } = await supabase.from("historico_consumo" as never)
-        .select("origem, sku, quantidade, data_movimento")
-        .in("origem", origensAtivas)
-        .gte("data_movimento", iso);
-      return (data ?? []) as unknown as Consumo[];
+      const data = await fetchAll<Consumo>((f, t) =>
+        (supabase.from("historico_consumo" as never) as any)
+          .select("origem, sku, quantidade, data_movimento")
+          .in("origem", origensAtivas)
+          .gte("data_movimento", iso)
+          .order("data_movimento").range(f, t),
+      );
+      return data;
     },
   });
 
@@ -111,11 +117,13 @@ function PlanejamentoPage() {
   const supplierStockQ = useQuery({
     queryKey: ["planejamento_supplier_stock"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("estoque_sistemico")
-        .select("id_produto, origem, quantidade, lote, data_validade, data_importacao")
-        .in("origem", SUPPLY_ORIGENS as unknown as string[]);
-      if (error) throw error;
-      return (data ?? []) as unknown as EstoqueLote[];
+      const data = await fetchAll<EstoqueLote>((f, t) =>
+        supabase.from("estoque_sistemico")
+          .select("id_produto, origem, quantidade, lote, data_validade, data_importacao")
+          .in("origem", SUPPLY_ORIGENS as unknown as string[])
+          .order("id_produto").range(f, t),
+      );
+      return data;
     },
   });
 

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAll } from "@/lib/fetch-all";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,13 +30,15 @@ function EstoquePosicaoPage() {
   const q = useQuery({
     queryKey: ["suprimentos_estoque_posicao", almoxes?.join(",") ?? "all"],
     queryFn: async () => {
-      let query = supabase.from("estoque_sistemico")
-        .select("id_produto, descricao, unidade, origem, quantidade, custo_unitario")
-        .limit(10000);
-      if (almoxes) query = query.in("origem", almoxes.length ? almoxes : ["__nenhum__"]);
-      const { data, error } = await query;
-      if (error) throw error;
-      return (data ?? []) as Row[];
+      const rows = await fetchAll<Row>((from, to) => {
+        let query = supabase.from("estoque_sistemico")
+          .select("id_produto, descricao, unidade, origem, quantidade, custo_unitario")
+          .order("id_produto")
+          .range(from, to);
+        if (almoxes) query = query.in("origem", almoxes.length ? almoxes : ["__nenhum__"]);
+        return query;
+      });
+      return rows;
     },
   });
 

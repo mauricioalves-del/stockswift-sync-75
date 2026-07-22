@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAll } from "@/lib/fetch-all";
 import { useRole } from "@/hooks/useRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -286,24 +287,27 @@ function NovaMissao() {
       if (error) throw error;
 
       // gerar itens
-      let q = (supabase as any).from("estoque_sistemico").select("id_produto, descricao, lote, quantidade");
-      if (form.origem) q = q.eq("origem", form.origem);
-      if (form.grupo) {
-        const { data: codigos } = await (supabase as any).from("grupo_produtos").select("codigo_produto").eq("grupo", form.grupo);
-        const lista = (codigos ?? []).map((c: any) => c.codigo_produto);
-        if (lista.length) q = q.in("id_produto", lista);
-      }
-      if (form.familia) {
-        const { data: codigos } = await (supabase as any).from("familias").select("codigo_produto").eq("familia", form.familia);
-        const lista = (codigos ?? []).map((c: any) => c.codigo_produto);
-        if (lista.length) q = q.in("id_produto", lista);
-      }
-      if (form.criterio_abc) {
-        const { data: abc } = await (supabase as any).from("classificacao_abc").select("codigo_produto").eq("classe", form.criterio_abc);
-        const lista = (abc ?? []).map((c: any) => c.codigo_produto);
-        if (lista.length) q = q.in("id_produto", lista);
-      }
-      const { data: itens } = await q.limit(2000);
+      const filtroOrigem = form.origem || null;
+      const filtroSkusGrupo: string[] | null = form.grupo
+        ? ((await (supabase as any).from("grupo_produtos").select("codigo_produto").eq("grupo", form.grupo)).data ?? []).map((c: any) => c.codigo_produto)
+        : null;
+      const filtroSkusFamilia: string[] | null = form.familia
+        ? ((await (supabase as any).from("familias").select("codigo_produto").eq("familia", form.familia)).data ?? []).map((c: any) => c.codigo_produto)
+        : null;
+      const filtroSkusAbc: string[] | null = form.criterio_abc
+        ? ((await (supabase as any).from("classificacao_abc").select("codigo_produto").eq("classe", form.criterio_abc)).data ?? []).map((c: any) => c.codigo_produto)
+        : null;
+
+      const itens = await fetchAll<any>((f, t) => {
+        let q = (supabase as any).from("estoque_sistemico")
+          .select("id_produto, descricao, lote, quantidade")
+          .order("id_produto").range(f, t);
+        if (filtroOrigem) q = q.eq("origem", filtroOrigem);
+        if (filtroSkusGrupo && filtroSkusGrupo.length) q = q.in("id_produto", filtroSkusGrupo);
+        if (filtroSkusFamilia && filtroSkusFamilia.length) q = q.in("id_produto", filtroSkusFamilia);
+        if (filtroSkusAbc && filtroSkusAbc.length) q = q.in("id_produto", filtroSkusAbc);
+        return q;
+      });
       if (itens && itens.length) {
         await (supabase as any).from("missoes_itens").insert(
           itens.map((i: any) => ({
