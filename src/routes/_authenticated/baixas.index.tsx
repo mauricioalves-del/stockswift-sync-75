@@ -897,7 +897,15 @@ function Historico() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Data</TableHead>
+                <TableHead
+                  className="cursor-pointer select-none"
+                  onClick={() => {
+                    if (ordenarPor === "data") setOrdem(ordem === "desc" ? "asc" : "desc");
+                    else { setOrdenarPor("data"); setOrdem("desc"); }
+                  }}
+                >
+                  Data {ordenarPor === "data" ? (ordem === "desc" ? "↓" : "↑") : ""}
+                </TableHead>
                 <TableHead>Código</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Lote</TableHead>
@@ -905,9 +913,12 @@ function Historico() {
                 <TableHead className="text-right">Qtd</TableHead>
                 <TableHead
                   className="text-right cursor-pointer select-none"
-                  onClick={() => setOrdem(ordem === "desc" ? "asc" : "desc")}
+                  onClick={() => {
+                    if (ordenarPor === "valor") setOrdem(ordem === "desc" ? "asc" : "desc");
+                    else { setOrdenarPor("valor"); setOrdem("desc"); }
+                  }}
                 >
-                  Valor {ordem === "desc" ? "↓" : "↑"}
+                  Valor {ordenarPor === "valor" ? (ordem === "desc" ? "↓" : "↑") : ""}
                 </TableHead>
                 <TableHead>Motivo</TableHead>
                 <TableHead>Status</TableHead>
