@@ -178,18 +178,26 @@ function RequisicoesPage() {
                 <TableHeader><TableRow>
                   <TableHead>Número</TableHead>
                   <TableHead>Data</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Origem</TableHead>
                   <TableHead>Destino</TableHead>
-                  <TableHead>Tipo</TableHead>
+                  <TableHead>Prioridade</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {(q.data ?? []).map((r) => (
+                  {(q.data ?? []).map((r) => {
+                    const isProducao = (r.origem_geracao ?? "").toLowerCase().includes("produ");
+                    return (
                     <TableRow key={r.id}>
                       <TableCell className="font-mono text-xs">{r.numero}</TableCell>
                       <TableCell className="text-xs">{new Date(r.created_at).toLocaleDateString("pt-BR")}</TableCell>
+                      <TableCell>
+                        {isProducao
+                          ? <Badge className="bg-info/15 text-info">Produção</Badge>
+                          : <Badge variant="outline">Loja/Abast.</Badge>}
+                      </TableCell>
                       <TableCell className="text-xs">{r.origem_fornecedora}</TableCell>
                       <TableCell className="text-xs">{r.origem_solicitante}</TableCell>
                       <TableCell className="text-xs">{r.tipo}</TableCell>
