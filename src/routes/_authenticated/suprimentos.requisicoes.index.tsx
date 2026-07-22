@@ -244,9 +244,10 @@ function RequisicoesPage() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                   {(q.data ?? []).length === 0 && (
-                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground text-sm py-6">Nenhuma requisição.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground text-sm py-6">Nenhuma requisição.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
