@@ -2098,6 +2098,7 @@ export type Database = {
           numero: string
           observacao: string | null
           origem_fornecedora: string
+          origem_geracao: string
           origem_solicitante: string
           solicitante: string
           status: string
@@ -2115,6 +2116,7 @@ export type Database = {
           numero: string
           observacao?: string | null
           origem_fornecedora: string
+          origem_geracao?: string
           origem_solicitante: string
           solicitante: string
           status?: string
@@ -2132,6 +2134,7 @@ export type Database = {
           numero?: string
           observacao?: string | null
           origem_fornecedora?: string
+          origem_geracao?: string
           origem_solicitante?: string
           solicitante?: string
           status?: string
