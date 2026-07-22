@@ -2435,6 +2435,7 @@ export type Database = {
         Returns: boolean
       }
       is_gestor: { Args: { _user_id: string }; Returns: boolean }
+      proximo_numero_req_op: { Args: never; Returns: string }
     }
     Enums: {
       app_role:
