@@ -865,11 +865,19 @@ function Historico() {
                 {almoxUnicos.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={ordem} onValueChange={(v) => setOrdem(v as "desc" | "asc")}>
+            <Select
+              value={`${ordenarPor}:${ordem}`}
+              onValueChange={(v) => {
+                const [c, d] = v.split(":") as ["valor" | "data", "desc" | "asc"];
+                setOrdenarPor(c); setOrdem(d);
+              }}
+            >
               <SelectTrigger><SelectValue placeholder="Classificação" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="desc">Valor — Maior para menor</SelectItem>
-                <SelectItem value="asc">Valor — Menor para maior</SelectItem>
+                <SelectItem value="valor:desc">Valor — Maior para menor</SelectItem>
+                <SelectItem value="valor:asc">Valor — Menor para maior</SelectItem>
+                <SelectItem value="data:desc">Data — Mais recente primeiro</SelectItem>
+                <SelectItem value="data:asc">Data — Mais antiga primeiro</SelectItem>
               </SelectContent>
             </Select>
             {podeLimpar && (
