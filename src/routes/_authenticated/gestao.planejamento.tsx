@@ -240,19 +240,20 @@ function NovaTarefa() {
           await (supabase as any).from("tarefas_operacionais").update({ missao_id: m.id }).eq("id", t.id);
 
           // gerar itens da missão a partir de estoque_sistemico
-          let q = (supabase as any).from("estoque_sistemico").select("id_produto, descricao, lote, quantidade");
-          if (form.sku_ou_local) q = q.or(`id_local.eq.${form.sku_ou_local},id_produto.eq.${form.sku_ou_local}`);
-          if (form.grupo_produto) {
-            const { data: codigos } = await (supabase as any).from("grupo_produtos").select("codigo_produto").eq("grupo", form.grupo_produto);
-            const lista = (codigos ?? []).map((c: any) => c.codigo_produto);
-            if (lista.length) q = q.in("id_produto", lista);
-          }
-          if (form.familia) {
-            const { data: codigos } = await (supabase as any).from("familias").select("codigo_produto").eq("familia", form.familia);
-            const lista = (codigos ?? []).map((c: any) => c.codigo_produto);
-            if (lista.length) q = q.in("id_produto", lista);
-          }
-          const { data: itens } = await q.limit(2000);
+          const grupoSkus: string[] | null = form.grupo_produto
+            ? ((await (supabase as any).from("grupo_produtos").select("codigo_produto").eq("grupo", form.grupo_produto)).data ?? []).map((c: any) => c.codigo_produto)
+            : null;
+          const famSkus: string[] | null = form.familia
+            ? ((await (supabase as any).from("familias").select("codigo_produto").eq("familia", form.familia)).data ?? []).map((c: any) => c.codigo_produto)
+            : null;
+          const itens = await fetchAll<any>((f, t) => {
+            let q = (supabase as any).from("estoque_sistemico").select("id_produto, descricao, lote, quantidade").order("id_produto").range(f, t);
+            if (form.sku_ou_local) q = q.or(`id_local.eq.${form.sku_ou_local},id_produto.eq.${form.sku_ou_local}`);
+            if (grupoSkus && grupoSkus.length) q = q.in("id_produto", grupoSkus);
+            if (famSkus && famSkus.length) q = q.in("id_produto", famSkus);
+            return q;
+          });
+          {
           if (itens && itens.length) {
             await (supabase as any).from("missoes_itens").insert(
               itens.map((i: any) => ({
