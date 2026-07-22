@@ -796,6 +796,7 @@ function Historico() {
   const [motivoFiltro, setMotivoFiltro] = useState("__all__");
   const [almoxFiltro, setAlmoxFiltro] = useState("__all__");
   const [ordem, setOrdem] = useState<"desc" | "asc">("desc");
+  const [ordenarPor, setOrdenarPor] = useState<"valor" | "data">("valor");
 
   const motivosUnicos = useMemo(() => {
     const s = new Set<string>();
