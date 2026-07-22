@@ -62,6 +62,8 @@ function SolicitacaoMateriaisPage() {
   const [obs, setObs] = useState("");
 
   const [rows, setRows] = useState<(Node & { editQtd: number; excluir: boolean })[]>([]);
+  const [sortCol, setSortCol] = useState<"none" | "saldo" | "tipo">("none");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [gerando, setGerando] = useState(false);
   const criar = useServerFn(criarRequisicaoProducao);
 
