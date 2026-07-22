@@ -253,7 +253,6 @@ function NovaTarefa() {
             if (famSkus && famSkus.length) q = q.in("id_produto", famSkus);
             return q;
           });
-          {
           if (itens && itens.length) {
             await (supabase as any).from("missoes_itens").insert(
               itens.map((i: any) => ({
