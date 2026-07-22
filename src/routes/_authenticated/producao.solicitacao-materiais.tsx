@@ -62,6 +62,8 @@ function SolicitacaoMateriaisPage() {
   const [obs, setObs] = useState("");
 
   const [rows, setRows] = useState<(Node & { editQtd: number; excluir: boolean })[]>([]);
+  const [sortCol, setSortCol] = useState<"none" | "saldo" | "tipo">("none");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [gerando, setGerando] = useState(false);
   const criar = useServerFn(criarRequisicaoProducao);
 
@@ -395,12 +397,38 @@ function SolicitacaoMateriaisPage() {
                     <TableHead>Item</TableHead>
                     <TableHead>UN</TableHead>
                     <TableHead className="text-right">Qtd necessária</TableHead>
-                    <TableHead className="text-right">Saldo Fábrica</TableHead>
-                    <TableHead>Tipo</TableHead>
+                    <TableHead
+                      className="text-right cursor-pointer select-none"
+                      onClick={() => {
+                        if (sortCol === "saldo") setSortDir(sortDir === "asc" ? "desc" : "asc");
+                        else { setSortCol("saldo"); setSortDir("asc"); }
+                      }}
+                    >
+                      Saldo Fábrica {sortCol === "saldo" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer select-none"
+                      onClick={() => {
+                        if (sortCol === "tipo") setSortDir(sortDir === "asc" ? "desc" : "asc");
+                        else { setSortCol("tipo"); setSortDir("asc"); }
+                      }}
+                    >
+                      Tipo {sortCol === "tipo" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((r) => {
+                  {(sortCol === "none" ? rows : [...rows].sort((a, b) => {
+                    if (sortCol === "saldo") {
+                      const sa = saldoFabrica[a.id_item] ?? 0;
+                      const sb = saldoFabrica[b.id_item] ?? 0;
+                      return sortDir === "asc" ? sa - sb : sb - sa;
+                    }
+                    // tipo: Matéria-Prima (!tem_filho) vs Subconjunto (tem_filho)
+                    const ta = a.tem_filho ? 1 : 0;
+                    const tb = b.tem_filho ? 1 : 0;
+                    return sortDir === "asc" ? ta - tb : tb - ta;
+                  })).map((r) => {
                     const saldo = saldoFabrica[r.id_item] ?? 0;
                     const suficiente = saldo >= r.editQtd && r.editQtd > 0;
                     return (

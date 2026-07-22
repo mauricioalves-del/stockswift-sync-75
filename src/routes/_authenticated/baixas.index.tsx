@@ -796,6 +796,7 @@ function Historico() {
   const [motivoFiltro, setMotivoFiltro] = useState("__all__");
   const [almoxFiltro, setAlmoxFiltro] = useState("__all__");
   const [ordem, setOrdem] = useState<"desc" | "asc">("desc");
+  const [ordenarPor, setOrdenarPor] = useState<"valor" | "data">("valor");
 
   const motivosUnicos = useMemo(() => {
     const s = new Set<string>();
@@ -827,11 +828,16 @@ function Historico() {
       );
     });
     return [...arr].sort((a: any, b: any) => {
+      if (ordenarPor === "data") {
+        const da = new Date(a.data_baixa ?? a.created_at ?? 0).getTime();
+        const db = new Date(b.data_baixa ?? b.created_at ?? 0).getTime();
+        return ordem === "desc" ? db - da : da - db;
+      }
       const va = Number(a.valor_total ?? 0);
       const vb = Number(b.valor_total ?? 0);
       return ordem === "desc" ? vb - va : va - vb;
     });
-  }, [data, busca, motivoFiltro, almoxFiltro, ordem]);
+  }, [data, busca, motivoFiltro, almoxFiltro, ordem, ordenarPor]);
 
   const podeLimpar = busca || motivoFiltro !== "__all__" || almoxFiltro !== "__all__";
 
@@ -859,11 +865,19 @@ function Historico() {
                 {almoxUnicos.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={ordem} onValueChange={(v) => setOrdem(v as "desc" | "asc")}>
+            <Select
+              value={`${ordenarPor}:${ordem}`}
+              onValueChange={(v) => {
+                const [c, d] = v.split(":") as ["valor" | "data", "desc" | "asc"];
+                setOrdenarPor(c); setOrdem(d);
+              }}
+            >
               <SelectTrigger><SelectValue placeholder="Classificação" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="desc">Valor — Maior para menor</SelectItem>
-                <SelectItem value="asc">Valor — Menor para maior</SelectItem>
+                <SelectItem value="valor:desc">Valor — Maior para menor</SelectItem>
+                <SelectItem value="valor:asc">Valor — Menor para maior</SelectItem>
+                <SelectItem value="data:desc">Data — Mais recente primeiro</SelectItem>
+                <SelectItem value="data:asc">Data — Mais antiga primeiro</SelectItem>
               </SelectContent>
             </Select>
             {podeLimpar && (
@@ -883,7 +897,15 @@ function Historico() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Data</TableHead>
+                <TableHead
+                  className="cursor-pointer select-none"
+                  onClick={() => {
+                    if (ordenarPor === "data") setOrdem(ordem === "desc" ? "asc" : "desc");
+                    else { setOrdenarPor("data"); setOrdem("desc"); }
+                  }}
+                >
+                  Data {ordenarPor === "data" ? (ordem === "desc" ? "↓" : "↑") : ""}
+                </TableHead>
                 <TableHead>Código</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Lote</TableHead>
@@ -891,9 +913,12 @@ function Historico() {
                 <TableHead className="text-right">Qtd</TableHead>
                 <TableHead
                   className="text-right cursor-pointer select-none"
-                  onClick={() => setOrdem(ordem === "desc" ? "asc" : "desc")}
+                  onClick={() => {
+                    if (ordenarPor === "valor") setOrdem(ordem === "desc" ? "asc" : "desc");
+                    else { setOrdenarPor("valor"); setOrdem("desc"); }
+                  }}
                 >
-                  Valor {ordem === "desc" ? "↓" : "↑"}
+                  Valor {ordenarPor === "valor" ? (ordem === "desc" ? "↓" : "↑") : ""}
                 </TableHead>
                 <TableHead>Motivo</TableHead>
                 <TableHead>Status</TableHead>
