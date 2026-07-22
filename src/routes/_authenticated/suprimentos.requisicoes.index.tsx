@@ -27,6 +27,7 @@ type Req = {
   id: string; numero: string; origem_solicitante: string; origem_fornecedora: string;
   solicitante: string; tipo: string; status: string; valor_total: number;
   observacao: string | null; motivo_rejeicao: string | null; created_at: string;
+  origem_geracao?: string | null;
 };
 
 const STATUS_COLORS: Record<string, string> = {
