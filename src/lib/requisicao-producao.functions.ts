@@ -63,16 +63,10 @@ export const criarRequisicaoProducao = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Numeração dedicada
-    const { data: seqRow, error: seqErr } = await (supabaseAdmin as any)
-      .rpc("nextval", { seqname: "public.req_op_seq" });
-    let seqNum: number | null = null;
-    if (!seqErr && seqRow != null) seqNum = Number(seqRow);
-    if (seqNum == null) {
-      // Fallback: SQL bruto via rpc não disponível — usa timestamp
-      seqNum = Number(String(Date.now()).slice(-8));
-    }
-    const numero = `Req_OP_${seqNum}`;
+    // Numeração dedicada (Req_OP_N via sequence)
+    const { data: numRow, error: numErr } = await (supabaseAdmin as any).rpc("proximo_numero_req_op");
+    if (numErr || !numRow) throw new Error(numErr?.message ?? "Falha ao gerar número de requisição.");
+    const numero = String(numRow);
 
     // Cabeçalho
     const { data: req, error: reqErr } = await (supabaseAdmin as any)
