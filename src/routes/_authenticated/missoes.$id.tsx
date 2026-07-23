@@ -461,39 +461,31 @@ const LinhaItem = memo(function LinhaItem({
     const { error: eIns } = await (supabase as any).from("itens_missao_lotes").insert(payloadLinhas);
     if (eIns) { toast.error(eIns.message); sounds.error(); setSaving(false); return; }
 
-    // === Análise nível SKU (2.1) ===
+    // === Análise nível SKU (agregado, faixa 95–105%) ===
     const { classe, percentual } = classificarFaixa(totalContado, sistemaParaDivergencia);
-    // status_item base: OK | DIVERGENCIA_POSITIVA | DIVERGENCIA_NEGATIVA
-    let status_item: string = classe;
 
-    // === Análise nível LOTE (2.2) — só quando total está dentro da faixa ===
-    let temQuebraFefo = false;
+    // === Quebra de FEFO — SOMENTE de linhas de Lote Não Relacionado com qtd > 0 ===
+    // Lotes reconhecidos com contagem ≠ saldo nunca disparam Quebra de FEFO;
+    // são apenas Divergência de linha (visual) e entram na análise agregada.
     const detalhesQuebra: Array<{ lote: string | null; sistemico: number; contado: number; eh_nao_relacionado: boolean; percentual: number | null }> = [];
-    // mapa contado por lote
-    const contadoPorLote = new Map<string, number>();
     let contadoNaoRelacionado = 0;
     for (const l of linhas) {
+      if (!l.eh_nao_relacionado) continue;
       const q = Number(l.quantidade_contada.replace(",", "."));
-      if (l.eh_nao_relacionado) contadoNaoRelacionado += q;
-      else contadoPorLote.set(l.lote as string, (contadoPorLote.get(l.lote as string) ?? 0) + q);
-    }
-    if (classe === "OK") {
-      // verifica cada lote sistêmico com saldo > 0
-      for (const ls of lotesSist) {
-        if (ls.saldo <= 0) continue;
-        const cont = contadoPorLote.get(ls.lote) ?? 0;
-        const pct = Math.round(((cont / ls.saldo) * 100) * 100) / 100;
-        if (pct < TOLERANCIA_MIN || pct > TOLERANCIA_MAX) {
-          temQuebraFefo = true;
-          detalhesQuebra.push({ lote: ls.lote, sistemico: ls.saldo, contado: cont, eh_nao_relacionado: false, percentual: pct });
-        }
+      if (q > 0) {
+        contadoNaoRelacionado += q;
+        detalhesQuebra.push({
+          lote: (l.lote_manual_texto ?? "").trim() || null,
+          sistemico: 0, contado: q, eh_nao_relacionado: true, percentual: null,
+        });
       }
-      if (contadoNaoRelacionado > 0) {
-        temQuebraFefo = true;
-        detalhesQuebra.push({ lote: null, sistemico: 0, contado: contadoNaoRelacionado, eh_nao_relacionado: true, percentual: null });
-      }
-      if (temQuebraFefo) status_item = "QUEBRA_FEFO";
     }
+    const temQuebraFefo = contadoNaoRelacionado > 0;
+
+    // status_item: QUEBRA_FEFO tem precedência (exige realocação); senão, faixa agregada.
+    const status_item: string = temQuebraFefo ? "QUEBRA_FEFO" : classe;
+
+
 
     // Atualiza item da missão (mantém quantidade_contada agregada para compatibilidade)
     const { error: eUp } = await (supabase as any).from("missoes_itens")
