@@ -591,7 +591,7 @@ const LinhaItem = memo(function LinhaItem({
 
   const cor = acuracidadeColor(
     item.status_item && CONCLUIDO_STATUSES.includes(item.status_item)
-      ? classificarFaixa(Number(item.quantidade_contada ?? 0), totalSist).percentual
+      ? classificarFaixa(Number(item.quantidade_contada ?? 0), sistemaParaDivergencia).percentual
       : null,
   );
   const badge = item.status_item == null || item.status_item === "PENDENTE"
