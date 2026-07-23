@@ -351,6 +351,18 @@ const LinhaItem = memo(function LinhaItem({
 
   const totalSist = lotesSist.reduce((s, l) => s + (l.saldo || 0), 0);
   const totalContado = linhas.reduce((s, l) => s + (Number(l.quantidade_contada.replace(",", ".")) || 0), 0);
+  // Sistêmico apenas dos lotes efetivamente contados (fidelidade por lote na divergência).
+  // Se o usuário não adiciona linha para um lote, ele não entra na comparação — o motor
+  // deixa de sinalizar "divergência" quando o operador contou 75 em um lote de saldo 75
+  // (ainda que exista outro lote com saldo separado no sistema).
+  const lotesContadosSet = new Set(
+    linhas.filter((l) => !l.eh_nao_relacionado && l.lote).map((l) => l.lote as string),
+  );
+  const sistLotesContados = lotesSist
+    .filter((ls) => lotesContadosSet.has(ls.lote))
+    .reduce((s, ls) => s + (ls.saldo || 0), 0);
+  // Valor usado pelo motor de divergência (campo "Sistema"): saldo específico dos lotes contados.
+  const sistemaParaDivergencia = sistLotesContados;
 
   function addLinha() {
     dirtyRef.current = true;
