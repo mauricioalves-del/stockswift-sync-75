@@ -351,18 +351,25 @@ const LinhaItem = memo(function LinhaItem({
 
   const totalSist = lotesSist.reduce((s, l) => s + (l.saldo || 0), 0);
   const totalContado = linhas.reduce((s, l) => s + (Number(l.quantidade_contada.replace(",", ".")) || 0), 0);
-  // Sistêmico apenas dos lotes efetivamente contados (fidelidade por lote na divergência).
-  // Se o usuário não adiciona linha para um lote, ele não entra na comparação — o motor
-  // deixa de sinalizar "divergência" quando o operador contou 75 em um lote de saldo 75
-  // (ainda que exista outro lote com saldo separado no sistema).
-  const lotesContadosSet = new Set(
-    linhas.filter((l) => !l.eh_nao_relacionado && l.lote).map((l) => l.lote as string),
-  );
-  const sistLotesContados = lotesSist
-    .filter((ls) => lotesContadosSet.has(ls.lote))
-    .reduce((s, ls) => s + (ls.saldo || 0), 0);
-  // Valor usado pelo motor de divergência (campo "Sistema"): saldo específico dos lotes contados.
-  const sistemaParaDivergencia = sistLotesContados;
+  // "Total Sistema" (resumo do SKU) = soma do "Saldo Sistema" de cada linha do quadro.
+  // Linha reconhecida → saldo do lote; linha manual (não relacionada) → 0 por definição.
+  const totalSistemaLinhas = linhas.reduce((s, l) => {
+    if (l.eh_nao_relacionado) return s;
+    const live = lotesSist.find((x) => x.lote === l.lote);
+    return s + (live ? live.saldo : (l.saldo_sistemico_lote ?? 0));
+  }, 0);
+  // Motor de divergência agregado do SKU compara Total Contado × Total Sistema (faixa 95–105%).
+  const sistemaParaDivergencia = totalSistemaLinhas;
+
+  // Status simples por linha (regra única — item 3 do spec).
+  function statusLinha(l: LinhaLote): "PENDENTE" | "OK" | "DIVERGENCIA" | "QUEBRA_FEFO" {
+    const q = Number((l.quantidade_contada ?? "").toString().replace(",", "."));
+    if (l.eh_nao_relacionado) return q > 0 ? "QUEBRA_FEFO" : "PENDENTE";
+    if (l.quantidade_contada === "" || Number.isNaN(q)) return "PENDENTE";
+    const live = lotesSist.find((x) => x.lote === l.lote);
+    const saldo = live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0);
+    return q === saldo ? "OK" : "DIVERGENCIA";
+  }
 
   function addLinha() {
     dirtyRef.current = true;
