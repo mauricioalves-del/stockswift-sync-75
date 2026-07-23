@@ -1,0 +1,2 @@
+ALTER TABLE public.missoes_itens DROP CONSTRAINT IF EXISTS missoes_itens_status_item_check;
+ALTER TABLE public.missoes_itens ADD CONSTRAINT missoes_itens_status_item_check CHECK (status_item = ANY (ARRAY['PENDENTE'::text, 'CONTADO'::text, 'DIVERGENTE'::text, 'OK'::text, 'DIVERGENCIA_NEGATIVA'::text, 'DIVERGENCIA_POSITIVA'::text, 'QUEBRA_FEFO'::text, 'SEPARADO'::text, 'SEPARADO_PARCIAL'::text, 'NAO_SEPARADO'::text]));
