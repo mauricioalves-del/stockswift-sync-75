@@ -351,6 +351,18 @@ const LinhaItem = memo(function LinhaItem({
 
   const totalSist = lotesSist.reduce((s, l) => s + (l.saldo || 0), 0);
   const totalContado = linhas.reduce((s, l) => s + (Number(l.quantidade_contada.replace(",", ".")) || 0), 0);
+  // Sistêmico apenas dos lotes efetivamente contados (fidelidade por lote na divergência).
+  // Se o usuário não adiciona linha para um lote, ele não entra na comparação — o motor
+  // deixa de sinalizar "divergência" quando o operador contou 75 em um lote de saldo 75
+  // (ainda que exista outro lote com saldo separado no sistema).
+  const lotesContadosSet = new Set(
+    linhas.filter((l) => !l.eh_nao_relacionado && l.lote).map((l) => l.lote as string),
+  );
+  const sistLotesContados = lotesSist
+    .filter((ls) => lotesContadosSet.has(ls.lote))
+    .reduce((s, ls) => s + (ls.saldo || 0), 0);
+  // Valor usado pelo motor de divergência (campo "Sistema"): saldo específico dos lotes contados.
+  const sistemaParaDivergencia = sistLotesContados;
 
   function addLinha() {
     dirtyRef.current = true;
@@ -443,7 +455,7 @@ const LinhaItem = memo(function LinhaItem({
     if (eIns) { toast.error(eIns.message); sounds.error(); setSaving(false); return; }
 
     // === Análise nível SKU (2.1) ===
-    const { classe, percentual } = classificarFaixa(totalContado, totalSist);
+    const { classe, percentual } = classificarFaixa(totalContado, sistemaParaDivergencia);
     // status_item base: OK | DIVERGENCIA_POSITIVA | DIVERGENCIA_NEGATIVA
     let status_item: string = classe;
 
@@ -514,7 +526,7 @@ const LinhaItem = memo(function LinhaItem({
           await aprovarRecontagem({ ...(origem as RecontagemRow), contagem: totalContado, acuracidade: percentual });
         } else {
           await (supabase as any).from("recontagem").update({
-            contagem: totalContado, acuracidade: percentual, saldo_sistema: totalSist,
+            contagem: totalContado, acuracidade: percentual, saldo_sistema: sistemaParaDivergencia,
             status: "PENDENTE_RECONTAGEM", usuario: userId,
           }).eq("id", origem.id);
         }
@@ -531,7 +543,7 @@ const LinhaItem = memo(function LinhaItem({
           descricao: item.descricao ?? "",
           id_local: missao.id_local ?? (lotesSist[0]?.id_local ?? ""),
           origem: missao.origem ?? "",
-          saldo_sistema: totalSist,
+          saldo_sistema: sistemaParaDivergencia,
           contagem: totalContado,
           acuracidade: percentual,
           status: "PENDENTE_RECONTAGEM",
@@ -579,7 +591,7 @@ const LinhaItem = memo(function LinhaItem({
 
   const cor = acuracidadeColor(
     item.status_item && CONCLUIDO_STATUSES.includes(item.status_item)
-      ? classificarFaixa(Number(item.quantidade_contada ?? 0), totalSist).percentual
+      ? classificarFaixa(Number(item.quantidade_contada ?? 0), sistemaParaDivergencia).percentual
       : null,
   );
   const badge = item.status_item == null || item.status_item === "PENDENTE"
@@ -711,7 +723,7 @@ const LinhaItem = memo(function LinhaItem({
           </div>
           <div className="text-[10px] text-muted-foreground">
             Total contado: <span className="tabular-nums font-semibold">{formatNum(totalContado)}</span>
-            {isAdmin && <>{" · "}Sistema: <span className="tabular-nums">{formatNum(totalSist)}</span></>}
+            {isAdmin && <>{" · "}Sistema: <span className="tabular-nums">{formatNum(sistemaParaDivergencia)}</span>{sistemaParaDivergencia !== totalSist && <span className="text-muted-foreground/70"> (SKU: {formatNum(totalSist)})</span>}</>}
           </div>
         </div>
       </TableCell>
