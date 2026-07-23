@@ -694,13 +694,29 @@ const LinhaItem = memo(function LinhaItem({
                 placeholder="0"
                 title="Enter para salvar"
               />
-              {isAdmin && !l.eh_nao_relacionado && l.lote && (() => {
-                const live = lotesSist.find((x) => x.lote === l.lote);
-                const saldo = live ? live.saldo : (l.saldo_sistemico_lote ?? 0);
+              {(() => {
+                const live = !l.eh_nao_relacionado && l.lote ? lotesSist.find((x) => x.lote === l.lote) : null;
+                const saldo = l.eh_nao_relacionado ? null : (live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0));
+                const st = statusLinha(l);
+                const stClass =
+                  st === "OK" ? "bg-success/15 text-success" :
+                  st === "DIVERGENCIA" ? "bg-destructive/15 text-destructive" :
+                  st === "QUEBRA_FEFO" ? "bg-warning/25 text-warning-foreground" :
+                  "bg-muted text-muted-foreground";
+                const stLabel =
+                  st === "OK" ? "OK" :
+                  st === "DIVERGENCIA" ? "Divergência" :
+                  st === "QUEBRA_FEFO" ? "Quebra de FEFO" :
+                  "Pendente";
                 return (
-                  <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
-                    Sist. lote: <span className="font-semibold text-foreground">{formatNum(saldo)}</span>
-                  </span>
+                  <>
+                    <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
+                      Saldo Sistema: <span className="font-semibold text-foreground">{saldo == null ? "—" : formatNum(saldo)}</span>
+                    </span>
+                    <span className={cn("inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase whitespace-nowrap", stClass)}>
+                      {stLabel}
+                    </span>
+                  </>
                 );
               })()}
               <Button
