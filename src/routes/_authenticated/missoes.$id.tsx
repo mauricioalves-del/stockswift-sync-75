@@ -16,7 +16,7 @@ import {
   PlayCircle, CheckCircle2, Plus, Trash2, CalendarIcon,
 } from "lucide-react";
 import { sounds } from "@/lib/audio";
-import { formatNum, classificarFaixa, acuracidadeColor, statusLabel, TOLERANCIA_MIN, TOLERANCIA_MAX } from "@/lib/inventory";
+import { formatNum, classificarFaixa, acuracidadeColor, statusLabel } from "@/lib/inventory";
 import { aprovarRecontagem, type RecontagemRow } from "@/lib/recontagem";
 import { useRole } from "@/hooks/useRole";
 import { cn } from "@/lib/utils";
