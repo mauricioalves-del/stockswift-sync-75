@@ -455,7 +455,7 @@ const LinhaItem = memo(function LinhaItem({
     if (eIns) { toast.error(eIns.message); sounds.error(); setSaving(false); return; }
 
     // === Análise nível SKU (2.1) ===
-    const { classe, percentual } = classificarFaixa(totalContado, totalSist);
+    const { classe, percentual } = classificarFaixa(totalContado, sistemaParaDivergencia);
     // status_item base: OK | DIVERGENCIA_POSITIVA | DIVERGENCIA_NEGATIVA
     let status_item: string = classe;
 
