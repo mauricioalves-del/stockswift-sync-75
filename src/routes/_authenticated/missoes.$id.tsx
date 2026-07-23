@@ -16,7 +16,7 @@ import {
   PlayCircle, CheckCircle2, Plus, Trash2, CalendarIcon,
 } from "lucide-react";
 import { sounds } from "@/lib/audio";
-import { formatNum, classificarFaixa, acuracidadeColor, statusLabel, TOLERANCIA_MIN, TOLERANCIA_MAX } from "@/lib/inventory";
+import { formatNum, classificarFaixa, acuracidadeColor, statusLabel } from "@/lib/inventory";
 import { aprovarRecontagem, type RecontagemRow } from "@/lib/recontagem";
 import { useRole } from "@/hooks/useRole";
 import { cn } from "@/lib/utils";
@@ -351,18 +351,25 @@ const LinhaItem = memo(function LinhaItem({
 
   const totalSist = lotesSist.reduce((s, l) => s + (l.saldo || 0), 0);
   const totalContado = linhas.reduce((s, l) => s + (Number(l.quantidade_contada.replace(",", ".")) || 0), 0);
-  // Sistêmico apenas dos lotes efetivamente contados (fidelidade por lote na divergência).
-  // Se o usuário não adiciona linha para um lote, ele não entra na comparação — o motor
-  // deixa de sinalizar "divergência" quando o operador contou 75 em um lote de saldo 75
-  // (ainda que exista outro lote com saldo separado no sistema).
-  const lotesContadosSet = new Set(
-    linhas.filter((l) => !l.eh_nao_relacionado && l.lote).map((l) => l.lote as string),
-  );
-  const sistLotesContados = lotesSist
-    .filter((ls) => lotesContadosSet.has(ls.lote))
-    .reduce((s, ls) => s + (ls.saldo || 0), 0);
-  // Valor usado pelo motor de divergência (campo "Sistema"): saldo específico dos lotes contados.
-  const sistemaParaDivergencia = sistLotesContados;
+  // "Total Sistema" (resumo do SKU) = soma do "Saldo Sistema" de cada linha do quadro.
+  // Linha reconhecida → saldo do lote; linha manual (não relacionada) → 0 por definição.
+  const totalSistemaLinhas = linhas.reduce((s, l) => {
+    if (l.eh_nao_relacionado) return s;
+    const live = lotesSist.find((x) => x.lote === l.lote);
+    return s + (live ? live.saldo : (l.saldo_sistemico_lote ?? 0));
+  }, 0);
+  // Motor de divergência agregado do SKU compara Total Contado × Total Sistema (faixa 95–105%).
+  const sistemaParaDivergencia = totalSistemaLinhas;
+
+  // Status simples por linha (regra única — item 3 do spec).
+  function statusLinha(l: LinhaLote): "PENDENTE" | "OK" | "DIVERGENCIA" | "QUEBRA_FEFO" {
+    const q = Number((l.quantidade_contada ?? "").toString().replace(",", "."));
+    if (l.eh_nao_relacionado) return q > 0 ? "QUEBRA_FEFO" : "PENDENTE";
+    if (l.quantidade_contada === "" || Number.isNaN(q)) return "PENDENTE";
+    const live = lotesSist.find((x) => x.lote === l.lote);
+    const saldo = live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0);
+    return q === saldo ? "OK" : "DIVERGENCIA";
+  }
 
   function addLinha() {
     dirtyRef.current = true;
@@ -454,39 +461,31 @@ const LinhaItem = memo(function LinhaItem({
     const { error: eIns } = await (supabase as any).from("itens_missao_lotes").insert(payloadLinhas);
     if (eIns) { toast.error(eIns.message); sounds.error(); setSaving(false); return; }
 
-    // === Análise nível SKU (2.1) ===
+    // === Análise nível SKU (agregado, faixa 95–105%) ===
     const { classe, percentual } = classificarFaixa(totalContado, sistemaParaDivergencia);
-    // status_item base: OK | DIVERGENCIA_POSITIVA | DIVERGENCIA_NEGATIVA
-    let status_item: string = classe;
 
-    // === Análise nível LOTE (2.2) — só quando total está dentro da faixa ===
-    let temQuebraFefo = false;
+    // === Quebra de FEFO — SOMENTE de linhas de Lote Não Relacionado com qtd > 0 ===
+    // Lotes reconhecidos com contagem ≠ saldo nunca disparam Quebra de FEFO;
+    // são apenas Divergência de linha (visual) e entram na análise agregada.
     const detalhesQuebra: Array<{ lote: string | null; sistemico: number; contado: number; eh_nao_relacionado: boolean; percentual: number | null }> = [];
-    // mapa contado por lote
-    const contadoPorLote = new Map<string, number>();
     let contadoNaoRelacionado = 0;
     for (const l of linhas) {
+      if (!l.eh_nao_relacionado) continue;
       const q = Number(l.quantidade_contada.replace(",", "."));
-      if (l.eh_nao_relacionado) contadoNaoRelacionado += q;
-      else contadoPorLote.set(l.lote as string, (contadoPorLote.get(l.lote as string) ?? 0) + q);
-    }
-    if (classe === "OK") {
-      // verifica cada lote sistêmico com saldo > 0
-      for (const ls of lotesSist) {
-        if (ls.saldo <= 0) continue;
-        const cont = contadoPorLote.get(ls.lote) ?? 0;
-        const pct = Math.round(((cont / ls.saldo) * 100) * 100) / 100;
-        if (pct < TOLERANCIA_MIN || pct > TOLERANCIA_MAX) {
-          temQuebraFefo = true;
-          detalhesQuebra.push({ lote: ls.lote, sistemico: ls.saldo, contado: cont, eh_nao_relacionado: false, percentual: pct });
-        }
+      if (q > 0) {
+        contadoNaoRelacionado += q;
+        detalhesQuebra.push({
+          lote: (l.lote_manual_texto ?? "").trim() || null,
+          sistemico: 0, contado: q, eh_nao_relacionado: true, percentual: null,
+        });
       }
-      if (contadoNaoRelacionado > 0) {
-        temQuebraFefo = true;
-        detalhesQuebra.push({ lote: null, sistemico: 0, contado: contadoNaoRelacionado, eh_nao_relacionado: true, percentual: null });
-      }
-      if (temQuebraFefo) status_item = "QUEBRA_FEFO";
     }
+    const temQuebraFefo = contadoNaoRelacionado > 0;
+
+    // status_item: QUEBRA_FEFO tem precedência (exige realocação); senão, faixa agregada.
+    const status_item: string = temQuebraFefo ? "QUEBRA_FEFO" : classe;
+
+
 
     // Atualiza item da missão (mantém quantidade_contada agregada para compatibilidade)
     const { error: eUp } = await (supabase as any).from("missoes_itens")
@@ -695,13 +694,29 @@ const LinhaItem = memo(function LinhaItem({
                 placeholder="0"
                 title="Enter para salvar"
               />
-              {isAdmin && !l.eh_nao_relacionado && l.lote && (() => {
-                const live = lotesSist.find((x) => x.lote === l.lote);
-                const saldo = live ? live.saldo : (l.saldo_sistemico_lote ?? 0);
+              {(() => {
+                const live = !l.eh_nao_relacionado && l.lote ? lotesSist.find((x) => x.lote === l.lote) : null;
+                const saldo = l.eh_nao_relacionado ? null : (live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0));
+                const st = statusLinha(l);
+                const stClass =
+                  st === "OK" ? "bg-success/15 text-success" :
+                  st === "DIVERGENCIA" ? "bg-destructive/15 text-destructive" :
+                  st === "QUEBRA_FEFO" ? "bg-warning/25 text-warning-foreground" :
+                  "bg-muted text-muted-foreground";
+                const stLabel =
+                  st === "OK" ? "OK" :
+                  st === "DIVERGENCIA" ? "Divergência" :
+                  st === "QUEBRA_FEFO" ? "Quebra de FEFO" :
+                  "Pendente";
                 return (
-                  <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
-                    Sist. lote: <span className="font-semibold text-foreground">{formatNum(saldo)}</span>
-                  </span>
+                  <>
+                    <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
+                      Saldo Sistema: <span className="font-semibold text-foreground">{saldo == null ? "—" : formatNum(saldo)}</span>
+                    </span>
+                    <span className={cn("inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase whitespace-nowrap", stClass)}>
+                      {stLabel}
+                    </span>
+                  </>
                 );
               })()}
               <Button
@@ -723,7 +738,10 @@ const LinhaItem = memo(function LinhaItem({
           </div>
           <div className="text-[10px] text-muted-foreground">
             Total contado: <span className="tabular-nums font-semibold">{formatNum(totalContado)}</span>
-            {isAdmin && <>{" · "}Sistema: <span className="tabular-nums">{formatNum(sistemaParaDivergencia)}</span>{sistemaParaDivergencia !== totalSist && <span className="text-muted-foreground/70"> (SKU: {formatNum(totalSist)})</span>}</>}
+            {" · "}Total Sistema: <span className="tabular-nums font-semibold">{formatNum(totalSistemaLinhas)}</span>
+            {isAdmin && totalSistemaLinhas !== totalSist && (
+              <span className="text-muted-foreground/70"> (SKU total: {formatNum(totalSist)})</span>
+            )}
           </div>
         </div>
       </TableCell>
