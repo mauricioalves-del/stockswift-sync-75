@@ -543,7 +543,7 @@ const LinhaItem = memo(function LinhaItem({
           descricao: item.descricao ?? "",
           id_local: missao.id_local ?? (lotesSist[0]?.id_local ?? ""),
           origem: missao.origem ?? "",
-          saldo_sistema: totalSist,
+          saldo_sistema: sistemaParaDivergencia,
           contagem: totalContado,
           acuracidade: percentual,
           status: "PENDENTE_RECONTAGEM",
