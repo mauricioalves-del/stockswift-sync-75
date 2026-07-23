@@ -526,7 +526,7 @@ const LinhaItem = memo(function LinhaItem({
           await aprovarRecontagem({ ...(origem as RecontagemRow), contagem: totalContado, acuracidade: percentual });
         } else {
           await (supabase as any).from("recontagem").update({
-            contagem: totalContado, acuracidade: percentual, saldo_sistema: totalSist,
+            contagem: totalContado, acuracidade: percentual, saldo_sistema: sistemaParaDivergencia,
             status: "PENDENTE_RECONTAGEM", usuario: userId,
           }).eq("id", origem.id);
         }
