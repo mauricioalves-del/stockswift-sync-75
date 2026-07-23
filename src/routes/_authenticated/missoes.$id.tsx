@@ -738,7 +738,10 @@ const LinhaItem = memo(function LinhaItem({
           </div>
           <div className="text-[10px] text-muted-foreground">
             Total contado: <span className="tabular-nums font-semibold">{formatNum(totalContado)}</span>
-            {isAdmin && <>{" · "}Sistema: <span className="tabular-nums">{formatNum(sistemaParaDivergencia)}</span>{sistemaParaDivergencia !== totalSist && <span className="text-muted-foreground/70"> (SKU: {formatNum(totalSist)})</span>}</>}
+            {" · "}Total Sistema: <span className="tabular-nums font-semibold">{formatNum(totalSistemaLinhas)}</span>
+            {isAdmin && totalSistemaLinhas !== totalSist && (
+              <span className="text-muted-foreground/70"> (SKU total: {formatNum(totalSist)})</span>
+            )}
           </div>
         </div>
       </TableCell>
