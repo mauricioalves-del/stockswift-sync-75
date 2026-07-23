@@ -683,11 +683,15 @@ const LinhaItem = memo(function LinhaItem({
                 placeholder="0"
                 title="Enter para salvar"
               />
-              {isAdmin && !l.eh_nao_relacionado && l.lote && (
-                <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
-                  Sist. lote: <span className="font-semibold text-foreground">{formatNum(l.saldo_sistemico_lote ?? 0)}</span>
-                </span>
-              )}
+              {isAdmin && !l.eh_nao_relacionado && l.lote && (() => {
+                const live = lotesSist.find((x) => x.lote === l.lote);
+                const saldo = live ? live.saldo : (l.saldo_sistemico_lote ?? 0);
+                return (
+                  <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
+                    Sist. lote: <span className="font-semibold text-foreground">{formatNum(saldo)}</span>
+                  </span>
+                );
+              })()}
               <Button
                 type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0"
                 onClick={() => removerLinha(l.key)} disabled={linhas.length === 1}
