@@ -302,17 +302,27 @@ const LinhaItem = memo(function LinhaItem({
   // (primeiro lote com saldo > 0, ou o primeiro da lista, ou "não relacionado" se não houver lote algum).
   const buildSeed = (): LinhaLote[] => {
     if (linhasSalvas.length > 0) {
-      return linhasSalvas.map((r: any) => ({
-        id: r.id,
-        key: r.id,
-        lote: r.lote,
-        lote_manual_texto: r.lote_manual_texto ?? "",
-        data_validade_manual: r.data_validade_manual ?? null,
-        eh_nao_relacionado: !!r.eh_nao_relacionado,
-        quantidade_contada: String(r.quantidade_contada ?? ""),
-        saldo_sistemico_lote: r.saldo_sistemico_lote != null ? Number(r.saldo_sistemico_lote) : null,
-      }));
+      const vistos = new Set<string>();
+      return linhasSalvas
+        .filter((r: any) => {
+          if (r.eh_nao_relacionado) return true;
+          const k = String(r.lote ?? "");
+          if (vistos.has(k)) return false;
+          vistos.add(k);
+          return true;
+        })
+        .map((r: any) => ({
+          id: r.id,
+          key: r.id,
+          lote: r.lote,
+          lote_manual_texto: r.lote_manual_texto ?? "",
+          data_validade_manual: r.data_validade_manual ?? null,
+          eh_nao_relacionado: !!r.eh_nao_relacionado,
+          quantidade_contada: String(r.quantidade_contada ?? ""),
+          saldo_sistemico_lote: r.saldo_sistemico_lote != null ? Number(r.saldo_sistemico_lote) : null,
+        }));
     }
+
     const fefo = lotesSist.find((l) => l.saldo > 0) ?? lotesSist[0];
     if (fefo) {
       return [{
