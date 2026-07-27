@@ -506,7 +506,9 @@ const LinhaItem = memo(function LinhaItem({
       toast.error("Há lotes repetidos — junte as quantidades em uma única linha"); return;
     }
 
+    const t0 = Date.now();
     setSaving(true);
+
     const userId = (await supabase.auth.getUser()).data.user?.id ?? "";
 
     // Substitui as linhas persistidas por essas
