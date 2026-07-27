@@ -692,7 +692,7 @@ const LinhaItem = memo(function LinhaItem({
                     {opcoesLote
                       .filter((o) => o.lote === l.lote || !linhas.some((x) => !x.eh_nao_relacionado && x.key !== l.key && x.lote === o.lote))
                       .map((o) => (
-                said = null,
+                
                       <SelectItem key={o.lote} value={o.lote} className="text-xs">
                         <span className="font-mono">{o.lote || "(sem lote)"}</span>
                       </SelectItem>
