@@ -711,15 +711,17 @@ const LinhaItem = memo(function LinhaItem({
                 const saldo = l.eh_nao_relacionado ? null : (live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0));
                 const st = statusLinha(l);
                 const stClass =
-                  st === "OK" ? "bg-success/15 text-success" :
-                  st === "DIVERGENCIA" ? "bg-destructive/15 text-destructive" :
+                  st === "TOLERANCIA" ? "bg-success/15 text-success" :
+                  st === "DIV_NEG" || st === "DIV_POS" ? "bg-destructive/15 text-destructive" :
                   st === "QUEBRA_FEFO" ? "bg-warning/25 text-warning-foreground" :
                   "bg-muted text-muted-foreground";
                 const stLabel =
-                  st === "OK" ? "OK" :
-                  st === "DIVERGENCIA" ? "Divergência" :
+                  st === "TOLERANCIA" ? "Dentro da Tolerância" :
+                  st === "DIV_NEG" ? "Divergência (−)" :
+                  st === "DIV_POS" ? "Divergência (+)" :
                   st === "QUEBRA_FEFO" ? "Quebra de FEFO" :
                   "Pendente";
+
                 return (
                   <>
                     <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
