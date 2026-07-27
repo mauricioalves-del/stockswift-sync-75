@@ -494,8 +494,14 @@ const LinhaItem = memo(function LinhaItem({
     }
     const temQuebraFefo = contadoNaoRelacionado > 0;
 
-    // status_item: QUEBRA_FEFO tem precedência (exige realocação); senão, faixa agregada.
-    const status_item: string = temQuebraFefo ? "QUEBRA_FEFO" : classe;
+    // status_item: QUEBRA_FEFO tem precedência; senão, pior linha; senão, faixa agregada.
+    const temDivNeg = linhas.some((l) => statusLinha(l) === "DIV_NEG");
+    const temDivPos = linhas.some((l) => statusLinha(l) === "DIV_POS");
+    const status_item: string = temQuebraFefo
+      ? "QUEBRA_FEFO"
+      : temDivNeg ? "DIVERGENCIA_NEGATIVA"
+      : temDivPos ? "DIVERGENCIA_POSITIVA"
+      : classe;
 
 
 
