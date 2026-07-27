@@ -865,11 +865,16 @@ const LinhaItem = memo(function LinhaItem({
           </div>
           <div className="text-[10px] text-muted-foreground">
             Total contado: <span className="tabular-nums font-semibold">{formatNum(totalContado)}</span>
-            {" · "}Total Sistema: <span className="tabular-nums font-semibold">{formatNum(totalSistemaLinhas)}</span>
-            {isAdmin && totalSistemaLinhas !== totalSist && (
-              <span className="text-muted-foreground/70"> (SKU total: {formatNum(totalSist)})</span>
+            {isAdmin && (
+              <>
+                {" · "}Total Sistema: <span className="tabular-nums font-semibold">{formatNum(totalSistemaLinhas)}</span>
+                {totalSistemaLinhas !== totalSist && (
+                  <span className="text-muted-foreground/70"> (SKU total: {formatNum(totalSist)})</span>
+                )}
+              </>
             )}
           </div>
+
         </div>
       </TableCell>
       <TableCell className="align-top">
