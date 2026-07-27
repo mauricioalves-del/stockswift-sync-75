@@ -159,6 +159,21 @@ function MissaoExecucaoPage() {
   const total = itens.length;
   const concluidos = itens.filter((i) => i.status_item != null && CONCLUIDO_STATUSES.includes(i.status_item)).length;
   const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
+  const divergentes = itens.filter((i) =>
+    i.status_item === "DIVERGENCIA_NEGATIVA" || i.status_item === "DIVERGENCIA_POSITIVA" ||
+    i.status_item === "DIVERGENTE" || i.status_item === "QUEBRA_FEFO").length;
+  const acurados = itens.filter((i) => i.status_item === "OK" || i.status_item === "CONTADO").length;
+  const pendentes = total - concluidos;
+  const acuracidadeGeral = useMemo(() => {
+    let contado = 0, sistema = 0;
+    for (const i of itens) {
+      if (i.status_item == null || !CONCLUIDO_STATUSES.includes(i.status_item)) continue;
+      contado += Number(i.quantidade_contada ?? 0);
+      sistema += Number(i.quantidade_prevista ?? 0);
+    }
+    if (sistema === 0) return contado === 0 ? null : 999;
+    return Math.round((contado / sistema) * 1000) / 10;
+  }, [itens]);
 
   const itensFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -168,6 +183,7 @@ function MissaoExecucaoPage() {
       (i.descricao ?? "").toLowerCase().includes(q),
     );
   }, [itens, busca]);
+
 
   if (missaoQ.isLoading) return <div className="p-8 text-center text-muted-foreground">Carregando…</div>;
   if (!missao) return <div className="p-8 text-center text-muted-foreground">Missão não encontrada.</div>;
