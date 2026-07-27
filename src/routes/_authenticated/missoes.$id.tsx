@@ -159,6 +159,21 @@ function MissaoExecucaoPage() {
   const total = itens.length;
   const concluidos = itens.filter((i) => i.status_item != null && CONCLUIDO_STATUSES.includes(i.status_item)).length;
   const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
+  const divergentes = itens.filter((i) =>
+    i.status_item === "DIVERGENCIA_NEGATIVA" || i.status_item === "DIVERGENCIA_POSITIVA" ||
+    i.status_item === "DIVERGENTE" || i.status_item === "QUEBRA_FEFO").length;
+  const acurados = itens.filter((i) => i.status_item === "OK" || i.status_item === "CONTADO").length;
+  const pendentes = total - concluidos;
+  const acuracidadeGeral = useMemo(() => {
+    let contado = 0, sistema = 0;
+    for (const i of itens) {
+      if (i.status_item == null || !CONCLUIDO_STATUSES.includes(i.status_item)) continue;
+      contado += Number(i.quantidade_contada ?? 0);
+      sistema += Number(i.quantidade_prevista ?? 0);
+    }
+    if (sistema === 0) return contado === 0 ? null : 999;
+    return Math.round((contado / sistema) * 1000) / 10;
+  }, [itens]);
 
   const itensFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -169,6 +184,7 @@ function MissaoExecucaoPage() {
     );
   }, [itens, busca]);
 
+
   if (missaoQ.isLoading) return <div className="p-8 text-center text-muted-foreground">Carregando…</div>;
   if (!missao) return <div className="p-8 text-center text-muted-foreground">Missão não encontrada.</div>;
 
@@ -176,7 +192,12 @@ function MissaoExecucaoPage() {
     qc.invalidateQueries({ queryKey: ["missao-itens", id] });
     qc.invalidateQueries({ queryKey: ["missao-item-lotes", id] });
     qc.invalidateQueries({ queryKey: ["missao", id] });
+    qc.invalidateQueries({ queryKey: ["missoes"] });
+    qc.invalidateQueries({ queryKey: ["recontagem"] });
+    qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
   };
+
+
 
   return (
     <div className="max-w-6xl mx-auto space-y-4">
@@ -219,9 +240,29 @@ function MissaoExecucaoPage() {
         </Card>
       )}
 
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+        {[
+          { l: "Total SKU", v: String(total), c: "text-foreground" },
+          { l: "Pendentes", v: String(pendentes), c: "text-muted-foreground" },
+          { l: "Conferidos", v: String(concluidos), c: "text-foreground" },
+          { l: "Divergentes", v: String(divergentes), c: "text-destructive" },
+          { l: "Acurados", v: String(acurados), c: "text-success" },
+          { l: "% Concluído", v: `${pct}%`, c: "text-primary" },
+          { l: "Acuracidade", v: acuracidadeGeral == null ? "—" : `${acuracidadeGeral.toFixed(1)}%`, c: "text-foreground" },
+        ].map((k) => (
+          <Card key={k.l}>
+            <CardContent className="p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">{k.l}</div>
+              <div className={cn("text-lg font-bold tabular-nums", k.c)}>{k.v}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       <Card>
         <CardHeader className="gap-2">
           <CardTitle className="text-base flex items-center justify-between gap-2 flex-wrap">
+
             <span>Itens a contar</span>
             <span className="text-xs font-normal tabular-nums text-muted-foreground">
               {concluidos} de {total} · {pct}%
@@ -465,7 +506,9 @@ const LinhaItem = memo(function LinhaItem({
       toast.error("Há lotes repetidos — junte as quantidades em uma única linha"); return;
     }
 
+    const t0 = Date.now();
     setSaving(true);
+
     const userId = (await supabase.auth.getUser()).data.user?.id ?? "";
 
     // Substitui as linhas persistidas por essas
@@ -596,14 +639,46 @@ const LinhaItem = memo(function LinhaItem({
         responsavel_id: missao.responsavel_id ?? userId,
       }).eq("id", missao.id);
     }
-    const { data: restantes } = await (supabase as any).from("missoes_itens")
-      .select("id").eq("missao_id", missao.id)
-      .not("status_item", "in", `(${CONCLUIDO_STATUSES.join(",")})`);
-    if (!restantes || restantes.length === 0) {
+    const { data: todosItens } = await (supabase as any).from("missoes_itens")
+      .select("id, status_item").eq("missao_id", missao.id);
+    const restantes = (todosItens ?? []).filter(
+      (r: any) => !r.status_item || !CONCLUIDO_STATUSES.includes(r.status_item),
+    );
+    if (restantes.length === 0) {
       await (supabase as any).from("missoes").update({ status: "CONCLUIDA" }).eq("id", missao.id);
     }
 
-    // Feedback: som de alerta sempre que houver linha divergente ou quebra de FEFO
+    // === Auditoria detalhada por lote ===
+    await (supabase as any).from("auditoria").insert({
+      entidade: "missoes_itens",
+      entidade_id: item.id,
+      acao: "CONTAGEM_MISSAO",
+      usuario: userId || null,
+      dados_depois: {
+        missao_id: missao.id,
+        codigo_produto: item.codigo_produto,
+        total_contado: totalContado,
+        total_sistema: sistemaParaDivergencia,
+        percentual,
+        resultado: status_item,
+        tempo_conferencia_s: Math.round((Date.now() - t0) / 1000),
+        linhas: linhas.map((l) => {
+          const q = Number(l.quantidade_contada.replace(",", "."));
+          const saldo = l.eh_nao_relacionado ? 0 : saldoDaLinha(l);
+          return {
+            lote: l.eh_nao_relacionado ? (l.lote_manual_texto ?? "").trim() : l.lote,
+            lote_manual: l.eh_nao_relacionado,
+            quantidade_informada: q,
+            quantidade_sistemica: saldo,
+            percentual: l.eh_nao_relacionado || saldo === 0 ? null : Math.round((q / saldo) * 1000) / 10,
+            resultado: statusLinha(l),
+          };
+        }),
+      },
+      observacao: `Contagem da missão ${missao.titulo} — ${status_item}`,
+    });
+
+    // Feedback: som de alerta apenas em divergência ou quebra de FEFO
     if (precisaRecontagem) {
       const msg = temQuebraFefo
         ? "Quebra de FEFO — enviado para recontagem"
@@ -612,7 +687,6 @@ const LinhaItem = memo(function LinhaItem({
       sounds.divergente();
     } else {
       toast.success("Dentro da Tolerância");
-      sounds.success();
     }
 
     setSaving(false);
@@ -620,25 +694,29 @@ const LinhaItem = memo(function LinhaItem({
     onSaved();
   }
 
-  const cor = acuracidadeColor(
-    item.status_item && CONCLUIDO_STATUSES.includes(item.status_item)
-      ? classificarFaixa(Number(item.quantidade_contada ?? 0), sistemaParaDivergencia).percentual
-      : null,
-  );
-  const badge = item.status_item == null || item.status_item === "PENDENTE"
+  // Status consolidado do SKU (após salvar)
+  const concluido = !!item.status_item && CONCLUIDO_STATUSES.includes(item.status_item);
+  const pctSku = concluido
+    ? classificarFaixa(Number(item.quantidade_contada ?? 0), sistemaParaDivergencia).percentual
+    : null;
+  const cor = acuracidadeColor(pctSku);
+  const skuAcuradoExato = pctSku != null && Math.abs(pctSku - 100) < 0.01;
+  const badge = !concluido
     ? "bg-muted text-muted-foreground"
     : item.status_item === "QUEBRA_FEFO"
       ? "bg-warning/25 text-warning-foreground"
-      : item.status_item === "OK"
-        ? "bg-success/15 text-success"
+      : item.status_item === "OK" || item.status_item === "CONTADO"
+        ? (skuAcuradoExato ? "bg-success/15 text-success" : "bg-warning/20 text-warning-foreground")
         : `${cor.bg} ${cor.text}`;
   const badgeLabel =
-    item.status_item === "QUEBRA_FEFO" ? "Quebra de FEFO"
-    : item.status_item === "OK" ? "Dentro da Tolerância"
-    : item.status_item === "DIVERGENCIA_NEGATIVA" ? "Divergência (−)"
-    : item.status_item === "DIVERGENCIA_POSITIVA" ? "Divergência (+)"
-    : item.status_item == null || item.status_item === "PENDENTE" ? "Pendente"
-    : statusLabel(item.status_item).label;
+    !concluido ? "Pendente"
+    : item.status_item === "QUEBRA_FEFO" ? "Quebra de FEFO"
+    : item.status_item === "OK" || item.status_item === "CONTADO"
+      ? (skuAcuradoExato ? "Acurado" : "Acurado com Tolerância")
+    : item.status_item === "DIVERGENCIA_NEGATIVA" || item.status_item === "DIVERGENCIA_POSITIVA" || item.status_item === "DIVERGENTE"
+      ? "Divergente"
+    : statusLabel(item.status_item!).label;
+
 
   // opções de lote no dropdown: todos os lotes sistêmicos do SKU (mesmo com saldo 0)
   const opcoesLote = lotesSist;
@@ -756,14 +834,17 @@ const LinhaItem = memo(function LinhaItem({
 
                 return (
                   <>
-                    <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
-                      Saldo Sistema: <span className="font-semibold text-foreground">{saldo == null ? "—" : formatNum(saldo)}</span>
-                    </span>
+                    {isAdmin && (
+                      <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
+                        Saldo Sistema: <span className="font-semibold text-foreground">{saldo == null ? "—" : formatNum(saldo)}</span>
+                      </span>
+                    )}
                     <span className={cn("inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase whitespace-nowrap", stClass)}>
                       {stLabel}
                     </span>
                   </>
                 );
+
               })()}
               <Button
                 type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0"
@@ -784,11 +865,16 @@ const LinhaItem = memo(function LinhaItem({
           </div>
           <div className="text-[10px] text-muted-foreground">
             Total contado: <span className="tabular-nums font-semibold">{formatNum(totalContado)}</span>
-            {" · "}Total Sistema: <span className="tabular-nums font-semibold">{formatNum(totalSistemaLinhas)}</span>
-            {isAdmin && totalSistemaLinhas !== totalSist && (
-              <span className="text-muted-foreground/70"> (SKU total: {formatNum(totalSist)})</span>
+            {isAdmin && (
+              <>
+                {" · "}Total Sistema: <span className="tabular-nums font-semibold">{formatNum(totalSistemaLinhas)}</span>
+                {totalSistemaLinhas !== totalSist && (
+                  <span className="text-muted-foreground/70"> (SKU total: {formatNum(totalSist)})</span>
+                )}
+              </>
             )}
           </div>
+
         </div>
       </TableCell>
       <TableCell className="align-top">
