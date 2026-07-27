@@ -618,13 +618,21 @@ const LinhaItem = memo(function LinhaItem({
   const badge = item.status_item == null || item.status_item === "PENDENTE"
     ? "bg-muted text-muted-foreground"
     : item.status_item === "QUEBRA_FEFO"
-      ? "bg-warning/20 text-warning-foreground"
-      : `${cor.bg} ${cor.text}`;
-  const badgeLabel = item.status_item === "QUEBRA_FEFO" ? "Quebra de FEFO"
-    : item.status_item ? statusLabel(item.status_item).label : "Pendente";
+      ? "bg-warning/25 text-warning-foreground"
+      : item.status_item === "OK"
+        ? "bg-success/15 text-success"
+        : `${cor.bg} ${cor.text}`;
+  const badgeLabel =
+    item.status_item === "QUEBRA_FEFO" ? "Quebra de FEFO"
+    : item.status_item === "OK" ? "Dentro da Tolerância"
+    : item.status_item === "DIVERGENCIA_NEGATIVA" ? "Divergência (−)"
+    : item.status_item === "DIVERGENCIA_POSITIVA" ? "Divergência (+)"
+    : item.status_item == null || item.status_item === "PENDENTE" ? "Pendente"
+    : statusLabel(item.status_item).label;
 
-  // opções de lote no dropdown: todos os lotes sistêmicos (mesmo com saldo 0) + Não Relacionado
+  // opções de lote no dropdown: todos os lotes sistêmicos do SKU (mesmo com saldo 0)
   const opcoesLote = lotesSist;
+
 
   const unidade = (lotesSist[0]?.unidade ?? "UN").toUpperCase();
   const destacar = unidade === "KG" || unidade === "LT" || unidade === "L";
