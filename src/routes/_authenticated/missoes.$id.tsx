@@ -361,24 +361,36 @@ const LinhaItem = memo(function LinhaItem({
   // Motor de divergência agregado do SKU compara Total Contado × Total Sistema (faixa 95–105%).
   const sistemaParaDivergencia = totalSistemaLinhas;
 
-  // Status simples por linha (regra única — item 3 do spec).
-  function statusLinha(l: LinhaLote): "PENDENTE" | "OK" | "DIVERGENCIA" | "QUEBRA_FEFO" {
+  // Status por linha — vocabulário único (item 3 do spec).
+  type StatusLinha = "PENDENTE" | "TOLERANCIA" | "DIV_NEG" | "DIV_POS" | "QUEBRA_FEFO";
+  function saldoDaLinha(l: LinhaLote): number {
+    const live = lotesSist.find((x) => x.lote === l.lote);
+    return live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0);
+  }
+  function statusLinha(l: LinhaLote): StatusLinha {
     const q = Number((l.quantidade_contada ?? "").toString().replace(",", "."));
     if (l.eh_nao_relacionado) return q > 0 ? "QUEBRA_FEFO" : "PENDENTE";
     if (l.quantidade_contada === "" || Number.isNaN(q)) return "PENDENTE";
-    const live = lotesSist.find((x) => x.lote === l.lote);
-    const saldo = live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0);
-    return q === saldo ? "OK" : "DIVERGENCIA";
+    const saldo = saldoDaLinha(l);
+    if (saldo === 0) return q === 0 ? "TOLERANCIA" : "DIV_POS";
+    const pct = (q / saldo) * 100;
+    if (pct < 95) return "DIV_NEG";
+    if (pct > 105) return "DIV_POS";
+    return "TOLERANCIA";
   }
+  const linhasAlerta = linhas.filter((l) => {
+    const s = statusLinha(l);
+    return s === "DIV_NEG" || s === "DIV_POS" || s === "QUEBRA_FEFO";
+  });
 
   function addLinha() {
     dirtyRef.current = true;
     const usados = new Set(linhas.filter((l) => !l.eh_nao_relacionado).map((l) => l.lote));
     const prox = lotesSist.find((l) => !usados.has(l.lote));
-    setLinhas([...linhas, prox
-      ? { key: crypto.randomUUID(), lote: prox.lote, eh_nao_relacionado: false, quantidade_contada: "", saldo_sistemico_lote: prox.saldo }
-      : { key: crypto.randomUUID(), lote: "", eh_nao_relacionado: false, quantidade_contada: "", saldo_sistemico_lote: 0 }]);
+    if (!prox) { toast.info("Todos os lotes deste SKU já foram adicionados"); return; }
+    setLinhas([...linhas, { key: crypto.randomUUID(), lote: prox.lote, eh_nao_relacionado: false, quantidade_contada: "", saldo_sistemico_lote: prox.saldo }]);
   }
+
   function addLinhaManual() {
     dirtyRef.current = true;
     setLinhas([...linhas, {
