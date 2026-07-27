@@ -240,9 +240,29 @@ function MissaoExecucaoPage() {
         </Card>
       )}
 
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+        {[
+          { l: "Total SKU", v: String(total), c: "text-foreground" },
+          { l: "Pendentes", v: String(pendentes), c: "text-muted-foreground" },
+          { l: "Conferidos", v: String(concluidos), c: "text-foreground" },
+          { l: "Divergentes", v: String(divergentes), c: "text-destructive" },
+          { l: "Acurados", v: String(acurados), c: "text-success" },
+          { l: "% Concluído", v: `${pct}%`, c: "text-primary" },
+          { l: "Acuracidade", v: acuracidadeGeral == null ? "—" : `${acuracidadeGeral.toFixed(1)}%`, c: "text-foreground" },
+        ].map((k) => (
+          <Card key={k.l}>
+            <CardContent className="p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">{k.l}</div>
+              <div className={cn("text-lg font-bold tabular-nums", k.c)}>{k.v}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       <Card>
         <CardHeader className="gap-2">
           <CardTitle className="text-base flex items-center justify-between gap-2 flex-wrap">
+
             <span>Itens a contar</span>
             <span className="text-xs font-normal tabular-nums text-muted-foreground">
               {concluidos} de {total} · {pct}%
