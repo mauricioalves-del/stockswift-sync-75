@@ -302,17 +302,27 @@ const LinhaItem = memo(function LinhaItem({
   // (primeiro lote com saldo > 0, ou o primeiro da lista, ou "não relacionado" se não houver lote algum).
   const buildSeed = (): LinhaLote[] => {
     if (linhasSalvas.length > 0) {
-      return linhasSalvas.map((r: any) => ({
-        id: r.id,
-        key: r.id,
-        lote: r.lote,
-        lote_manual_texto: r.lote_manual_texto ?? "",
-        data_validade_manual: r.data_validade_manual ?? null,
-        eh_nao_relacionado: !!r.eh_nao_relacionado,
-        quantidade_contada: String(r.quantidade_contada ?? ""),
-        saldo_sistemico_lote: r.saldo_sistemico_lote != null ? Number(r.saldo_sistemico_lote) : null,
-      }));
+      const vistos = new Set<string>();
+      return linhasSalvas
+        .filter((r: any) => {
+          if (r.eh_nao_relacionado) return true;
+          const k = String(r.lote ?? "");
+          if (vistos.has(k)) return false;
+          vistos.add(k);
+          return true;
+        })
+        .map((r: any) => ({
+          id: r.id,
+          key: r.id,
+          lote: r.lote,
+          lote_manual_texto: r.lote_manual_texto ?? "",
+          data_validade_manual: r.data_validade_manual ?? null,
+          eh_nao_relacionado: !!r.eh_nao_relacionado,
+          quantidade_contada: String(r.quantidade_contada ?? ""),
+          saldo_sistemico_lote: r.saldo_sistemico_lote != null ? Number(r.saldo_sistemico_lote) : null,
+        }));
     }
+
     const fefo = lotesSist.find((l) => l.saldo > 0) ?? lotesSist[0];
     if (fefo) {
       return [{
@@ -361,24 +371,36 @@ const LinhaItem = memo(function LinhaItem({
   // Motor de divergência agregado do SKU compara Total Contado × Total Sistema (faixa 95–105%).
   const sistemaParaDivergencia = totalSistemaLinhas;
 
-  // Status simples por linha (regra única — item 3 do spec).
-  function statusLinha(l: LinhaLote): "PENDENTE" | "OK" | "DIVERGENCIA" | "QUEBRA_FEFO" {
+  // Status por linha — vocabulário único (item 3 do spec).
+  type StatusLinha = "PENDENTE" | "TOLERANCIA" | "DIV_NEG" | "DIV_POS" | "QUEBRA_FEFO";
+  function saldoDaLinha(l: LinhaLote): number {
+    const live = lotesSist.find((x) => x.lote === l.lote);
+    return live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0);
+  }
+  function statusLinha(l: LinhaLote): StatusLinha {
     const q = Number((l.quantidade_contada ?? "").toString().replace(",", "."));
     if (l.eh_nao_relacionado) return q > 0 ? "QUEBRA_FEFO" : "PENDENTE";
     if (l.quantidade_contada === "" || Number.isNaN(q)) return "PENDENTE";
-    const live = lotesSist.find((x) => x.lote === l.lote);
-    const saldo = live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0);
-    return q === saldo ? "OK" : "DIVERGENCIA";
+    const saldo = saldoDaLinha(l);
+    if (saldo === 0) return q === 0 ? "TOLERANCIA" : "DIV_POS";
+    const pct = (q / saldo) * 100;
+    if (pct < 95) return "DIV_NEG";
+    if (pct > 105) return "DIV_POS";
+    return "TOLERANCIA";
   }
+  const linhasAlerta = linhas.filter((l) => {
+    const s = statusLinha(l);
+    return s === "DIV_NEG" || s === "DIV_POS" || s === "QUEBRA_FEFO";
+  });
 
   function addLinha() {
     dirtyRef.current = true;
     const usados = new Set(linhas.filter((l) => !l.eh_nao_relacionado).map((l) => l.lote));
     const prox = lotesSist.find((l) => !usados.has(l.lote));
-    setLinhas([...linhas, prox
-      ? { key: crypto.randomUUID(), lote: prox.lote, eh_nao_relacionado: false, quantidade_contada: "", saldo_sistemico_lote: prox.saldo }
-      : { key: crypto.randomUUID(), lote: "", eh_nao_relacionado: false, quantidade_contada: "", saldo_sistemico_lote: 0 }]);
+    if (!prox) { toast.info("Todos os lotes deste SKU já foram adicionados"); return; }
+    setLinhas([...linhas, { key: crypto.randomUUID(), lote: prox.lote, eh_nao_relacionado: false, quantidade_contada: "", saldo_sistemico_lote: prox.saldo }]);
   }
+
   function addLinhaManual() {
     dirtyRef.current = true;
     setLinhas([...linhas, {
@@ -482,8 +504,14 @@ const LinhaItem = memo(function LinhaItem({
     }
     const temQuebraFefo = contadoNaoRelacionado > 0;
 
-    // status_item: QUEBRA_FEFO tem precedência (exige realocação); senão, faixa agregada.
-    const status_item: string = temQuebraFefo ? "QUEBRA_FEFO" : classe;
+    // status_item: QUEBRA_FEFO tem precedência; senão, pior linha; senão, faixa agregada.
+    const temDivNeg = linhas.some((l) => statusLinha(l) === "DIV_NEG");
+    const temDivPos = linhas.some((l) => statusLinha(l) === "DIV_POS");
+    const status_item: string = temQuebraFefo
+      ? "QUEBRA_FEFO"
+      : temDivNeg ? "DIVERGENCIA_NEGATIVA"
+      : temDivPos ? "DIVERGENCIA_POSITIVA"
+      : classe;
 
 
 
@@ -515,25 +543,27 @@ const LinhaItem = memo(function LinhaItem({
       });
     }
 
-    // Recontagem — mesmo mecanismo anterior, mas usando totais
+    // Recontagem — qualquer linha com Divergência (−/+) ou Quebra de FEFO entra na fila (margem Alta)
+    const precisaRecontagem = linhasAlerta.length > 0;
     const primeiroLote = linhas.find((l) => !l.eh_nao_relacionado)?.lote ?? item.lote ?? "";
+    const motivoRec = temQuebraFefo ? "Quebra de FEFO — margem Alta" : "Divergência de contagem — margem Alta";
     if (item.recontagem_origem_id) {
       const { data: origem } = await (supabase as any).from("recontagem")
         .select("*").eq("id", item.recontagem_origem_id).maybeSingle();
       if (origem) {
-        if (classe === "OK") {
+        if (!precisaRecontagem) {
           await aprovarRecontagem({ ...(origem as RecontagemRow), contagem: totalContado, acuracidade: percentual });
         } else {
           await (supabase as any).from("recontagem").update({
             contagem: totalContado, acuracidade: percentual, saldo_sistema: sistemaParaDivergencia,
-            status: "PENDENTE_RECONTAGEM", usuario: userId,
+            status: "PENDENTE_RECONTAGEM", motivo: motivoRec, usuario: userId,
           }).eq("id", origem.id);
         }
       }
     } else {
       const { data: recExistente } = await (supabase as any).from("recontagem")
         .select("id").eq("item_missao_id", item.id).maybeSingle();
-      if (classe !== "OK") {
+      if (precisaRecontagem) {
         const recPayload = {
           missao_id: missao.id,
           item_missao_id: item.id,
@@ -545,6 +575,7 @@ const LinhaItem = memo(function LinhaItem({
           saldo_sistema: sistemaParaDivergencia,
           contagem: totalContado,
           acuracidade: percentual,
+          motivo: motivoRec,
           status: "PENDENTE_RECONTAGEM",
           usuario: userId,
         };
@@ -572,17 +603,18 @@ const LinhaItem = memo(function LinhaItem({
       await (supabase as any).from("missoes").update({ status: "CONCLUIDA" }).eq("id", missao.id);
     }
 
-    if (isAdmin) {
-      const msg = status_item === "OK" ? "Dentro da tolerância"
-                : status_item === "QUEBRA_FEFO" ? "Total OK, mas há quebra de FEFO — enviado para ocorrências"
-                : status_item === "DIVERGENCIA_NEGATIVA" ? "Divergência negativa — enviado para recontagem"
-                : "Divergência positiva — enviado para recontagem";
-      if (status_item === "OK") { toast.success(msg); sounds.success(); }
-      else if (status_item === "QUEBRA_FEFO") { toast.warning(msg); sounds.success(); }
-      else { toast.warning(msg); sounds.divergente(); }
+    // Feedback: som de alerta sempre que houver linha divergente ou quebra de FEFO
+    if (precisaRecontagem) {
+      const msg = temQuebraFefo
+        ? "Quebra de FEFO — enviado para recontagem"
+        : "Divergência — enviado para recontagem";
+      toast.warning(msg);
+      sounds.divergente();
     } else {
-      toast.success("Contagem registrada"); sounds.success();
+      toast.success("Dentro da Tolerância");
+      sounds.success();
     }
+
     setSaving(false);
     dirtyRef.current = false;
     onSaved();
@@ -596,13 +628,21 @@ const LinhaItem = memo(function LinhaItem({
   const badge = item.status_item == null || item.status_item === "PENDENTE"
     ? "bg-muted text-muted-foreground"
     : item.status_item === "QUEBRA_FEFO"
-      ? "bg-warning/20 text-warning-foreground"
-      : `${cor.bg} ${cor.text}`;
-  const badgeLabel = item.status_item === "QUEBRA_FEFO" ? "Quebra de FEFO"
-    : item.status_item ? statusLabel(item.status_item).label : "Pendente";
+      ? "bg-warning/25 text-warning-foreground"
+      : item.status_item === "OK"
+        ? "bg-success/15 text-success"
+        : `${cor.bg} ${cor.text}`;
+  const badgeLabel =
+    item.status_item === "QUEBRA_FEFO" ? "Quebra de FEFO"
+    : item.status_item === "OK" ? "Dentro da Tolerância"
+    : item.status_item === "DIVERGENCIA_NEGATIVA" ? "Divergência (−)"
+    : item.status_item === "DIVERGENCIA_POSITIVA" ? "Divergência (+)"
+    : item.status_item == null || item.status_item === "PENDENTE" ? "Pendente"
+    : statusLabel(item.status_item).label;
 
-  // opções de lote no dropdown: todos os lotes sistêmicos (mesmo com saldo 0) + Não Relacionado
+  // opções de lote no dropdown: todos os lotes sistêmicos do SKU (mesmo com saldo 0)
   const opcoesLote = lotesSist;
+
 
   const unidade = (lotesSist[0]?.unidade ?? "UN").toUpperCase();
   const destacar = unidade === "KG" || unidade === "LT" || unidade === "L";
@@ -677,11 +717,15 @@ const LinhaItem = memo(function LinhaItem({
                         Nenhum lote no sistema para este SKU
                       </div>
                     )}
-                    {opcoesLote.map((o) => (
+                    {opcoesLote
+                      .filter((o) => o.lote === l.lote || !linhas.some((x) => !x.eh_nao_relacionado && x.key !== l.key && x.lote === o.lote))
+                      .map((o) => (
+                
                       <SelectItem key={o.lote} value={o.lote} className="text-xs">
                         <span className="font-mono">{o.lote || "(sem lote)"}</span>
                       </SelectItem>
                     ))}
+
                   </SelectContent>
                 </Select>
               )}
@@ -699,15 +743,17 @@ const LinhaItem = memo(function LinhaItem({
                 const saldo = l.eh_nao_relacionado ? null : (live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0));
                 const st = statusLinha(l);
                 const stClass =
-                  st === "OK" ? "bg-success/15 text-success" :
-                  st === "DIVERGENCIA" ? "bg-destructive/15 text-destructive" :
+                  st === "TOLERANCIA" ? "bg-success/15 text-success" :
+                  st === "DIV_NEG" || st === "DIV_POS" ? "bg-destructive/15 text-destructive" :
                   st === "QUEBRA_FEFO" ? "bg-warning/25 text-warning-foreground" :
                   "bg-muted text-muted-foreground";
                 const stLabel =
-                  st === "OK" ? "OK" :
-                  st === "DIVERGENCIA" ? "Divergência" :
+                  st === "TOLERANCIA" ? "Dentro da Tolerância" :
+                  st === "DIV_NEG" ? "Divergência (−)" :
+                  st === "DIV_POS" ? "Divergência (+)" :
                   st === "QUEBRA_FEFO" ? "Quebra de FEFO" :
                   "Pendente";
+
                 return (
                   <>
                     <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
