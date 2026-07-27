@@ -192,7 +192,12 @@ function MissaoExecucaoPage() {
     qc.invalidateQueries({ queryKey: ["missao-itens", id] });
     qc.invalidateQueries({ queryKey: ["missao-item-lotes", id] });
     qc.invalidateQueries({ queryKey: ["missao", id] });
+    qc.invalidateQueries({ queryKey: ["missoes"] });
+    qc.invalidateQueries({ queryKey: ["recontagem"] });
+    qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
   };
+
+
 
   return (
     <div className="max-w-6xl mx-auto space-y-4">
