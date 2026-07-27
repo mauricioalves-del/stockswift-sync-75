@@ -637,14 +637,46 @@ const LinhaItem = memo(function LinhaItem({
         responsavel_id: missao.responsavel_id ?? userId,
       }).eq("id", missao.id);
     }
-    const { data: restantes } = await (supabase as any).from("missoes_itens")
-      .select("id").eq("missao_id", missao.id)
-      .not("status_item", "in", `(${CONCLUIDO_STATUSES.join(",")})`);
-    if (!restantes || restantes.length === 0) {
+    const { data: todosItens } = await (supabase as any).from("missoes_itens")
+      .select("id, status_item").eq("missao_id", missao.id);
+    const restantes = (todosItens ?? []).filter(
+      (r: any) => !r.status_item || !CONCLUIDO_STATUSES.includes(r.status_item),
+    );
+    if (restantes.length === 0) {
       await (supabase as any).from("missoes").update({ status: "CONCLUIDA" }).eq("id", missao.id);
     }
 
-    // Feedback: som de alerta sempre que houver linha divergente ou quebra de FEFO
+    // === Auditoria detalhada por lote ===
+    await (supabase as any).from("auditoria").insert({
+      entidade: "missoes_itens",
+      entidade_id: item.id,
+      acao: "CONTAGEM_MISSAO",
+      usuario: userId || null,
+      dados_depois: {
+        missao_id: missao.id,
+        codigo_produto: item.codigo_produto,
+        total_contado: totalContado,
+        total_sistema: sistemaParaDivergencia,
+        percentual,
+        resultado: status_item,
+        tempo_conferencia_s: Math.round((Date.now() - t0) / 1000),
+        linhas: linhas.map((l) => {
+          const q = Number(l.quantidade_contada.replace(",", "."));
+          const saldo = l.eh_nao_relacionado ? 0 : saldoDaLinha(l);
+          return {
+            lote: l.eh_nao_relacionado ? (l.lote_manual_texto ?? "").trim() : l.lote,
+            lote_manual: l.eh_nao_relacionado,
+            quantidade_informada: q,
+            quantidade_sistemica: saldo,
+            percentual: l.eh_nao_relacionado || saldo === 0 ? null : Math.round((q / saldo) * 1000) / 10,
+            resultado: statusLinha(l),
+          };
+        }),
+      },
+      observacao: `Contagem da missão ${missao.titulo} — ${status_item}`,
+    });
+
+    // Feedback: som de alerta apenas em divergência ou quebra de FEFO
     if (precisaRecontagem) {
       const msg = temQuebraFefo
         ? "Quebra de FEFO — enviado para recontagem"
@@ -653,7 +685,6 @@ const LinhaItem = memo(function LinhaItem({
       sounds.divergente();
     } else {
       toast.success("Dentro da Tolerância");
-      sounds.success();
     }
 
     setSaving(false);
@@ -661,25 +692,29 @@ const LinhaItem = memo(function LinhaItem({
     onSaved();
   }
 
-  const cor = acuracidadeColor(
-    item.status_item && CONCLUIDO_STATUSES.includes(item.status_item)
-      ? classificarFaixa(Number(item.quantidade_contada ?? 0), sistemaParaDivergencia).percentual
-      : null,
-  );
-  const badge = item.status_item == null || item.status_item === "PENDENTE"
+  // Status consolidado do SKU (após salvar)
+  const concluido = !!item.status_item && CONCLUIDO_STATUSES.includes(item.status_item);
+  const pctSku = concluido
+    ? classificarFaixa(Number(item.quantidade_contada ?? 0), sistemaParaDivergencia).percentual
+    : null;
+  const cor = acuracidadeColor(pctSku);
+  const skuAcuradoExato = pctSku != null && Math.abs(pctSku - 100) < 0.01;
+  const badge = !concluido
     ? "bg-muted text-muted-foreground"
     : item.status_item === "QUEBRA_FEFO"
       ? "bg-warning/25 text-warning-foreground"
-      : item.status_item === "OK"
-        ? "bg-success/15 text-success"
+      : item.status_item === "OK" || item.status_item === "CONTADO"
+        ? (skuAcuradoExato ? "bg-success/15 text-success" : "bg-warning/20 text-warning-foreground")
         : `${cor.bg} ${cor.text}`;
   const badgeLabel =
-    item.status_item === "QUEBRA_FEFO" ? "Quebra de FEFO"
-    : item.status_item === "OK" ? "Dentro da Tolerância"
-    : item.status_item === "DIVERGENCIA_NEGATIVA" ? "Divergência (−)"
-    : item.status_item === "DIVERGENCIA_POSITIVA" ? "Divergência (+)"
-    : item.status_item == null || item.status_item === "PENDENTE" ? "Pendente"
-    : statusLabel(item.status_item).label;
+    !concluido ? "Pendente"
+    : item.status_item === "QUEBRA_FEFO" ? "Quebra de FEFO"
+    : item.status_item === "OK" || item.status_item === "CONTADO"
+      ? (skuAcuradoExato ? "Acurado" : "Acurado com Tolerância")
+    : item.status_item === "DIVERGENCIA_NEGATIVA" || item.status_item === "DIVERGENCIA_POSITIVA" || item.status_item === "DIVERGENTE"
+      ? "Divergente"
+    : statusLabel(item.status_item!).label;
+
 
   // opções de lote no dropdown: todos os lotes sistêmicos do SKU (mesmo com saldo 0)
   const opcoesLote = lotesSist;
