@@ -527,25 +527,27 @@ const LinhaItem = memo(function LinhaItem({
       });
     }
 
-    // Recontagem — mesmo mecanismo anterior, mas usando totais
+    // Recontagem — qualquer linha com Divergência (−/+) ou Quebra de FEFO entra na fila (margem Alta)
+    const precisaRecontagem = linhasAlerta.length > 0;
     const primeiroLote = linhas.find((l) => !l.eh_nao_relacionado)?.lote ?? item.lote ?? "";
+    const motivoRec = temQuebraFefo ? "Quebra de FEFO — margem Alta" : "Divergência de contagem — margem Alta";
     if (item.recontagem_origem_id) {
       const { data: origem } = await (supabase as any).from("recontagem")
         .select("*").eq("id", item.recontagem_origem_id).maybeSingle();
       if (origem) {
-        if (classe === "OK") {
+        if (!precisaRecontagem) {
           await aprovarRecontagem({ ...(origem as RecontagemRow), contagem: totalContado, acuracidade: percentual });
         } else {
           await (supabase as any).from("recontagem").update({
             contagem: totalContado, acuracidade: percentual, saldo_sistema: sistemaParaDivergencia,
-            status: "PENDENTE_RECONTAGEM", usuario: userId,
+            status: "PENDENTE_RECONTAGEM", motivo: motivoRec, usuario: userId,
           }).eq("id", origem.id);
         }
       }
     } else {
       const { data: recExistente } = await (supabase as any).from("recontagem")
         .select("id").eq("item_missao_id", item.id).maybeSingle();
-      if (classe !== "OK") {
+      if (precisaRecontagem) {
         const recPayload = {
           missao_id: missao.id,
           item_missao_id: item.id,
@@ -557,6 +559,7 @@ const LinhaItem = memo(function LinhaItem({
           saldo_sistema: sistemaParaDivergencia,
           contagem: totalContado,
           acuracidade: percentual,
+          motivo: motivoRec,
           status: "PENDENTE_RECONTAGEM",
           usuario: userId,
         };
@@ -584,17 +587,18 @@ const LinhaItem = memo(function LinhaItem({
       await (supabase as any).from("missoes").update({ status: "CONCLUIDA" }).eq("id", missao.id);
     }
 
-    if (isAdmin) {
-      const msg = status_item === "OK" ? "Dentro da tolerância"
-                : status_item === "QUEBRA_FEFO" ? "Total OK, mas há quebra de FEFO — enviado para ocorrências"
-                : status_item === "DIVERGENCIA_NEGATIVA" ? "Divergência negativa — enviado para recontagem"
-                : "Divergência positiva — enviado para recontagem";
-      if (status_item === "OK") { toast.success(msg); sounds.success(); }
-      else if (status_item === "QUEBRA_FEFO") { toast.warning(msg); sounds.success(); }
-      else { toast.warning(msg); sounds.divergente(); }
+    // Feedback: som de alerta sempre que houver linha divergente ou quebra de FEFO
+    if (precisaRecontagem) {
+      const msg = temQuebraFefo
+        ? "Quebra de FEFO — enviado para recontagem"
+        : "Divergência — enviado para recontagem";
+      toast.warning(msg);
+      sounds.divergente();
     } else {
-      toast.success("Contagem registrada"); sounds.success();
+      toast.success("Dentro da Tolerância");
+      sounds.success();
     }
+
     setSaving(false);
     dirtyRef.current = false;
     onSaved();
