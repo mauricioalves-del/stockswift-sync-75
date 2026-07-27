@@ -834,14 +834,17 @@ const LinhaItem = memo(function LinhaItem({
 
                 return (
                   <>
-                    <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
-                      Saldo Sistema: <span className="font-semibold text-foreground">{saldo == null ? "—" : formatNum(saldo)}</span>
-                    </span>
+                    {isAdmin && (
+                      <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
+                        Saldo Sistema: <span className="font-semibold text-foreground">{saldo == null ? "—" : formatNum(saldo)}</span>
+                      </span>
+                    )}
                     <span className={cn("inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase whitespace-nowrap", stClass)}>
                       {stLabel}
                     </span>
                   </>
                 );
+
               })()}
               <Button
                 type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0"
