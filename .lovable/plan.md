@@ -1,58 +1,49 @@
-# Correção Ficha Técnica (global) + Conceito de "Produto Local"
+## Contexto verificado na base
 
-Duas frentes independentes, entregues em ordem para minimizar retrabalho. A 1 resolve a causa raiz de gaps de Ficha Técnica; a 2 introduz o conceito de Produto Local e ajusta Cobertura e Ruptura para tratá-lo.
+- Não existe tabela `estoque_lotes`. A base de lotes sincronizada é **`estoque_sistemico`** (colunas `id_produto`, `lote`, `descricao`, `unidade`, `quantidade`, `custo_unitario`, `id_local`, `origem`, `data_validade`). Hoje ela tem 1.664 linhas com saldo, das quais **1.208 têm validade preenchida** — ou seja, ~456 lotes cairão na faixa "Pendente de Validade". Vou usar essa tabela como fonte, sem duplicar dado.
+- Motivos de baixa já cadastrados incluem **Vencimento** e **Degustação** (tabela `motivo_baixa`), que são as chaves do cruzamento do item 3.
+- Baixas ficam em `baixa_operacional` (`codigo_produto`, `lote`, `quantidade`, `valor_total`, `motivo_baixa_id`, `status_fluxo`, `origem`).
+- Grupo/Família vêm de `grupo_produtos` e `familias`; almoxarifado de `origens` + `usuario_almoxarifados` (restrição por loja já existente).
+- Papéis existentes: `ADMINISTRADOR`, `COORDENADOR_CONTROLE`, `GERENTE` — cobrem a matriz de permissões pedida.
 
-## 1. Ficha Técnica — auditoria global
+## Entrega por etapas
 
-### 1.1 Reimportação e normalização consistente
-- Revisar o importador de `ficha_tecnica_bom` (`src/routes/_authenticated/producao.dispersao.tsx` e `src/lib/dispersao.ts` — ou o script atual usado) para aplicar `trim()` + preservação de zeros à esquerda em **todas** as colunas de código (`id_produto`, `id_item`), não só em pontos já corrigidos.
-- Ao final da importação, exibir banner com: linhas lidas do arquivo × linhas gravadas × linhas ignoradas (com motivo). Se divergir, listar os SKUs descartados.
-- Instrução ao usuário: reimportar o arquivo mestre completo antes de rodar a Auditoria (passo 1.2) para garantir base atualizada.
+### Etapa 1 — Mapeamento de Risco (`/shelf-life/risco`)
+Sem tabela nova. Cálculo em cima de `estoque_sistemico` (com `fetchAll` paginado, para não bater no limite de 1000 linhas):
+- Faixas: Vencido (<0), 30, 60, 90 dias, Pendente de Validade (`data_validade` nula); >90 dias não aparece.
+- Filtros: Almoxarifado, Grupo, Família, Faixa, Status de Ação (Sem Ação / Com Ação).
+- Colunas: SKU, Produto, Lote, Validade, Dias para Vencer, Quantidade, Valor (qtd × custo), Faixa, Ação Vinculada.
+- KPIs: valor em risco 30/60/90 e um card separado, em destaque, para "Pendente de Validade" (problema de dado).
+- Botão por linha: "Criar Ação" (abre o formulário da etapa 2 já preenchido) + exportação Excel, no mesmo padrão dos outros módulos.
 
-### 1.2 Nova tela: Auditoria de Ficha Técnica
-- Rota: `src/routes/_authenticated/producao.auditoria-ft.tsx` (grupo Produção no `AppShell`).
-- Fonte "Produtos Acabados": `grupo_produtos`/`familias` filtrado por Grupo = "Produto Acabado" (mesma regra do PCP).
-- Fonte "COM Ficha": `DISTINCT id_produto` de `ficha_tecnica_bom`, com paginação por `range` (mesma varredura usada em PCP para contornar o teto de 1000 linhas).
-- UI: 3 cards de KPI (Total PA, COM FT, SEM FT) + tabela nominal dos SEM FT (SKU, descrição, família), exportável para Excel e com busca.
-- Comparação sempre com `trim()` dos dois lados.
+### Etapa 2 — Ações de Lote / Campanhas (`/shelf-life/acoes`)
+Duas tabelas novas:
+- `tipos_acao_shelf_life` — cadastro configurável (nome, categoria `RECEITA` ou `SAVING`, ativo), pré-carregado com Desconto Colaborador, Transformação de Produto, Forçar Produção, Degustação, Anúncio Refood, Outro. A categoria é o que decide se o valor vai para Receita Recuperada ou Saving.
+- `campanhas_lote` — sku, lote, almoxarifado, tipo_acao_id, quantidade_enderecada, valor_estimado_recuperado, valor_estimado_saving, **custo_acao**, responsavel, data_acao, status (Planejada/Em Andamento/Concluída/Cancelada), observacao, baixa_operacional_id (opcional), criado_por, timestamps.
 
-## 2. Produto Local
+Tela CRUD com listagem filtrável, criação a partir do Mapeamento de Risco, edição de status e vínculo manual a uma baixa existente (busca por SKU+Lote).
 
-### 2.1 Modelo de dados
-- Migração: adicionar coluna `eh_produto_local BOOLEAN NOT NULL DEFAULT false` em `grupo_produtos` (tabela do Cadastro que já guarda os SKUs).
-- Sem tabela paralela — o flag mora no Cadastro. Semear os dois SKUs confirmados: `05304029` e `05304043`.
-- Atualizar tela de Cadastro (Grupos/Produtos) para expor um switch "É Produto Local?" com permissão restrita a ADMIN/GERENTE.
+### Etapa 3 — Cruzamento com Baixas Operacionais
+- Baixa com motivo **Vencimento**, sem campanha para aquele SKU+Lote → 100% Perda.
+- Com campanha Concluída → só o saldo não coberto pela `quantidade_enderecada` entra como Perda Residual; o valor da campanha vira Receita ou Saving conforme a categoria do tipo de ação.
+- Baixa cujo motivo corresponde a um tipo de ação (ex.: Degustação) e que tem campanha aberta no mesmo SKU+Lote → vínculo automático em `baixa_operacional_id`, evitando contagem dupla.
+- Antes de seguir para o dashboard, valido com dois casos reais na base: uma baixa por Vencimento com campanha e outra sem.
 
-### 2.2 Cobertura de Abastecimento
-- No cálculo/UI de Cobertura (rota de planejamento/abastecimento existente), pular a classificação "Sem Estoque" quando `eh_produto_local = true`.
-- Renderizar badge dedicado: "Produto Local — ver insumos" com `Link` para `producao.pcp` já com o SKU pré-selecionado (via search param `?produto=<sku>`).
-- Ajustar a rota de PCP para aceitar `?produto=` e disparar automaticamente a análise.
+### Etapa 4 — Motor de cálculo (`src/lib/shelf-life.ts`)
+Fórmulas conforme o prompt: Perda, Receita Recuperada, Saving Recuperado, Perda Evitada = Receita + Saving, ROI = Perda Evitada ÷ Custo das Ações × 100, Eficiência = Perda Evitada ÷ (Perda Evitada + Perda) × 100. Funções puras, para poderem ser ajustadas em um só lugar quando o negócio validar ROI/Eficiência.
 
-### 2.3 Análise de Ruptura com dupla fonte de estoque
-- Em `producao.pcp.tsx`: quando o produto raiz for Produto Local, além de `Alm_SP_Fabrica`, buscar também o Almox da Loja do usuário (via `useMeusAlmoxarifados`) — se o usuário tiver múltiplos, selector com padrão no primeiro.
-- Regra de origem por insumo: se o insumo é um **semiacabado** (tem entrada como `id_produto` na BOM e/ou marcado com `gera_oc`), consulta saldo em `Alm_SP_Fabrica`; caso contrário (folha, insumo de acabamento), consulta saldo no Almox da Loja.
-- Adicionar coluna "Origem do Estoque" na tabela de necessidade (Fábrica / Loja), preenchida por essa regra.
-- Reaproveitar o motor `explodirBOM` em `src/lib/pcp-bom.ts` — só troca a fonte consultada por linha.
+### Etapa 5 — Dashboard Executivo (`/shelf-life/dashboard`)
+Reaproveitando os componentes de gráfico já usados em Baixas/Dispersão: filtro de período, 5 KPIs, colunas empilhadas por mês (Perda / Receita / Saving), rosca Recuperação × Perda, Top 10 Recuperados, Top 10 Perda e barras horizontais por tipo de ação.
 
-### 2.4 Validação end-to-end
-- SKU `05304043`: some da lista de "Sem Estoque" em Cobertura, aparece com badge de Produto Local.
-- Ao clicar no badge, abre PCP → mostra insumo `05104132` com Origem = Fábrica e os demais (Gotas, Praliné, Leite, Calda) com Origem = Loja.
+### Menu e permissões
+Novo grupo "Shelf Life" no menu lateral com as três telas, registro dos módulos em `modulos_sistema`, e RLS: leitura para ADMINISTRADOR/COORDENADOR_CONTROLE/GERENTE; criação/edição de campanhas para os três; vínculo manual de baixa restrito a ADMINISTRADOR e COORDENADOR_CONTROLE.
 
-## Detalhes técnicos
+## Pontos técnicos
 
-- Sem novas Edge Functions — tudo em rota + queries diretas via `supabase` (RLS já cobre leitura autenticada nas tabelas envolvidas).
-- Migração única: `ALTER TABLE public.grupo_produtos ADD COLUMN eh_produto_local BOOLEAN NOT NULL DEFAULT false;` + `UPDATE` para os 2 SKUs semente. Sem novas RLS/GRANT (tabela existente).
-- Auditoria de FT e PCP fazem varredura paginada de `ficha_tecnica_bom` (padrão já usado). Nada de `.in()` estourando o limite de 1000.
-- Sem mexer em `src/integrations/supabase/*` autogen.
+- Migrações incluem GRANTs e RLS por tabela nova, trigger de `updated_at` e seed dos tipos de ação.
+- "Almoxarifado" será `origem`/`id_local` de `estoque_sistemico`, respeitando `almoxarifados_permitidos` do usuário.
+- Nenhuma coluna nova em `baixa_operacional`; o vínculo mora em `campanhas_lote.baixa_operacional_id`, como pedido.
 
-## Ordem de execução (para aprovação)
+## A validar com você
 
-1. Migração `eh_produto_local` + semente.
-2. Tela Auditoria de FT + link no menu Produção.
-3. Reforço de normalização no importador de FT (com banner de contagem).
-4. Cadastro: switch "É Produto Local?".
-5. Cobertura: pular Sem Estoque + badge/link.
-6. PCP: aceitar `?produto=`, adicionar dupla fonte de estoque + coluna Origem.
-7. Validação manual com `05304043`.
-
-Confirme para eu seguir — ou aponte o que quer ajustar antes.
+O ROI usa `custo_acao` por campanha, que não existe hoje — vou criar o campo. Se o custo real da ação (mão de obra, transporte) não for informado campanha a campanha, o ROI virá vazio até que se preencha; me diga se prefere um custo padrão por tipo de ação como fallback.
