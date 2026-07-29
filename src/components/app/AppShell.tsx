@@ -21,7 +21,7 @@ import { syncPendingCounts } from "@/lib/sync";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MobileBottomNav } from "@/components/app/MobileBottomNav";
 
-type Access = "any" | "write" | "admin";
+type Access = "any" | "write" | "admin" | "gestor";
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; role: Access };
 type NavGroup = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; items: NavItem[]; role?: Access };
 
@@ -68,6 +68,14 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/producao/solicitacao-materiais", label: "Solicitação de Materiais", icon: ClipboardList, role: "write" },
       { to: "/producao/dispersao", label: "Dispersão de Lote", icon: GitCompareArrows, role: "any" },
       { to: "/producao/auditoria-ft", label: "Auditoria de Ficha Técnica", icon: ClipboardList, role: "write" },
+    ],
+  },
+  {
+    id: "shelf-life", label: "Shelf Life", icon: CalendarClock, role: "gestor",
+    items: [
+      { to: "/shelf-life/risco", label: "Mapeamento de Risco", icon: AlertTriangle, role: "gestor" },
+      { to: "/shelf-life/acoes", label: "Ações de Lote", icon: Target, role: "gestor" },
+      { to: "/shelf-life/dashboard", label: "Dashboard Shelf Life", icon: BarChart3, role: "gestor" },
     ],
   },
   {
@@ -151,8 +159,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   // Fallback por papel — usado apenas quando o item não estiver mapeado na matriz.
+  const isGerente = role === "GERENTE";
   const canByRole = (r: Access) =>
-    r === "any" || (r === "write" && canWrite) || (r === "admin" && (isAdmin || isCoord));
+    r === "any" || (r === "write" && canWrite) || (r === "admin" && (isAdmin || isCoord)) ||
+    (r === "gestor" && (isAdmin || isCoord || isGerente));
 
   const canSee = (item: NavItem) => {
     if (isAdmin) return true;
