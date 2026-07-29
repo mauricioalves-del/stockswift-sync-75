@@ -16,6 +16,11 @@ import {
   type BaixaCalc,
 } from "@/lib/shelf-life";
 import { useCampanhas, useTiposAcao } from "@/hooks/useShelfLife";
+import { ConfigFiltrosCard, useOrigensDisponiveis } from "@/components/shelf-life/ConfigFiltrosCard";
+import { almoxEfetivos, usePersistedState, useShelfConfig } from "@/hooks/useFiltrosShelfLife";
+import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
+import { MultiSelect } from "@/components/ui/multi-select";
+
 
 export const Route = createFileRoute("/_authenticated/shelf-life/dashboard")({
   component: ShelfLifeDashboard,
