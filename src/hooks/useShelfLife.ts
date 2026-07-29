@@ -2,7 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
 import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
+import { almoxEfetivos } from "@/hooks/useFiltrosShelfLife";
 import { faixaDeRisco, type Faixa, type CampanhaCalc, type CategoriaAcao, chaveLote } from "@/lib/shelf-life";
+
 
 export type TipoAcao = {
   id: string;
@@ -74,10 +76,12 @@ export type LoteRisco = {
 };
 
 /** Lotes com saldo > 0 dentro do radar de validade (<= 90 dias, vencidos ou sem validade). */
-export function useLotesRisco() {
-  const { almoxes, loading } = useMeusAlmoxarifados();
+export function useLotesRisco(opts?: { almoxAtivos?: string[]; somenteComSaldo?: boolean }) {
+  const { almoxes: permitidos, loading } = useMeusAlmoxarifados();
+  const almoxes = almoxEfetivos(permitidos, opts?.almoxAtivos ?? []);
+  const somenteComSaldo = opts?.somenteComSaldo !== false;
   return useQuery({
-    queryKey: ["shelf-lotes-risco", almoxes?.join(",") ?? "all"],
+    queryKey: ["shelf-lotes-risco", almoxes?.join(",") ?? "all", somenteComSaldo],
     enabled: !loading,
     staleTime: 60_000,
     queryFn: async (): Promise<LoteRisco[]> => {
@@ -86,12 +90,13 @@ export function useLotesRisco() {
           let q = (supabase as any)
             .from("estoque_sistemico")
             .select("id_produto, descricao, lote, unidade, quantidade, custo_unitario, id_local, origem, data_validade")
-            .gt("quantidade", 0)
             .range(from, to);
+          if (somenteComSaldo) q = q.gt("quantidade", 0);
           if (almoxes && almoxes.length > 0) q = q.in("origem", almoxes);
           if (almoxes && almoxes.length === 0) q = q.in("origem", ["__nenhum__"]);
           return q;
         }),
+
         fetchAll<any>((from, to) =>
           (supabase as any).from("grupo_produtos").select("codigo_produto, grupo").range(from, to),
         ),
