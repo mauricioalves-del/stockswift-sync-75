@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatBRL, formatNum } from "@/lib/inventory";
 import { STATUS_CAMPANHA, statusCampanhaLabel, statusCampanhaTone, valorRecuperadoCampanha } from "@/lib/shelf-life";
-import { useCampanhas, useTiposAcao } from "@/hooks/useShelfLife";
+import { autoVincularBaixas, useCampanhas, useTiposAcao } from "@/hooks/useShelfLife";
 import { CampanhaDialog, type CampanhaDraft } from "@/components/shelf-life/CampanhaDialog";
 import { useRole } from "@/hooks/useRole";
 import { Link2, Pencil, Plus, Trash2 } from "lucide-react";
@@ -42,6 +42,21 @@ function AcoesLote() {
   const [status, setStatus] = useState(TODAS);
   const [tipo, setTipo] = useState(TODAS);
   const [busca, setBusca] = useState("");
+
+  // Vínculo automático de baixas (ex.: Degustação) às campanhas abertas do mesmo SKU+Lote.
+  const jaRodou = useRef(false);
+  useEffect(() => {
+    if (jaRodou.current) return;
+    jaRodou.current = true;
+    autoVincularBaixas()
+      .then((n) => {
+        if (n > 0) {
+          toast.info(`${n} baixa(s) vinculada(s) automaticamente às ações correspondentes.`);
+          qc.invalidateQueries({ queryKey: ["shelf-campanhas"] });
+        }
+      })
+      .catch(() => {});
+  }, [qc]);
 
   const excluir = useMutation({
     mutationFn: async (id: string) => {
