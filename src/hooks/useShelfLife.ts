@@ -151,3 +151,57 @@ export function indexarCampanhasPorLote(campanhas: CampanhaRow[] | undefined) {
   }
   return m;
 }
+
+/**
+ * Vínculo automático (item 3): baixas cujo motivo corresponde a um tipo de ação
+ * (ex.: Degustação) são amarradas à campanha aberta do mesmo SKU+Lote, evitando
+ * que o mesmo evento seja contado duas vezes.
+ * Retorna a quantidade de vínculos criados.
+ */
+export async function autoVincularBaixas(): Promise<number> {
+  const [tiposRes, campanhasRes, motivosRes] = await Promise.all([
+    (supabase as any).from("tipos_acao_shelf_life").select("id, nome, motivo_baixa_id"),
+    (supabase as any).from("campanhas_lote").select("id, sku, lote, tipo_acao_id, status, baixa_operacional_id").is("baixa_operacional_id", null).neq("status", "CANCELADA"),
+    (supabase as any).from("motivo_baixa").select("id, descricao"),
+  ]);
+
+  const campanhas = (campanhasRes.data ?? []) as any[];
+  if (!campanhas.length) return 0;
+
+  const tipos = (tiposRes.data ?? []) as any[];
+  const motivos = (motivosRes.data ?? []) as any[];
+  const motivoIdPorNome = new Map<string, string>(motivos.map((m) => [String(m.descricao).trim().toLowerCase(), m.id]));
+  const motivoDoTipo = new Map<string, string | null>(
+    tipos.map((t) => [t.id, t.motivo_baixa_id ?? motivoIdPorNome.get(String(t.nome).trim().toLowerCase()) ?? null]),
+  );
+
+  const skus = Array.from(new Set(campanhas.map((c) => c.sku)));
+  const baixas = await fetchAll<any>((from, to) =>
+    (supabase as any)
+      .from("baixa_operacional")
+      .select("id, codigo_produto, lote, motivo_baixa_id")
+      .in("codigo_produto", skus)
+      .range(from, to),
+  );
+
+  const porChaveMotivo = new Map<string, string>();
+  for (const b of baixas) {
+    if (!b.motivo_baixa_id) continue;
+    porChaveMotivo.set(`${chaveLote(b.codigo_produto, b.lote)}||${b.motivo_baixa_id}`, b.id);
+  }
+
+  let n = 0;
+  for (const c of campanhas) {
+    const motivoId = c.tipo_acao_id ? motivoDoTipo.get(c.tipo_acao_id) : null;
+    if (!motivoId) continue;
+    const baixaId = porChaveMotivo.get(`${chaveLote(c.sku, c.lote)}||${motivoId}`);
+    if (!baixaId) continue;
+    const { error } = await (supabase as any)
+      .from("campanhas_lote")
+      .update({ baixa_operacional_id: baixaId })
+      .eq("id", c.id)
+      .is("baixa_operacional_id", null);
+    if (!error) n++;
+  }
+  return n;
+}
