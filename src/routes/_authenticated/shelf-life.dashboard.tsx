@@ -40,24 +40,61 @@ function fmtMonth(k: string) {
   return `${["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"][Number(m) - 1] ?? m}/${y.slice(2)}`;
 }
 
+type FiltrosDash = {
+  de: string;
+  ate: string;
+  almox: string[];
+  grupos: string[];
+  familias: string[];
+  motivos: string[];
+  tipos: string[];
+};
+
 function ShelfLifeDashboard() {
-  const [de, setDe] = useState(isoDaysAgo(180));
-  const [ate, setAte] = useState(todayISO());
   const tipos = useTiposAcao();
   const campanhasQ = useCampanhas();
+  const { almoxAtivos } = useShelfConfig();
+  const { almoxes: permitidos } = useMeusAlmoxarifados();
+  const origens = useOrigensDisponiveis();
+  const almoxBase = useMemo(() => almoxEfetivos(permitidos, almoxAtivos), [permitidos, almoxAtivos]);
+
+  const [f, setF] = usePersistedState<FiltrosDash>("shelf-life:dashboard:filtros", {
+    de: isoDaysAgo(180), ate: todayISO(), almox: [], grupos: [], familias: [], motivos: [], tipos: [],
+  });
+  const set = <K extends keyof FiltrosDash>(k: K, v: FiltrosDash[K]) => setF((p) => ({ ...p, [k]: v }));
+  const de = f.de, ate = f.ate;
+
+  const catalogoQ = useQuery({
+    queryKey: ["shelf-catalogo-gf"],
+    staleTime: 300_000,
+    queryFn: async () => {
+      const [grupos, familias] = await Promise.all([
+        fetchAll<any>((from, to) => (supabase as any).from("grupo_produtos").select("codigo_produto, grupo").range(from, to)),
+        fetchAll<any>((from, to) => (supabase as any).from("familias").select("codigo_produto, familia").range(from, to)),
+      ]);
+      const norm = (s: any) => String(s ?? "").trim().toUpperCase();
+      return {
+        grupo: new Map<string, string>(grupos.map((g) => [norm(g.codigo_produto), String(g.grupo)])),
+        familia: new Map<string, string>(familias.map((x) => [norm(x.codigo_produto), String(x.familia)])),
+      };
+    },
+  });
 
   const baixasQ = useQuery({
-    queryKey: ["shelf-baixas", de, ate],
+    queryKey: ["shelf-baixas", de, ate, almoxBase?.join(",") ?? "all"],
     staleTime: 60_000,
-    queryFn: async (): Promise<BaixaCalc[]> => {
+    queryFn: async (): Promise<(BaixaCalc & { origem: string | null })[]> => {
       const [motivos, rows] = await Promise.all([
         (supabase as any).from("motivo_baixa").select("id, descricao"),
-        fetchAll<any>((from, to) =>
-          (supabase as any)
+        fetchAll<any>((from, to) => {
+          let q = (supabase as any)
             .from("baixa_operacional")
-            .select("id, codigo_produto, descricao, lote, quantidade, valor_total, custo_unitario, motivo_baixa_id, data_ocorrencia, data_solicitacao, status_fluxo")
-            .range(from, to),
-        ),
+            .select("id, codigo_produto, descricao, lote, quantidade, valor_total, custo_unitario, motivo_baixa_id, data_ocorrencia, data_solicitacao, status_fluxo, origem")
+            .range(from, to);
+          if (almoxBase && almoxBase.length > 0) q = q.in("origem", almoxBase);
+          if (almoxBase && almoxBase.length === 0) q = q.in("origem", ["__nenhum__"]);
+          return q;
+        }),
       ]);
       const mMap = new Map<string, string>(((motivos.data ?? []) as any[]).map((m) => [m.id, m.descricao]));
       return rows
@@ -71,14 +108,41 @@ function ShelfLifeDashboard() {
           custo_unitario: Number(b.custo_unitario) || 0,
           data: String(b.data_ocorrencia ?? b.data_solicitacao ?? "").slice(0, 10),
           motivo_nome: b.motivo_baixa_id ? mMap.get(b.motivo_baixa_id) ?? null : null,
+          origem: b.origem ?? null,
         }))
         .filter((b) => b.data >= de && b.data <= ate);
     },
   });
 
+  const norm = (s: any) => String(s ?? "").trim().toUpperCase();
+  const inSel = (sel: string[], v: string | null | undefined) => sel.length === 0 || (v != null && sel.includes(v));
+
+  const baixasFiltradas = useMemo(() => {
+    const g = catalogoQ.data?.grupo, fa = catalogoQ.data?.familia;
+    return (baixasQ.data ?? []).filter((b) => {
+      if (!inSel(f.almox, b.origem)) return false;
+      if (!inSel(f.motivos, b.motivo_nome)) return false;
+      if (f.grupos.length && !f.grupos.includes(g?.get(norm(b.codigo_produto)) ?? "")) return false;
+      if (f.familias.length && !f.familias.includes(fa?.get(norm(b.codigo_produto)) ?? "")) return false;
+      return true;
+    });
+  }, [baixasQ.data, f, catalogoQ.data]);
+
+  const campanhasFiltradas = useMemo(() => {
+    const g = catalogoQ.data?.grupo, fa = catalogoQ.data?.familia;
+    return (campanhasQ.data ?? []).filter((c) => {
+      if (almoxBase && !(c.almoxarifado && almoxBase.includes(c.almoxarifado))) return false;
+      if (!inSel(f.almox, c.almoxarifado)) return false;
+      if (f.tipos.length && !f.tipos.includes(c.tipo_nome ?? "")) return false;
+      if (f.grupos.length && !f.grupos.includes(g?.get(norm(c.sku)) ?? "")) return false;
+      if (f.familias.length && !f.familias.includes(fa?.get(norm(c.sku)) ?? "")) return false;
+      return true;
+    });
+  }, [campanhasQ.data, f, catalogoQ.data, almoxBase]);
+
   const campanhasPeriodo = useMemo(
-    () => (campanhasQ.data ?? []).filter((c) => (c.data_acao ?? "") >= de && (c.data_acao ?? "") <= ate),
-    [campanhasQ.data, de, ate],
+    () => campanhasFiltradas.filter((c) => (c.data_acao ?? "") >= de && (c.data_acao ?? "") <= ate),
+    [campanhasFiltradas, de, ate],
   );
 
   const motivosDeAcao = useMemo(
@@ -86,12 +150,24 @@ function ShelfLifeDashboard() {
     [tipos.data],
   );
 
+  const motivosOpts = useMemo(
+    () => Array.from(new Set((baixasQ.data ?? []).map((b) => b.motivo_nome).filter(Boolean) as string[])).sort(),
+    [baixasQ.data],
+  );
+  const gfOpts = useMemo(() => {
+    const g = new Set<string>(), fa = new Set<string>();
+    catalogoQ.data?.grupo.forEach((v) => v && g.add(v));
+    catalogoQ.data?.familia.forEach((v) => v && fa.add(v));
+    return { grupos: Array.from(g).sort(), familias: Array.from(fa).sort() };
+  }, [catalogoQ.data]);
+
   const linhas = useMemo(
-    () => cruzarBaixasComCampanhas(baixasQ.data ?? [], campanhasQ.data ?? [], motivosDeAcao),
-    [baixasQ.data, campanhasQ.data, motivosDeAcao],
+    () => cruzarBaixasComCampanhas(baixasFiltradas, campanhasFiltradas, motivosDeAcao),
+    [baixasFiltradas, campanhasFiltradas, motivosDeAcao],
   );
 
   const ind = useMemo(() => calcularIndicadores(linhas, campanhasPeriodo), [linhas, campanhasPeriodo]);
+
 
   const mensal = useMemo(() => {
     const m = new Map<string, { mes: string; Perda: number; "Receita Recuperada": number; "Saving Recuperado": number }>();
