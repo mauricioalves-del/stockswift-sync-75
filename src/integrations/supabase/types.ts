@@ -239,6 +239,87 @@ export type Database = {
         }
         Relationships: []
       }
+      campanhas_lote: {
+        Row: {
+          almoxarifado: string | null
+          baixa_operacional_id: string | null
+          created_at: string
+          criado_por: string | null
+          custo_acao: number
+          data_acao: string
+          data_validade: string | null
+          descricao: string | null
+          id: string
+          lote: string
+          observacao: string | null
+          quantidade_enderecada: number
+          responsavel: string | null
+          sku: string
+          status: string
+          tipo_acao_id: string | null
+          updated_at: string
+          valor_estimado_recuperado: number
+          valor_estimado_saving: number
+        }
+        Insert: {
+          almoxarifado?: string | null
+          baixa_operacional_id?: string | null
+          created_at?: string
+          criado_por?: string | null
+          custo_acao?: number
+          data_acao?: string
+          data_validade?: string | null
+          descricao?: string | null
+          id?: string
+          lote?: string
+          observacao?: string | null
+          quantidade_enderecada?: number
+          responsavel?: string | null
+          sku: string
+          status?: string
+          tipo_acao_id?: string | null
+          updated_at?: string
+          valor_estimado_recuperado?: number
+          valor_estimado_saving?: number
+        }
+        Update: {
+          almoxarifado?: string | null
+          baixa_operacional_id?: string | null
+          created_at?: string
+          criado_por?: string | null
+          custo_acao?: number
+          data_acao?: string
+          data_validade?: string | null
+          descricao?: string | null
+          id?: string
+          lote?: string
+          observacao?: string | null
+          quantidade_enderecada?: number
+          responsavel?: string | null
+          sku?: string
+          status?: string
+          tipo_acao_id?: string | null
+          updated_at?: string
+          valor_estimado_recuperado?: number
+          valor_estimado_saving?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campanhas_lote_baixa_operacional_id_fkey"
+            columns: ["baixa_operacional_id"]
+            isOneToOne: false
+            referencedRelation: "baixa_operacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campanhas_lote_tipo_acao_id_fkey"
+            columns: ["tipo_acao_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_acao_shelf_life"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_execucao: {
         Row: {
           created_at: string
@@ -2333,6 +2414,50 @@ export type Database = {
             columns: ["tipo_id"]
             isOneToOne: false
             referencedRelation: "tipos_tarefa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tipos_acao_shelf_life: {
+        Row: {
+          ativo: boolean
+          categoria: string
+          created_at: string
+          custo_padrao: number
+          id: string
+          motivo_baixa_id: string | null
+          nome: string
+          ordem: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria?: string
+          created_at?: string
+          custo_padrao?: number
+          id?: string
+          motivo_baixa_id?: string | null
+          nome: string
+          ordem?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string
+          created_at?: string
+          custo_padrao?: number
+          id?: string
+          motivo_baixa_id?: string | null
+          nome?: string
+          ordem?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tipos_acao_shelf_life_motivo_baixa_id_fkey"
+            columns: ["motivo_baixa_id"]
+            isOneToOne: false
+            referencedRelation: "motivo_baixa"
             referencedColumns: ["id"]
           },
         ]
