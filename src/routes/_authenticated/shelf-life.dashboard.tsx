@@ -136,7 +136,7 @@ function ShelfLifeDashboard() {
   const campanhasFiltradas = useMemo(() => {
     const g = catalogoQ.data?.grupo, fa = catalogoQ.data?.familia;
     return (campanhasQ.data ?? []).filter((c) => {
-      if (almoxBase && !(c.almoxarifado && almoxBase.includes(c.almoxarifado))) return false;
+      if (almoxBase && c.almoxarifado && !almoxBase.includes(c.almoxarifado)) return false;
       if (!inSel(f.almox, c.almoxarifado)) return false;
       if (f.tipos.length && !f.tipos.includes(c.tipo_nome ?? "")) return false;
       if (f.grupos.length && !f.grupos.includes(g?.get(norm(c.sku)) ?? "")) return false;
