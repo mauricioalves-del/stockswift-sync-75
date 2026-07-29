@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +45,7 @@ function MapeamentoRisco() {
   const lotes = useLotesRisco({ almoxAtivos, somenteComSaldo });
   const campanhas = useCampanhas();
   const [f, setF] = usePersistedState<FiltrosRisco>("shelf-life:risco:filtros", FILTROS_PADRAO);
-  const [draft, setDraft] = usePersistedState<CampanhaDraft | null>("shelf-life:risco:draft-noop", null);
+  const [draft, setDraft] = useState<CampanhaDraft | null>(null);
 
   const set = <K extends keyof FiltrosRisco>(k: K, v: FiltrosRisco[K]) => setF((p) => ({ ...p, [k]: v }));
 
@@ -135,6 +135,8 @@ function MapeamentoRisco() {
         />
       </div>
 
+      <ConfigFiltrosCard />
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Filtros</CardTitle>
@@ -142,36 +144,31 @@ function MapeamentoRisco() {
         <CardContent className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <div>
             <Label className="text-xs">Buscar</Label>
-            <Input placeholder="SKU, produto ou lote" value={busca} onChange={(e) => setBusca(e.target.value)} />
+            <Input placeholder="SKU, produto ou lote" value={f.busca} onChange={(e) => set("busca", e.target.value)} />
           </div>
-          <FiltroSelect label="Almoxarifado" value={almox} onChange={setAlmox} options={opts.almox} />
-          <FiltroSelect label="Grupo" value={grupo} onChange={setGrupo} options={opts.grupos} />
-          <FiltroSelect label="Família" value={familia} onChange={setFamilia} options={opts.familias} />
+          <FiltroMulti label="Almoxarifado" value={f.almox} onChange={(v) => set("almox", v)} options={opts.almox} />
+          <FiltroMulti label="Grupo" value={f.grupos} onChange={(v) => set("grupos", v)} options={opts.grupos} />
+          <FiltroMulti label="Família" value={f.familias} onChange={(v) => set("familias", v)} options={opts.familias} />
           <div>
             <Label className="text-xs">Faixa</Label>
-            <Select value={faixa} onValueChange={setFaixa}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={TODAS}>Todas</SelectItem>
-                {(["VENCIDO", "30", "60", "90", "PENDENTE"] as Faixa[]).map((f) => (
-                  <SelectItem key={f} value={f}>{FAIXA_LABEL[f]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiSelect
+              options={(["VENCIDO", "30", "60", "90", "PENDENTE"] as Faixa[]).map((x) => ({ value: x, label: FAIXA_LABEL[x] }))}
+              value={f.faixas}
+              onChange={(v) => set("faixas", v)}
+              allLabel="Todas"
+            />
           </div>
           <div>
             <Label className="text-xs">Status de Ação</Label>
-            <Select value={acao} onValueChange={setAcao}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={TODAS}>Todos</SelectItem>
-                <SelectItem value="SEM">Sem Ação</SelectItem>
-                <SelectItem value="COM">Com Ação</SelectItem>
-              </SelectContent>
-            </Select>
+            <MultiSelect
+              options={[{ value: "SEM", label: "Sem Ação" }, { value: "COM", label: "Com Ação" }]}
+              value={f.acao}
+              onChange={(v) => set("acao", v)}
+            />
           </div>
         </CardContent>
       </Card>
+
 
       <Card>
         <CardHeader className="pb-3 flex-row items-center justify-between">
@@ -245,20 +242,15 @@ function MapeamentoRisco() {
   );
 }
 
-function FiltroSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+function FiltroMulti({ label, value, onChange, options }: { label: string; value: string[]; onChange: (v: string[]) => void; options: string[] }) {
   return (
     <div>
       <Label className="text-xs">{label}</Label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value={TODAS}>Todos</SelectItem>
-          {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-        </SelectContent>
-      </Select>
+      <MultiSelect options={options.map((o) => ({ value: o, label: o }))} value={value} onChange={onChange} />
     </div>
   );
 }
+
 
 function Kpi({ title, value, icon, tone, hint }: { title: string; value: number; icon: React.ReactNode; tone: string; hint?: string }) {
   const border = tone === "destructive" ? "border-destructive/40" : tone === "warning" ? "border-warning/40" : tone === "info" ? "border-info/40" : "border-border";
