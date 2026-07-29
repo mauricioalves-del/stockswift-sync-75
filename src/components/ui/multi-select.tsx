@@ -79,7 +79,16 @@ export function MultiSelect({
             </CommandGroup>
           </CommandList>
         </Command>
+        <div className="flex items-center justify-between border-t p-1.5">
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onChange(options.map((o) => o.value))}>
+            Selecionar todos
+          </Button>
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onChange([])}>
+            Limpar
+          </Button>
+        </div>
       </PopoverContent>
+
     </Popover>
   );
 }
