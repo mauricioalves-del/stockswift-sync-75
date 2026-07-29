@@ -34,6 +34,8 @@ import { Route as AuthenticatedConfigIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedBaixasIndexRouteImport } from './routes/_authenticated/baixas.index'
 import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_authenticated/suprimentos.estoque'
 import { Route as AuthenticatedSuprimentosDashboardRouteImport } from './routes/_authenticated/suprimentos.dashboard'
+import { Route as AuthenticatedShelfLifeRiscoRouteImport } from './routes/_authenticated/shelf-life.risco'
+import { Route as AuthenticatedShelfLifeAcoesRouteImport } from './routes/_authenticated/shelf-life.acoes'
 import { Route as AuthenticatedProducaoSolicitacaoMateriaisRouteImport } from './routes/_authenticated/producao.solicitacao-materiais'
 import { Route as AuthenticatedProducaoPcpRouteImport } from './routes/_authenticated/producao.pcp'
 import { Route as AuthenticatedProducaoDispersaoRouteImport } from './routes/_authenticated/producao.dispersao'
@@ -187,6 +189,18 @@ const AuthenticatedSuprimentosDashboardRoute =
   AuthenticatedSuprimentosDashboardRouteImport.update({
     id: '/suprimentos/dashboard',
     path: '/suprimentos/dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedShelfLifeRiscoRoute =
+  AuthenticatedShelfLifeRiscoRouteImport.update({
+    id: '/shelf-life/risco',
+    path: '/shelf-life/risco',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedShelfLifeAcoesRoute =
+  AuthenticatedShelfLifeAcoesRouteImport.update({
+    id: '/shelf-life/acoes',
+    path: '/shelf-life/acoes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedProducaoSolicitacaoMateriaisRoute =
@@ -359,6 +373,8 @@ export interface FileRoutesByFullPath {
   '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
   '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
+  '/shelf-life/acoes': typeof AuthenticatedShelfLifeAcoesRoute
+  '/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/baixas/': typeof AuthenticatedBaixasIndexRoute
@@ -407,6 +423,8 @@ export interface FileRoutesByTo {
   '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
   '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
+  '/shelf-life/acoes': typeof AuthenticatedShelfLifeAcoesRoute
+  '/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/baixas': typeof AuthenticatedBaixasIndexRoute
@@ -457,6 +475,8 @@ export interface FileRoutesById {
   '/_authenticated/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
   '/_authenticated/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/_authenticated/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
+  '/_authenticated/shelf-life/acoes': typeof AuthenticatedShelfLifeAcoesRoute
+  '/_authenticated/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/_authenticated/baixas/': typeof AuthenticatedBaixasIndexRoute
@@ -507,6 +527,8 @@ export interface FileRouteTypes {
     | '/producao/dispersao'
     | '/producao/pcp'
     | '/producao/solicitacao-materiais'
+    | '/shelf-life/acoes'
+    | '/shelf-life/risco'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
     | '/baixas/'
@@ -555,6 +577,8 @@ export interface FileRouteTypes {
     | '/producao/dispersao'
     | '/producao/pcp'
     | '/producao/solicitacao-materiais'
+    | '/shelf-life/acoes'
+    | '/shelf-life/risco'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
     | '/baixas'
@@ -604,6 +628,8 @@ export interface FileRouteTypes {
     | '/_authenticated/producao/dispersao'
     | '/_authenticated/producao/pcp'
     | '/_authenticated/producao/solicitacao-materiais'
+    | '/_authenticated/shelf-life/acoes'
+    | '/_authenticated/shelf-life/risco'
     | '/_authenticated/suprimentos/dashboard'
     | '/_authenticated/suprimentos/estoque'
     | '/_authenticated/baixas/'
@@ -797,6 +823,20 @@ declare module '@tanstack/react-router' {
       path: '/suprimentos/dashboard'
       fullPath: '/suprimentos/dashboard'
       preLoaderRoute: typeof AuthenticatedSuprimentosDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/shelf-life/risco': {
+      id: '/_authenticated/shelf-life/risco'
+      path: '/shelf-life/risco'
+      fullPath: '/shelf-life/risco'
+      preLoaderRoute: typeof AuthenticatedShelfLifeRiscoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/shelf-life/acoes': {
+      id: '/_authenticated/shelf-life/acoes'
+      path: '/shelf-life/acoes'
+      fullPath: '/shelf-life/acoes'
+      preLoaderRoute: typeof AuthenticatedShelfLifeAcoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/producao/solicitacao-materiais': {
@@ -1006,6 +1046,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProducaoDispersaoRoute: typeof AuthenticatedProducaoDispersaoRoute
   AuthenticatedProducaoPcpRoute: typeof AuthenticatedProducaoPcpRoute
   AuthenticatedProducaoSolicitacaoMateriaisRoute: typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
+  AuthenticatedShelfLifeAcoesRoute: typeof AuthenticatedShelfLifeAcoesRoute
+  AuthenticatedShelfLifeRiscoRoute: typeof AuthenticatedShelfLifeRiscoRoute
   AuthenticatedSuprimentosDashboardRoute: typeof AuthenticatedSuprimentosDashboardRoute
   AuthenticatedSuprimentosEstoqueRoute: typeof AuthenticatedSuprimentosEstoqueRoute
   AuthenticatedBaixasIndexRoute: typeof AuthenticatedBaixasIndexRoute
@@ -1057,6 +1099,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProducaoPcpRoute: AuthenticatedProducaoPcpRoute,
   AuthenticatedProducaoSolicitacaoMateriaisRoute:
     AuthenticatedProducaoSolicitacaoMateriaisRoute,
+  AuthenticatedShelfLifeAcoesRoute: AuthenticatedShelfLifeAcoesRoute,
+  AuthenticatedShelfLifeRiscoRoute: AuthenticatedShelfLifeRiscoRoute,
   AuthenticatedSuprimentosDashboardRoute:
     AuthenticatedSuprimentosDashboardRoute,
   AuthenticatedSuprimentosEstoqueRoute: AuthenticatedSuprimentosEstoqueRoute,
