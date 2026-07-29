@@ -238,10 +238,39 @@ function ShelfLifeDashboard() {
           <p className="text-sm text-muted-foreground">Perda por vencimento × recuperação por ações de lote.</p>
         </div>
         <div className="flex items-end gap-2">
-          <div><Label className="text-xs">De</Label><Input type="date" value={de} onChange={(e) => setDe(e.target.value)} /></div>
-          <div><Label className="text-xs">Até</Label><Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} /></div>
+          <div><Label className="text-xs">De</Label><Input type="date" value={de} onChange={(e) => set("de", e.target.value)} /></div>
+          <div><Label className="text-xs">Até</Label><Input type="date" value={ate} onChange={(e) => set("ate", e.target.value)} /></div>
         </div>
       </div>
+
+      <ConfigFiltrosCard mostrarSaldo={false} />
+
+      <Card>
+        <CardHeader className="pb-3"><CardTitle className="text-base">Filtros</CardTitle></CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div>
+            <Label className="text-xs">Almoxarifado</Label>
+            <MultiSelect options={(almoxBase ?? origens).map((o) => ({ value: o, label: o }))} value={f.almox} onChange={(v) => set("almox", v)} />
+          </div>
+          <div>
+            <Label className="text-xs">Grupo</Label>
+            <MultiSelect options={gfOpts.grupos.map((o) => ({ value: o, label: o }))} value={f.grupos} onChange={(v) => set("grupos", v)} />
+          </div>
+          <div>
+            <Label className="text-xs">Família</Label>
+            <MultiSelect options={gfOpts.familias.map((o) => ({ value: o, label: o }))} value={f.familias} onChange={(v) => set("familias", v)} />
+          </div>
+          <div>
+            <Label className="text-xs">Motivo</Label>
+            <MultiSelect options={motivosOpts.map((o) => ({ value: o, label: o }))} value={f.motivos} onChange={(v) => set("motivos", v)} />
+          </div>
+          <div>
+            <Label className="text-xs">Tipo de Ação</Label>
+            <MultiSelect options={(tipos.data ?? []).map((t) => ({ value: t.nome, label: t.nome }))} value={f.tipos} onChange={(v) => set("tipos", v)} />
+          </div>
+        </CardContent>
+      </Card>
+
 
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
         <Kpi title="Perda Evitada" value={formatBRL(ind.perdaEvitada)} tone="text-success" />
