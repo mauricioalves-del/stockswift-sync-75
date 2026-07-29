@@ -1,17 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatBRL, formatNum } from "@/lib/inventory";
 import { FAIXA_LABEL, FAIXA_TONE, type Faixa } from "@/lib/shelf-life";
 import { indexarCampanhasPorLote, useCampanhas, useLotesRisco } from "@/hooks/useShelfLife";
 import { chaveLote } from "@/lib/shelf-life";
+import { ConfigFiltrosCard } from "@/components/shelf-life/ConfigFiltrosCard";
+import { usePersistedState, useShelfConfig } from "@/hooks/useFiltrosShelfLife";
 import { CampanhaDialog, type CampanhaDraft } from "@/components/shelf-life/CampanhaDialog";
 import { AlertTriangle, CalendarClock, Download, HelpCircle, Plus } from "lucide-react";
 
@@ -27,57 +29,67 @@ export const Route = createFileRoute("/_authenticated/shelf-life/risco")({
   }),
 });
 
-const TODAS = "__todas__";
+type FiltrosRisco = {
+  almox: string[];
+  grupos: string[];
+  familias: string[];
+  faixas: string[];
+  acao: string[];
+  busca: string;
+};
+
+const FILTROS_PADRAO: FiltrosRisco = { almox: [], grupos: [], familias: [], faixas: [], acao: [], busca: "" };
 
 function MapeamentoRisco() {
-  const lotes = useLotesRisco();
+  const { almoxAtivos, somenteComSaldo } = useShelfConfig();
+  const lotes = useLotesRisco({ almoxAtivos, somenteComSaldo });
   const campanhas = useCampanhas();
-  const [almox, setAlmox] = useState(TODAS);
-  const [grupo, setGrupo] = useState(TODAS);
-  const [familia, setFamilia] = useState(TODAS);
-  const [faixa, setFaixa] = useState<string>(TODAS);
-  const [acao, setAcao] = useState(TODAS);
-  const [busca, setBusca] = useState("");
-  const [draft, setDraft] = useState<CampanhaDraft | null>(null);
+  const [f, setF] = usePersistedState<FiltrosRisco>("shelf-life:risco:filtros", FILTROS_PADRAO);
+  const [draft, setDraft] = usePersistedState<CampanhaDraft | null>("shelf-life:risco:draft-noop", null);
+
+  const set = <K extends keyof FiltrosRisco>(k: K, v: FiltrosRisco[K]) => setF((p) => ({ ...p, [k]: v }));
 
   const idx = useMemo(() => indexarCampanhasPorLote(campanhas.data), [campanhas.data]);
   const rows = lotes.data ?? [];
 
   const opts = useMemo(() => {
-    const a = new Set<string>(), g = new Set<string>(), f = new Set<string>();
+    const a = new Set<string>(), g = new Set<string>(), fa = new Set<string>();
     rows.forEach((r) => {
       if (r.almoxarifado) a.add(r.almoxarifado);
       if (r.grupo) g.add(r.grupo);
-      if (r.familia) f.add(r.familia);
+      if (r.familia) fa.add(r.familia);
     });
     const s = (x: Set<string>) => Array.from(x).sort();
-    return { almox: s(a), grupos: s(g), familias: s(f) };
+    return { almox: s(a), grupos: s(g), familias: s(fa) };
   }, [rows]);
 
   const filtradas = useMemo(() => {
-    const q = busca.trim().toUpperCase();
+    const q = (f.busca ?? "").trim().toUpperCase();
+    const inSel = (sel: string[], v: string | null) => sel.length === 0 || (v != null && sel.includes(v));
     return rows.filter((r) => {
-      if (almox !== TODAS && r.almoxarifado !== almox) return false;
-      if (grupo !== TODAS && r.grupo !== grupo) return false;
-      if (familia !== TODAS && r.familia !== familia) return false;
-      if (faixa !== TODAS && r.faixa !== faixa) return false;
+      if (!inSel(f.almox, r.almoxarifado)) return false;
+      if (!inSel(f.grupos, r.grupo)) return false;
+      if (!inSel(f.familias, r.familia)) return false;
+      if (!inSel(f.faixas, r.faixa)) return false;
       const temAcao = (idx.get(chaveLote(r.sku, r.lote)) ?? []).length > 0;
-      if (acao === "COM" && !temAcao) return false;
-      if (acao === "SEM" && temAcao) return false;
+      if (f.acao.length === 1) {
+        if (f.acao[0] === "COM" && !temAcao) return false;
+        if (f.acao[0] === "SEM" && temAcao) return false;
+      }
       if (q && !(`${r.sku} ${r.descricao} ${r.lote}`.toUpperCase().includes(q))) return false;
       return true;
     });
-  }, [rows, almox, grupo, familia, faixa, acao, busca, idx]);
+  }, [rows, f, idx]);
 
   const kpis = useMemo(() => {
     const base = filtradas;
-    const soma = (fn: (f: Faixa) => boolean) => base.filter((r) => fn(r.faixa)).reduce((s, r) => s + r.valor, 0);
+    const soma = (fn: (x: Faixa) => boolean) => base.filter((r) => fn(r.faixa)).reduce((s, r) => s + r.valor, 0);
     return {
-      v30: soma((f) => f === "30" || f === "VENCIDO"),
-      v60: soma((f) => f === "60"),
-      v90: soma((f) => f === "90"),
-      vencido: soma((f) => f === "VENCIDO"),
-      pendente: soma((f) => f === "PENDENTE"),
+      v30: soma((x) => x === "30" || x === "VENCIDO"),
+      v60: soma((x) => x === "60"),
+      v90: soma((x) => x === "90"),
+      vencido: soma((x) => x === "VENCIDO"),
+      pendente: soma((x) => x === "PENDENTE"),
       qtdPendente: base.filter((r) => r.faixa === "PENDENTE").length,
       total: base.reduce((s, r) => s + r.valor, 0),
     };
@@ -95,6 +107,7 @@ function MapeamentoRisco() {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "Risco");
     XLSX.writeFile(wb, `ShelfLife_Risco_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
+
 
   return (
     <div className="space-y-4">
