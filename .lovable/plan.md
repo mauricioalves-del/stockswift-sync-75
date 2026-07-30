@@ -1,30 +1,45 @@
 ## Objetivo
 
-Trocar os filtros de escolha única do pilar Shelf Life por filtros de múltipla escolha, com uma configuração de "almoxarifados ativos" (quais origens alimentam as telas) que fica salva por usuário no navegador — e aplicar o mesmo modelo no Dashboard Shelf Life.
+Carregar as 46 linhas da planilha `Acoes.xlsx` na tabela de **Ações de Lote** do módulo Shelf Life, como ações já executadas (status **Concluída**), para que apareçam na tela "Ações de Lote" e alimentem o Dashboard Executivo.
 
-## O que muda
+## Mapeamento dos campos
 
-### 1. Componente de filtro múltiplo (novo)
-`src/components/ui/multi-select.tsx`: botão com resumo ("Todos", "Alm_SP_Fabrica", "3 selecionados"), lista com busca, checkboxes, ações "Selecionar todos" / "Limpar". Lista vazia = sem restrição (todos).
+| Planilha | Ação de Lote |
+|---|---|
+| Id_produto | SKU |
+| descricao | Produto |
+| Lote | Lote |
+| Origem (Alm_SP_...) | Almoxarifado |
+| Dt_Validade | Data de validade |
+| Qtd | Quantidade endereçada |
+| Data em que agimos | Data da ação |
+| Observações | Tipo de ação (ver abaixo) + texto original guardado em Observação |
+| — | Status = Concluída; Custo da ação = 0 |
 
-### 2. Preferências salvas (novo)
-`src/hooks/useFiltrosShelfLife.ts`: guarda em `localStorage` (chave por tela) os filtros escolhidos — almoxarifados, grupos, famílias, faixas, status de ação, período e o interruptor de estoque ativo. Retorna valores + setters e um botão "Restaurar padrão".
+## Tipos de ação (a partir de "Observações")
 
-### 3. Parâmetro "Almoxarifados ativos"
-Um cartão "Configuração de Filtros" no topo das duas telas, recolhível, com:
-- multi-seleção de **Almoxarifados ativos** — define quais origens entram nos dados das telas do pilar (padrão: todos os permitidos ao usuário);
-- interruptor **Somente lotes com saldo** (saldo > 0), hoje fixo no código;
-- a seleção é compartilhada entre Mapeamento de Risco e Dashboard (mesma chave de armazenamento), respeitando sempre a restrição de almoxarifado do perfil do usuário.
+- "Aplicar desconto para colaborador" (29) → **Desconto Colaborador** (Receita)
+- "Aplicar desconto para colaborador/Refood" (1) → **Anúncio Refood** (Receita)
+- "Degustação - Ativação" (8) e "Consumo Time" (2) → **Degustação** (Saving)
+- "Transformar em Massa", "Transformar em biscoito da loja", "Avaliar Transformação - Dafne" (3) → **Transformação de Produto** (Saving)
+- "Remodelado - Enviar para Amostra P/Laboratório" (2) e "Descarte" (1) → **Outro** (Saving)
 
-### 4. Mapeamento de Risco (`shelf-life.risco.tsx`)
-Almoxarifado, Grupo, Família, Faixa e Status de Ação viram múltipla escolha; a busca continua texto livre. KPIs, tabela e exportação passam a respeitar a seleção múltipla.
+Nenhum tipo novo será criado; todos já existem no cadastro.
 
-### 5. Dashboard Shelf Life (`shelf-life.dashboard.tsx`)
-Ganha a mesma barra de filtros: Almoxarifado (múltiplo), Grupo, Família, Motivo e Tipo de Ação (múltiplos), além do período De/Até já existente — tudo persistido. As baixas passam a ser filtradas por `origem`/grupo/família, e as campanhas por `almoxarifado`, antes do cálculo de perda, recuperação e ROI.
+## Valores
 
-## Detalhes técnicos
+- Ações de categoria **Receita**: valor recuperado = Qtd × C/Desconto
+- Ações de categoria **Saving**: valor de saving = Qtd × Custo_Vlr (custo unitário do lote)
+- A coluna "Custo Total" da planilha é ignorada por estar inconsistente (vários registros repetindo 82,50)
 
-- `useLotesRisco` recebe a lista de almoxarifados ativos e o flag de saldo como parâmetros e entra na `queryKey`, mantendo `fetchAll` paginado.
-- Interseção obrigatória com `useMeusAlmoxarifados`: a configuração nunca amplia o acesso do usuário.
-- No dashboard, o `useQuery` de baixas passa a trazer `origem` e a cruzar grupo/família via `grupo_produtos`/`familias` (mesmo mapeamento já usado no hook de risco).
-- Sem mudanças de banco; nada de nova tabela — persistência apenas em `localStorage`.
+## Execução
+
+1. Ler a planilha e gerar os 46 registros com o mapeamento acima.
+2. Inserir na tabela de ações de lote em uma única operação de dados.
+3. Conferir os totais no banco (quantidade de registros, soma de receita e de saving) e validar que aparecem corretamente na tela **Shelf Life → Ações de Lote** e no Dashboard.
+
+## Observações técnicas
+
+- Inserção via ferramenta de dados na tabela `campanhas_lote`, com `status='CONCLUIDA'`, `criado_por` nulo (importação) e `observacao` contendo o texto original da planilha para rastreabilidade.
+- Datas convertidas para formato ISO; SKU normalizado como texto.
+- Não há alteração de schema nem de código da aplicação.
