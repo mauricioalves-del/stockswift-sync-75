@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { normalizeSheetRows, pickCI } from "@/lib/xlsx-utils";
 
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAll } from "@/lib/fetch-all";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -164,7 +165,37 @@ function ImportarPage() {
       else ok += slice.length;
     }
 
+    // 3.1 Zerar lotes que não vieram mais no arquivo (por almoxarifado importado):
+    // o arquivo Lote_Sistema é a fonte da verdade — o que sumiu não tem mais saldo.
+    const chavesArquivo = new Set(payload.map((p) => `${p.id_produto}|${p.lote}|${p.origem}`));
+    let zerados = 0;
+    try {
+      type EstoqueRef = { id: string; id_produto: string; lote: string | null; origem: string | null };
+      const existentesOrigem = await fetchAll<EstoqueRef>((from: number, to: number) =>
+        (supabase as any)
+          .from("estoque_sistemico")
+          .select("id, id_produto, lote, origem")
+          .in("origem", origens)
+          .gt("quantidade", 0)
+          .range(from, to),
+      );
+      const obsoletos = existentesOrigem
+        .filter((e: EstoqueRef) => !chavesArquivo.has(`${e.id_produto}|${e.lote ?? ""}|${e.origem ?? ""}`))
+        .map((e: EstoqueRef) => e.id);
+      for (let i = 0; i < obsoletos.length; i += CHUNK) {
+        const ids = obsoletos.slice(i, i + CHUNK);
+        const { error } = await supabase
+          .from("estoque_sistemico")
+          .update({ quantidade: 0, data_importacao: new Date().toISOString() })
+          .in("id", ids);
+        if (!error) zerados += ids.length;
+      }
+    } catch (e) {
+      console.error("Falha ao zerar lotes obsoletos", e);
+    }
+
     // 4. Log de importação
+
     await supabase.from("importacoes_estoque").insert({
       usuario: userId,
       arquivo: filename,
@@ -172,19 +203,19 @@ function ImportarPage() {
       novos,
       atualizados,
       erros: fail,
-      detalhes: { origens_novas: novasOrigens.map((o) => o.codigo_origem) },
+      detalhes: { origens_novas: novasOrigens.map((o) => o.codigo_origem), lotes_zerados: zerados },
     });
 
     await supabase.from("audit_logs").insert({
       usuario: userId,
       acao: "SINCRONIZAR_ESTOQUE",
       entidade: "estoque_sistemico",
-      payload: { arquivo: filename, total: rows.length, ok, fail, novos, atualizados, origens_novas: novasOrigens.length },
+      payload: { arquivo: filename, total: rows.length, ok, fail, novos, atualizados, origens_novas: novasOrigens.length, lotes_zerados: zerados },
     });
 
     setImporting(false);
     setResult({ ok, novos, atualizados, fail, origens: novasOrigens.length, when: new Date().toLocaleString("pt-BR") });
-    if (fail === 0) toast.success(`${ok} registros sincronizados (${novos} novos, ${atualizados} atualizados)`);
+    if (fail === 0) toast.success(`${ok} registros sincronizados (${novos} novos, ${atualizados} atualizados, ${zerados} lotes zerados)`);
     else toast.error(`${fail} falhas na sincronização`);
     setRows([]);
   }
