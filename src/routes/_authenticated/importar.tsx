@@ -47,6 +47,8 @@ function ImportarPage() {
   const [filename, setFilename] = useState<string>("");
   const [errors, setErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
+  const [syncCompleta, setSyncCompleta] = useState(true);
+
   const [result, setResult] = useState<{ ok: number; novos: number; atualizados: number; fail: number; origens: number; when: string } | null>(null);
 
   if (!canWrite) return <div className="p-8 text-center text-muted-foreground">Sem permissão.</div>;
@@ -165,20 +167,23 @@ function ImportarPage() {
       else ok += slice.length;
     }
 
-    // 3.1 Zerar lotes que não vieram mais no arquivo (por almoxarifado importado):
+    // 3.1 Zerar lotes que não vieram mais no arquivo:
     // o arquivo Lote_Sistema é a fonte da verdade — o que sumiu não tem mais saldo.
+    // Modo completo: zera também almoxarifados que não aparecem no arquivo (ex.: almox esvaziado).
     const chavesArquivo = new Set(payload.map((p) => `${p.id_produto}|${p.lote}|${p.origem}`));
     let zerados = 0;
     try {
       type EstoqueRef = { id: string; id_produto: string; lote: string | null; origem: string | null };
-      const existentesOrigem = await fetchAll<EstoqueRef>((from: number, to: number) =>
-        (supabase as any)
+      const existentesOrigem = await fetchAll<EstoqueRef>((from: number, to: number) => {
+        let q = (supabase as any)
           .from("estoque_sistemico")
           .select("id, id_produto, lote, origem")
-          .in("origem", origens)
           .gt("quantidade", 0)
-          .range(from, to),
-      );
+          .range(from, to);
+        if (!syncCompleta) q = q.in("origem", origens);
+        return q;
+      });
+
       const obsoletos = existentesOrigem
         .filter((e: EstoqueRef) => !chavesArquivo.has(`${e.id_produto}|${e.lote ?? ""}|${e.origem ?? ""}`))
         .map((e: EstoqueRef) => e.id);
@@ -275,9 +280,16 @@ function ImportarPage() {
               <CardTitle className="text-base">Preview ({rows.length} registros)</CardTitle>
               <CardDescription>Almox detectados: {Array.from(new Set(rows.map((r) => r.origem))).join(", ")}</CardDescription>
             </div>
-            <Button onClick={sincronizar} disabled={importing}>
-              {importing ? <><Loader2 className="size-4 animate-spin mr-2" /> Sincronizando...</> : <><RefreshCw className="size-4 mr-2" /> Sincronizar Estoque</>}
-            </Button>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                <input type="checkbox" checked={syncCompleta} onChange={(e) => setSyncCompleta(e.target.checked)} />
+                Sincronização completa (zerar lotes ausentes em todos os almox)
+              </label>
+              <Button onClick={sincronizar} disabled={importing}>
+                {importing ? <><Loader2 className="size-4 animate-spin mr-2" /> Sincronizando...</> : <><RefreshCw className="size-4 mr-2" /> Sincronizar Estoque</>}
+              </Button>
+            </div>
+
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto border rounded-lg">

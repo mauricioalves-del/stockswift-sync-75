@@ -11,8 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatBRL, formatNum } from "@/lib/inventory";
-import { STATUS_CAMPANHA, statusCampanhaLabel, statusCampanhaTone, valorRecuperadoCampanha } from "@/lib/shelf-life";
-import { autoVincularBaixas, useCampanhas, useTiposAcao } from "@/hooks/useShelfLife";
+import { STATUS_CAMPANHA, chaveLote, statusCampanhaLabel, statusCampanhaTone, valorRecuperadoCampanha } from "@/lib/shelf-life";
+import { autoVincularBaixas, useCampanhas, useLotesComSaldo, useTiposAcao } from "@/hooks/useShelfLife";
+
 import { CampanhaDialog, type CampanhaDraft } from "@/components/shelf-life/CampanhaDialog";
 import { useRole } from "@/hooks/useRole";
 import { Link2, Pencil, Plus, Trash2 } from "lucide-react";
@@ -35,6 +36,8 @@ function AcoesLote() {
   const qc = useQueryClient();
   const campanhas = useCampanhas();
   const tipos = useTiposAcao();
+  const saldos = useLotesComSaldo();
+
   const { isAdmin, role } = useRole();
   const podeExcluir = isAdmin || role === "COORDENADOR_CONTROLE";
 
@@ -152,7 +155,15 @@ function AcoesLote() {
                   <TableCell className="text-xs">{(c.data_acao ?? "").slice(0, 10).split("-").reverse().join("/")}</TableCell>
                   <TableCell className="font-mono text-xs">{c.sku}</TableCell>
                   <TableCell className="max-w-[220px] truncate">{c.descricao ?? "—"}</TableCell>
-                  <TableCell className="font-mono text-xs">{c.lote || "—"}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {c.lote || "—"}
+                    {c.lote && saldos.data && !saldos.data.has(chaveLote(c.sku, c.lote)) && (
+                      <Badge variant="secondary" className="ml-1 text-[10px] font-sans bg-muted text-muted-foreground">
+                        Lote já sem saldo (encerrado)
+                      </Badge>
+                    )}
+                  </TableCell>
+
                   <TableCell className="text-xs">
                     {c.tipo_nome ?? "—"}
                     {c.categoria && <Badge variant="outline" className="ml-1 text-[10px]">{c.categoria === "RECEITA" ? "Receita" : "Saving"}</Badge>}

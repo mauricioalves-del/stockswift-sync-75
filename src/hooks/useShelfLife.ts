@@ -83,19 +83,22 @@ export function useLotesRisco(opts?: { almoxAtivos?: string[]; somenteComSaldo?:
   return useQuery({
     queryKey: ["shelf-lotes-risco", almoxes?.join(",") ?? "all", somenteComSaldo],
     enabled: !loading,
-    staleTime: 60_000,
+    // Fonte única e sempre atual: estoque_sistemico (atualizado pela Sincronização do Lote_Sistema).
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async (): Promise<LoteRisco[]> => {
       const [estoque, grupos, familias] = await Promise.all([
         fetchAll<any>((from, to) => {
           let q = (supabase as any)
             .from("estoque_sistemico")
             .select("id_produto, descricao, lote, unidade, quantidade, custo_unitario, id_local, origem, data_validade")
+            .gt("quantidade", 0)
             .range(from, to);
-          if (somenteComSaldo) q = q.gt("quantidade", 0);
           if (almoxes && almoxes.length > 0) q = q.in("origem", almoxes);
           if (almoxes && almoxes.length === 0) q = q.in("origem", ["__nenhum__"]);
           return q;
         }),
+
 
         fetchAll<any>((from, to) =>
           (supabase as any).from("grupo_produtos").select("codigo_produto, grupo").range(from, to),
@@ -209,4 +212,26 @@ export async function autoVincularBaixas(): Promise<number> {
     if (!error) n++;
   }
   return n;
+}
+
+/**
+ * Conjunto de chaves SKU||Lote que ainda possuem saldo em estoque_sistemico.
+ * Usado para sinalizar campanhas cujo lote já foi totalmente consumido/baixado.
+ */
+export function useLotesComSaldo() {
+  return useQuery({
+    queryKey: ["shelf-lotes-com-saldo"],
+    staleTime: 0,
+    refetchOnMount: "always",
+    queryFn: async (): Promise<Set<string>> => {
+      const rows = await fetchAll<any>((from, to) =>
+        (supabase as any)
+          .from("estoque_sistemico")
+          .select("id_produto, lote, quantidade")
+          .gt("quantidade", 0)
+          .range(from, to),
+      );
+      return new Set(rows.map((r) => chaveLote(String(r.id_produto ?? ""), r.lote)));
+    },
+  });
 }
