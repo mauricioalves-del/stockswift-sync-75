@@ -213,3 +213,25 @@ export async function autoVincularBaixas(): Promise<number> {
   }
   return n;
 }
+
+/**
+ * Conjunto de chaves SKU||Lote que ainda possuem saldo em estoque_sistemico.
+ * Usado para sinalizar campanhas cujo lote já foi totalmente consumido/baixado.
+ */
+export function useLotesComSaldo() {
+  return useQuery({
+    queryKey: ["shelf-lotes-com-saldo"],
+    staleTime: 0,
+    refetchOnMount: "always",
+    queryFn: async (): Promise<Set<string>> => {
+      const rows = await fetchAll<any>((from, to) =>
+        (supabase as any)
+          .from("estoque_sistemico")
+          .select("id_produto, lote, quantidade")
+          .gt("quantidade", 0)
+          .range(from, to),
+      );
+      return new Set(rows.map((r) => chaveLote(String(r.id_produto ?? ""), r.lote)));
+    },
+  });
+}
