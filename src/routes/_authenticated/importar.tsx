@@ -165,20 +165,23 @@ function ImportarPage() {
       else ok += slice.length;
     }
 
-    // 3.1 Zerar lotes que não vieram mais no arquivo (por almoxarifado importado):
+    // 3.1 Zerar lotes que não vieram mais no arquivo:
     // o arquivo Lote_Sistema é a fonte da verdade — o que sumiu não tem mais saldo.
+    // Modo completo: zera também almoxarifados que não aparecem no arquivo (ex.: almox esvaziado).
     const chavesArquivo = new Set(payload.map((p) => `${p.id_produto}|${p.lote}|${p.origem}`));
     let zerados = 0;
     try {
       type EstoqueRef = { id: string; id_produto: string; lote: string | null; origem: string | null };
-      const existentesOrigem = await fetchAll<EstoqueRef>((from: number, to: number) =>
-        (supabase as any)
+      const existentesOrigem = await fetchAll<EstoqueRef>((from: number, to: number) => {
+        let q = (supabase as any)
           .from("estoque_sistemico")
           .select("id, id_produto, lote, origem")
-          .in("origem", origens)
           .gt("quantidade", 0)
-          .range(from, to),
-      );
+          .range(from, to);
+        if (!syncCompleta) q = q.in("origem", origens);
+        return q;
+      });
+
       const obsoletos = existentesOrigem
         .filter((e: EstoqueRef) => !chavesArquivo.has(`${e.id_produto}|${e.lote ?? ""}|${e.origem ?? ""}`))
         .map((e: EstoqueRef) => e.id);
