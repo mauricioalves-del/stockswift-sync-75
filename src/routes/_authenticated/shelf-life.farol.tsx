@@ -404,7 +404,7 @@ function TopCard({ title, cor, rows, onSelect }: { title: string; cor: string; r
             </TableHeader>
             <TableBody>
               {top.map((r, i) => (
-                <TableRow key={r.sku}>
+                <TableRow key={r.sku} className="cursor-pointer" onClick={() => onSelect(r.lotes)}>
                   <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
                   <TableCell className="max-w-[200px] truncate text-xs">{r.descricao}</TableCell>
                   <TableCell className="text-right text-xs font-medium">{formatBRL(r.custo)}</TableCell>
