@@ -301,10 +301,63 @@ function FarolShelf() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <TopCard title="Top 10 — Urgente (0-30 dias)" cor={COR.Urgente} rows={topUrgente} />
-        <TopCard title="Top 10 — Perigo (31-60 dias)" cor={COR.Perigo} rows={topPerigo} />
-        <TopCard title="Top 10 — Atenção (61-90 dias)" cor={COR["Atenção"]} rows={topAtencao} />
+        <TopCard title="Top 10 — Urgente (0-30 dias)" cor={COR.Urgente} rows={topUrgente} onSelect={setDetalhe} />
+        <TopCard title="Top 10 — Perigo (31-60 dias)" cor={COR.Perigo} rows={topPerigo} onSelect={setDetalhe} />
+        <TopCard title="Top 10 — Atenção (61-90 dias)" cor={COR["Atenção"]} rows={topAtencao} onSelect={setDetalhe} />
       </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <span className="size-3 rounded-full shrink-0" style={{ background: COR.vencido }} />
+            Lista de Vencidos ({vencidos.length}) — {formatBRL(kpis.vencidoValor)}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          {lotesQ.isLoading ? <Skel /> : !vencidos.length ? <Vazio /> : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Lote</TableHead>
+                  <TableHead>Almoxarifado</TableHead>
+                  <TableHead>Validade</TableHead>
+                  <TableHead className="text-right">Dias</TableHead>
+                  <TableHead className="text-right">Qtd</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {vencidos.map((r, i) => (
+                  <TableRow
+                    key={`${r.sku}-${r.lote}-${r.almoxarifado}-${i}`}
+                    className="cursor-pointer"
+                    onClick={() => setDetalhe([r])}
+                  >
+                    <TableCell className="text-xs">{r.sku}</TableCell>
+                    <TableCell className="max-w-[260px] truncate text-xs">{r.descricao}</TableCell>
+                    <TableCell className="text-xs">{r.lote || "—"}</TableCell>
+                    <TableCell className="text-xs">{r.almoxarifado || "—"}</TableCell>
+                    <TableCell className="text-xs">
+                      {r.data_validade ? r.data_validade.slice(0, 10).split("-").reverse().join("/") : "—"}
+                    </TableCell>
+                    <TableCell className="text-right text-xs">
+                      <Badge variant="secondary" className="bg-destructive/15 text-destructive">
+                        {r.dias != null ? r.dias : "—"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right text-xs">{r.quantidade}</TableCell>
+                    <TableCell className="text-right text-xs font-medium">{formatBRL(r.valor)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <LoteDetalheDialog open={!!detalhe} onOpenChange={(v) => !v && setDetalhe(null)} lotes={detalhe ?? []} />
     </div>
   );
 }
