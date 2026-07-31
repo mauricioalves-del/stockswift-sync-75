@@ -155,17 +155,25 @@ function FarolShelf() {
         .filter((r) => r.status === s)
         .reduce((m, r) => {
           const k = r.sku;
-          const e = m.get(k) ?? { sku: k, descricao: r.descricao || k, custo: 0 };
+          const e = m.get(k) ?? { sku: k, descricao: r.descricao || k, custo: 0, lotes: [] as LoteRisco[] };
           e.custo += r.valor;
+          e.lotes.push(r);
           m.set(k, e);
           return m;
-        }, new Map<string, { sku: string; descricao: string; custo: number }>())
+        }, new Map<string, TopRow>())
         .values(),
     ).sort((a, b) => b.custo - a.custo);
 
   const topUrgente = useMemo(() => topPor("Urgente"), [rows]);
   const topPerigo = useMemo(() => topPor("Perigo"), [rows]);
   const topAtencao = useMemo(() => topPor("Atenção"), [rows]);
+
+  const vencidos = useMemo(
+    () => rows.filter((r) => r.status === "vencido").sort((a, b) => b.valor - a.valor),
+    [rows],
+  );
+
+  const [detalhe, setDetalhe] = useState<LoteRisco[] | null>(null);
 
   return (
     <div className="space-y-4">
