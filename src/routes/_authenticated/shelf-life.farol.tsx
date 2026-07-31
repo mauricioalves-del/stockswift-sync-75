@@ -1,18 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatBRL } from "@/lib/inventory";
 import { ConfigFiltrosCard } from "@/components/shelf-life/ConfigFiltrosCard";
+import { LoteDetalheDialog } from "@/components/shelf-life/LoteDetalheDialog";
 import { usePersistedState, useShelfConfig } from "@/hooks/useFiltrosShelfLife";
 import { useLotesRisco, type LoteRisco } from "@/hooks/useShelfLife";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, Cell,
 } from "recharts";
 import { Skull } from "lucide-react";
+
+type TopRow = { sku: string; descricao: string; custo: number; lotes: LoteRisco[] };
 
 export const Route = createFileRoute("/_authenticated/shelf-life/farol")({
   component: FarolShelf,
