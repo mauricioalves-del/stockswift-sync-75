@@ -182,9 +182,6 @@ function ImportarPage() {
       const obsoletos = existentesOrigem
         .filter((e: EstoqueRef) => !chavesArquivo.has(`${e.id_produto}|${e.lote ?? ""}|${e.origem ?? ""}`))
         .map((e: EstoqueRef) => e.id);
-      const obsoletos = existentesOrigem
-        .filter((e) => !chavesArquivo.has(`${e.id_produto}|${e.lote ?? ""}|${e.origem ?? ""}`))
-        .map((e) => e.id);
       for (let i = 0; i < obsoletos.length; i += CHUNK) {
         const ids = obsoletos.slice(i, i + CHUNK);
         const { error } = await supabase
