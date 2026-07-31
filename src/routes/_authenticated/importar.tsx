@@ -47,6 +47,8 @@ function ImportarPage() {
   const [filename, setFilename] = useState<string>("");
   const [errors, setErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
+  const [syncCompleta, setSyncCompleta] = useState(true);
+
   const [result, setResult] = useState<{ ok: number; novos: number; atualizados: number; fail: number; origens: number; when: string } | null>(null);
 
   if (!canWrite) return <div className="p-8 text-center text-muted-foreground">Sem permissão.</div>;
