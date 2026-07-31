@@ -170,15 +170,18 @@ function ImportarPage() {
     const chavesArquivo = new Set(payload.map((p) => `${p.id_produto}|${p.lote}|${p.origem}`));
     let zerados = 0;
     try {
-      const existentesOrigem = await fetchAll<{ id: string; id_produto: string; lote: string | null; origem: string | null }>(
-        (from, to) =>
-          supabase
-            .from("estoque_sistemico")
-            .select("id, id_produto, lote, origem")
-            .in("origem", origens)
-            .gt("quantidade", 0)
-            .range(from, to) as any,
+      type EstoqueRef = { id: string; id_produto: string; lote: string | null; origem: string | null };
+      const existentesOrigem = await fetchAll<EstoqueRef>((from: number, to: number) =>
+        (supabase as any)
+          .from("estoque_sistemico")
+          .select("id, id_produto, lote, origem")
+          .in("origem", origens)
+          .gt("quantidade", 0)
+          .range(from, to),
       );
+      const obsoletos = existentesOrigem
+        .filter((e: EstoqueRef) => !chavesArquivo.has(`${e.id_produto}|${e.lote ?? ""}|${e.origem ?? ""}`))
+        .map((e: EstoqueRef) => e.id);
       const obsoletos = existentesOrigem
         .filter((e) => !chavesArquivo.has(`${e.id_produto}|${e.lote ?? ""}|${e.origem ?? ""}`))
         .map((e) => e.id);
