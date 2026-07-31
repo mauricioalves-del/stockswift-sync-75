@@ -1,18 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatBRL } from "@/lib/inventory";
 import { ConfigFiltrosCard } from "@/components/shelf-life/ConfigFiltrosCard";
+import { LoteDetalheDialog } from "@/components/shelf-life/LoteDetalheDialog";
 import { usePersistedState, useShelfConfig } from "@/hooks/useFiltrosShelfLife";
 import { useLotesRisco, type LoteRisco } from "@/hooks/useShelfLife";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, Cell,
 } from "recharts";
 import { Skull } from "lucide-react";
+
+type TopRow = { sku: string; descricao: string; custo: number; lotes: LoteRisco[] };
 
 export const Route = createFileRoute("/_authenticated/shelf-life/farol")({
   component: FarolShelf,
@@ -155,17 +159,25 @@ function FarolShelf() {
         .filter((r) => r.status === s)
         .reduce((m, r) => {
           const k = r.sku;
-          const e = m.get(k) ?? { sku: k, descricao: r.descricao || k, custo: 0 };
+          const e = m.get(k) ?? { sku: k, descricao: r.descricao || k, custo: 0, lotes: [] as LoteRisco[] };
           e.custo += r.valor;
+          e.lotes.push(r);
           m.set(k, e);
           return m;
-        }, new Map<string, { sku: string; descricao: string; custo: number }>())
+        }, new Map<string, TopRow>())
         .values(),
     ).sort((a, b) => b.custo - a.custo);
 
   const topUrgente = useMemo(() => topPor("Urgente"), [rows]);
   const topPerigo = useMemo(() => topPor("Perigo"), [rows]);
   const topAtencao = useMemo(() => topPor("Atenção"), [rows]);
+
+  const vencidos = useMemo(
+    () => rows.filter((r) => r.status === "vencido").sort((a, b) => b.valor - a.valor),
+    [rows],
+  );
+
+  const [detalhe, setDetalhe] = useState<LoteRisco[] | null>(null);
 
   return (
     <div className="space-y-4">
@@ -289,10 +301,63 @@ function FarolShelf() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <TopCard title="Top 10 — Urgente (0-30 dias)" cor={COR.Urgente} rows={topUrgente} />
-        <TopCard title="Top 10 — Perigo (31-60 dias)" cor={COR.Perigo} rows={topPerigo} />
-        <TopCard title="Top 10 — Atenção (61-90 dias)" cor={COR["Atenção"]} rows={topAtencao} />
+        <TopCard title="Top 10 — Urgente (0-30 dias)" cor={COR.Urgente} rows={topUrgente} onSelect={setDetalhe} />
+        <TopCard title="Top 10 — Perigo (31-60 dias)" cor={COR.Perigo} rows={topPerigo} onSelect={setDetalhe} />
+        <TopCard title="Top 10 — Atenção (61-90 dias)" cor={COR["Atenção"]} rows={topAtencao} onSelect={setDetalhe} />
       </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <span className="size-3 rounded-full shrink-0" style={{ background: COR.vencido }} />
+            Lista de Vencidos ({vencidos.length}) — {formatBRL(kpis.vencidoValor)}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          {lotesQ.isLoading ? <Skel /> : !vencidos.length ? <Vazio /> : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Lote</TableHead>
+                  <TableHead>Almoxarifado</TableHead>
+                  <TableHead>Validade</TableHead>
+                  <TableHead className="text-right">Dias</TableHead>
+                  <TableHead className="text-right">Qtd</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {vencidos.map((r, i) => (
+                  <TableRow
+                    key={`${r.sku}-${r.lote}-${r.almoxarifado}-${i}`}
+                    className="cursor-pointer"
+                    onClick={() => setDetalhe([r])}
+                  >
+                    <TableCell className="text-xs">{r.sku}</TableCell>
+                    <TableCell className="max-w-[260px] truncate text-xs">{r.descricao}</TableCell>
+                    <TableCell className="text-xs">{r.lote || "—"}</TableCell>
+                    <TableCell className="text-xs">{r.almoxarifado || "—"}</TableCell>
+                    <TableCell className="text-xs">
+                      {r.data_validade ? r.data_validade.slice(0, 10).split("-").reverse().join("/") : "—"}
+                    </TableCell>
+                    <TableCell className="text-right text-xs">
+                      <Badge variant="secondary" className="bg-destructive/15 text-destructive">
+                        {r.dias != null ? r.dias : "—"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right text-xs">{r.quantidade}</TableCell>
+                    <TableCell className="text-right text-xs font-medium">{formatBRL(r.valor)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <LoteDetalheDialog open={!!detalhe} onOpenChange={(v) => !v && setDetalhe(null)} lotes={detalhe ?? []} />
     </div>
   );
 }
@@ -315,7 +380,7 @@ function Multi({ label, value, onChange, options }: { label: string; value: stri
   );
 }
 
-function TopCard({ title, cor, rows }: { title: string; cor: string; rows: { sku: string; descricao: string; custo: number }[] }) {
+function TopCard({ title, cor, rows, onSelect }: { title: string; cor: string; rows: TopRow[]; onSelect: (l: LoteRisco[]) => void }) {
   const total = rows.reduce((s, r) => s + r.custo, 0);
   const top = rows.slice(0, 10);
   return (
@@ -339,7 +404,7 @@ function TopCard({ title, cor, rows }: { title: string; cor: string; rows: { sku
             </TableHeader>
             <TableBody>
               {top.map((r, i) => (
-                <TableRow key={r.sku}>
+                <TableRow key={r.sku} className="cursor-pointer" onClick={() => onSelect(r.lotes)}>
                   <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
                   <TableCell className="max-w-[200px] truncate text-xs">{r.descricao}</TableCell>
                   <TableCell className="text-right text-xs font-medium">{formatBRL(r.custo)}</TableCell>
