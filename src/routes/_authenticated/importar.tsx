@@ -203,19 +203,19 @@ function ImportarPage() {
       novos,
       atualizados,
       erros: fail,
-      detalhes: { origens_novas: novasOrigens.map((o) => o.codigo_origem) },
+      detalhes: { origens_novas: novasOrigens.map((o) => o.codigo_origem), lotes_zerados: zerados },
     });
 
     await supabase.from("audit_logs").insert({
       usuario: userId,
       acao: "SINCRONIZAR_ESTOQUE",
       entidade: "estoque_sistemico",
-      payload: { arquivo: filename, total: rows.length, ok, fail, novos, atualizados, origens_novas: novasOrigens.length },
+      payload: { arquivo: filename, total: rows.length, ok, fail, novos, atualizados, origens_novas: novasOrigens.length, lotes_zerados: zerados },
     });
 
     setImporting(false);
     setResult({ ok, novos, atualizados, fail, origens: novasOrigens.length, when: new Date().toLocaleString("pt-BR") });
-    if (fail === 0) toast.success(`${ok} registros sincronizados (${novos} novos, ${atualizados} atualizados)`);
+    if (fail === 0) toast.success(`${ok} registros sincronizados (${novos} novos, ${atualizados} atualizados, ${zerados} lotes zerados)`);
     else toast.error(`${fail} falhas na sincronização`);
     setRows([]);
   }
