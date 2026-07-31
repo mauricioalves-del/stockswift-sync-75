@@ -75,6 +75,7 @@ const NAV: (NavItem | NavGroup)[] = [
     items: [
       { to: "/shelf-life/risco", label: "Mapeamento de Risco", icon: AlertTriangle, role: "gestor" },
       { to: "/shelf-life/acoes", label: "Ações de Lote", icon: Target, role: "gestor" },
+      { to: "/shelf-life/farol", label: "Farol de Shelf", icon: BarChart3, role: "gestor" },
       { to: "/shelf-life/dashboard", label: "Dashboard Shelf Life", icon: BarChart3, role: "gestor" },
     ],
   },
