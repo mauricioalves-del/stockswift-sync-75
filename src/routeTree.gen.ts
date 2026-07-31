@@ -35,6 +35,7 @@ import { Route as AuthenticatedBaixasIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_authenticated/suprimentos.estoque'
 import { Route as AuthenticatedSuprimentosDashboardRouteImport } from './routes/_authenticated/suprimentos.dashboard'
 import { Route as AuthenticatedShelfLifeRiscoRouteImport } from './routes/_authenticated/shelf-life.risco'
+import { Route as AuthenticatedShelfLifeFarolRouteImport } from './routes/_authenticated/shelf-life.farol'
 import { Route as AuthenticatedShelfLifeDashboardRouteImport } from './routes/_authenticated/shelf-life.dashboard'
 import { Route as AuthenticatedShelfLifeAcoesRouteImport } from './routes/_authenticated/shelf-life.acoes'
 import { Route as AuthenticatedProducaoSolicitacaoMateriaisRouteImport } from './routes/_authenticated/producao.solicitacao-materiais'
@@ -196,6 +197,12 @@ const AuthenticatedShelfLifeRiscoRoute =
   AuthenticatedShelfLifeRiscoRouteImport.update({
     id: '/shelf-life/risco',
     path: '/shelf-life/risco',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedShelfLifeFarolRoute =
+  AuthenticatedShelfLifeFarolRouteImport.update({
+    id: '/shelf-life/farol',
+    path: '/shelf-life/farol',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedShelfLifeDashboardRoute =
@@ -382,6 +389,7 @@ export interface FileRoutesByFullPath {
   '/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   '/shelf-life/acoes': typeof AuthenticatedShelfLifeAcoesRoute
   '/shelf-life/dashboard': typeof AuthenticatedShelfLifeDashboardRoute
+  '/shelf-life/farol': typeof AuthenticatedShelfLifeFarolRoute
   '/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
@@ -433,6 +441,7 @@ export interface FileRoutesByTo {
   '/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   '/shelf-life/acoes': typeof AuthenticatedShelfLifeAcoesRoute
   '/shelf-life/dashboard': typeof AuthenticatedShelfLifeDashboardRoute
+  '/shelf-life/farol': typeof AuthenticatedShelfLifeFarolRoute
   '/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
@@ -486,6 +495,7 @@ export interface FileRoutesById {
   '/_authenticated/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   '/_authenticated/shelf-life/acoes': typeof AuthenticatedShelfLifeAcoesRoute
   '/_authenticated/shelf-life/dashboard': typeof AuthenticatedShelfLifeDashboardRoute
+  '/_authenticated/shelf-life/farol': typeof AuthenticatedShelfLifeFarolRoute
   '/_authenticated/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
@@ -539,6 +549,7 @@ export interface FileRouteTypes {
     | '/producao/solicitacao-materiais'
     | '/shelf-life/acoes'
     | '/shelf-life/dashboard'
+    | '/shelf-life/farol'
     | '/shelf-life/risco'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
@@ -590,6 +601,7 @@ export interface FileRouteTypes {
     | '/producao/solicitacao-materiais'
     | '/shelf-life/acoes'
     | '/shelf-life/dashboard'
+    | '/shelf-life/farol'
     | '/shelf-life/risco'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
@@ -642,6 +654,7 @@ export interface FileRouteTypes {
     | '/_authenticated/producao/solicitacao-materiais'
     | '/_authenticated/shelf-life/acoes'
     | '/_authenticated/shelf-life/dashboard'
+    | '/_authenticated/shelf-life/farol'
     | '/_authenticated/shelf-life/risco'
     | '/_authenticated/suprimentos/dashboard'
     | '/_authenticated/suprimentos/estoque'
@@ -843,6 +856,13 @@ declare module '@tanstack/react-router' {
       path: '/shelf-life/risco'
       fullPath: '/shelf-life/risco'
       preLoaderRoute: typeof AuthenticatedShelfLifeRiscoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/shelf-life/farol': {
+      id: '/_authenticated/shelf-life/farol'
+      path: '/shelf-life/farol'
+      fullPath: '/shelf-life/farol'
+      preLoaderRoute: typeof AuthenticatedShelfLifeFarolRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/shelf-life/dashboard': {
@@ -1068,6 +1088,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProducaoSolicitacaoMateriaisRoute: typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   AuthenticatedShelfLifeAcoesRoute: typeof AuthenticatedShelfLifeAcoesRoute
   AuthenticatedShelfLifeDashboardRoute: typeof AuthenticatedShelfLifeDashboardRoute
+  AuthenticatedShelfLifeFarolRoute: typeof AuthenticatedShelfLifeFarolRoute
   AuthenticatedShelfLifeRiscoRoute: typeof AuthenticatedShelfLifeRiscoRoute
   AuthenticatedSuprimentosDashboardRoute: typeof AuthenticatedSuprimentosDashboardRoute
   AuthenticatedSuprimentosEstoqueRoute: typeof AuthenticatedSuprimentosEstoqueRoute
@@ -1122,6 +1143,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedProducaoSolicitacaoMateriaisRoute,
   AuthenticatedShelfLifeAcoesRoute: AuthenticatedShelfLifeAcoesRoute,
   AuthenticatedShelfLifeDashboardRoute: AuthenticatedShelfLifeDashboardRoute,
+  AuthenticatedShelfLifeFarolRoute: AuthenticatedShelfLifeFarolRoute,
   AuthenticatedShelfLifeRiscoRoute: AuthenticatedShelfLifeRiscoRoute,
   AuthenticatedSuprimentosDashboardRoute:
     AuthenticatedSuprimentosDashboardRoute,
@@ -1149,13 +1171,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
