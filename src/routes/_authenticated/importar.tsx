@@ -280,9 +280,16 @@ function ImportarPage() {
               <CardTitle className="text-base">Preview ({rows.length} registros)</CardTitle>
               <CardDescription>Almox detectados: {Array.from(new Set(rows.map((r) => r.origem))).join(", ")}</CardDescription>
             </div>
-            <Button onClick={sincronizar} disabled={importing}>
-              {importing ? <><Loader2 className="size-4 animate-spin mr-2" /> Sincronizando...</> : <><RefreshCw className="size-4 mr-2" /> Sincronizar Estoque</>}
-            </Button>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                <input type="checkbox" checked={syncCompleta} onChange={(e) => setSyncCompleta(e.target.checked)} />
+                Sincronização completa (zerar lotes ausentes em todos os almox)
+              </label>
+              <Button onClick={sincronizar} disabled={importing}>
+                {importing ? <><Loader2 className="size-4 animate-spin mr-2" /> Sincronizando...</> : <><RefreshCw className="size-4 mr-2" /> Sincronizar Estoque</>}
+              </Button>
+            </div>
+
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto border rounded-lg">
