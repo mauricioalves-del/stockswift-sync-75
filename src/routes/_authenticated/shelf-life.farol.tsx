@@ -380,7 +380,7 @@ function Multi({ label, value, onChange, options }: { label: string; value: stri
   );
 }
 
-function TopCard({ title, cor, rows }: { title: string; cor: string; rows: { sku: string; descricao: string; custo: number }[] }) {
+function TopCard({ title, cor, rows, onSelect }: { title: string; cor: string; rows: TopRow[]; onSelect: (l: LoteRisco[]) => void }) {
   const total = rows.reduce((s, r) => s + r.custo, 0);
   const top = rows.slice(0, 10);
   return (
