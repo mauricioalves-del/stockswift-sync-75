@@ -173,9 +173,11 @@ function FarolShelf() {
   const topAtencao = useMemo(() => topPor("Atenção"), [rows]);
 
   const vencidos = useMemo(
-    () => rows.filter((r) => r.status === "vencido").sort((a, b) => b.valor - a.valor),
+    // só entram lotes com saldo atual > 0 na base sincronizada (Lote_Sistema)
+    () => rows.filter((r) => r.status === "vencido" && (r.quantidade ?? 0) > 0).sort((a, b) => b.valor - a.valor),
     [rows],
   );
+
 
   const [detalhe, setDetalhe] = useState<LoteRisco[] | null>(null);
 
