@@ -164,7 +164,37 @@ function ImportarPage() {
       else ok += slice.length;
     }
 
+    // 3.1 Zerar lotes que não vieram mais no arquivo (por almoxarifado importado):
+    // o arquivo Lote_Sistema é a fonte da verdade — o que sumiu não tem mais saldo.
+    const chavesArquivo = new Set(payload.map((p) => `${p.id_produto}|${p.lote}|${p.origem}`));
+    let zerados = 0;
+    try {
+      const existentesOrigem = await fetchAll<{ id: string; id_produto: string; lote: string | null; origem: string | null }>(
+        (from, to) =>
+          supabase
+            .from("estoque_sistemico")
+            .select("id, id_produto, lote, origem")
+            .in("origem", origens)
+            .gt("quantidade", 0)
+            .range(from, to) as any,
+      );
+      const obsoletos = existentesOrigem
+        .filter((e) => !chavesArquivo.has(`${e.id_produto}|${e.lote ?? ""}|${e.origem ?? ""}`))
+        .map((e) => e.id);
+      for (let i = 0; i < obsoletos.length; i += CHUNK) {
+        const ids = obsoletos.slice(i, i + CHUNK);
+        const { error } = await supabase
+          .from("estoque_sistemico")
+          .update({ quantidade: 0, data_importacao: new Date().toISOString() })
+          .in("id", ids);
+        if (!error) zerados += ids.length;
+      }
+    } catch (e) {
+      console.error("Falha ao zerar lotes obsoletos", e);
+    }
+
     // 4. Log de importação
+
     await supabase.from("importacoes_estoque").insert({
       usuario: userId,
       arquivo: filename,
