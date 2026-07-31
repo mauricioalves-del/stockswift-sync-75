@@ -36,6 +36,8 @@ function AcoesLote() {
   const qc = useQueryClient();
   const campanhas = useCampanhas();
   const tipos = useTiposAcao();
+  const saldos = useLotesComSaldo();
+
   const { isAdmin, role } = useRole();
   const podeExcluir = isAdmin || role === "COORDENADOR_CONTROLE";
 
