@@ -15,7 +15,7 @@ import { STATUS_CAMPANHA } from "@/lib/shelf-life";
 import { formatBRL } from "@/lib/inventory";
 import { usePrecoVendaPorSku, useParametroDesconto } from "@/hooks/usePrecosVenda";
 import { calcularPrecoComDesconto, chaveSku, ehDescontoColaborador } from "@/lib/precos-venda";
-import { notificarWhatsappColaboradores } from "@/lib/whatsapp.functions";
+import { montarMensagemQueima } from "@/lib/whatsapp-message";
 
 export type CampanhaDraft = Partial<CampanhaRow> & { sku: string; lote: string; unidade?: string | null };
 
