@@ -31,14 +31,20 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
   const { isAdmin, role } = useRole();
   const podeVincular = isAdmin || role === "COORDENADOR_CONTROLE";
 
+  const precos = usePrecoVendaPorSku();
+  const paramDesc = useParametroDesconto();
+
   const [form, setForm] = useState<any>({});
+  const [salvarPreco, setSalvarPreco] = useState(false);
   useEffect(() => {
     if (!open || !draft) return;
+    setSalvarPreco(false);
     setForm({
       id: draft.id,
       sku: draft.sku ?? "",
       descricao: draft.descricao ?? "",
       lote: draft.lote ?? "",
+      unidade: draft.unidade ?? "",
       almoxarifado: draft.almoxarifado ?? "",
       data_validade: draft.data_validade ?? "",
       tipo_acao_id: draft.tipo_acao_id ?? "",
@@ -51,12 +57,41 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       status: draft.status ?? "PLANEJADA",
       observacao: draft.observacao ?? "",
       baixa_operacional_id: draft.baixa_operacional_id ?? "",
+      preco_venda_referencia: (draft as any).preco_venda_referencia ?? "",
+      percentual_desconto_aplicado: (draft as any).percentual_desconto_aplicado ?? "",
     });
   }, [open, draft]);
 
   const tipoSel = useMemo(
     () => (tipos.data ?? []).find((t) => t.id === form.tipo_acao_id),
     [tipos.data, form.tipo_acao_id],
+  );
+
+  const isDescColab = ehDescontoColaborador(tipoSel?.nome);
+  const precoCadastrado = precos.map.get(chaveSku(form.sku));
+  const semPrecoCadastrado = !precoCadastrado || !(Number(precoCadastrado.pr_venda) > 0);
+
+  // Pré-preenche preço/desconto ao selecionar "Desconto Colaborador"
+  useEffect(() => {
+    if (!open || !isDescColab) return;
+    setForm((f: any) => ({
+      ...f,
+      preco_venda_referencia:
+        f.preco_venda_referencia !== "" && f.preco_venda_referencia != null
+          ? f.preco_venda_referencia
+          : precoCadastrado?.pr_venda ?? "",
+      percentual_desconto_aplicado:
+        f.percentual_desconto_aplicado !== "" && f.percentual_desconto_aplicado != null
+          ? f.percentual_desconto_aplicado
+          : paramDesc.data?.percentual_desconto ?? 60,
+    }));
+  }, [open, isDescColab, precoCadastrado?.pr_venda, paramDesc.data?.percentual_desconto]);
+
+  const precoVendaNum = Number(form.preco_venda_referencia) || 0;
+  const percentualNum = Number(form.percentual_desconto_aplicado);
+  const precoComDesconto = calcularPrecoComDesconto(
+    precoVendaNum,
+    Number.isFinite(percentualNum) ? percentualNum : (paramDesc.data?.percentual_desconto ?? 60),
   );
 
   // Baixas do mesmo SKU+Lote, para vínculo manual
@@ -96,6 +131,9 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
         status: form.status,
         observacao: form.observacao || null,
         baixa_operacional_id: form.baixa_operacional_id || null,
+        preco_venda_referencia: isDescColab ? precoVendaNum : null,
+        percentual_desconto_aplicado: isDescColab ? (Number.isFinite(percentualNum) ? percentualNum : null) : null,
+        preco_com_desconto: isDescColab ? precoComDesconto : null,
       };
       if (!payload.sku) throw new Error("Informe o SKU.");
       if (!payload.tipo_acao_id) throw new Error("Selecione o tipo de ação.");
@@ -107,10 +145,50 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
         const { error } = await (supabase as any).from("campanhas_lote").insert({ ...payload, criado_por: uid });
         if (error) throw error;
       }
+
+      if (isDescColab && salvarPreco && precoVendaNum > 0) {
+        await (supabase as any).from("precos_venda").upsert(
+          {
+            sku: payload.sku,
+            descricao: payload.descricao,
+            pr_venda: precoVendaNum,
+            importado_por: uid,
+            atualizado_em: new Date().toISOString(),
+          },
+          { onConflict: "sku" },
+        );
+      }
+
+      // Automação WhatsApp — nunca bloqueia a criação da ação.
+      let whatsapp: { enviado: boolean; motivo?: string } = { enviado: false };
+      if (isDescColab && precoVendaNum > 0) {
+        try {
+          whatsapp = (await notificarWhatsappColaboradores({
+            data: {
+              descricao: payload.descricao ?? payload.sku,
+              precoVenda: precoVendaNum,
+              precoComDesconto,
+              quantidade: payload.quantidade_enderecada,
+              unidade: form.unidade || null,
+              dataValidade: payload.data_validade,
+              sku: payload.sku,
+              lote: payload.lote,
+            },
+          })) as any;
+        } catch (e: any) {
+          whatsapp = { enviado: false, motivo: String(e?.message ?? e) };
+        }
+      }
+      return whatsapp;
     },
-    onSuccess: () => {
+    onSuccess: (whatsapp: any) => {
       toast.success(form.id ? "Ação atualizada." : "Ação criada.");
+      if (isDescColab) {
+        if (whatsapp?.enviado) toast.success("Mensagem enviada no grupo de WhatsApp.");
+        else if (whatsapp?.motivo) toast.warning(`WhatsApp não enviado: ${whatsapp.motivo}`);
+      }
       qc.invalidateQueries({ queryKey: ["shelf-campanhas"] });
+      qc.invalidateQueries({ queryKey: ["precos-venda"] });
       onOpenChange(false);
     },
     onError: (e: any) => toast.error(e.message ?? "Falha ao salvar a ação."),
