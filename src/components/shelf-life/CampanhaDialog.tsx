@@ -36,6 +36,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
 
   const [form, setForm] = useState<any>({});
   const [salvarPreco, setSalvarPreco] = useState(false);
+  const [mensagemFallback, setMensagemFallback] = useState<string | null>(null);
   useEffect(() => {
     if (!open || !draft) return;
     setSalvarPreco(false);
