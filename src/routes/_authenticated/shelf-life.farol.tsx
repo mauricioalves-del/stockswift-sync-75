@@ -378,7 +378,7 @@ function FarolShelf() {
         onOpenChange={(v) => !v && setLista(null)}
         titulo={lista ? LISTA_TITULO[lista] ?? lista : ""}
         cor={lista ? COR[lista] : undefined}
-        lotes={lotesFaixa}
+        faixa={lista === "Urgente" ? "30" : lista === "Perigo" ? "60" : lista === "Atenção" ? "90" : null}
         onAbrirAcao={(l) => setDetalhe([l])}
       />
 
