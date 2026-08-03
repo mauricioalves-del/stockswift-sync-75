@@ -248,6 +248,46 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
             </Select>
           </div>
 
+          {isDescColab && (
+            <div className="sm:col-span-2 rounded-md border border-warning/40 bg-warning/5 p-3 space-y-3">
+              <div className="text-sm font-medium">Desconto Colaborador</div>
+              {semPrecoCadastrado && (
+                <p className="text-xs text-warning">
+                  SKU sem Preço de Venda cadastrado — informe o preço abaixo para calcular o desconto.
+                </p>
+              )}
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <Label>Preço de Venda (R$)</Label>
+                  <Input type="number" step="0.01" value={form.preco_venda_referencia ?? ""}
+                    onChange={(e) => set("preco_venda_referencia", e.target.value)} />
+                </div>
+                <div>
+                  <Label>% Desconto</Label>
+                  <Input type="number" step="0.1" value={form.percentual_desconto_aplicado ?? ""}
+                    onChange={(e) => set("percentual_desconto_aplicado", e.target.value)} />
+                </div>
+                <div>
+                  <Label>Preço com Desconto</Label>
+                  <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-semibold">
+                    {formatBRL(precoComDesconto)}
+                  </div>
+                </div>
+              </div>
+              {semPrecoCadastrado && (
+                <label className="flex items-center gap-2 text-xs">
+                  <Checkbox checked={salvarPreco} onCheckedChange={(v) => setSalvarPreco(!!v)} />
+                  Salvar como Preço de Venda deste SKU
+                </label>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                Ao salvar, a mensagem de queima de estoque é enviada automaticamente no grupo de WhatsApp dos
+                colaboradores (falha no envio não impede o registro da ação).
+              </p>
+            </div>
+          )}
+
+
           <div>
             <Label>Quantidade endereçada</Label>
             <Input type="number" step="0.001" value={form.quantidade_enderecada ?? 0}
