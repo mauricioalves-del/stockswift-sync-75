@@ -372,6 +372,16 @@ function FarolShelf() {
       </Card>
 
       <LoteDetalheDialog open={!!detalhe} onOpenChange={(v) => !v && setDetalhe(null)} lotes={detalhe ?? []} />
+
+      <ListaCompletaDialog
+        open={!!lista}
+        onOpenChange={(v) => !v && setLista(null)}
+        titulo={lista ? LISTA_TITULO[lista] ?? lista : ""}
+        cor={lista ? COR[lista] : undefined}
+        lotes={lotesFaixa}
+        onAbrirAcao={(l) => setDetalhe([l])}
+      />
+
     </div>
   );
 }
