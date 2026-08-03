@@ -160,8 +160,10 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       }
 
       // Automação WhatsApp — nunca bloqueia a criação da ação.
+      // Dispara SEMPRE que a ação for "Desconto Colaborador" (sem gate de preço),
+      // para que exista sempre um registro em auditoria.
       let whatsapp: { enviado: boolean; motivo?: string } = { enviado: false };
-      if (isDescColab && precoVendaNum > 0) {
+      if (isDescColab) {
         try {
           whatsapp = (await notificarWhatsappColaboradores({
             data: {
@@ -176,10 +178,12 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
             },
           })) as any;
         } catch (e: any) {
+          console.error("[whatsapp] falha ao chamar a automação", e);
           whatsapp = { enviado: false, motivo: String(e?.message ?? e) };
         }
       }
       return whatsapp;
+
     },
     onSuccess: (whatsapp: any) => {
       toast.success(form.id ? "Ação atualizada." : "Ação criada.");
