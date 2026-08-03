@@ -136,6 +136,46 @@ function ConfigPage() {
         </Card>
       )}
 
+      {podeGerirWebhook && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="size-4" /> WhatsApp — Colaboradores</CardTitle>
+            <CardDescription>
+              Endpoint do bot próprio que posta no grupo de colaboradores quando uma ação de Desconto Colaborador é
+              gerada. O envio é feito pelo backend; o token nunca vai para o navegador.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Label htmlFor="wa-url">URL do bot</Label>
+            <Input id="wa-url" type="url" value={waUrl} placeholder="https://seu-bot/enviar" onChange={(e) => setWaUrl(e.target.value)} />
+            <Label htmlFor="wa-token">Token (Bearer)</Label>
+            <Input id="wa-token" type="password" value={waToken} placeholder="—" onChange={(e) => setWaToken(e.target.value)} />
+            <Label htmlFor="wa-grupo">Nome do grupo</Label>
+            <Input id="wa-grupo" value={waGrupo} placeholder="Colaboradores Magio" onChange={(e) => setWaGrupo(e.target.value)} />
+            <div className="flex justify-end">
+              <Button onClick={salvarWhatsapp} disabled={waSaving}>{waSaving ? "Salvando..." : "Salvar"}</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {podeGerirWebhook && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base"><Percent className="size-4" /> Desconto Colaborador</CardTitle>
+            <CardDescription>Percentual aplicado sobre o Preço de Venda nas ações de Shelf Life.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Label htmlFor="pct-desc">% de desconto</Label>
+            <Input id="pct-desc" type="number" step="0.1" value={pctDesc} onChange={(e) => setPctDesc(e.target.value)} />
+            <div className="flex justify-end">
+              <Button onClick={salvarDesconto} disabled={pctSaving}>{pctSaving ? "Salvando..." : "Salvar"}</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
       {isAdmin && (
         <Card>
           <CardHeader>
