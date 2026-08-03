@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ListaCompletaDialog } from "@/components/shelf-life/ListaCompletaDialog";
+
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -180,6 +183,14 @@ function FarolShelf() {
 
 
   const [detalhe, setDetalhe] = useState<LoteRisco[] | null>(null);
+  const [lista, setLista] = useState<StatusFarol | null>(null);
+  const LISTA_TITULO: Record<string, string> = {
+    Urgente: "Urgente — 0 a 30 dias",
+    Perigo: "Perigo — 31 a 60 dias",
+    "Atenção": "Atenção — 61 a 90 dias",
+  };
+  const lotesFaixa = useMemo(() => (lista ? rows.filter((r) => r.status === lista) : []), [rows, lista]);
+
 
   return (
     <div className="space-y-4">
@@ -303,10 +314,11 @@ function FarolShelf() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <TopCard title="Top 10 — Urgente (0-30 dias)" cor={COR.Urgente} rows={topUrgente} onSelect={setDetalhe} />
-        <TopCard title="Top 10 — Perigo (31-60 dias)" cor={COR.Perigo} rows={topPerigo} onSelect={setDetalhe} />
-        <TopCard title="Top 10 — Atenção (61-90 dias)" cor={COR["Atenção"]} rows={topAtencao} onSelect={setDetalhe} />
+        <TopCard title="Top 10 — Urgente (0-30 dias)" cor={COR.Urgente} rows={topUrgente} onSelect={setDetalhe} onVerTudo={() => setLista("Urgente")} />
+        <TopCard title="Top 10 — Perigo (31-60 dias)" cor={COR.Perigo} rows={topPerigo} onSelect={setDetalhe} onVerTudo={() => setLista("Perigo")} />
+        <TopCard title="Top 10 — Atenção (61-90 dias)" cor={COR["Atenção"]} rows={topAtencao} onSelect={setDetalhe} onVerTudo={() => setLista("Atenção")} />
       </div>
+
 
       <Card>
         <CardHeader className="pb-2">
@@ -360,6 +372,16 @@ function FarolShelf() {
       </Card>
 
       <LoteDetalheDialog open={!!detalhe} onOpenChange={(v) => !v && setDetalhe(null)} lotes={detalhe ?? []} />
+
+      <ListaCompletaDialog
+        open={!!lista}
+        onOpenChange={(v) => !v && setLista(null)}
+        titulo={lista ? LISTA_TITULO[lista] ?? lista : ""}
+        cor={lista ? COR[lista] : undefined}
+        lotes={lotesFaixa}
+        onAbrirAcao={(l) => setDetalhe([l])}
+      />
+
     </div>
   );
 }
@@ -382,7 +404,7 @@ function Multi({ label, value, onChange, options }: { label: string; value: stri
   );
 }
 
-function TopCard({ title, cor, rows, onSelect }: { title: string; cor: string; rows: TopRow[]; onSelect: (l: LoteRisco[]) => void }) {
+function TopCard({ title, cor, rows, onSelect, onVerTudo }: { title: string; cor: string; rows: TopRow[]; onSelect: (l: LoteRisco[]) => void; onVerTudo: () => void }) {
   const total = rows.reduce((s, r) => s + r.custo, 0);
   const top = rows.slice(0, 10);
   return (
@@ -391,9 +413,13 @@ function TopCard({ title, cor, rows, onSelect }: { title: string; cor: string; r
         <CardTitle className="text-base flex items-center gap-2">
           <span className="size-3 rounded-full shrink-0" style={{ background: cor }} />
           <span className="truncate">{title}</span>
+          <Button size="sm" variant="outline" className="ml-auto shrink-0 h-7 text-xs" onClick={onVerTudo}>
+            Lista Completa
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="overflow-x-auto">
+
         {!top.length ? <Vazio /> : (
           <Table>
             <TableHeader>
