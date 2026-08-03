@@ -21,6 +21,70 @@ function ConfigPage() {
   const [cego, setCego] = useState(false);
   const [webhook, setWebhook] = useState("");
   const [webhookSaving, setWebhookSaving] = useState(false);
+  const [waUrl, setWaUrl] = useState("");
+  const [waToken, setWaToken] = useState("");
+  const [waGrupo, setWaGrupo] = useState("");
+  const [waSaving, setWaSaving] = useState(false);
+  const [pctDesc, setPctDesc] = useState("60");
+  const [pctSaving, setPctSaving] = useState(false);
+
+  useEffect(() => {
+    supabase.from("app_config").select("chave, valor")
+      .in("chave", ["whatsapp_bot_url", "whatsapp_bot_token", "whatsapp_grupo_nome"])
+      .then(({ data }) => {
+        const get = (k: string) => {
+          const v = (data ?? []).find((c: any) => c.chave === k)?.valor;
+          return typeof v === "string" ? v : "";
+        };
+        setWaUrl(get("whatsapp_bot_url"));
+        setWaToken(get("whatsapp_bot_token"));
+        setWaGrupo(get("whatsapp_grupo_nome"));
+      });
+    (supabase as any).from("parametros_desconto_colaborador")
+      .select("percentual_desconto").order("atualizado_em", { ascending: false }).limit(1).maybeSingle()
+      .then(({ data }: any) => { if (data?.percentual_desconto != null) setPctDesc(String(data.percentual_desconto)); });
+  }, []);
+
+  async function salvarWhatsapp() {
+    setWaSaving(true);
+    try {
+      const me = (await supabase.auth.getUser()).data.user?.id;
+      const now = new Date().toISOString();
+      const { error } = await supabase.from("app_config").upsert([
+        { chave: "whatsapp_bot_url", valor: waUrl, updated_by: me, updated_at: now },
+        { chave: "whatsapp_bot_token", valor: waToken, updated_by: me, updated_at: now },
+        { chave: "whatsapp_grupo_nome", valor: waGrupo, updated_by: me, updated_at: now },
+      ]);
+      if (error) throw error;
+      toast.success("Integração de WhatsApp atualizada");
+    } catch (err: any) {
+      toast.error(err.message ?? "Falha ao salvar");
+    } finally {
+      setWaSaving(false);
+    }
+  }
+
+  async function salvarDesconto() {
+    setPctSaving(true);
+    try {
+      const me = (await supabase.auth.getUser()).data.user?.id;
+      const pct = Number(String(pctDesc).replace(",", "."));
+      if (!Number.isFinite(pct) || pct < 0 || pct > 100) throw new Error("Percentual inválido");
+      const { data: atual } = await (supabase as any)
+        .from("parametros_desconto_colaborador").select("id").limit(1).maybeSingle();
+      const payload = { percentual_desconto: pct, ativo: true, atualizado_por: me, atualizado_em: new Date().toISOString() };
+      const { error } = atual?.id
+        ? await (supabase as any).from("parametros_desconto_colaborador").update(payload).eq("id", atual.id)
+        : await (supabase as any).from("parametros_desconto_colaborador").insert(payload);
+      if (error) throw error;
+      toast.success("Percentual de desconto atualizado");
+    } catch (err: any) {
+      toast.error(err.message ?? "Falha ao salvar");
+    } finally {
+      setPctSaving(false);
+    }
+  }
+
   const isCoord = role === "COORDENADOR_CONTROLE";
   const podeGerirInv = isAdmin || role === "GERENTE" || isCoord;
   const podeGerirWebhook = isAdmin || isCoord;
