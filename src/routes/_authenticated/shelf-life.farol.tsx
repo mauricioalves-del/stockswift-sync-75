@@ -382,7 +382,7 @@ function Multi({ label, value, onChange, options }: { label: string; value: stri
   );
 }
 
-function TopCard({ title, cor, rows, onSelect }: { title: string; cor: string; rows: TopRow[]; onSelect: (l: LoteRisco[]) => void }) {
+function TopCard({ title, cor, rows, onSelect, onVerTudo }: { title: string; cor: string; rows: TopRow[]; onSelect: (l: LoteRisco[]) => void; onVerTudo: () => void }) {
   const total = rows.reduce((s, r) => s + r.custo, 0);
   const top = rows.slice(0, 10);
   return (
@@ -391,9 +391,13 @@ function TopCard({ title, cor, rows, onSelect }: { title: string; cor: string; r
         <CardTitle className="text-base flex items-center gap-2">
           <span className="size-3 rounded-full shrink-0" style={{ background: cor }} />
           <span className="truncate">{title}</span>
+          <Button size="sm" variant="outline" className="ml-auto shrink-0 h-7 text-xs" onClick={onVerTudo}>
+            Lista Completa
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="overflow-x-auto">
+
         {!top.length ? <Vazio /> : (
           <Table>
             <TableHeader>
