@@ -189,7 +189,7 @@ function FarolShelf() {
     Perigo: "Perigo — 31 a 60 dias",
     "Atenção": "Atenção — 61 a 90 dias",
   };
-  const lotesFaixa = useMemo(() => (lista ? rows.filter((r) => r.status === lista) : []), [rows, lista]);
+  
 
 
   return (
