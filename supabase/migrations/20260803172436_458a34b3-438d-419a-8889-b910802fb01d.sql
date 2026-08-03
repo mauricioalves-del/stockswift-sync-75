@@ -1,0 +1,1 @@
+update app_config set valor = to_jsonb(''::text) where chave = 'whatsapp_bot_url';
