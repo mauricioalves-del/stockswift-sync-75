@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatBRL } from "@/lib/inventory";
-import { chaveLote } from "@/lib/shelf-life";
-import { useCampanhas, indexarCampanhasPorLote, type LoteRisco } from "@/hooks/useShelfLife";
+import { chaveLote, type Faixa } from "@/lib/shelf-life";
+import { useCampanhas, indexarCampanhasPorLote, useLotesRisco, type LoteRisco } from "@/hooks/useShelfLife";
+import { useShelfConfig } from "@/hooks/useFiltrosShelfLife";
 
 type Props = {
   open: boolean;
@@ -15,17 +16,23 @@ type Props = {
   /** Nome da faixa, ex.: "Urgente — 0 a 30 dias" */
   titulo: string;
   cor?: string;
-  /** Todos os lotes da faixa (sem LIMIT) */
-  lotes: LoteRisco[];
+  /** Faixa exibida — mesma fonte do Mapeamento de Risco, sem limite */
+  faixa: Faixa | null;
   /** Duplo clique na linha → abre modal de ação já existente */
   onAbrirAcao: (lote: LoteRisco) => void;
 };
 
 const PAGE = 50;
 
-export function ListaCompletaDialog({ open, onOpenChange, titulo, cor, lotes, onAbrirAcao }: Props) {
+export function ListaCompletaDialog({ open, onOpenChange, titulo, cor, faixa, onAbrirAcao }: Props) {
   const campanhas = useCampanhas();
   const idx = useMemo(() => indexarCampanhasPorLote(campanhas.data), [campanhas.data]);
+  const { almoxAtivos, somenteComSaldo } = useShelfConfig();
+  const lotesQ = useLotesRisco({ almoxAtivos, somenteComSaldo });
+  const lotes = useMemo(
+    () => (faixa ? (lotesQ.data ?? []).filter((r) => r.faixa === faixa && (r.quantidade ?? 0) > 0) : []),
+    [lotesQ.data, faixa],
+  );
 
   const [almox, setAlmox] = useState<string[]>([]);
   const [grupos, setGrupos] = useState<string[]>([]);
@@ -56,7 +63,7 @@ export function ListaCompletaDialog({ open, onOpenChange, titulo, cor, lotes, on
     const inSel = (sel: string[], v: string | null) => sel.length === 0 || (v != null && sel.includes(v));
     return lotes
       .filter((r) => inSel(almox, r.almoxarifado) && inSel(grupos, r.grupo) && inSel(familias, r.familia))
-      .sort((a, b) => b.valor - a.valor);
+      .sort((a, b) => (a.dias ?? Number.MAX_SAFE_INTEGER) - (b.dias ?? Number.MAX_SAFE_INTEGER) || b.valor - a.valor);
   }, [lotes, almox, grupos, familias]);
 
   useEffect(() => setPage(1), [almox, grupos, familias]);

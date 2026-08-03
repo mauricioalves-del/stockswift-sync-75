@@ -189,7 +189,7 @@ function FarolShelf() {
     Perigo: "Perigo — 31 a 60 dias",
     "Atenção": "Atenção — 61 a 90 dias",
   };
-  const lotesFaixa = useMemo(() => (lista ? rows.filter((r) => r.status === lista) : []), [rows, lista]);
+  
 
 
   return (
@@ -378,7 +378,7 @@ function FarolShelf() {
         onOpenChange={(v) => !v && setLista(null)}
         titulo={lista ? LISTA_TITULO[lista] ?? lista : ""}
         cor={lista ? COR[lista] : undefined}
-        lotes={lotesFaixa}
+        faixa={lista === "Urgente" ? "30" : lista === "Perigo" ? "60" : lista === "Atenção" ? "90" : null}
         onAbrirAcao={(l) => setDetalhe([l])}
       />
 
