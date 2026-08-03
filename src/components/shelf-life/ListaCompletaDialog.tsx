@@ -63,7 +63,7 @@ export function ListaCompletaDialog({ open, onOpenChange, titulo, cor, faixa, on
     const inSel = (sel: string[], v: string | null) => sel.length === 0 || (v != null && sel.includes(v));
     return lotes
       .filter((r) => inSel(almox, r.almoxarifado) && inSel(grupos, r.grupo) && inSel(familias, r.familia))
-      .sort((a, b) => b.valor - a.valor);
+      .sort((a, b) => (a.dias ?? Number.MAX_SAFE_INTEGER) - (b.dias ?? Number.MAX_SAFE_INTEGER) || b.valor - a.valor);
   }, [lotes, almox, grupos, familias]);
 
   useEffect(() => setPage(1), [almox, grupos, familias]);
