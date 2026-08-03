@@ -373,5 +373,33 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={!!mensagemFallback} onOpenChange={(v) => !v && setMensagemFallback(null)}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Copiar mensagem do WhatsApp</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Não foi possível copiar automaticamente. Copie o texto abaixo e cole no grupo Colaboradores no WhatsApp Web.
+        </p>
+        <Textarea rows={14} readOnly value={mensagemFallback ?? ""} className="font-mono text-xs" />
+        <DialogFooter>
+          <Button
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(mensagemFallback ?? "");
+                toast.success("Mensagem copiada!");
+                setMensagemFallback(null);
+              } catch {
+                toast.error("Copie manualmente selecionando o texto acima.");
+              }
+            }}
+          >
+            Copiar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
