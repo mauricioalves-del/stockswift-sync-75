@@ -51,6 +51,7 @@ export function LoteDetalheDialog({ open, onOpenChange, lotes }: Props) {
       sku: lote.sku,
       lote: lote.lote,
       descricao: lote.descricao,
+      unidade: lote.unidade,
       almoxarifado: lote.almoxarifado,
       data_validade: lote.data_validade,
       tipo_acao_id: tipo?.id ?? null,
