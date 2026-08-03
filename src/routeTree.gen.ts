@@ -35,6 +35,7 @@ import { Route as AuthenticatedBaixasIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_authenticated/suprimentos.estoque'
 import { Route as AuthenticatedSuprimentosDashboardRouteImport } from './routes/_authenticated/suprimentos.dashboard'
 import { Route as AuthenticatedShelfLifeRiscoRouteImport } from './routes/_authenticated/shelf-life.risco'
+import { Route as AuthenticatedShelfLifePrecosRouteImport } from './routes/_authenticated/shelf-life.precos'
 import { Route as AuthenticatedShelfLifeFarolRouteImport } from './routes/_authenticated/shelf-life.farol'
 import { Route as AuthenticatedShelfLifeDashboardRouteImport } from './routes/_authenticated/shelf-life.dashboard'
 import { Route as AuthenticatedShelfLifeAcoesRouteImport } from './routes/_authenticated/shelf-life.acoes'
@@ -197,6 +198,12 @@ const AuthenticatedShelfLifeRiscoRoute =
   AuthenticatedShelfLifeRiscoRouteImport.update({
     id: '/shelf-life/risco',
     path: '/shelf-life/risco',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedShelfLifePrecosRoute =
+  AuthenticatedShelfLifePrecosRouteImport.update({
+    id: '/shelf-life/precos',
+    path: '/shelf-life/precos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedShelfLifeFarolRoute =
@@ -390,6 +397,7 @@ export interface FileRoutesByFullPath {
   '/shelf-life/acoes': typeof AuthenticatedShelfLifeAcoesRoute
   '/shelf-life/dashboard': typeof AuthenticatedShelfLifeDashboardRoute
   '/shelf-life/farol': typeof AuthenticatedShelfLifeFarolRoute
+  '/shelf-life/precos': typeof AuthenticatedShelfLifePrecosRoute
   '/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
@@ -442,6 +450,7 @@ export interface FileRoutesByTo {
   '/shelf-life/acoes': typeof AuthenticatedShelfLifeAcoesRoute
   '/shelf-life/dashboard': typeof AuthenticatedShelfLifeDashboardRoute
   '/shelf-life/farol': typeof AuthenticatedShelfLifeFarolRoute
+  '/shelf-life/precos': typeof AuthenticatedShelfLifePrecosRoute
   '/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
@@ -496,6 +505,7 @@ export interface FileRoutesById {
   '/_authenticated/shelf-life/acoes': typeof AuthenticatedShelfLifeAcoesRoute
   '/_authenticated/shelf-life/dashboard': typeof AuthenticatedShelfLifeDashboardRoute
   '/_authenticated/shelf-life/farol': typeof AuthenticatedShelfLifeFarolRoute
+  '/_authenticated/shelf-life/precos': typeof AuthenticatedShelfLifePrecosRoute
   '/_authenticated/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
@@ -550,6 +560,7 @@ export interface FileRouteTypes {
     | '/shelf-life/acoes'
     | '/shelf-life/dashboard'
     | '/shelf-life/farol'
+    | '/shelf-life/precos'
     | '/shelf-life/risco'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
@@ -602,6 +613,7 @@ export interface FileRouteTypes {
     | '/shelf-life/acoes'
     | '/shelf-life/dashboard'
     | '/shelf-life/farol'
+    | '/shelf-life/precos'
     | '/shelf-life/risco'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
@@ -655,6 +667,7 @@ export interface FileRouteTypes {
     | '/_authenticated/shelf-life/acoes'
     | '/_authenticated/shelf-life/dashboard'
     | '/_authenticated/shelf-life/farol'
+    | '/_authenticated/shelf-life/precos'
     | '/_authenticated/shelf-life/risco'
     | '/_authenticated/suprimentos/dashboard'
     | '/_authenticated/suprimentos/estoque'
@@ -856,6 +869,13 @@ declare module '@tanstack/react-router' {
       path: '/shelf-life/risco'
       fullPath: '/shelf-life/risco'
       preLoaderRoute: typeof AuthenticatedShelfLifeRiscoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/shelf-life/precos': {
+      id: '/_authenticated/shelf-life/precos'
+      path: '/shelf-life/precos'
+      fullPath: '/shelf-life/precos'
+      preLoaderRoute: typeof AuthenticatedShelfLifePrecosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/shelf-life/farol': {
@@ -1089,6 +1109,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedShelfLifeAcoesRoute: typeof AuthenticatedShelfLifeAcoesRoute
   AuthenticatedShelfLifeDashboardRoute: typeof AuthenticatedShelfLifeDashboardRoute
   AuthenticatedShelfLifeFarolRoute: typeof AuthenticatedShelfLifeFarolRoute
+  AuthenticatedShelfLifePrecosRoute: typeof AuthenticatedShelfLifePrecosRoute
   AuthenticatedShelfLifeRiscoRoute: typeof AuthenticatedShelfLifeRiscoRoute
   AuthenticatedSuprimentosDashboardRoute: typeof AuthenticatedSuprimentosDashboardRoute
   AuthenticatedSuprimentosEstoqueRoute: typeof AuthenticatedSuprimentosEstoqueRoute
@@ -1144,6 +1165,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedShelfLifeAcoesRoute: AuthenticatedShelfLifeAcoesRoute,
   AuthenticatedShelfLifeDashboardRoute: AuthenticatedShelfLifeDashboardRoute,
   AuthenticatedShelfLifeFarolRoute: AuthenticatedShelfLifeFarolRoute,
+  AuthenticatedShelfLifePrecosRoute: AuthenticatedShelfLifePrecosRoute,
   AuthenticatedShelfLifeRiscoRoute: AuthenticatedShelfLifeRiscoRoute,
   AuthenticatedSuprimentosDashboardRoute:
     AuthenticatedSuprimentosDashboardRoute,
