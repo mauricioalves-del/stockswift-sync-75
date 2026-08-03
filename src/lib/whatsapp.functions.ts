@@ -1,52 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-type Input = {
-  descricao: string;
-  precoVenda: number;
-  precoComDesconto: number;
-  quantidade: number;
-  unidade?: string | null;
-  dataValidade?: string | null;
-  sku?: string | null;
-  lote?: string | null;
-};
-
-function brl(v: number) {
-  return (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function qtd(v: number, unidade?: string | null) {
-  const n = Number(v) || 0;
-  const un = String(unidade ?? "").trim().toUpperCase();
-  if (!un || un === "UN" || un === "PC") return String(Math.round(n));
-  return n.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
-}
-
-function dataBR(iso?: string | null) {
-  const s = String(iso ?? "").slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return "—";
-  const [a, m, d] = s.split("-");
-  return `${d}/${m}/${a}`;
-}
-
-export function montarMensagemQueima(i: Input): string {
-  return [
-    "🍇ATENÇÃO COLABORADORES🍇",
-    "",
-    "🔥SUPER QUEIMA DE ESTOQUE🔥",
-    "Confira:",
-    "",
-    `${i.descricao} 🍫`,
-    ` -> De: R$ ${brl(i.precoVenda)}`,
-    ` -> Por: R$ ${brl(i.precoComDesconto)}`,
-    ` Estoque: ${qtd(i.quantidade, i.unidade)}`,
-    ` Validade: ${dataBR(i.dataValidade)}`,
-    "",
-    "Estoque limitado!",
-    "Corra antes que acabe! 🏃💨",
-  ].join("\n");
-}
+import { montarMensagemQueima, type MensagemQueimaInput } from "@/lib/whatsapp-message";
 
 /**
  * Dispara a mensagem de queima de estoque no grupo de WhatsApp dos colaboradores.
@@ -55,7 +9,7 @@ export function montarMensagemQueima(i: Input): string {
  */
 export const notificarWhatsappColaboradores = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: Input) => {
+  .inputValidator((input: MensagemQueimaInput) => {
     if (!input || typeof input.descricao !== "string") throw new Error("Dados inválidos");
     return input;
   })
@@ -75,11 +29,11 @@ export const notificarWhatsappColaboradores = createServerFn({ method: "POST" })
     const token = get("whatsapp_bot_token").trim();
     const grupo = get("whatsapp_grupo_nome").trim();
 
-    const mensagem = montarMensagemQueima(data);
-
     if (!url || !grupo) {
       return { enviado: false, motivo: "Integração de WhatsApp não configurada." };
     }
+
+    const mensagem = montarMensagemQueima(data);
 
     try {
       const ctrl = new AbortController();
