@@ -7,13 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTiposAcao, type CampanhaRow } from "@/hooks/useShelfLife";
 import { useRole } from "@/hooks/useRole";
 import { STATUS_CAMPANHA } from "@/lib/shelf-life";
 import { formatBRL } from "@/lib/inventory";
+import { usePrecoVendaPorSku, useParametroDesconto } from "@/hooks/usePrecosVenda";
+import { calcularPrecoComDesconto, chaveSku, ehDescontoColaborador } from "@/lib/precos-venda";
+import { notificarWhatsappColaboradores } from "@/lib/whatsapp.functions";
 
-export type CampanhaDraft = Partial<CampanhaRow> & { sku: string; lote: string };
+export type CampanhaDraft = Partial<CampanhaRow> & { sku: string; lote: string; unidade?: string | null };
 
 type Props = {
   open: boolean;
