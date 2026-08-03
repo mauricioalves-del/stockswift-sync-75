@@ -100,7 +100,9 @@ export const notificarWhatsappColaboradores = createServerFn({ method: "POST" })
       await supabaseAdmin.from("audit_logs").insert({
         usuario: context.userId,
         acao: "WHATSAPP_DESCONTO_COLABORADOR_ERRO",
-        detalhes: {
+        entidade: "campanhas_lote",
+        entidade_id: data.sku ?? null,
+        payload: {
           erro: String(err?.message ?? err),
           sku: data.sku ?? null,
           lote: data.lote ?? null,
