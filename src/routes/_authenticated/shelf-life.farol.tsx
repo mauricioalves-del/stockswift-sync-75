@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ListaCompletaDialog } from "@/components/shelf-life/ListaCompletaDialog";
+
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -180,6 +183,14 @@ function FarolShelf() {
 
 
   const [detalhe, setDetalhe] = useState<LoteRisco[] | null>(null);
+  const [lista, setLista] = useState<StatusFarol | null>(null);
+  const LISTA_TITULO: Record<string, string> = {
+    Urgente: "Urgente — 0 a 30 dias",
+    Perigo: "Perigo — 31 a 60 dias",
+    "Atenção": "Atenção — 61 a 90 dias",
+  };
+  const lotesFaixa = useMemo(() => (lista ? rows.filter((r) => r.status === lista) : []), [rows, lista]);
+
 
   return (
     <div className="space-y-4">
@@ -303,10 +314,11 @@ function FarolShelf() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <TopCard title="Top 10 — Urgente (0-30 dias)" cor={COR.Urgente} rows={topUrgente} onSelect={setDetalhe} />
-        <TopCard title="Top 10 — Perigo (31-60 dias)" cor={COR.Perigo} rows={topPerigo} onSelect={setDetalhe} />
-        <TopCard title="Top 10 — Atenção (61-90 dias)" cor={COR["Atenção"]} rows={topAtencao} onSelect={setDetalhe} />
+        <TopCard title="Top 10 — Urgente (0-30 dias)" cor={COR.Urgente} rows={topUrgente} onSelect={setDetalhe} onVerTudo={() => setLista("Urgente")} />
+        <TopCard title="Top 10 — Perigo (31-60 dias)" cor={COR.Perigo} rows={topPerigo} onSelect={setDetalhe} onVerTudo={() => setLista("Perigo")} />
+        <TopCard title="Top 10 — Atenção (61-90 dias)" cor={COR["Atenção"]} rows={topAtencao} onSelect={setDetalhe} onVerTudo={() => setLista("Atenção")} />
       </div>
+
 
       <Card>
         <CardHeader className="pb-2">
