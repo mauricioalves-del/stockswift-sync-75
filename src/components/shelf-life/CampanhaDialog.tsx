@@ -15,7 +15,7 @@ import { STATUS_CAMPANHA } from "@/lib/shelf-life";
 import { formatBRL } from "@/lib/inventory";
 import { usePrecoVendaPorSku, useParametroDesconto } from "@/hooks/usePrecosVenda";
 import { calcularPrecoComDesconto, chaveSku, ehDescontoColaborador } from "@/lib/precos-venda";
-import { notificarWhatsappColaboradores } from "@/lib/whatsapp.functions";
+import { montarMensagemQueima } from "@/lib/whatsapp-message";
 
 export type CampanhaDraft = Partial<CampanhaRow> & { sku: string; lote: string; unidade?: string | null };
 
@@ -36,6 +36,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
 
   const [form, setForm] = useState<any>({});
   const [salvarPreco, setSalvarPreco] = useState(false);
+  const [mensagemFallback, setMensagemFallback] = useState<string | null>(null);
   useEffect(() => {
     if (!open || !draft) return;
     setSalvarPreco(false);
@@ -159,40 +160,47 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
         );
       }
 
-      // Automação WhatsApp — nunca bloqueia a criação da ação.
-      // Dispara SEMPRE que a ação for "Desconto Colaborador" (sem gate de preço),
-      // para que exista sempre um registro em auditoria.
-      let whatsapp: { enviado: boolean; motivo?: string } = { enviado: false };
+      // Mensagem de queima: montada no navegador, copiada para a área de transferência.
+      let mensagem: string | null = null;
       if (isDescColab) {
-        try {
-          whatsapp = (await notificarWhatsappColaboradores({
-            data: {
-              descricao: payload.descricao ?? payload.sku,
-              precoVenda: precoVendaNum,
-              precoComDesconto,
-              quantidade: payload.quantidade_enderecada,
-              unidade: form.unidade || null,
-              dataValidade: payload.data_validade,
-              sku: payload.sku,
-              lote: payload.lote,
-            },
-          })) as any;
-        } catch (e: any) {
-          console.error("[whatsapp] falha ao chamar a automação", e);
-          whatsapp = { enviado: false, motivo: String(e?.message ?? e) };
-        }
+        mensagem = montarMensagemQueima({
+          descricao: payload.descricao ?? payload.sku,
+          precoVenda: precoVendaNum,
+          precoComDesconto,
+          quantidade: payload.quantidade_enderecada,
+          unidade: form.unidade || null,
+          dataValidade: payload.data_validade,
+          sku: payload.sku,
+          lote: payload.lote,
+        });
       }
-      return whatsapp;
-
+      return mensagem;
     },
-    onSuccess: (whatsapp: any) => {
+    onSuccess: async (mensagem: string | null) => {
       toast.success(form.id ? "Ação atualizada." : "Ação criada.");
-      if (isDescColab) {
-        if (whatsapp?.enviado) toast.success("Mensagem enviada no grupo de WhatsApp.");
-        else if (whatsapp?.motivo) toast.warning(`WhatsApp não enviado: ${whatsapp.motivo}`);
-      }
       qc.invalidateQueries({ queryKey: ["shelf-campanhas"] });
       qc.invalidateQueries({ queryKey: ["precos-venda"] });
+
+      if (mensagem) {
+        let copiado = false;
+        try {
+          await navigator.clipboard.writeText(mensagem);
+          copiado = true;
+        } catch {
+          copiado = false;
+        }
+        window.open("https://web.whatsapp.com/", "_blank", "noopener,noreferrer");
+        if (copiado) {
+          toast.success(
+            "Mensagem copiada! Cole (Ctrl+V) no grupo Colaboradores no WhatsApp Web que acabou de abrir.",
+          );
+          onOpenChange(false);
+          return;
+        }
+        setMensagemFallback(mensagem);
+        onOpenChange(false);
+        return;
+      }
       onOpenChange(false);
     },
     onError: (e: any) => toast.error(e.message ?? "Falha ao salvar a ação."),
@@ -201,6 +209,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -364,5 +373,33 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={!!mensagemFallback} onOpenChange={(v) => !v && setMensagemFallback(null)}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Copiar mensagem do WhatsApp</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Não foi possível copiar automaticamente. Copie o texto abaixo e cole no grupo Colaboradores no WhatsApp Web.
+        </p>
+        <Textarea rows={14} readOnly value={mensagemFallback ?? ""} className="font-mono text-xs" />
+        <DialogFooter>
+          <Button
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(mensagemFallback ?? "");
+                toast.success("Mensagem copiada!");
+                setMensagemFallback(null);
+              } catch {
+                toast.error("Copie manualmente selecionando o texto acima.");
+              }
+            }}
+          >
+            Copiar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

@@ -21,48 +21,15 @@ function ConfigPage() {
   const [cego, setCego] = useState(false);
   const [webhook, setWebhook] = useState("");
   const [webhookSaving, setWebhookSaving] = useState(false);
-  const [waUrl, setWaUrl] = useState("");
-  const [waToken, setWaToken] = useState("");
-  const [waGrupo, setWaGrupo] = useState("");
-  const [waSaving, setWaSaving] = useState(false);
   const [pctDesc, setPctDesc] = useState("60");
   const [pctSaving, setPctSaving] = useState(false);
 
   useEffect(() => {
-    supabase.from("app_config").select("chave, valor")
-      .in("chave", ["whatsapp_bot_url", "whatsapp_bot_token", "whatsapp_grupo_nome"])
-      .then(({ data }) => {
-        const get = (k: string) => {
-          const v = (data ?? []).find((c: any) => c.chave === k)?.valor;
-          return typeof v === "string" ? v : "";
-        };
-        setWaUrl(get("whatsapp_bot_url"));
-        setWaToken(get("whatsapp_bot_token"));
-        setWaGrupo(get("whatsapp_grupo_nome"));
-      });
     (supabase as any).from("parametros_desconto_colaborador")
       .select("percentual_desconto").order("atualizado_em", { ascending: false }).limit(1).maybeSingle()
       .then(({ data }: any) => { if (data?.percentual_desconto != null) setPctDesc(String(data.percentual_desconto)); });
   }, []);
 
-  async function salvarWhatsapp() {
-    setWaSaving(true);
-    try {
-      const me = (await supabase.auth.getUser()).data.user?.id;
-      const now = new Date().toISOString();
-      const { error } = await supabase.from("app_config").upsert([
-        { chave: "whatsapp_bot_url", valor: waUrl, updated_by: me, updated_at: now },
-        { chave: "whatsapp_bot_token", valor: waToken, updated_by: me, updated_at: now },
-        { chave: "whatsapp_grupo_nome", valor: waGrupo, updated_by: me, updated_at: now },
-      ]);
-      if (error) throw error;
-      toast.success("Integração de WhatsApp atualizada");
-    } catch (err: any) {
-      toast.error(err.message ?? "Falha ao salvar");
-    } finally {
-      setWaSaving(false);
-    }
-  }
 
   async function salvarDesconto() {
     setPctSaving(true);
@@ -200,28 +167,6 @@ function ConfigPage() {
         </Card>
       )}
 
-      {podeGerirWebhook && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="size-4" /> WhatsApp — Colaboradores</CardTitle>
-            <CardDescription>
-              Endpoint do bot próprio que posta no grupo de colaboradores quando uma ação de Desconto Colaborador é
-              gerada. O envio é feito pelo backend; o token nunca vai para o navegador.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Label htmlFor="wa-url">URL do bot</Label>
-            <Input id="wa-url" type="url" value={waUrl} placeholder="https://seu-bot/enviar" onChange={(e) => setWaUrl(e.target.value)} />
-            <Label htmlFor="wa-token">Token (Bearer)</Label>
-            <Input id="wa-token" type="password" value={waToken} placeholder="—" onChange={(e) => setWaToken(e.target.value)} />
-            <Label htmlFor="wa-grupo">Nome do grupo</Label>
-            <Input id="wa-grupo" value={waGrupo} placeholder="Colaboradores Magio" onChange={(e) => setWaGrupo(e.target.value)} />
-            <div className="flex justify-end">
-              <Button onClick={salvarWhatsapp} disabled={waSaving}>{waSaving ? "Salvando..." : "Salvar"}</Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {podeGerirWebhook && (
         <Card>
