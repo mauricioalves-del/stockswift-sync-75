@@ -252,6 +252,9 @@ export type Database = {
           id: string
           lote: string
           observacao: string | null
+          percentual_desconto_aplicado: number | null
+          preco_com_desconto: number | null
+          preco_venda_referencia: number | null
           quantidade_enderecada: number
           responsavel: string | null
           sku: string
@@ -273,6 +276,9 @@ export type Database = {
           id?: string
           lote?: string
           observacao?: string | null
+          percentual_desconto_aplicado?: number | null
+          preco_com_desconto?: number | null
+          preco_venda_referencia?: number | null
           quantidade_enderecada?: number
           responsavel?: string | null
           sku: string
@@ -294,6 +300,9 @@ export type Database = {
           id?: string
           lote?: string
           observacao?: string | null
+          percentual_desconto_aplicado?: number | null
+          preco_com_desconto?: number | null
+          preco_venda_referencia?: number | null
           quantidade_enderecada?: number
           responsavel?: string | null
           sku?: string
@@ -1542,6 +1551,30 @@ export type Database = {
         }
         Relationships: []
       }
+      parametros_desconto_colaborador: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          id: string
+          percentual_desconto: number
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          id?: string
+          percentual_desconto?: number
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          id?: string
+          percentual_desconto?: number
+        }
+        Relationships: []
+      }
       parametros_dispersao: {
         Row: {
           id: number
@@ -1721,6 +1754,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      precos_venda: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          descricao: string | null
+          id: string
+          importado_em: string
+          importado_por: string | null
+          marca: string | null
+          margem_real: number | null
+          percentual_desconto_tabela: number | null
+          percentual_margem: number | null
+          pr_sugerido: number | null
+          pr_venda: number
+          prod_ref1: string | null
+          sku: string
+          vl_custo: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          descricao?: string | null
+          id?: string
+          importado_em?: string
+          importado_por?: string | null
+          marca?: string | null
+          margem_real?: number | null
+          percentual_desconto_tabela?: number | null
+          percentual_margem?: number | null
+          pr_sugerido?: number | null
+          pr_venda?: number
+          prod_ref1?: string | null
+          sku: string
+          vl_custo?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          descricao?: string | null
+          id?: string
+          importado_em?: string
+          importado_por?: string | null
+          marca?: string | null
+          margem_real?: number | null
+          percentual_desconto_tabela?: number | null
+          percentual_margem?: number | null
+          pr_sugerido?: number | null
+          pr_venda?: number
+          prod_ref1?: string | null
+          sku?: string
+          vl_custo?: number | null
+        }
+        Relationships: []
       }
       producao_consumo: {
         Row: {
