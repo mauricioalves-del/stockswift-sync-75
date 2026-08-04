@@ -218,6 +218,7 @@ function MapeamentoRisco() {
                           sku: r.sku, lote: r.lote, descricao: r.descricao,
                           almoxarifado: r.almoxarifado, data_validade: r.data_validade,
                           quantidade_enderecada: r.quantidade,
+                          custo_unitario: r.custo_unitario, unidade: r.unidade,
                         })}>
                           <Plus className="size-3.5 mr-1" /> Ação
                         </Button>

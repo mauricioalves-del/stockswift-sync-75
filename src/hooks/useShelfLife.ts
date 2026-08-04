@@ -37,6 +37,16 @@ export type CampanhaRow = CampanhaCalc & {
   responsavel: string | null;
   observacao: string | null;
   custo_acao: number;
+  custo_unitario?: number | null;
+  categoria_financeira?: string | null;
+  quantidade_recuperada?: number | null;
+  valor_recuperado?: number | null;
+  saving_recuperado?: number | null;
+  preco_venda_referencia?: number | null;
+  percentual_desconto_aplicado?: number | null;
+  preco_com_desconto?: number | null;
+  recalculado_em?: string | null;
+  recalculado_por?: string | null;
 };
 
 export function useCampanhas() {

@@ -46,7 +46,6 @@ export function LoteDetalheDialog({ open, onOpenChange, lotes }: Props) {
 
   const gerarAcao = () => {
     const tipo = tiposAtivos.find((t) => t.id === tipoId);
-    const valor = lote.valor;
     setDraft({
       sku: lote.sku,
       lote: lote.lote,
@@ -56,9 +55,7 @@ export function LoteDetalheDialog({ open, onOpenChange, lotes }: Props) {
       data_validade: lote.data_validade,
       tipo_acao_id: tipo?.id ?? null,
       quantidade_enderecada: lote.quantidade,
-      valor_estimado_recuperado: tipo?.categoria === "RECEITA" ? valor : 0,
-      valor_estimado_saving: tipo && tipo.categoria !== "RECEITA" ? valor : 0,
-      custo_acao: tipo?.custo_padrao ?? 0,
+      custo_unitario: lote.custo_unitario,
       status: "PLANEJADA",
       data_acao: new Date().toISOString().slice(0, 10),
       observacao: `Gerada pelo Farol de Shelf · ${FAIXA_LABEL[lote.faixa]}${
@@ -67,6 +64,7 @@ export function LoteDetalheDialog({ open, onOpenChange, lotes }: Props) {
     } as CampanhaDraft);
     setCampanhaOpen(true);
   };
+
 
   return (
     <>

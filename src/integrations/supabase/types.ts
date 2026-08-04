@@ -243,9 +243,11 @@ export type Database = {
         Row: {
           almoxarifado: string | null
           baixa_operacional_id: string | null
+          categoria_financeira: string | null
           created_at: string
           criado_por: string | null
           custo_acao: number
+          custo_unitario: number
           data_acao: string
           data_validade: string | null
           descricao: string | null
@@ -256,20 +258,27 @@ export type Database = {
           preco_com_desconto: number | null
           preco_venda_referencia: number | null
           quantidade_enderecada: number
+          quantidade_recuperada: number
+          recalculado_em: string | null
+          recalculado_por: string | null
           responsavel: string | null
+          saving_recuperado: number
           sku: string
           status: string
           tipo_acao_id: string | null
           updated_at: string
           valor_estimado_recuperado: number
           valor_estimado_saving: number
+          valor_recuperado: number
         }
         Insert: {
           almoxarifado?: string | null
           baixa_operacional_id?: string | null
+          categoria_financeira?: string | null
           created_at?: string
           criado_por?: string | null
           custo_acao?: number
+          custo_unitario?: number
           data_acao?: string
           data_validade?: string | null
           descricao?: string | null
@@ -280,20 +289,27 @@ export type Database = {
           preco_com_desconto?: number | null
           preco_venda_referencia?: number | null
           quantidade_enderecada?: number
+          quantidade_recuperada?: number
+          recalculado_em?: string | null
+          recalculado_por?: string | null
           responsavel?: string | null
+          saving_recuperado?: number
           sku: string
           status?: string
           tipo_acao_id?: string | null
           updated_at?: string
           valor_estimado_recuperado?: number
           valor_estimado_saving?: number
+          valor_recuperado?: number
         }
         Update: {
           almoxarifado?: string | null
           baixa_operacional_id?: string | null
+          categoria_financeira?: string | null
           created_at?: string
           criado_por?: string | null
           custo_acao?: number
+          custo_unitario?: number
           data_acao?: string
           data_validade?: string | null
           descricao?: string | null
@@ -304,13 +320,18 @@ export type Database = {
           preco_com_desconto?: number | null
           preco_venda_referencia?: number | null
           quantidade_enderecada?: number
+          quantidade_recuperada?: number
+          recalculado_em?: string | null
+          recalculado_por?: string | null
           responsavel?: string | null
+          saving_recuperado?: number
           sku?: string
           status?: string
           tipo_acao_id?: string | null
           updated_at?: string
           valor_estimado_recuperado?: number
           valor_estimado_saving?: number
+          valor_recuperado?: number
         }
         Relationships: [
           {
