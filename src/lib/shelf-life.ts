@@ -39,7 +39,7 @@ export function faixaDeRisco(validade: string | null | undefined, hoje = new Dat
   return null;
 }
 
-export type CategoriaAcao = "RECEITA" | "SAVING";
+export type CategoriaAcao = "RECEITA" | "SAVING" | "PERDA";
 
 export type CampanhaCalc = {
   id: string;
