@@ -16,8 +16,23 @@ import { formatBRL } from "@/lib/inventory";
 import { usePrecoVendaPorSku, useParametroDesconto } from "@/hooks/usePrecosVenda";
 import { calcularPrecoComDesconto, chaveSku, ehDescontoColaborador } from "@/lib/precos-venda";
 import { montarMensagemQueima } from "@/lib/whatsapp-message";
+import {
+  categoriaFinanceira,
+  custoAcaoCalculado,
+  ehCategoriaVendas,
+  quantidadeRecuperada as calcQtdRecuperada,
+  savingRecuperadoCalculado,
+  sufixoTipoAcao,
+  valorRecuperadoCalculado,
+} from "@/lib/shelf-life-financeiro";
+import { RotateCcw } from "lucide-react";
 
-export type CampanhaDraft = Partial<CampanhaRow> & { sku: string; lote: string; unidade?: string | null };
+export type CampanhaDraft = Partial<CampanhaRow> & {
+  sku: string;
+  lote: string;
+  unidade?: string | null;
+  custo_unitario?: number | null;
+};
 
 type Props = {
   open: boolean;
@@ -30,6 +45,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
   const tipos = useTiposAcao();
   const { isAdmin, role } = useRole();
   const podeVincular = isAdmin || role === "COORDENADOR_CONTROLE";
+  const podeRecalcular = podeVincular;
 
   const precos = usePrecoVendaPorSku();
   const paramDesc = useParametroDesconto();
@@ -37,9 +53,12 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
   const [form, setForm] = useState<any>({});
   const [salvarPreco, setSalvarPreco] = useState(false);
   const [mensagemFallback, setMensagemFallback] = useState<string | null>(null);
+  const [forcarRecalculo, setForcarRecalculo] = useState(false);
+
   useEffect(() => {
     if (!open || !draft) return;
     setSalvarPreco(false);
+    setForcarRecalculo(false);
     setForm({
       id: draft.id,
       sku: draft.sku ?? "",
@@ -50,9 +69,10 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       data_validade: draft.data_validade ?? "",
       tipo_acao_id: draft.tipo_acao_id ?? "",
       quantidade_enderecada: draft.quantidade_enderecada ?? 0,
-      valor_estimado_recuperado: draft.valor_estimado_recuperado ?? 0,
-      valor_estimado_saving: draft.valor_estimado_saving ?? 0,
-      custo_acao: draft.custo_acao ?? 0,
+      custo_unitario: (draft as any).custo_unitario ?? 0,
+      valor_recuperado: (draft as any).valor_recuperado ?? 0,
+      saving_recuperado: (draft as any).saving_recuperado ?? 0,
+      status_original: draft.status ?? "PLANEJADA",
       responsavel: draft.responsavel ?? "",
       data_acao: draft.data_acao ?? new Date().toISOString().slice(0, 10),
       status: draft.status ?? "PLANEJADA",
@@ -68,13 +88,15 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
     [tipos.data, form.tipo_acao_id],
   );
 
+  const categoria = categoriaFinanceira(tipoSel?.nome);
+  const isVendas = ehCategoriaVendas(tipoSel?.nome);
   const isDescColab = ehDescontoColaborador(tipoSel?.nome);
   const precoCadastrado = precos.map.get(chaveSku(form.sku));
   const semPrecoCadastrado = !precoCadastrado || !(Number(precoCadastrado.pr_venda) > 0);
 
-  // Pré-preenche preço/desconto ao selecionar "Desconto Colaborador"
+  // Pré-preenche preço/desconto ao selecionar um tipo da categoria Vendas.
   useEffect(() => {
-    if (!open || !isDescColab) return;
+    if (!open || !isVendas) return;
     setForm((f: any) => ({
       ...f,
       preco_venda_referencia:
@@ -84,16 +106,20 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       percentual_desconto_aplicado:
         f.percentual_desconto_aplicado !== "" && f.percentual_desconto_aplicado != null
           ? f.percentual_desconto_aplicado
-          : paramDesc.data?.percentual_desconto ?? 60,
+          : isDescColab
+            ? paramDesc.data?.percentual_desconto ?? 60
+            : 0,
     }));
-  }, [open, isDescColab, precoCadastrado?.pr_venda, paramDesc.data?.percentual_desconto]);
+  }, [open, isVendas, isDescColab, precoCadastrado?.pr_venda, paramDesc.data?.percentual_desconto]);
 
   const precoVendaNum = Number(form.preco_venda_referencia) || 0;
   const percentualNum = Number(form.percentual_desconto_aplicado);
-  const precoComDesconto = calcularPrecoComDesconto(
-    precoVendaNum,
-    Number.isFinite(percentualNum) ? percentualNum : (paramDesc.data?.percentual_desconto ?? 60),
-  );
+  const percentualEfetivo = Number.isFinite(percentualNum)
+    ? percentualNum
+    : isDescColab
+      ? paramDesc.data?.percentual_desconto ?? 60
+      : 0;
+  const precoComDesconto = calcularPrecoComDesconto(precoVendaNum, percentualEfetivo);
 
   // Baixas do mesmo SKU+Lote, para vínculo manual
   const baixas = useQuery({
@@ -113,6 +139,32 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
     },
   });
 
+  const baixaSel = useMemo(
+    () => (baixas.data ?? []).find((b) => b.id === form.baixa_operacional_id),
+    [baixas.data, form.baixa_operacional_id],
+  );
+
+  // ——— Metodologia financeira ———
+  const qtdEnderecada = Number(form.quantidade_enderecada) || 0;
+  const custoUnit = Number(form.custo_unitario) || 0;
+  const qtdBaixa = form.baixa_operacional_id ? Number(baixaSel?.quantidade ?? 0) : null;
+  const qtdRecuperada = calcQtdRecuperada(qtdEnderecada, qtdBaixa);
+  const custoAcao = custoAcaoCalculado(qtdEnderecada, custoUnit);
+  const valorPrevisto = valorRecuperadoCalculado({
+    categoria,
+    quantidadeRecuperada: qtdRecuperada,
+    custoUnitario: custoUnit,
+    precoPraticado: precoComDesconto,
+  });
+  const savingPrevisto = savingRecuperadoCalculado(valorPrevisto, custoAcao);
+
+  const jaConcluida = form.status_original === "CONCLUIDA";
+  const vaiConcluir = form.status === "CONCLUIDA";
+  // Congela ao concluir: só recalcula na transição para Concluída ou via botão Recalcular.
+  const congelar = jaConcluida && !forcarRecalculo;
+  const valorOficial = congelar ? Number(form.valor_recuperado) || 0 : vaiConcluir ? valorPrevisto : 0;
+  const savingOficial = congelar ? Number(form.saving_recuperado) || 0 : vaiConcluir ? savingPrevisto : 0;
+
   const save = useMutation({
     mutationFn: async () => {
       const uid = (await supabase.auth.getUser()).data.user?.id ?? null;
@@ -123,21 +175,34 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
         almoxarifado: form.almoxarifado || null,
         data_validade: form.data_validade || null,
         tipo_acao_id: form.tipo_acao_id || null,
-        quantidade_enderecada: Number(form.quantidade_enderecada) || 0,
-        valor_estimado_recuperado: Number(form.valor_estimado_recuperado) || 0,
-        valor_estimado_saving: Number(form.valor_estimado_saving) || 0,
-        custo_acao: Number(form.custo_acao) || 0,
+        quantidade_enderecada: qtdEnderecada,
+        custo_unitario: custoUnit,
+        custo_acao: custoAcao,
+        categoria_financeira: categoria,
+        quantidade_recuperada: vaiConcluir || forcarRecalculo ? qtdRecuperada : congelar ? undefined : 0,
+        valor_recuperado: valorOficial,
+        saving_recuperado: savingOficial,
+        // legado: mantém os indicadores antigos coerentes
+        valor_estimado_recuperado: categoria === "Vendas" ? valorOficial : 0,
+        valor_estimado_saving: categoria === "Vendas" ? 0 : valorOficial,
         responsavel: form.responsavel || null,
         data_acao: form.data_acao || new Date().toISOString().slice(0, 10),
         status: form.status,
         observacao: form.observacao || null,
         baixa_operacional_id: form.baixa_operacional_id || null,
-        preco_venda_referencia: isDescColab ? precoVendaNum : null,
-        percentual_desconto_aplicado: isDescColab ? (Number.isFinite(percentualNum) ? percentualNum : null) : null,
-        preco_com_desconto: isDescColab ? precoComDesconto : null,
+        preco_venda_referencia: isVendas ? precoVendaNum : null,
+        percentual_desconto_aplicado: isVendas ? percentualEfetivo : null,
+        preco_com_desconto: isVendas ? precoComDesconto : null,
       };
+      if (payload.quantidade_recuperada === undefined) delete payload.quantidade_recuperada;
+      if (forcarRecalculo) {
+        payload.recalculado_em = new Date().toISOString();
+        payload.recalculado_por = uid;
+      }
       if (!payload.sku) throw new Error("Informe o SKU.");
       if (!payload.tipo_acao_id) throw new Error("Selecione o tipo de ação.");
+
+      const valorAnterior = Number(form.valor_recuperado) || 0;
 
       if (form.id) {
         const { error } = await (supabase as any).from("campanhas_lote").update(payload).eq("id", form.id);
@@ -145,6 +210,22 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       } else {
         const { error } = await (supabase as any).from("campanhas_lote").insert({ ...payload, criado_por: uid });
         if (error) throw error;
+      }
+
+      if (forcarRecalculo && form.id) {
+        await (supabase as any).from("audit_logs").insert({
+          usuario: uid,
+          acao: "shelf_life_recalculo_valor",
+          entidade: "campanhas_lote",
+          entidade_id: String(form.id),
+          payload: {
+            valor_recuperado_antes: valorAnterior,
+            valor_recuperado_depois: valorOficial,
+            saving_antes: Number(form.saving_recuperado) || 0,
+            saving_depois: savingOficial,
+            motivo: form.observacao || "Recálculo manual",
+          },
+        });
       }
 
       if (isDescColab && salvarPreco && precoVendaNum > 0) {
@@ -208,6 +289,12 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
+  const ReadOnlyValor = ({ valor }: { valor: number }) => (
+    <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-semibold">
+      {formatBRL(valor)}
+    </div>
+  );
+
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -245,11 +332,14 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
               <SelectContent>
                 {(tipos.data ?? []).filter((t) => t.ativo).map((t) => (
                   <SelectItem key={t.id} value={t.id}>
-                    {t.nome} — {t.categoria === "RECEITA" ? "Receita" : "Saving"}
+                    {t.nome} — {sufixoTipoAcao(t.nome)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {tipoSel && (
+              <p className="mt-1 text-[11px] text-muted-foreground">Categoria financeira: {categoria}</p>
+            )}
           </div>
           <div>
             <Label>Status</Label>
@@ -261,12 +351,14 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
             </Select>
           </div>
 
-          {isDescColab && (
+          {isVendas && (
             <div className="sm:col-span-2 rounded-md border border-warning/40 bg-warning/5 p-3 space-y-3">
-              <div className="text-sm font-medium">Desconto Colaborador</div>
+              <div className="text-sm font-medium">
+                {isDescColab ? "Desconto Colaborador" : "Venda — preço praticado"}
+              </div>
               {semPrecoCadastrado && (
                 <p className="text-xs text-warning">
-                  SKU sem Preço de Venda cadastrado — informe o preço abaixo para calcular o desconto.
+                  SKU sem Preço de Venda cadastrado — informe o preço abaixo para calcular a receita.
                 </p>
               )}
               <div className="grid gap-3 sm:grid-cols-3">
@@ -281,10 +373,8 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
                     onChange={(e) => set("percentual_desconto_aplicado", e.target.value)} />
                 </div>
                 <div>
-                  <Label>Preço com Desconto</Label>
-                  <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-semibold">
-                    {formatBRL(precoComDesconto)}
-                  </div>
+                  <Label>Preço praticado</Label>
+                  <ReadOnlyValor valor={precoComDesconto} />
                 </div>
               </div>
               {semPrecoCadastrado && (
@@ -293,13 +383,14 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
                   Salvar como Preço de Venda deste SKU
                 </label>
               )}
-              <p className="text-[11px] text-muted-foreground">
-                Ao salvar, a mensagem de queima de estoque é enviada automaticamente no grupo de WhatsApp dos
-                colaboradores (falha no envio não impede o registro da ação).
-              </p>
+              {isDescColab && (
+                <p className="text-[11px] text-muted-foreground">
+                  Ao salvar, a mensagem de queima de estoque é copiada e o WhatsApp Web é aberto para colar no grupo
+                  dos colaboradores.
+                </p>
+              )}
             </div>
           )}
-
 
           <div>
             <Label>Quantidade endereçada</Label>
@@ -307,28 +398,60 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
               onChange={(e) => set("quantidade_enderecada", e.target.value)} />
           </div>
           <div>
-            <Label>Custo da ação (R$)</Label>
-            <Input type="number" step="0.01" value={form.custo_acao ?? 0}
-              onChange={(e) => set("custo_acao", e.target.value)} />
+            <Label>Custo unitário (R$)</Label>
+            <Input type="number" step="0.0001" value={form.custo_unitario ?? 0}
+              onChange={(e) => set("custo_unitario", e.target.value)} />
           </div>
 
           <div>
-            <Label>
-              Valor recuperado (R$)
-              {tipoSel?.categoria === "RECEITA" && <span className="ml-1 text-xs text-success">usado no indicador</span>}
-            </Label>
-            <Input type="number" step="0.01" value={form.valor_estimado_recuperado ?? 0}
-              disabled={tipoSel && tipoSel.categoria !== "RECEITA"}
-              onChange={(e) => set("valor_estimado_recuperado", e.target.value)} />
+            <Label>Custo da ação (R$)</Label>
+            <ReadOnlyValor valor={custoAcao} />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Quantidade endereçada × custo unitário — valor total em risco.
+            </p>
           </div>
           <div>
-            <Label>
-              Saving estimado (R$)
-              {tipoSel && tipoSel.categoria !== "RECEITA" && <span className="ml-1 text-xs text-success">usado no indicador</span>}
-            </Label>
-            <Input type="number" step="0.01" value={form.valor_estimado_saving ?? 0}
-              disabled={tipoSel?.categoria === "RECEITA"}
-              onChange={(e) => set("valor_estimado_saving", e.target.value)} />
+            <Label>Quantidade recuperada</Label>
+            <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-semibold">
+              {qtdRecuperada}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <Label>Valor recuperado (R$)</Label>
+              {jaConcluida && podeRecalcular && (
+                <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[11px]"
+                  onClick={() => setForcarRecalculo((v) => !v)}>
+                  <RotateCcw className="size-3 mr-1" /> {forcarRecalculo ? "Cancelar recálculo" : "Recalcular"}
+                </Button>
+              )}
+            </div>
+            <ReadOnlyValor valor={congelar ? Number(form.valor_recuperado) || 0 : valorPrevisto} />
+            {!congelar && !vaiConcluir && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Estimado ao concluir: {formatBRL(valorPrevisto)}
+              </p>
+            )}
+            {forcarRecalculo && (
+              <p className="mt-1 text-[11px] text-warning">
+                Recálculo manual será gravado em auditoria ao salvar.
+              </p>
+            )}
+          </div>
+          <div>
+            <Label>Saving Recuperado (R$)</Label>
+            <ReadOnlyValor valor={congelar ? Number(form.saving_recuperado) || 0 : savingPrevisto} />
+            {!congelar && !vaiConcluir && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Estimado ao concluir: {formatBRL(savingPrevisto)}
+              </p>
+            )}
+            {categoria === "Descarte" && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Descarte: perda integral — saving negativo é esperado.
+              </p>
+            )}
           </div>
 
           <div>
@@ -356,6 +479,13 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
                   ))}
                 </SelectContent>
               </Select>
+              {qtdBaixa != null && (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Quantidade da baixa vinculada: {qtdBaixa}
+                  <br />
+                  Quantidade que será considerada recuperada: {qtdRecuperada} (mínimo 0)
+                </p>
+              )}
             </div>
           )}
 
