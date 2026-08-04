@@ -16,6 +16,7 @@ import {
   type BaixaCalc,
 } from "@/lib/shelf-life";
 import { useCampanhas, useTiposAcao } from "@/hooks/useShelfLife";
+import { indicadoresMetodologia } from "@/lib/shelf-life-financeiro";
 import { ConfigFiltrosCard, useOrigensDisponiveis } from "@/components/shelf-life/ConfigFiltrosCard";
 import { almoxEfetivos, usePersistedState, useShelfConfig } from "@/hooks/useFiltrosShelfLife";
 import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
@@ -37,6 +38,7 @@ export const Route = createFileRoute("/_authenticated/shelf-life/dashboard")({
 const COR_PERDA = "#E57373";
 const COR_RECEITA = "#4FC3F7";
 const COR_SAVING = "#81C784";
+const COR_CATEGORIA = ["#4FC3F7", "#FFB74D", "#81C784", "#E57373"];
 
 function isoDaysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); }
 function todayISO() { return new Date().toISOString().slice(0, 10); }
@@ -173,6 +175,13 @@ function ShelfLifeDashboard() {
 
   const ind = useMemo(() => calcularIndicadores(linhas, campanhasPeriodo), [linhas, campanhasPeriodo]);
 
+  const met = useMemo(() => indicadoresMetodologia(campanhasPeriodo as any), [campanhasPeriodo]);
+  const composicao = useMemo(
+    () => met.porCategoria.filter((x) => x.valor > 0).map((x, i) => ({ name: x.categoria, value: x.valor, fill: COR_CATEGORIA[i % COR_CATEGORIA.length] })),
+    [met],
+  );
+  const composicaoTotal = composicao.reduce((s, r) => s + r.value, 0);
+
 
   const mensal = useMemo(() => {
     const m = new Map<string, { mes: string; Perda: number; "Receita Recuperada": number; "Saving Recuperado": number }>();
@@ -280,6 +289,37 @@ function ShelfLifeDashboard() {
         <Kpi title="Eficiência de Recuperação" value={ind.eficiencia === null ? "—" : `${ind.eficiencia.toFixed(1)}%`} tone="text-primary" />
         <Kpi title="Saving Recuperado" value={formatBRL(ind.savingRecuperado)} tone="text-success" />
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Metodologia de Recuperação Financeira (ações concluídas)</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+          <Kpi title="Receita Recuperada" value={formatBRL(met.receitaRecuperada)} tone="text-info" hint="Ações de categoria Vendas" />
+          <Kpi title="Perda Evitada" value={formatBRL(met.perdaEvitada)} tone="text-success" hint="Todas as categorias, exceto Descarte" />
+          <Kpi title="Perda Real" value={formatBRL(met.perdaReal)} tone="text-destructive" hint={`Custo total: ${formatBRL(met.custoTotal)}`} />
+          <Kpi title="Saving Recuperado" value={formatBRL(met.savingRecuperado)} tone="text-success" hint="Valor recuperado − custo da ação" />
+          <Kpi title="ROI Operacional" value={met.roiOperacional === null ? "—" : `${met.roiOperacional.toFixed(0)}%`} tone="text-primary" hint="Saving ÷ custo das ações" />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-base">Composição da Perda Evitada por Categoria</CardTitle></CardHeader>
+        <CardContent className="h-[300px]">
+          {loading ? <Skel /> : composicaoTotal === 0 ? <Vazio /> : (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={composicao} dataKey="value" nameKey="name" innerRadius={60} outerRadius={100}
+                  label={(e: any) => `${((e.value / composicaoTotal) * 100).toFixed(0)}%`}>
+                  {composicao.map((r) => <Cell key={r.name} fill={r.fill} />)}
+                </Pie>
+                <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-base">Perda no período (baixas por Vencimento sem cobertura)</CardTitle></CardHeader>

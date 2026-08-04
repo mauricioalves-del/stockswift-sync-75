@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatBRL, formatNum } from "@/lib/inventory";
-import { STATUS_CAMPANHA, chaveLote, statusCampanhaLabel, statusCampanhaTone, valorRecuperadoCampanha } from "@/lib/shelf-life";
+import { STATUS_CAMPANHA, chaveLote, statusCampanhaLabel, statusCampanhaTone } from "@/lib/shelf-life";
+import { categoriaDaCampanha, valorRecuperadoFinal } from "@/lib/shelf-life-financeiro";
 import { autoVincularBaixas, useCampanhas, useLotesComSaldo, useTiposAcao } from "@/hooks/useShelfLife";
 
 import { CampanhaDialog, type CampanhaDraft } from "@/components/shelf-life/CampanhaDialog";
@@ -81,7 +82,7 @@ function AcoesLote() {
   }, [campanhas.data, status, tipo, busca]);
 
   const totais = useMemo(() => ({
-    recuperado: rows.filter((c) => c.status === "CONCLUIDA").reduce((s, c) => s + valorRecuperadoCampanha(c), 0),
+    recuperado: rows.filter((c) => c.status === "CONCLUIDA").reduce((s, c) => s + valorRecuperadoFinal(c), 0),
     custo: rows.filter((c) => c.status === "CONCLUIDA").reduce((s, c) => s + (c.custo_acao || 0), 0),
   }), [rows]);
 
@@ -166,10 +167,10 @@ function AcoesLote() {
 
                   <TableCell className="text-xs">
                     {c.tipo_nome ?? "—"}
-                    {c.categoria && <Badge variant="outline" className="ml-1 text-[10px]">{c.categoria === "RECEITA" ? "Receita" : "Saving"}</Badge>}
+                    <Badge variant="outline" className="ml-1 text-[10px]">{categoriaDaCampanha(c)}</Badge>
                   </TableCell>
                   <TableCell className="text-right">{formatNum(c.quantidade_enderecada)}</TableCell>
-                  <TableCell className="text-right font-medium">{formatBRL(valorRecuperadoCampanha(c))}</TableCell>
+                  <TableCell className="text-right font-medium">{formatBRL(valorRecuperadoFinal(c))}</TableCell>
                   <TableCell className="text-right">{formatBRL(c.custo_acao)}</TableCell>
                   <TableCell><Badge variant="secondary" className={statusCampanhaTone(c.status)}>{statusCampanhaLabel(c.status)}</Badge></TableCell>
                   <TableCell>{c.baixa_operacional_id ? <Link2 className="size-4 text-success" /> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
