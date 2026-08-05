@@ -15,7 +15,10 @@ import { STATUS_CAMPANHA } from "@/lib/shelf-life";
 import { formatBRL } from "@/lib/inventory";
 import { usePrecoVendaPorSku, useParametroDesconto } from "@/hooks/usePrecosVenda";
 import { calcularPrecoComDesconto, chaveSku, ehDescontoColaborador } from "@/lib/precos-venda";
-import { montarMensagemQueima } from "@/lib/whatsapp-message";
+import { copiarEAbrirWhatsApp, montarAvisoInterno, montarMensagemQueima } from "@/lib/whatsapp-message";
+import { WhatsAppFallbackDialog } from "@/components/shelf-life/WhatsAppFallbackDialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { MessageCircle } from "lucide-react";
 import {
   categoriaFinanceira,
   custoAcaoCalculado,
@@ -26,6 +29,7 @@ import {
   valorRecuperadoCalculado,
 } from "@/lib/shelf-life-financeiro";
 import { RotateCcw } from "lucide-react";
+
 
 export type CampanhaDraft = Partial<CampanhaRow> & {
   sku: string;
@@ -241,51 +245,55 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
         );
       }
 
-      // Mensagem de queima: montada no navegador, copiada para a área de transferência.
-      let mensagem: string | null = null;
-      if (isDescColab) {
-        mensagem = montarMensagemQueima({
-          descricao: payload.descricao ?? payload.sku,
-          precoVenda: precoVendaNum,
-          precoComDesconto,
-          quantidade: payload.quantidade_enderecada,
-          unidade: form.unidade || null,
-          dataValidade: payload.data_validade,
-          sku: payload.sku,
-          lote: payload.lote,
-        });
-      }
-      return mensagem;
     },
-    onSuccess: async (mensagem: string | null) => {
+    onSuccess: async () => {
       toast.success(form.id ? "Ação atualizada." : "Ação criada.");
       qc.invalidateQueries({ queryKey: ["shelf-campanhas"] });
       qc.invalidateQueries({ queryKey: ["precos-venda"] });
-
-      if (mensagem) {
-        let copiado = false;
-        try {
-          await navigator.clipboard.writeText(mensagem);
-          copiado = true;
-        } catch {
-          copiado = false;
-        }
-        window.open("https://web.whatsapp.com/", "_blank", "noopener,noreferrer");
-        if (copiado) {
-          toast.success(
-            "Mensagem copiada! Cole (Ctrl+V) no grupo Colaboradores no WhatsApp Web que acabou de abrir.",
-          );
-          onOpenChange(false);
-          return;
-        }
-        setMensagemFallback(mensagem);
-        onOpenChange(false);
-        return;
-      }
       onOpenChange(false);
     },
     onError: (e: any) => toast.error(e.message ?? "Falha ao salvar a ação."),
   });
+
+  // ——— Envio manual de WhatsApp (opcional, independente do salvar) ———
+  const podeEnviarWhats =
+    !!String(form.sku ?? "").trim() &&
+    !!String(form.descricao ?? "").trim() &&
+    !!form.tipo_acao_id &&
+    qtdEnderecada > 0;
+
+  const enviarWhatsApp = async () => {
+    const mensagem = isVendas
+      ? montarMensagemQueima({
+          descricao: form.descricao || form.sku,
+          precoVenda: precoVendaNum,
+          precoComDesconto,
+          quantidade: qtdEnderecada,
+          unidade: form.unidade || null,
+          dataValidade: form.data_validade || null,
+          sku: form.sku,
+          lote: form.lote,
+        })
+      : montarAvisoInterno({
+          tipoAcao: tipoSel?.nome ?? categoria,
+          descricao: form.descricao || form.sku,
+          sku: form.sku,
+          lote: form.lote,
+          almoxarifado: form.almoxarifado,
+          quantidade: qtdEnderecada,
+          unidade: form.unidade || null,
+          dataValidade: form.data_validade || null,
+          responsavel: form.responsavel,
+        });
+
+    const copiado = await copiarEAbrirWhatsApp(mensagem);
+    if (copiado) {
+      toast.success("Mensagem copiada! Cole (Ctrl+V) no grupo do WhatsApp Web que acabou de abrir.");
+      return;
+    }
+    setMensagemFallback(mensagem);
+  };
+
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
@@ -300,7 +308,31 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{form.id ? "Editar Ação de Lote" : "Nova Ação de Lote"}</DialogTitle>
+          <div className="flex items-center gap-2 pr-8">
+            <DialogTitle className="flex-1">{form.id ? "Editar Ação de Lote" : "Nova Ação de Lote"}</DialogTitle>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="size-8 text-success"
+                      disabled={!podeEnviarWhats}
+                      onClick={enviarWhatsApp}
+                      aria-label="Enviar aviso no WhatsApp"
+                    >
+                      <MessageCircle className="size-5" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {podeEnviarWhats ? "Enviar aviso no WhatsApp" : "Preencha os campos obrigatórios"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </DialogHeader>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -504,32 +536,8 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       </DialogContent>
     </Dialog>
 
-    <Dialog open={!!mensagemFallback} onOpenChange={(v) => !v && setMensagemFallback(null)}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Copiar mensagem do WhatsApp</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          Não foi possível copiar automaticamente. Copie o texto abaixo e cole no grupo Colaboradores no WhatsApp Web.
-        </p>
-        <Textarea rows={14} readOnly value={mensagemFallback ?? ""} className="font-mono text-xs" />
-        <DialogFooter>
-          <Button
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(mensagemFallback ?? "");
-                toast.success("Mensagem copiada!");
-                setMensagemFallback(null);
-              } catch {
-                toast.error("Copie manualmente selecionando o texto acima.");
-              }
-            }}
-          >
-            Copiar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <WhatsAppFallbackDialog mensagem={mensagemFallback} onClose={() => setMensagemFallback(null)} />
+
     </>
   );
 }
