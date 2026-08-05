@@ -115,6 +115,19 @@ function ConfigPage() {
         </Card>
       )}
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base"><Palette className="size-4" /> Aparência</CardTitle>
+          <CardDescription>Escolha entre as identidades visuais: Atual, Mágio Claro e Mágio Escuro. A preferência fica salva na sua conta.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline" className="w-full justify-between">
+            <Link to="/config/aparencia">Escolher tema <ChevronRight className="size-4" /></Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+
       {(isCoord || isAdmin) && (
         <Card>
           <CardHeader>
