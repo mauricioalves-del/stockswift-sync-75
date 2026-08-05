@@ -308,7 +308,31 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{form.id ? "Editar Ação de Lote" : "Nova Ação de Lote"}</DialogTitle>
+          <div className="flex items-center gap-2 pr-8">
+            <DialogTitle className="flex-1">{form.id ? "Editar Ação de Lote" : "Nova Ação de Lote"}</DialogTitle>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="size-8 text-success"
+                      disabled={!podeEnviarWhats}
+                      onClick={enviarWhatsApp}
+                      aria-label="Enviar aviso no WhatsApp"
+                    >
+                      <MessageCircle className="size-5" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {podeEnviarWhats ? "Enviar aviso no WhatsApp" : "Preencha os campos obrigatórios"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </DialogHeader>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -512,32 +536,8 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       </DialogContent>
     </Dialog>
 
-    <Dialog open={!!mensagemFallback} onOpenChange={(v) => !v && setMensagemFallback(null)}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Copiar mensagem do WhatsApp</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          Não foi possível copiar automaticamente. Copie o texto abaixo e cole no grupo Colaboradores no WhatsApp Web.
-        </p>
-        <Textarea rows={14} readOnly value={mensagemFallback ?? ""} className="font-mono text-xs" />
-        <DialogFooter>
-          <Button
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(mensagemFallback ?? "");
-                toast.success("Mensagem copiada!");
-                setMensagemFallback(null);
-              } catch {
-                toast.error("Copie manualmente selecionando o texto acima.");
-              }
-            }}
-          >
-            Copiar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <WhatsAppFallbackDialog mensagem={mensagemFallback} onClose={() => setMensagemFallback(null)} />
+
     </>
   );
 }
