@@ -64,11 +64,15 @@ function SuprimentosDashboard() {
   }, [estoqueQ.data, reqQ.data, demandasQ.data, paramsQ.data]);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Truck className="size-6" /> Dashboard Suprimentos</h1>
-        <p className="text-sm text-muted-foreground">Visão consolidada de estoque, requisições e abastecimento.</p>
+    <div className="max-w-7xl mx-auto space-y-4" id="dash-suprimentos">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Truck className="size-6" /> Dashboard Suprimentos</h1>
+          <p className="text-sm text-muted-foreground">Visão consolidada de estoque, requisições e abastecimento.</p>
+        </div>
+        <ExportarHtmlButton targetId="dash-suprimentos" titulo="Dashboard Suprimentos" filtros={[{ label: "Escopo", valor: "Todos os almoxarifados" }]} />
       </div>
+
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPI icon={Boxes} label="Valor de estoque" value={formatBRL(kpis.valorEstoque)} />
