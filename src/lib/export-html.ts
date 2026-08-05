@@ -167,7 +167,7 @@ const RUNTIME_JS = `
 
 export async function exportarDashboardHtml({ titulo, elemento, filtros = [], usuario }: ExportarHtmlParams) {
   const clone = elemento.cloneNode(true) as HTMLElement;
-  limparClone(clone);
+  limparClone(clone, elemento);
 
   const tema = document.documentElement.getAttribute("data-theme") ?? "atual";
   const dark = document.documentElement.classList.contains("dark");
