@@ -196,6 +196,12 @@ export async function exportarDashboardHtml({ titulo, elemento, filtros = [], us
   .export-meta { font-size: 13px; opacity: .75; }
   .export-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .export-chip { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--muted); color: var(--foreground); border: 1px solid var(--border); }
+  [data-export-inert] { pointer-events: none; opacity: 1 !important; }
+  .export-filterbar { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+  .export-filterbar input { flex: 1; max-width: 320px; font: inherit; font-size: 13px; padding: 6px 10px;
+    border-radius: 10px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); }
+  .export-filterinfo { font-size: 12px; opacity: .65; }
+
   .export-tip { position: fixed; display: none; z-index: 9999; pointer-events: none; font-size: 12px;
     padding: 6px 10px; border-radius: 8px; background: var(--popover); color: var(--popover-foreground);
     border: 1px solid var(--border); box-shadow: 0 6px 20px -8px rgb(0 0 0 / 35%); }
