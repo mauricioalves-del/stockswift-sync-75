@@ -124,7 +124,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   });
 
   const online = useOnlineStatus();
-  const { theme, toggle } = useTheme();
+  const { isDark, toggle } = useTheme();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
