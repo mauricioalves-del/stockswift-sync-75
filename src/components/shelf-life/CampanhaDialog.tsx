@@ -15,7 +15,10 @@ import { STATUS_CAMPANHA } from "@/lib/shelf-life";
 import { formatBRL } from "@/lib/inventory";
 import { usePrecoVendaPorSku, useParametroDesconto } from "@/hooks/usePrecosVenda";
 import { calcularPrecoComDesconto, chaveSku, ehDescontoColaborador } from "@/lib/precos-venda";
-import { montarMensagemQueima } from "@/lib/whatsapp-message";
+import { copiarEAbrirWhatsApp, montarAvisoInterno, montarMensagemQueima } from "@/lib/whatsapp-message";
+import { WhatsAppFallbackDialog } from "@/components/shelf-life/WhatsAppFallbackDialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { MessageCircle } from "lucide-react";
 import {
   categoriaFinanceira,
   custoAcaoCalculado,
@@ -26,6 +29,7 @@ import {
   valorRecuperadoCalculado,
 } from "@/lib/shelf-life-financeiro";
 import { RotateCcw } from "lucide-react";
+
 
 export type CampanhaDraft = Partial<CampanhaRow> & {
   sku: string;
