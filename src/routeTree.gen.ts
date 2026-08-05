@@ -52,6 +52,7 @@ import { Route as AuthenticatedConfigResendRouteImport } from './routes/_authent
 import { Route as AuthenticatedConfigPerfisRouteImport } from './routes/_authenticated/config.perfis'
 import { Route as AuthenticatedConfigInventarioRouteImport } from './routes/_authenticated/config.inventario'
 import { Route as AuthenticatedConfigDispersaoRouteImport } from './routes/_authenticated/config.dispersao'
+import { Route as AuthenticatedConfigAparenciaRouteImport } from './routes/_authenticated/config.aparencia'
 import { Route as AuthenticatedBaixasDashboardRouteImport } from './routes/_authenticated/baixas.dashboard'
 import { Route as AuthenticatedAbastecimentoPlanejamentoRouteImport } from './routes/_authenticated/abastecimento.planejamento'
 import { Route as AuthenticatedAbastecimentoParametrosRouteImport } from './routes/_authenticated/abastecimento.parametros'
@@ -301,6 +302,12 @@ const AuthenticatedConfigDispersaoRoute =
     path: '/config/dispersao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedConfigAparenciaRoute =
+  AuthenticatedConfigAparenciaRouteImport.update({
+    id: '/config/aparencia',
+    path: '/config/aparencia',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedBaixasDashboardRoute =
   AuthenticatedBaixasDashboardRouteImport.update({
     id: '/baixas/dashboard',
@@ -381,6 +388,7 @@ export interface FileRoutesByFullPath {
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
+  '/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
   '/config/dispersao': typeof AuthenticatedConfigDispersaoRoute
   '/config/inventario': typeof AuthenticatedConfigInventarioRoute
   '/config/perfis': typeof AuthenticatedConfigPerfisRoute
@@ -434,6 +442,7 @@ export interface FileRoutesByTo {
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
+  '/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
   '/config/dispersao': typeof AuthenticatedConfigDispersaoRoute
   '/config/inventario': typeof AuthenticatedConfigInventarioRoute
   '/config/perfis': typeof AuthenticatedConfigPerfisRoute
@@ -489,6 +498,7 @@ export interface FileRoutesById {
   '/_authenticated/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/_authenticated/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
   '/_authenticated/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
+  '/_authenticated/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
   '/_authenticated/config/dispersao': typeof AuthenticatedConfigDispersaoRoute
   '/_authenticated/config/inventario': typeof AuthenticatedConfigInventarioRoute
   '/_authenticated/config/perfis': typeof AuthenticatedConfigPerfisRoute
@@ -544,6 +554,7 @@ export interface FileRouteTypes {
     | '/abastecimento/parametros'
     | '/abastecimento/planejamento'
     | '/baixas/dashboard'
+    | '/config/aparencia'
     | '/config/dispersao'
     | '/config/inventario'
     | '/config/perfis'
@@ -597,6 +608,7 @@ export interface FileRouteTypes {
     | '/abastecimento/parametros'
     | '/abastecimento/planejamento'
     | '/baixas/dashboard'
+    | '/config/aparencia'
     | '/config/dispersao'
     | '/config/inventario'
     | '/config/perfis'
@@ -651,6 +663,7 @@ export interface FileRouteTypes {
     | '/_authenticated/abastecimento/parametros'
     | '/_authenticated/abastecimento/planejamento'
     | '/_authenticated/baixas/dashboard'
+    | '/_authenticated/config/aparencia'
     | '/_authenticated/config/dispersao'
     | '/_authenticated/config/inventario'
     | '/_authenticated/config/perfis'
@@ -990,6 +1003,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfigDispersaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/config/aparencia': {
+      id: '/_authenticated/config/aparencia'
+      path: '/config/aparencia'
+      fullPath: '/config/aparencia'
+      preLoaderRoute: typeof AuthenticatedConfigAparenciaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/baixas/dashboard': {
       id: '/_authenticated/baixas/dashboard'
       path: '/baixas/dashboard'
@@ -1093,6 +1113,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbastecimentoParametrosRoute: typeof AuthenticatedAbastecimentoParametrosRoute
   AuthenticatedAbastecimentoPlanejamentoRoute: typeof AuthenticatedAbastecimentoPlanejamentoRoute
   AuthenticatedBaixasDashboardRoute: typeof AuthenticatedBaixasDashboardRoute
+  AuthenticatedConfigAparenciaRoute: typeof AuthenticatedConfigAparenciaRoute
   AuthenticatedConfigDispersaoRoute: typeof AuthenticatedConfigDispersaoRoute
   AuthenticatedConfigInventarioRoute: typeof AuthenticatedConfigInventarioRoute
   AuthenticatedConfigPerfisRoute: typeof AuthenticatedConfigPerfisRoute
@@ -1147,6 +1168,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAbastecimentoPlanejamentoRoute:
     AuthenticatedAbastecimentoPlanejamentoRoute,
   AuthenticatedBaixasDashboardRoute: AuthenticatedBaixasDashboardRoute,
+  AuthenticatedConfigAparenciaRoute: AuthenticatedConfigAparenciaRoute,
   AuthenticatedConfigDispersaoRoute: AuthenticatedConfigDispersaoRoute,
   AuthenticatedConfigInventarioRoute: AuthenticatedConfigInventarioRoute,
   AuthenticatedConfigPerfisRoute: AuthenticatedConfigPerfisRoute,
