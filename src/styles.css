@@ -260,7 +260,7 @@
   --secondary: #8FA3D6;
   --secondary-foreground: #131B27;
 
-  --muted: #2A footer;
+  --muted: #2A3646;
   --muted-foreground: #B9BFC9;
   --accent: #3A4A66;
   --accent-foreground: #E4E0D5;
@@ -290,7 +290,7 @@
   --sidebar-primary-foreground: #10191F;
   --sidebar-accent: #263344;
   --sidebar-accent-foreground: #E4E0D5;
-  --sidebar-border: #33415400;
+  --sidebar-border: #2B3849;
   --sidebar-ring: #8FA3D6;
 
   --gradient-success: linear-gradient(135deg, #4E7F84, #6FA3A8);
