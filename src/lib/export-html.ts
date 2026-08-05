@@ -39,17 +39,48 @@ function variaveisDoTema(): string {
   return props.length ? `:root{${props.join("")}}` : "";
 }
 
-function limparClone(clone: HTMLElement) {
+function limparClone(clone: HTMLElement, origem: HTMLElement) {
   clone.querySelectorAll("[data-export-hide]").forEach((el) => el.remove());
   clone.querySelectorAll("script").forEach((el) => el.remove());
-  clone.querySelectorAll("input, select, textarea, button").forEach((el) => {
-    const node = el as HTMLInputElement;
-    if (node.tagName === "INPUT" || node.tagName === "TEXTAREA") node.setAttribute("value", node.value ?? "");
-    node.setAttribute("disabled", "true");
+
+  // Congela o estado atual dos controles (o valor precisa virar atributo para
+  // sobreviver à serialização) e os deixa inertes: no arquivo exportado eles
+  // são apenas a evidência do filtro aplicado, não controles vivos.
+  const vivos = origem.querySelectorAll("input, select, textarea");
+  const clonados = clone.querySelectorAll("input, select, textarea");
+  clonados.forEach((el, i) => {
+    const live = vivos[i] as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | undefined;
+    if (!live) return;
+    if (el.tagName === "SELECT") {
+      const sel = el as HTMLSelectElement;
+      Array.from(sel.options).forEach((o) => {
+        if (o.value === (live as HTMLSelectElement).value) o.setAttribute("selected", "selected");
+        else o.removeAttribute("selected");
+      });
+    } else {
+      const node = el as HTMLInputElement;
+      const lv = live as HTMLInputElement;
+      if (node.type === "checkbox" || node.type === "radio") {
+        if (lv.checked) node.setAttribute("checked", "checked");
+        else node.removeAttribute("checked");
+      } else {
+        node.setAttribute("value", lv.value ?? "");
+        if (node.tagName === "TEXTAREA") node.textContent = lv.value ?? "";
+      }
+    }
   });
-  // Tabelas ordenáveis no arquivo exportado
-  clone.querySelectorAll("table").forEach((t) => t.setAttribute("data-sortable", "1"));
+  clone.querySelectorAll("input, select, textarea, button").forEach((el) => {
+    el.setAttribute("disabled", "true");
+    el.setAttribute("data-export-inert", "1");
+  });
+
+  // Tabelas ordenáveis e filtráveis offline no arquivo exportado
+  clone.querySelectorAll("table").forEach((t) => {
+    t.setAttribute("data-sortable", "1");
+    t.setAttribute("data-filterable", "1");
+  });
 }
+
 
 const RUNTIME_JS = `
 (function () {
@@ -59,7 +90,35 @@ const RUNTIME_JS = `
     var f = parseFloat(n);
     return isNaN(f) ? null : f;
   }
+  // Filtro de busca funcional (offline) acima de cada tabela exportada
+  document.querySelectorAll('table[data-filterable]').forEach(function (table) {
+    var tbody = table.querySelector('tbody');
+    if (!tbody || !tbody.rows.length) return;
+    var bar = document.createElement('div');
+    bar.className = 'export-filterbar';
+    var input = document.createElement('input');
+    input.type = 'search';
+    input.placeholder = 'Filtrar nesta tabela...';
+    var info = document.createElement('span');
+    info.className = 'export-filterinfo';
+    function atualizar() {
+      var termo = input.value.trim().toLowerCase();
+      var visiveis = 0;
+      Array.prototype.slice.call(tbody.rows).forEach(function (r) {
+        var ok = !termo || (r.textContent || '').toLowerCase().indexOf(termo) !== -1;
+        r.style.display = ok ? '' : 'none';
+        if (ok) visiveis++;
+      });
+      info.textContent = visiveis + ' de ' + tbody.rows.length + ' linhas';
+    }
+    input.addEventListener('input', atualizar);
+    bar.appendChild(input);
+    bar.appendChild(info);
+    if (table.parentNode) table.parentNode.insertBefore(bar, table);
+    atualizar();
+  });
   document.querySelectorAll('table[data-sortable]').forEach(function (table) {
+
     var ths = table.querySelectorAll('thead th');
     ths.forEach(function (th, idx) {
       th.style.cursor = 'pointer';
@@ -108,7 +167,7 @@ const RUNTIME_JS = `
 
 export async function exportarDashboardHtml({ titulo, elemento, filtros = [], usuario }: ExportarHtmlParams) {
   const clone = elemento.cloneNode(true) as HTMLElement;
-  limparClone(clone);
+  limparClone(clone, elemento);
 
   const tema = document.documentElement.getAttribute("data-theme") ?? "atual";
   const dark = document.documentElement.classList.contains("dark");
@@ -137,6 +196,12 @@ export async function exportarDashboardHtml({ titulo, elemento, filtros = [], us
   .export-meta { font-size: 13px; opacity: .75; }
   .export-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .export-chip { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--muted); color: var(--foreground); border: 1px solid var(--border); }
+  [data-export-inert] { pointer-events: none; opacity: 1 !important; }
+  .export-filterbar { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+  .export-filterbar input { flex: 1; max-width: 320px; font: inherit; font-size: 13px; padding: 6px 10px;
+    border-radius: 10px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); }
+  .export-filterinfo { font-size: 12px; opacity: .65; }
+
   .export-tip { position: fixed; display: none; z-index: 9999; pointer-events: none; font-size: 12px;
     padding: 6px 10px; border-radius: 8px; background: var(--popover); color: var(--popover-foreground);
     border: 1px solid var(--border); box-shadow: 0 6px 20px -8px rgb(0 0 0 / 35%); }
