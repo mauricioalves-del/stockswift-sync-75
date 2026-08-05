@@ -180,3 +180,136 @@
 /* Animações utilitárias */
 @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.6;transform:scale(.85)} }
 .pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+
+/* ============================================================
+   TEMAS — 3 identidades visuais (data-theme no elemento raiz)
+   1) atual        → paleta Amazônia Premium (blocos :root / .dark acima)
+   2) magio-claro  → Design System oficial Mágio
+   3) magio-escuro → derivação escura do Design System
+   ============================================================ */
+
+[data-theme="magio-claro"] {
+  --radius: 1.25rem;                 /* cards 20px */
+  --font-app: "TT Chocolates", "Inter", "Poppins", ui-sans-serif, system-ui, sans-serif;
+
+  --background: #E4E0D5;             /* Off White */
+  --foreground: #262C38;
+  --card: #FFFFFF;
+  --card-foreground: #262C38;
+  --popover: #FFFFFF;
+  --popover-foreground: #262C38;
+
+  --primary: #4E7F84;                /* Verde Amazônia */
+  --primary-foreground: #FFFFFF;
+  --secondary: #34436C;              /* Azul Institucional */
+  --secondary-foreground: #FFFFFF;
+
+  --muted: #EDEAE1;
+  --muted-foreground: #55607A;
+  --accent: #B1BFE2;                 /* Azul Claro (suporte) */
+  --accent-foreground: #24304F;
+
+  --success: #2E7D32;
+  --success-foreground: #FFFFFF;
+  --warning: #F9A825;
+  --warning-foreground: #2A2F3A;
+  --destructive: #C62828;
+  --destructive-foreground: #FFFFFF;
+  --info: #1565C0;
+  --info-foreground: #FFFFFF;
+
+  --border: #D2CCBD;
+  --input: #C9C2B1;
+  --ring: #4E7F84;
+
+  --chart-1: #4E7F84;
+  --chart-2: #34436C;
+  --chart-3: #B1BFE2;
+  --chart-4: #F9A825;
+  --chart-5: #C62828;
+
+  --sidebar: #34436C;
+  --sidebar-foreground: #E4E0D5;
+  --sidebar-primary: #4E7F84;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #3D4E7C;
+  --sidebar-accent-foreground: #E4E0D5;
+  --sidebar-border: #46578C;
+  --sidebar-ring: #B1BFE2;
+
+  --gradient-success: linear-gradient(135deg, #4E7F84, #6FA3A8);
+  --gradient-gold: linear-gradient(135deg, #4E7F84, #B1BFE2);
+  --gradient-amazon: linear-gradient(135deg, #34436C, #4E7F84);
+  --shadow-card: 0 2px 10px -4px rgb(38 44 56 / 12%);
+  --shadow-elevated: 0 12px 32px -16px rgb(52 67 108 / 30%);
+}
+
+[data-theme="magio-escuro"] {
+  --radius: 1.25rem;
+  --font-app: "TT Chocolates", "Inter", "Poppins", ui-sans-serif, system-ui, sans-serif;
+
+  --background: #1B2430;
+  --foreground: #E4E0D5;
+  --card: #232E3D;
+  --card-foreground: #E4E0D5;
+  --popover: #232E3D;
+  --popover-foreground: #E4E0D5;
+
+  --primary: #6FA3A8;
+  --primary-foreground: #10191F;
+  --secondary: #8FA3D6;
+  --secondary-foreground: #131B27;
+
+  --muted: #2A footer;
+  --muted-foreground: #B9BFC9;
+  --accent: #3A4A66;
+  --accent-foreground: #E4E0D5;
+
+  --success: #4CAF50;
+  --success-foreground: #10191F;
+  --warning: #FFC947;
+  --warning-foreground: #1B2430;
+  --destructive: #E57373;
+  --destructive-foreground: #1B2430;
+  --info: #4FC3F7;
+  --info-foreground: #10191F;
+
+  --border: #38455A;
+  --input: #3F4D63;
+  --ring: #6FA3A8;
+
+  --chart-1: #6FA3A8;
+  --chart-2: #8FA3D6;
+  --chart-3: #3A4A66;
+  --chart-4: #FFC947;
+  --chart-5: #E57373;
+
+  --sidebar: #16202B;
+  --sidebar-foreground: #E4E0D5;
+  --sidebar-primary: #6FA3A8;
+  --sidebar-primary-foreground: #10191F;
+  --sidebar-accent: #263344;
+  --sidebar-accent-foreground: #E4E0D5;
+  --sidebar-border: #33415400;
+  --sidebar-ring: #8FA3D6;
+
+  --gradient-success: linear-gradient(135deg, #4E7F84, #6FA3A8);
+  --gradient-gold: linear-gradient(135deg, #6FA3A8, #8FA3D6);
+  --gradient-amazon: linear-gradient(135deg, #1B2430, #3A4A66);
+  --shadow-card: 0 2px 12px -6px rgb(0 0 0 / 55%);
+  --shadow-elevated: 0 14px 36px -18px rgb(0 0 0 / 65%);
+}
+
+/* Tipografia, radius e sombras dos temas Mágio (§2 do Design System) */
+[data-theme^="magio-"] body { font-family: var(--font-app); }
+[data-theme^="magio-"] h1 { font-size: 2.5rem; line-height: 1.15; font-weight: 700; }
+[data-theme^="magio-"] h2 { font-size: 2rem; line-height: 1.2; font-weight: 600; }
+[data-theme^="magio-"] h3 { font-size: 1.5rem; line-height: 1.3; font-weight: 500; }
+[data-theme^="magio-"] [data-slot="card-title"] { font-size: 1.125rem; font-weight: 600; }
+[data-theme^="magio-"] [data-slot="card"] {
+  border-radius: 20px;
+  box-shadow: var(--shadow-card);
+}
+[data-theme^="magio-"] [data-slot="button"] { border-radius: 14px; }
+[data-theme^="magio-"] [data-slot="button"],
+[data-theme^="magio-"] [data-slot="card"] { transition: background-color .2s ease, box-shadow .2s ease, transform .2s ease; }
