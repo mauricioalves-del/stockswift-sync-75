@@ -90,7 +90,35 @@ const RUNTIME_JS = `
     var f = parseFloat(n);
     return isNaN(f) ? null : f;
   }
+  // Filtro de busca funcional (offline) acima de cada tabela exportada
+  document.querySelectorAll('table[data-filterable]').forEach(function (table) {
+    var tbody = table.querySelector('tbody');
+    if (!tbody || !tbody.rows.length) return;
+    var bar = document.createElement('div');
+    bar.className = 'export-filterbar';
+    var input = document.createElement('input');
+    input.type = 'search';
+    input.placeholder = 'Filtrar nesta tabela...';
+    var info = document.createElement('span');
+    info.className = 'export-filterinfo';
+    function atualizar() {
+      var termo = input.value.trim().toLowerCase();
+      var visiveis = 0;
+      Array.prototype.slice.call(tbody.rows).forEach(function (r) {
+        var ok = !termo || (r.textContent || '').toLowerCase().indexOf(termo) !== -1;
+        r.style.display = ok ? '' : 'none';
+        if (ok) visiveis++;
+      });
+      info.textContent = visiveis + ' de ' + tbody.rows.length + ' linhas';
+    }
+    input.addEventListener('input', atualizar);
+    bar.appendChild(input);
+    bar.appendChild(info);
+    if (table.parentNode) table.parentNode.insertBefore(bar, table);
+    atualizar();
+  });
   document.querySelectorAll('table[data-sortable]').forEach(function (table) {
+
     var ths = table.querySelectorAll('thead th');
     ths.forEach(function (th, idx) {
       th.style.cursor = 'pointer';
