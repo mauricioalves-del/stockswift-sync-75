@@ -835,6 +835,39 @@ function Historico() {
 
   const podeLimpar = busca || motivoFiltro !== "__all__" || almoxFiltro !== "__all__";
 
+  async function exportarExcel() {
+    if (filtrados.length === 0) return toast.error("Nenhum registro para exportar");
+    const XLSX = await import("xlsx");
+    const linhas = filtrados.map((b: any) => ({
+      Data: new Date(b.data_solicitacao).toLocaleDateString("pt-BR"),
+      Código: b.codigo_produto ?? "",
+      Descrição: b.descricao ?? "",
+      Lote: b.lote ?? "",
+      Almoxarifado: b.id_local ?? "",
+      Quantidade: Number(b.quantidade ?? 0),
+      "Valor Total": Number(b.valor_total ?? 0),
+      Motivo: b.motivo?.descricao ?? "",
+      Status: b.status_fluxo ?? "",
+      Solicitante: b.solicitante_nome ?? b.solicitante ?? "",
+      Observação: b.observacao ?? "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(linhas);
+    ws["!cols"] = [
+      { wch: 12 }, { wch: 14 }, { wch: 40 }, { wch: 22 }, { wch: 18 },
+      { wch: 12 }, { wch: 14 }, { wch: 22 }, { wch: 12 }, { wch: 22 }, { wch: 30 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Histórico");
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const url = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `baixas-historico-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast.success(`${linhas.length} registro(s) exportado(s)`);
+  }
+
   return (
     <div className="space-y-3">
       <Card>
