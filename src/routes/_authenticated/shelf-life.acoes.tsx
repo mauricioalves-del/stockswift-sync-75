@@ -17,7 +17,10 @@ import { autoVincularBaixas, useCampanhas, useLotesComSaldo, useTiposAcao } from
 
 import { CampanhaDialog, type CampanhaDraft } from "@/components/shelf-life/CampanhaDialog";
 import { useRole } from "@/hooks/useRole";
-import { Link2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Link2, MessageCircle, Pencil, Plus, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { WhatsAppFallbackDialog } from "@/components/shelf-life/WhatsAppFallbackDialog";
+import { copiarEAbrirWhatsApp, montarMensagemQueimaLote } from "@/lib/whatsapp-message";
 
 export const Route = createFileRoute("/_authenticated/shelf-life/acoes")({
   component: AcoesLote,
@@ -46,6 +49,8 @@ function AcoesLote() {
   const [status, setStatus] = useState(TODAS);
   const [tipo, setTipo] = useState(TODAS);
   const [busca, setBusca] = useState("");
+  const [selecionados, setSelecionados] = useState<Record<string, boolean>>({});
+  const [mensagemFallback, setMensagemFallback] = useState<string | null>(null);
 
   // Vínculo automático de baixas (ex.: Degustação) às campanhas abertas do mesmo SKU+Lote.
   const jaRodou = useRef(false);
@@ -86,6 +91,31 @@ function AcoesLote() {
     custo: rows.filter((c) => c.status === "CONCLUIDA").reduce((s, c) => s + (c.custo_acao || 0), 0),
   }), [rows]);
 
+  const selecionadas = useMemo(
+    () => rows.filter((c) => selecionados[c.id] && categoriaDaCampanha(c) === "Vendas"),
+    [rows, selecionados],
+  );
+
+  const enviarSelecao = async () => {
+    if (!selecionadas.length) return;
+    const mensagem = montarMensagemQueimaLote(
+      selecionadas.map((c) => ({
+        descricao: c.descricao ?? c.sku,
+        precoVenda: Number(c.preco_venda_referencia) || 0,
+        precoComDesconto: Number(c.preco_com_desconto) || Number(c.preco_venda_referencia) || 0,
+        quantidade: Number(c.quantidade_enderecada) || 0,
+        unidade: (c as any).unidade ?? null,
+        dataValidade: c.data_validade,
+        sku: c.sku,
+        lote: c.lote,
+      })),
+    );
+    const copiado = await copiarEAbrirWhatsApp(mensagem);
+    if (copiado) toast.success("Mensagem copiada! Cole (Ctrl+V) no grupo do WhatsApp Web que acabou de abrir.");
+    else setMensagemFallback(mensagem);
+    setSelecionados({});
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -93,9 +123,17 @@ function AcoesLote() {
           <h1 className="text-2xl font-bold">Ações de Lote</h1>
           <p className="text-sm text-muted-foreground">Campanhas de recuperação para lotes próximos do vencimento.</p>
         </div>
-        <Button onClick={() => setDraft({ sku: "", lote: "" })}>
-          <Plus className="size-4 mr-2" /> Nova Ação
-        </Button>
+        <div className="flex items-center gap-2">
+          {selecionadas.length > 0 && (
+            <Button variant="outline" onClick={enviarSelecao}>
+              <MessageCircle className="size-4 mr-2" /> Enviar WhatsApp ({selecionadas.length} selecionado
+              {selecionadas.length > 1 ? "s" : ""})
+            </Button>
+          )}
+          <Button onClick={() => setDraft({ sku: "", lote: "" })}>
+            <Plus className="size-4 mr-2" /> Nova Ação
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -137,6 +175,7 @@ function AcoesLote() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8" />
                 <TableHead>Data</TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead>Produto</TableHead>
@@ -153,6 +192,15 @@ function AcoesLote() {
             <TableBody>
               {rows.map((c) => (
                 <TableRow key={c.id}>
+                  <TableCell>
+                    {categoriaDaCampanha(c) === "Vendas" ? (
+                      <Checkbox
+                        checked={!!selecionados[c.id]}
+                        onCheckedChange={(v) => setSelecionados((s) => ({ ...s, [c.id]: !!v }))}
+                        aria-label="Selecionar ação"
+                      />
+                    ) : null}
+                  </TableCell>
                   <TableCell className="text-xs">{(c.data_acao ?? "").slice(0, 10).split("-").reverse().join("/")}</TableCell>
                   <TableCell className="font-mono text-xs">{c.sku}</TableCell>
                   <TableCell className="max-w-[220px] truncate">{c.descricao ?? "—"}</TableCell>
@@ -185,12 +233,14 @@ function AcoesLote() {
                 </TableRow>
               ))}
               {!rows.length && (
-                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">Nenhuma ação cadastrada.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">Nenhuma ação cadastrada.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      <WhatsAppFallbackDialog mensagem={mensagemFallback} onClose={() => setMensagemFallback(null)} />
 
       <CampanhaDialog open={!!draft} onOpenChange={(v) => !v && setDraft(null)} draft={draft} />
     </div>
