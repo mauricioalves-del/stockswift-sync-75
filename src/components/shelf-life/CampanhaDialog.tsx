@@ -245,51 +245,55 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
         );
       }
 
-      // Mensagem de queima: montada no navegador, copiada para a área de transferência.
-      let mensagem: string | null = null;
-      if (isDescColab) {
-        mensagem = montarMensagemQueima({
-          descricao: payload.descricao ?? payload.sku,
-          precoVenda: precoVendaNum,
-          precoComDesconto,
-          quantidade: payload.quantidade_enderecada,
-          unidade: form.unidade || null,
-          dataValidade: payload.data_validade,
-          sku: payload.sku,
-          lote: payload.lote,
-        });
-      }
-      return mensagem;
     },
-    onSuccess: async (mensagem: string | null) => {
+    onSuccess: async () => {
       toast.success(form.id ? "Ação atualizada." : "Ação criada.");
       qc.invalidateQueries({ queryKey: ["shelf-campanhas"] });
       qc.invalidateQueries({ queryKey: ["precos-venda"] });
-
-      if (mensagem) {
-        let copiado = false;
-        try {
-          await navigator.clipboard.writeText(mensagem);
-          copiado = true;
-        } catch {
-          copiado = false;
-        }
-        window.open("https://web.whatsapp.com/", "_blank", "noopener,noreferrer");
-        if (copiado) {
-          toast.success(
-            "Mensagem copiada! Cole (Ctrl+V) no grupo Colaboradores no WhatsApp Web que acabou de abrir.",
-          );
-          onOpenChange(false);
-          return;
-        }
-        setMensagemFallback(mensagem);
-        onOpenChange(false);
-        return;
-      }
       onOpenChange(false);
     },
     onError: (e: any) => toast.error(e.message ?? "Falha ao salvar a ação."),
   });
+
+  // ——— Envio manual de WhatsApp (opcional, independente do salvar) ———
+  const podeEnviarWhats =
+    !!String(form.sku ?? "").trim() &&
+    !!String(form.descricao ?? "").trim() &&
+    !!form.tipo_acao_id &&
+    qtdEnderecada > 0;
+
+  const enviarWhatsApp = async () => {
+    const mensagem = isVendas
+      ? montarMensagemQueima({
+          descricao: form.descricao || form.sku,
+          precoVenda: precoVendaNum,
+          precoComDesconto,
+          quantidade: qtdEnderecada,
+          unidade: form.unidade || null,
+          dataValidade: form.data_validade || null,
+          sku: form.sku,
+          lote: form.lote,
+        })
+      : montarAvisoInterno({
+          tipoAcao: tipoSel?.nome ?? categoria,
+          descricao: form.descricao || form.sku,
+          sku: form.sku,
+          lote: form.lote,
+          almoxarifado: form.almoxarifado,
+          quantidade: qtdEnderecada,
+          unidade: form.unidade || null,
+          dataValidade: form.data_validade || null,
+          responsavel: form.responsavel,
+        });
+
+    const copiado = await copiarEAbrirWhatsApp(mensagem);
+    if (copiado) {
+      toast.success("Mensagem copiada! Cole (Ctrl+V) no grupo do WhatsApp Web que acabou de abrir.");
+      return;
+    }
+    setMensagemFallback(mensagem);
+  };
+
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
