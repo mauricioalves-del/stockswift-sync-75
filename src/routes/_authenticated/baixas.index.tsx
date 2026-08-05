@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatBRL, formatNum } from "@/lib/inventory";
-import { CheckCircle2, XCircle, MessageSquareWarning, PackageMinus, Loader2, ScanBarcode, Check, ChevronsUpDown, List, Plus, Trash2, Mail } from "lucide-react";
+import { CheckCircle2, XCircle, MessageSquareWarning, PackageMinus, Loader2, ScanBarcode, Check, ChevronsUpDown, List, Plus, Trash2, Mail, Download } from "lucide-react";
 import { BarcodeScanner } from "@/components/app/BarcodeScanner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -835,6 +835,39 @@ function Historico() {
 
   const podeLimpar = busca || motivoFiltro !== "__all__" || almoxFiltro !== "__all__";
 
+  async function exportarExcel() {
+    if (filtrados.length === 0) return toast.error("Nenhum registro para exportar");
+    const XLSX = await import("xlsx");
+    const linhas = filtrados.map((b: any) => ({
+      Data: new Date(b.data_solicitacao).toLocaleDateString("pt-BR"),
+      Código: b.codigo_produto ?? "",
+      Descrição: b.descricao ?? "",
+      Lote: b.lote ?? "",
+      Almoxarifado: b.id_local ?? "",
+      Quantidade: Number(b.quantidade ?? 0),
+      "Valor Total": Number(b.valor_total ?? 0),
+      Motivo: b.motivo?.descricao ?? "",
+      Status: b.status_fluxo ?? "",
+      Solicitante: b.solicitante_nome ?? b.solicitante ?? "",
+      Observação: b.observacao ?? "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(linhas);
+    ws["!cols"] = [
+      { wch: 12 }, { wch: 14 }, { wch: 40 }, { wch: 22 }, { wch: 18 },
+      { wch: 12 }, { wch: 14 }, { wch: 22 }, { wch: 12 }, { wch: 22 }, { wch: 30 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Histórico");
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const url = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `baixas-historico-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast.success(`${linhas.length} registro(s) exportado(s)`);
+  }
+
   return (
     <div className="space-y-3">
       <Card>
@@ -872,9 +905,12 @@ function Historico() {
               </Button>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            {filtrados.length} registro(s)
-          </p>
+          <div className="flex items-center justify-between gap-2 mt-2">
+            <p className="text-xs text-muted-foreground">{filtrados.length} registro(s)</p>
+            <Button size="sm" variant="outline" onClick={exportarExcel} disabled={filtrados.length === 0}>
+              <Download className="size-3.5 mr-1" /> Baixar relatório completo
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
