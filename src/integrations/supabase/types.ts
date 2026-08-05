@@ -1830,6 +1830,24 @@ export type Database = {
         }
         Relationships: []
       }
+      preferencias_usuario: {
+        Row: {
+          atualizado_em: string
+          tema_selecionado: string
+          usuario_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          tema_selecionado?: string
+          usuario_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          tema_selecionado?: string
+          usuario_id?: string
+        }
+        Relationships: []
+      }
       producao_consumo: {
         Row: {
           ano_mes: string
