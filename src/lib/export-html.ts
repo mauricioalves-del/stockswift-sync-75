@@ -39,17 +39,48 @@ function variaveisDoTema(): string {
   return props.length ? `:root{${props.join("")}}` : "";
 }
 
-function limparClone(clone: HTMLElement) {
+function limparClone(clone: HTMLElement, origem: HTMLElement) {
   clone.querySelectorAll("[data-export-hide]").forEach((el) => el.remove());
   clone.querySelectorAll("script").forEach((el) => el.remove());
-  clone.querySelectorAll("input, select, textarea, button").forEach((el) => {
-    const node = el as HTMLInputElement;
-    if (node.tagName === "INPUT" || node.tagName === "TEXTAREA") node.setAttribute("value", node.value ?? "");
-    node.setAttribute("disabled", "true");
+
+  // Congela o estado atual dos controles (o valor precisa virar atributo para
+  // sobreviver à serialização) e os deixa inertes: no arquivo exportado eles
+  // são apenas a evidência do filtro aplicado, não controles vivos.
+  const vivos = origem.querySelectorAll("input, select, textarea");
+  const clonados = clone.querySelectorAll("input, select, textarea");
+  clonados.forEach((el, i) => {
+    const live = vivos[i] as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | undefined;
+    if (!live) return;
+    if (el.tagName === "SELECT") {
+      const sel = el as HTMLSelectElement;
+      Array.from(sel.options).forEach((o) => {
+        if (o.value === (live as HTMLSelectElement).value) o.setAttribute("selected", "selected");
+        else o.removeAttribute("selected");
+      });
+    } else {
+      const node = el as HTMLInputElement;
+      const lv = live as HTMLInputElement;
+      if (node.type === "checkbox" || node.type === "radio") {
+        if (lv.checked) node.setAttribute("checked", "checked");
+        else node.removeAttribute("checked");
+      } else {
+        node.setAttribute("value", lv.value ?? "");
+        if (node.tagName === "TEXTAREA") node.textContent = lv.value ?? "";
+      }
+    }
   });
-  // Tabelas ordenáveis no arquivo exportado
-  clone.querySelectorAll("table").forEach((t) => t.setAttribute("data-sortable", "1"));
+  clone.querySelectorAll("input, select, textarea, button").forEach((el) => {
+    el.setAttribute("disabled", "true");
+    el.setAttribute("data-export-inert", "1");
+  });
+
+  // Tabelas ordenáveis e filtráveis offline no arquivo exportado
+  clone.querySelectorAll("table").forEach((t) => {
+    t.setAttribute("data-sortable", "1");
+    t.setAttribute("data-filterable", "1");
+  });
 }
+
 
 const RUNTIME_JS = `
 (function () {
