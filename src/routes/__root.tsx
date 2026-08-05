@@ -128,10 +128,7 @@ function RootComponent() {
 
   useEffect(() => {
     // theme bootstrap
-    const stored = localStorage.getItem("inv-theme");
-    const prefersDark =
-      stored === "dark" || (!stored && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    document.documentElement.classList.toggle("dark", prefersDark);
+    applyTheme(readStoredTheme());
 
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
