@@ -263,8 +263,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {online ? <><Wifi className="size-3.5" /> Online</> : <><WifiOff className="size-3.5" /> Offline</>}
               </div>
 
-              <Button variant="ghost" size="icon" onClick={toggle} aria-label="Alternar tema">
-                {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+              <Button variant="ghost" size="icon" onClick={toggle} aria-label="Alternar tema claro/escuro">
+                {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
               </Button>
 
               {role && <Badge variant="outline" className="hidden sm:inline-flex">{role}</Badge>}
