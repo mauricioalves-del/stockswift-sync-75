@@ -905,9 +905,12 @@ function Historico() {
               </Button>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            {filtrados.length} registro(s)
-          </p>
+          <div className="flex items-center justify-between gap-2 mt-2">
+            <p className="text-xs text-muted-foreground">{filtrados.length} registro(s)</p>
+            <Button size="sm" variant="outline" onClick={exportarExcel} disabled={filtrados.length === 0}>
+              <Download className="size-3.5 mr-1" /> Baixar relatório completo
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
