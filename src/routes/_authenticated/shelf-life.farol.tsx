@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ExportarHtmlButton } from "@/components/app/ExportarHtmlButton";
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -193,7 +194,22 @@ function FarolShelf() {
 
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" id="dash-farol-shelf">
+      <div className="flex justify-end" data-export-hide>
+        <ExportarHtmlButton
+          targetId="dash-farol-shelf"
+          titulo="Farol de Shelf"
+          filtros={[
+            { label: "Almoxarifado", valor: (f.almox.length ? f.almox : almoxAtivos ?? []).join(", ") || "Todos" },
+            { label: "Grupo", valor: f.grupos.join(", ") || "Todos" },
+            { label: "Família", valor: f.familias.join(", ") || "Todas" },
+            { label: "Status", valor: f.status.join(", ") || "Todos" },
+            { label: "Busca", valor: f.busca || "—" },
+            { label: "Somente com saldo", valor: somenteComSaldo ? "Sim" : "Não" },
+          ]}
+        />
+      </div>
+
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <Card className="border-destructive/50 bg-destructive/10">
           <CardContent className="pt-4">

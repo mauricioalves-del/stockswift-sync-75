@@ -13,6 +13,7 @@ import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
+import { applyTheme, readStoredTheme } from "@/hooks/useTheme";
 
 function NotFoundComponent() {
   return (
@@ -91,6 +92,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap",
+      },
       { rel: "icon", type: "image/png", href: "/estoque-icon.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/estoque-icon.png" },
@@ -122,10 +129,7 @@ function RootComponent() {
 
   useEffect(() => {
     // theme bootstrap
-    const stored = localStorage.getItem("inv-theme");
-    const prefersDark =
-      stored === "dark" || (!stored && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    document.documentElement.classList.toggle("dark", prefersDark);
+    applyTheme(readStoredTheme());
 
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;

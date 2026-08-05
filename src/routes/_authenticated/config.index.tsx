@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
-import { EyeOff, Shield, ChevronRight, Warehouse, MessageSquare, Mail, Percent } from "lucide-react";
+import { EyeOff, Shield, ChevronRight, Warehouse, MessageSquare, Mail, Percent, Palette } from "lucide-react";
 
 
 export const Route = createFileRoute("/_authenticated/config/")({
@@ -114,6 +114,19 @@ function ConfigPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base"><Palette className="size-4" /> Aparência</CardTitle>
+          <CardDescription>Escolha entre as identidades visuais: Atual, Mágio Claro e Mágio Escuro. A preferência fica salva na sua conta.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline" className="w-full justify-between">
+            <Link to="/config/aparencia">Escolher tema <ChevronRight className="size-4" /></Link>
+          </Button>
+        </CardContent>
+      </Card>
+
 
       {(isCoord || isAdmin) && (
         <Card>

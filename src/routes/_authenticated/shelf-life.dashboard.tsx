@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ExportarHtmlButton } from "@/components/app/ExportarHtmlButton";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -240,7 +241,7 @@ function ShelfLifeDashboard() {
   const loading = baixasQ.isLoading || campanhasQ.isLoading;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" id="dash-shelf-life">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Dashboard Shelf Life</h1>
@@ -249,8 +250,20 @@ function ShelfLifeDashboard() {
         <div className="flex items-end gap-2">
           <div><Label className="text-xs">De</Label><Input type="date" value={de} onChange={(e) => set("de", e.target.value)} /></div>
           <div><Label className="text-xs">Até</Label><Input type="date" value={ate} onChange={(e) => set("ate", e.target.value)} /></div>
+          <ExportarHtmlButton
+            targetId="dash-shelf-life"
+            titulo="Dashboard Shelf Life"
+            filtros={[
+              { label: "Período", valor: `${de} a ${ate}` },
+              { label: "Almoxarifado", valor: f.almox.join(", ") || "Todos" },
+              { label: "Grupo", valor: f.grupos.join(", ") || "Todos" },
+              { label: "Família", valor: f.familias.join(", ") || "Todas" },
+              { label: "Tipo de ação", valor: f.tipos.join(", ") || "Todos" },
+            ]}
+          />
         </div>
       </div>
+
 
       <ConfigFiltrosCard mostrarSaldo={false} />
 

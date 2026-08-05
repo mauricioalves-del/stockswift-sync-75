@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ExportarHtmlButton } from "@/components/app/ExportarHtmlButton";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -344,7 +345,19 @@ function BaixasDashboard() {
   const loading = baixasQ.isLoading || motivosQ.isLoading;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4">
+    <div className="max-w-7xl mx-auto space-y-4" id="dash-baixas">
+      <div className="flex justify-end" data-export-hide>
+        <ExportarHtmlButton
+          targetId="dash-baixas"
+          titulo="Dashboard Baixas Operacionais"
+          filtros={[
+            { label: "Período", valor: `${from} a ${to}` },
+            { label: "Almoxarifado", valor: almoxFilter === "__all__" ? "Todos" : almoxFilter },
+            { label: "Motivo", valor: motivoFilter === "__all__" ? "Todos" : motivoFilter },
+          ]}
+        />
+      </div>
+
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
