@@ -566,6 +566,38 @@ function FilaAprovacao() {
   const { data } = useBaixas(["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO"]);
   const [enviandoFiscal, setEnviandoFiscal] = useState(false);
   const [avisoFiscal, setAvisoFiscal] = useState<{ code?: string; message: string } | null>(null);
+  const [fAlmox, setFAlmox] = useState("__all__");
+  const [fSolic, setFSolic] = useState("__all__");
+  const [fMotivo, setFMotivo] = useState("__all__");
+  const [editando, setEditando] = useState<any | null>(null);
+
+  const nomeSolicitante = (b: any) => (b.solicitante_nome ?? b.solicitante ?? "") as string;
+
+  const almoxUnicos = useMemo(
+    () => Array.from(new Set((data ?? []).map((b: any) => b.id_local).filter(Boolean))).sort() as string[],
+    [data],
+  );
+  const solicUnicos = useMemo(
+    () => Array.from(new Set((data ?? []).map(nomeSolicitante).filter(Boolean))).sort() as string[],
+    [data],
+  );
+  const motivosUnicos = useMemo(
+    () => Array.from(new Set((data ?? []).map((b: any) => b.motivo?.descricao).filter(Boolean))).sort() as string[],
+    [data],
+  );
+
+  const lista = useMemo(
+    () =>
+      (data ?? []).filter((b: any) => {
+        if (fAlmox !== "__all__" && (b.id_local ?? "") !== fAlmox) return false;
+        if (fSolic !== "__all__" && nomeSolicitante(b) !== fSolic) return false;
+        if (fMotivo !== "__all__" && (b.motivo?.descricao ?? "") !== fMotivo) return false;
+        return true;
+      }),
+    [data, fAlmox, fSolic, fMotivo],
+  );
+
+  const temFiltro = fAlmox !== "__all__" || fSolic !== "__all__" || fMotivo !== "__all__";
 
   function mensagemFiscal(code: string | undefined, fallback: string) {
     if (code === "MISSING_BAIXA_FISCAL_RECIPIENTS") {
