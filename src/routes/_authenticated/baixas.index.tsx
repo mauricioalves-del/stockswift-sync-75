@@ -572,7 +572,28 @@ function FilaAprovacao() {
   const [fMotivo, setFMotivo] = useState("__all__");
   const [editando, setEditando] = useState<any | null>(null);
 
-  const nomeSolicitante = (b: any) => (b.solicitante_nome ?? b.solicitante ?? "") as string;
+  const perfisQ = useQuery({
+    queryKey: ["profiles-nomes"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("profiles").select("id, nome, email");
+      if (error) throw error;
+      return data as { id: string; nome: string | null; email: string | null }[];
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const perfilMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of perfisQ.data ?? []) m.set(p.id, p.nome || p.email || "");
+    return m;
+  }, [perfisQ.data]);
+
+  const nomeSolicitante = (b: any) =>
+    (b.solicitacao?.solicitante_nome ||
+      perfilMap.get(b.solicitante_id ?? b.solicitacao?.solicitante_id ?? "") ||
+      b.solicitante_nome ||
+      b.responsavel_nome ||
+      "") as string;
 
   const almoxUnicos = useMemo(
     () => Array.from(new Set((data ?? []).map((b: any) => b.id_local).filter(Boolean))).sort() as string[],
