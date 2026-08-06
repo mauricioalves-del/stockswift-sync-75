@@ -931,17 +931,18 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
     if (!Number.isFinite(q) || q <= 0) return toast.error("Quantidade inválida");
     setSalvando(true);
     try {
-      const unit = Number(baixa.quantidade) > 0 ? Number(baixa.valor_total ?? 0) / Number(baixa.quantidade) : 0;
-      const motivoDesc = (motivosQ.data ?? []).find((m) => m.id === motivoId)?.descricao ?? baixa.motivo_desc ?? "";
+      const unit = Number(baixa.custo_unitario ?? 0) > 0
+        ? Number(baixa.custo_unitario)
+        : (Number(baixa.quantidade) > 0 ? Number(baixa.valor_total ?? 0) / Number(baixa.quantidade) : 0);
       const patch: Record<string, unknown> = {
         quantidade: q,
         lote: lote || null,
         id_local: almox || null,
         motivo_baixa_id: motivoId || null,
-        motivo_desc: motivoDesc,
         observacao: obs || null,
         valor_total: Number((unit * q).toFixed(2)),
       };
+
       const { error } = await (supabase as any).from("baixa_operacional").update(patch).eq("id", baixa.id);
       if (error) throw error;
       const user = (await supabase.auth.getUser()).data.user!;
