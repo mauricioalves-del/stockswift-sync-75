@@ -345,7 +345,7 @@ function BaixasDashboard() {
   const loading = baixasQ.isLoading || motivosQ.isLoading;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4" id="dash-baixas">
+    <div className="w-full space-y-4" id="dash-baixas">
       <div className="flex justify-end" data-export-hide>
         <ExportarHtmlButton
           targetId="dash-baixas"

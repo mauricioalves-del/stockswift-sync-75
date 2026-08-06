@@ -117,7 +117,7 @@ function ImportarFamiliasPage() {
   if (!canWrite) return <div className="p-8 text-center text-muted-foreground">Sem permissão.</div>;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div className="flex items-center gap-3">
         <div className="size-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center"><Leaf className="size-5" /></div>
         <div>

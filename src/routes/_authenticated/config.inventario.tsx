@@ -71,7 +71,7 @@ function ConfigInventarioPage() {
   if (!podeGerir) return <div className="p-8 text-center text-muted-foreground">Acesso restrito.</div>;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><Warehouse className="size-5" /> Parâmetros de Inventário</h1>
         <p className="text-sm text-muted-foreground">Almoxarifado padrão por usuário — usado no scanner de contagem quando a missão não define um.</p>

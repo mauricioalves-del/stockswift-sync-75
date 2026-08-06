@@ -49,7 +49,7 @@ function BaixasPage() {
   const { isAdmin, role } = useRole();
   const podeImportar = isAdmin || role === "GERENTE";
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Baixas Operacionais</h1>

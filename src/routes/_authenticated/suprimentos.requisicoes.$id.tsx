@@ -125,7 +125,7 @@ function RequisicaoDetalhePage() {
   const canEdit = r.status === "RASCUNHO";
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" asChild><Link to="/suprimentos/requisicoes"><ArrowLeft className="size-4" /></Link></Button>
         <h1 className="text-2xl font-bold">Requisição {r.numero}</h1>

@@ -226,7 +226,7 @@ function ImportarPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><RefreshCw className="size-6" /> Sincronização de Estoque</h1>
         <p className="text-sm text-muted-foreground">

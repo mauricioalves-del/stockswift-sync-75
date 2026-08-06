@@ -30,7 +30,7 @@ function LogsPage() {
   if (!isAdmin) return <div className="p-8 text-center text-muted-foreground">Acesso restrito a administradores.</div>;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold">Auditoria</h1>
         <p className="text-sm text-muted-foreground">Histórico das últimas 200 ações</p>

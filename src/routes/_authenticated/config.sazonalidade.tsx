@@ -103,7 +103,7 @@ function SazonalidadePage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><CalendarRange className="size-6" /> Sazonalidade</h1>
         <p className="text-sm text-muted-foreground">

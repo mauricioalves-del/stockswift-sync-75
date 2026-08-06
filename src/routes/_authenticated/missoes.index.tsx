@@ -42,7 +42,7 @@ function MissoesPage() {
   const podeGerir = isAdmin || role === "GERENTE";
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold">Missões de Inventário</h1>
         <p className="text-sm text-muted-foreground">Contagens cíclicas programadas por Grupo, Família, SKU ou Local.</p>

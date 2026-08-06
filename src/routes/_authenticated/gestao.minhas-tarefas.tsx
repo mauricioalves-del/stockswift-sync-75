@@ -42,7 +42,7 @@ function MinhasTarefasPage() {
   const doDia = (tarefasQ.data ?? []).filter((t: any) => !atrasadas.includes(t));
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4 pb-20">
+    <div className="w-full space-y-4 pb-20">
       <div>
         <h1 className="text-2xl font-bold">Minhas Tarefas</h1>
         <p className="text-sm text-muted-foreground">O que você tem que fazer hoje.</p>
