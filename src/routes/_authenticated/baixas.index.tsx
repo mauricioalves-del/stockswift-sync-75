@@ -692,12 +692,16 @@ function FilaAprovacao() {
     return fallback;
   }
 
-  async function solicitarBaixaFiscal() {
-    if (!(data && data.length > 0)) return toast.error("Não há itens pendentes na fila");
-    if (!confirm(`Enviar solicitação de Baixa Fiscal com ${data.length} item(ns) pendente(s)?`)) return;
+  async function solicitarBaixaFiscal(apenasSelecionados = false) {
+    const alvos = apenasSelecionados ? selecionados : (data ?? []);
+    if (alvos.length === 0)
+      return toast.error(apenasSelecionados ? "Selecione ao menos um item" : "Não há itens pendentes na fila");
+    if (!confirm(`Enviar solicitação de Baixa Fiscal com ${alvos.length} item(ns)?`)) return;
     setEnviandoFiscal(true);
     try {
-      const { data: resp, error } = await supabase.functions.invoke("solicitar-baixa-fiscal", { body: {} });
+      const { data: resp, error } = await supabase.functions.invoke("solicitar-baixa-fiscal", {
+        body: apenasSelecionados ? { ids: alvos.map((b: any) => b.id) } : {},
+      });
       const failure = error ? await readEdgeFunctionFailure(error) : ((resp as any)?.ok === false ? resp as any : null);
       if (failure) {
         const message = mensagemFiscal(failure.code, failure.error ?? "Falha no envio");
