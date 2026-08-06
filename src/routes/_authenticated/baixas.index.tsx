@@ -622,6 +622,66 @@ function FilaAprovacao() {
 
   const temFiltro = fAlmox !== "__all__" || fSolic !== "__all__" || fMotivo !== "__all__";
 
+  // ---- seleção em lote -------------------------------------------------
+  const listaIds = useMemo(() => lista.map((b: any) => String(b.id)), [lista]);
+  const selecionados = useMemo(
+    () => lista.filter((b: any) => sel.has(String(b.id))),
+    [lista, sel],
+  );
+  const todosMarcados = listaIds.length > 0 && listaIds.every((id) => sel.has(id));
+
+  function toggleItem(id: string) {
+    setSel((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  }
+  function toggleTodos() {
+    setSel((prev) => {
+      const n = new Set(prev);
+      if (todosMarcados) listaIds.forEach((id) => n.delete(id));
+      else listaIds.forEach((id) => n.add(id));
+      return n;
+    });
+  }
+  /** Marca/desmarca todos os itens de uma mesma requisição (lote de produtos). */
+  function toggleRequisicao(solicitacaoId: any) {
+    const ids = lista.filter((b: any) => b.solicitacao_id === solicitacaoId).map((b: any) => String(b.id));
+    const todos = ids.every((id) => sel.has(id));
+    setSel((prev) => {
+      const n = new Set(prev);
+      ids.forEach((id) => (todos ? n.delete(id) : n.add(id)));
+      return n;
+    });
+  }
+
+  async function aprovarSelecionados() {
+    const alvos = selecionados.filter((b: any) => b.status_fluxo !== "APROVADA");
+    if (alvos.length === 0) return toast.error("Selecione ao menos um item pendente");
+    const reqs = Array.from(new Set(alvos.map((b: any) => b.solicitacao_id).filter(Boolean)));
+    if (!confirm(`Aprovar ${alvos.length} item(ns)${reqs.length ? ` de ${reqs.length} requisição(ões)` : ""}?`)) return;
+    const comentario = window.prompt("Comentário para aprovação em lote (opcional):") ?? null;
+    const user = (await supabase.auth.getUser()).data.user!;
+    const { error } = await (supabase as any).from("baixa_operacional").update({
+      status_fluxo: "APROVADA",
+      aprovador_id: user.id,
+      data_aprovacao: new Date().toISOString(),
+      comentario_aprovacao: comentario,
+    }).in("id", alvos.map((b: any) => b.id));
+    if (error) return toast.error(error.message);
+    await (supabase as any).from("audit_logs").insert(
+      alvos.map((b: any) => ({
+        usuario: user.id, acao: "BAIXA_APROVADA", entidade: "baixa_operacional", entidade_id: b.id,
+        payload: { codigo_produto: b.codigo_produto, lote: b.lote, quantidade: b.quantidade, comentario, lote_aprovacao: true },
+      })),
+    );
+    toast.success(`${alvos.length} baixa(s) aprovada(s)`);
+    setSel(new Set());
+    qc.invalidateQueries({ queryKey: ["baixas"] });
+  }
+
+
   function mensagemFiscal(code: string | undefined, fallback: string) {
     if (code === "MISSING_BAIXA_FISCAL_RECIPIENTS") {
       return "Cadastre ao menos um destinatário ativo com finalidade Baixa Fiscal antes de enviar.";
