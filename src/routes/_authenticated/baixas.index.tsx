@@ -823,6 +823,7 @@ function FilaAprovacao() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Req.</TableHead>
               <TableHead>Código</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Lote</TableHead>
