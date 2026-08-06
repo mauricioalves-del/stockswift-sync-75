@@ -907,6 +907,9 @@ function FilaAprovacao() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-8">
+                <Checkbox checked={todosMarcados} onCheckedChange={toggleTodos} aria-label="Selecionar todos" />
+              </TableHead>
               <TableHead>Req.</TableHead>
               <TableHead>Código</TableHead>
               <TableHead>Descrição</TableHead>
@@ -922,11 +925,30 @@ function FilaAprovacao() {
           </TableHeader>
           <TableBody>
             {lista.length === 0 && (
-              <TableRow><TableCell colSpan={11} className="text-center py-10 text-muted-foreground">Nenhuma baixa pendente</TableCell></TableRow>
+              <TableRow><TableCell colSpan={12} className="text-center py-10 text-muted-foreground">Nenhuma baixa pendente</TableCell></TableRow>
             )}
             {lista.map((b) => (
-              <TableRow key={b.id}>
-                <TableCell className="font-mono text-xs">{b.solicitacao_id ? `#${b.solicitacao_id}` : "—"}</TableCell>
+              <TableRow key={b.id} data-state={sel.has(String(b.id)) ? "selected" : undefined}>
+                <TableCell>
+                  <Checkbox
+                    checked={sel.has(String(b.id))}
+                    onCheckedChange={() => toggleItem(String(b.id))}
+                    aria-label="Selecionar item"
+                  />
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  {b.solicitacao_id ? (
+                    <button
+                      type="button"
+                      className="underline underline-offset-2 hover:text-primary"
+                      title="Selecionar todos os itens desta requisição"
+                      onClick={() => toggleRequisicao(b.solicitacao_id)}
+                    >
+                      #{b.solicitacao_id}
+                    </button>
+                  ) : "—"}
+                </TableCell>
+
                 <TableCell className="font-mono text-xs">{b.codigo_produto}</TableCell>
                 <TableCell className="max-w-xs truncate">{b.descricao}</TableCell>
                 <TableCell className="font-mono text-xs">{b.lote || "—"}</TableCell>
