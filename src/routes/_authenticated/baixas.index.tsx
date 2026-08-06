@@ -551,7 +551,7 @@ function useBaixas(statuses: string[]) {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("baixa_operacional")
-        .select("*, motivo:motivo_baixa(descricao)")
+        .select("*, motivo:motivo_baixa(descricao), solicitacao:solicitacoes_baixa(id, solicitante_nome, solicitante_id)")
         .in("status_fluxo", statuses)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -572,7 +572,28 @@ function FilaAprovacao() {
   const [fMotivo, setFMotivo] = useState("__all__");
   const [editando, setEditando] = useState<any | null>(null);
 
-  const nomeSolicitante = (b: any) => (b.solicitante_nome ?? b.solicitante ?? "") as string;
+  const perfisQ = useQuery({
+    queryKey: ["profiles-nomes"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("profiles").select("id, nome, email");
+      if (error) throw error;
+      return data as { id: string; nome: string | null; email: string | null }[];
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const perfilMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of perfisQ.data ?? []) m.set(p.id, p.nome || p.email || "");
+    return m;
+  }, [perfisQ.data]);
+
+  const nomeSolicitante = (b: any) =>
+    (b.solicitacao?.solicitante_nome ||
+      perfilMap.get(b.solicitante_id ?? b.solicitacao?.solicitante_id ?? "") ||
+      b.solicitante_nome ||
+      b.responsavel_nome ||
+      "") as string;
 
   const almoxUnicos = useMemo(
     () => Array.from(new Set((data ?? []).map((b: any) => b.id_local).filter(Boolean))).sort() as string[],
@@ -580,7 +601,7 @@ function FilaAprovacao() {
   );
   const solicUnicos = useMemo(
     () => Array.from(new Set((data ?? []).map(nomeSolicitante).filter(Boolean))).sort() as string[],
-    [data],
+    [data, perfilMap],
   );
   const motivosUnicos = useMemo(
     () => Array.from(new Set((data ?? []).map((b: any) => b.motivo?.descricao).filter(Boolean))).sort() as string[],
@@ -595,7 +616,7 @@ function FilaAprovacao() {
         if (fMotivo !== "__all__" && (b.motivo?.descricao ?? "") !== fMotivo) return false;
         return true;
       }),
-    [data, fAlmox, fSolic, fMotivo],
+    [data, fAlmox, fSolic, fMotivo, perfilMap],
   );
 
   const temFiltro = fAlmox !== "__all__" || fSolic !== "__all__" || fMotivo !== "__all__";
@@ -802,6 +823,7 @@ function FilaAprovacao() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Req.</TableHead>
               <TableHead>Código</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Lote</TableHead>
@@ -816,10 +838,11 @@ function FilaAprovacao() {
           </TableHeader>
           <TableBody>
             {lista.length === 0 && (
-              <TableRow><TableCell colSpan={10} className="text-center py-10 text-muted-foreground">Nenhuma baixa pendente</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center py-10 text-muted-foreground">Nenhuma baixa pendente</TableCell></TableRow>
             )}
             {lista.map((b) => (
               <TableRow key={b.id}>
+                <TableCell className="font-mono text-xs">{b.solicitacao_id ? `#${b.solicitacao_id}` : "—"}</TableCell>
                 <TableCell className="font-mono text-xs">{b.codigo_produto}</TableCell>
                 <TableCell className="max-w-xs truncate">{b.descricao}</TableCell>
                 <TableCell className="font-mono text-xs">{b.lote || "—"}</TableCell>
