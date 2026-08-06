@@ -571,6 +571,7 @@ function FilaAprovacao() {
   const [fSolic, setFSolic] = useState("__all__");
   const [fMotivo, setFMotivo] = useState("__all__");
   const [editando, setEditando] = useState<any | null>(null);
+  const [sel, setSel] = useState<Set<string>>(new Set());
 
   const perfisQ = useQuery({
     queryKey: ["profiles-nomes"],
