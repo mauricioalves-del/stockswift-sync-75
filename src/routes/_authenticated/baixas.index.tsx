@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -571,6 +572,7 @@ function FilaAprovacao() {
   const [fSolic, setFSolic] = useState("__all__");
   const [fMotivo, setFMotivo] = useState("__all__");
   const [editando, setEditando] = useState<any | null>(null);
+  const [sel, setSel] = useState<Set<string>>(new Set());
 
   const perfisQ = useQuery({
     queryKey: ["profiles-nomes"],
@@ -621,6 +623,66 @@ function FilaAprovacao() {
 
   const temFiltro = fAlmox !== "__all__" || fSolic !== "__all__" || fMotivo !== "__all__";
 
+  // ---- seleção em lote -------------------------------------------------
+  const listaIds = useMemo(() => lista.map((b: any) => String(b.id)), [lista]);
+  const selecionados = useMemo(
+    () => lista.filter((b: any) => sel.has(String(b.id))),
+    [lista, sel],
+  );
+  const todosMarcados = listaIds.length > 0 && listaIds.every((id) => sel.has(id));
+
+  function toggleItem(id: string) {
+    setSel((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  }
+  function toggleTodos() {
+    setSel((prev) => {
+      const n = new Set(prev);
+      if (todosMarcados) listaIds.forEach((id) => n.delete(id));
+      else listaIds.forEach((id) => n.add(id));
+      return n;
+    });
+  }
+  /** Marca/desmarca todos os itens de uma mesma requisição (lote de produtos). */
+  function toggleRequisicao(solicitacaoId: any) {
+    const ids = lista.filter((b: any) => b.solicitacao_id === solicitacaoId).map((b: any) => String(b.id));
+    const todos = ids.every((id) => sel.has(id));
+    setSel((prev) => {
+      const n = new Set(prev);
+      ids.forEach((id) => (todos ? n.delete(id) : n.add(id)));
+      return n;
+    });
+  }
+
+  async function aprovarSelecionados() {
+    const alvos = selecionados.filter((b: any) => b.status_fluxo !== "APROVADA");
+    if (alvos.length === 0) return toast.error("Selecione ao menos um item pendente");
+    const reqs = Array.from(new Set(alvos.map((b: any) => b.solicitacao_id).filter(Boolean)));
+    if (!confirm(`Aprovar ${alvos.length} item(ns)${reqs.length ? ` de ${reqs.length} requisição(ões)` : ""}?`)) return;
+    const comentario = window.prompt("Comentário para aprovação em lote (opcional):") ?? null;
+    const user = (await supabase.auth.getUser()).data.user!;
+    const { error } = await (supabase as any).from("baixa_operacional").update({
+      status_fluxo: "APROVADA",
+      aprovador_id: user.id,
+      data_aprovacao: new Date().toISOString(),
+      comentario_aprovacao: comentario,
+    }).in("id", alvos.map((b: any) => b.id));
+    if (error) return toast.error(error.message);
+    await (supabase as any).from("audit_logs").insert(
+      alvos.map((b: any) => ({
+        usuario: user.id, acao: "BAIXA_APROVADA", entidade: "baixa_operacional", entidade_id: b.id,
+        payload: { codigo_produto: b.codigo_produto, lote: b.lote, quantidade: b.quantidade, comentario, lote_aprovacao: true },
+      })),
+    );
+    toast.success(`${alvos.length} baixa(s) aprovada(s)`);
+    setSel(new Set());
+    qc.invalidateQueries({ queryKey: ["baixas"] });
+  }
+
+
   function mensagemFiscal(code: string | undefined, fallback: string) {
     if (code === "MISSING_BAIXA_FISCAL_RECIPIENTS") {
       return "Cadastre ao menos um destinatário ativo com finalidade Baixa Fiscal antes de enviar.";
@@ -631,12 +693,16 @@ function FilaAprovacao() {
     return fallback;
   }
 
-  async function solicitarBaixaFiscal() {
-    if (!(data && data.length > 0)) return toast.error("Não há itens pendentes na fila");
-    if (!confirm(`Enviar solicitação de Baixa Fiscal com ${data.length} item(ns) pendente(s)?`)) return;
+  async function solicitarBaixaFiscal(apenasSelecionados = false) {
+    const alvos = apenasSelecionados ? selecionados : (data ?? []);
+    if (alvos.length === 0)
+      return toast.error(apenasSelecionados ? "Selecione ao menos um item" : "Não há itens pendentes na fila");
+    if (!confirm(`Enviar solicitação de Baixa Fiscal com ${alvos.length} item(ns)?`)) return;
     setEnviandoFiscal(true);
     try {
-      const { data: resp, error } = await supabase.functions.invoke("solicitar-baixa-fiscal", { body: {} });
+      const { data: resp, error } = await supabase.functions.invoke("solicitar-baixa-fiscal", {
+        body: apenasSelecionados ? { ids: alvos.map((b: any) => b.id) } : {},
+      });
       const failure = error ? await readEdgeFunctionFailure(error) : ((resp as any)?.ok === false ? resp as any : null);
       if (failure) {
         const message = mensagemFiscal(failure.code, failure.error ?? "Falha no envio");
@@ -740,9 +806,27 @@ function FilaAprovacao() {
     <div className="space-y-3">
       {isAdmin && (
         <>
-          <div className="flex justify-end gap-2 flex-wrap">
+          <div className="flex justify-end gap-2 flex-wrap items-center">
+            {sel.size > 0 && (
+              <span className="text-xs text-muted-foreground mr-auto">
+                {selecionados.length} item(ns) selecionado(s)
+              </span>
+            )}
+            {podeAprovar && sel.size > 0 && (
+              <Button onClick={aprovarSelecionados}>
+                <CheckCircle2 className="size-4 mr-2" />
+                Aprovar selecionados ({selecionados.filter((b: any) => b.status_fluxo !== "APROVADA").length})
+              </Button>
+            )}
+            {sel.size > 0 && (
+              <Button variant="outline" onClick={() => solicitarBaixaFiscal(true)} disabled={enviandoFiscal}>
+                {enviandoFiscal ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
+                Enviar selecionados
+              </Button>
+            )}
             {podeAprovar && (
               <Button
+                variant={sel.size > 0 ? "outline" : "default"}
                 onClick={aprovarTodos}
                 disabled={!(data && data.some((b: any) => b.status_fluxo !== "APROVADA"))}
               >
@@ -752,13 +836,14 @@ function FilaAprovacao() {
             )}
             <Button
               variant="outline"
-              onClick={solicitarBaixaFiscal}
+              onClick={() => solicitarBaixaFiscal(false)}
               disabled={enviandoFiscal || !(data && data.length > 0)}
             >
               {enviandoFiscal ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
               Solicitar Baixa Fiscal
             </Button>
           </div>
+
           {avisoFiscal && (
             <Alert variant="destructive">
               <Mail className="size-4" />
@@ -823,6 +908,9 @@ function FilaAprovacao() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-8">
+                <Checkbox checked={todosMarcados} onCheckedChange={toggleTodos} aria-label="Selecionar todos" />
+              </TableHead>
               <TableHead>Req.</TableHead>
               <TableHead>Código</TableHead>
               <TableHead>Descrição</TableHead>
@@ -838,11 +926,30 @@ function FilaAprovacao() {
           </TableHeader>
           <TableBody>
             {lista.length === 0 && (
-              <TableRow><TableCell colSpan={11} className="text-center py-10 text-muted-foreground">Nenhuma baixa pendente</TableCell></TableRow>
+              <TableRow><TableCell colSpan={12} className="text-center py-10 text-muted-foreground">Nenhuma baixa pendente</TableCell></TableRow>
             )}
             {lista.map((b) => (
-              <TableRow key={b.id}>
-                <TableCell className="font-mono text-xs">{b.solicitacao_id ? `#${b.solicitacao_id}` : "—"}</TableCell>
+              <TableRow key={b.id} data-state={sel.has(String(b.id)) ? "selected" : undefined}>
+                <TableCell>
+                  <Checkbox
+                    checked={sel.has(String(b.id))}
+                    onCheckedChange={() => toggleItem(String(b.id))}
+                    aria-label="Selecionar item"
+                  />
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  {b.solicitacao_id ? (
+                    <button
+                      type="button"
+                      className="underline underline-offset-2 hover:text-primary"
+                      title="Selecionar todos os itens desta requisição"
+                      onClick={() => toggleRequisicao(b.solicitacao_id)}
+                    >
+                      #{b.solicitacao_id}
+                    </button>
+                  ) : "—"}
+                </TableCell>
+
                 <TableCell className="font-mono text-xs">{b.codigo_produto}</TableCell>
                 <TableCell className="max-w-xs truncate">{b.descricao}</TableCell>
                 <TableCell className="font-mono text-xs">{b.lote || "—"}</TableCell>

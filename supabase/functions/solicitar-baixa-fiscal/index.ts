@@ -178,10 +178,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: itens, error: ierr } = await admin
+    // Seleção em lote (opcional): quando o app envia { ids: [...] }, envia apenas esses itens
+    const idsSelecionados: string[] = Array.isArray(body?.ids)
+      ? body.ids.map((v: unknown) => String(v)).filter(Boolean)
+      : [];
+
+    let itensQuery = admin
       .from("baixa_operacional")
       .select("id, codigo_produto, descricao, unidade, lote, quantidade, custo_unitario, valor_total, id_local, motivo:motivo_baixa(descricao)")
-      .in("status_fluxo", STATUS_FILA)
+      .in("status_fluxo", STATUS_FILA);
+    if (idsSelecionados.length > 0) itensQuery = itensQuery.in("id", idsSelecionados);
+
+    const { data: itens, error: ierr } = await itensQuery
       .order("id_local", { ascending: true })
       .order("created_at", { ascending: true });
     if (ierr) throw ierr;
