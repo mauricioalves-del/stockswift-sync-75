@@ -616,7 +616,7 @@ function FilaAprovacao() {
         if (fMotivo !== "__all__" && (b.motivo?.descricao ?? "") !== fMotivo) return false;
         return true;
       }),
-    [data, fAlmox, fSolic, fMotivo],
+    [data, fAlmox, fSolic, fMotivo, perfilMap],
   );
 
   const temFiltro = fAlmox !== "__all__" || fSolic !== "__all__" || fMotivo !== "__all__";
