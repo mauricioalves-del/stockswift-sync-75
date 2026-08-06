@@ -200,7 +200,7 @@ function MissaoExecucaoPage() {
 
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">

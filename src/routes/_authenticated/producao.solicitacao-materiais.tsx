@@ -285,7 +285,7 @@ function SolicitacaoMateriaisPage() {
   if (roleLoading) return <div className="p-6 text-sm text-muted-foreground">Carregando…</div>;
   if (!autorizado) {
     return (
-      <div className="max-w-3xl mx-auto p-6">
+      <div className="w-full p-6">
         <Card><CardContent className="p-6 text-sm text-muted-foreground">
           Esta tela é restrita a Administrador, Coordenador de Controle ou Gerente.
         </CardContent></Card>
@@ -296,7 +296,7 @@ function SolicitacaoMateriaisPage() {
   const saldoFabrica = saldoFabricaQ.data ?? {};
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Factory className="size-6" /> Solicitação de Materiais

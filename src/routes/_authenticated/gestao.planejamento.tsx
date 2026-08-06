@@ -29,7 +29,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 function PlanejamentoPage() {
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold">Planejamento de Tarefas</h1>
         <p className="text-sm text-muted-foreground">Defina tarefas operacionais para a equipe de loja.</p>

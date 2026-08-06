@@ -176,7 +176,7 @@ function PrecosVendaPage() {
   if (!canWrite) return <div className="p-8 text-center text-muted-foreground">Sem permissão.</div>;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold">
           <Tag className="size-5" /> Cadastro de Preço de Venda

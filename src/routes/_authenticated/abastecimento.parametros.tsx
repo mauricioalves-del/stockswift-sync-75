@@ -114,7 +114,7 @@ function ParametrosPage() {
   const origensLivres = (origensQ.data ?? []).filter((o) => !origensExistentes.has(o));
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Settings2 className="size-6" /> Parâmetros de Abastecimento

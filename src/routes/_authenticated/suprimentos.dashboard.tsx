@@ -64,7 +64,7 @@ function SuprimentosDashboard() {
   }, [estoqueQ.data, reqQ.data, demandasQ.data, paramsQ.data]);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4" id="dash-suprimentos">
+    <div className="w-full space-y-4" id="dash-suprimentos">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><Truck className="size-6" /> Dashboard Suprimentos</h1>

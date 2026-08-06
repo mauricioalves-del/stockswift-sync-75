@@ -83,7 +83,7 @@ function RelatoriosPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold">Relatórios & Exportações</h1>
         <p className="text-sm text-muted-foreground">Finalize o inventário e gere as fichas oficiais</p>

@@ -158,7 +158,7 @@ function UsuariosPage() {
     ?? perfis[0]?.role_key ?? "INVENTARIANTE") as Role;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Usuários & Perfis</h1>

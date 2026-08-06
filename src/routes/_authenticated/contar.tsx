@@ -207,7 +207,7 @@ function ContarPage() {
   const cols = usaFamilia ? "md:grid-cols-4" : "md:grid-cols-3";
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Contagem Operacional</h1>

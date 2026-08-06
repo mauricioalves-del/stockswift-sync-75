@@ -93,7 +93,7 @@ function EmailsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><Mail className="size-6" /> Cadastro de E-mails</h1>
         <p className="text-sm text-muted-foreground">Destinatários de automações do sistema, agrupados por finalidade.</p>

@@ -58,7 +58,7 @@ function RecontagemPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold">Fila de Recontagem</h1>
         <p className="text-sm text-muted-foreground">Itens fora da faixa de tolerância 95%–105% aguardando decisão do supervisor</p>

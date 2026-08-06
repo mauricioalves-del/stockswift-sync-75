@@ -50,7 +50,7 @@ function AparenciaPage() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Palette className="size-6" /> Aparência

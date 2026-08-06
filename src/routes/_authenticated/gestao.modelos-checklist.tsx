@@ -56,7 +56,7 @@ function ModelosPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold">Modelos de Checklist</h1>
         <p className="text-sm text-muted-foreground">Checklists reutilizáveis por tipo de tarefa.</p>
