@@ -805,9 +805,27 @@ function FilaAprovacao() {
     <div className="space-y-3">
       {isAdmin && (
         <>
-          <div className="flex justify-end gap-2 flex-wrap">
+          <div className="flex justify-end gap-2 flex-wrap items-center">
+            {sel.size > 0 && (
+              <span className="text-xs text-muted-foreground mr-auto">
+                {selecionados.length} item(ns) selecionado(s)
+              </span>
+            )}
+            {podeAprovar && sel.size > 0 && (
+              <Button onClick={aprovarSelecionados}>
+                <CheckCircle2 className="size-4 mr-2" />
+                Aprovar selecionados ({selecionados.filter((b: any) => b.status_fluxo !== "APROVADA").length})
+              </Button>
+            )}
+            {sel.size > 0 && (
+              <Button variant="outline" onClick={() => solicitarBaixaFiscal(true)} disabled={enviandoFiscal}>
+                {enviandoFiscal ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
+                Enviar selecionados
+              </Button>
+            )}
             {podeAprovar && (
               <Button
+                variant={sel.size > 0 ? "outline" : "default"}
                 onClick={aprovarTodos}
                 disabled={!(data && data.some((b: any) => b.status_fluxo !== "APROVADA"))}
               >
@@ -817,13 +835,14 @@ function FilaAprovacao() {
             )}
             <Button
               variant="outline"
-              onClick={solicitarBaixaFiscal}
+              onClick={() => solicitarBaixaFiscal(false)}
               disabled={enviandoFiscal || !(data && data.length > 0)}
             >
               {enviandoFiscal ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
               Solicitar Baixa Fiscal
             </Button>
           </div>
+
           {avisoFiscal && (
             <Alert variant="destructive">
               <Mail className="size-4" />
