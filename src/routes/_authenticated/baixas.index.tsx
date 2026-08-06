@@ -601,7 +601,7 @@ function FilaAprovacao() {
   );
   const solicUnicos = useMemo(
     () => Array.from(new Set((data ?? []).map(nomeSolicitante).filter(Boolean))).sort() as string[],
-    [data],
+    [data, perfilMap],
   );
   const motivosUnicos = useMemo(
     () => Array.from(new Set((data ?? []).map((b: any) => b.motivo?.descricao).filter(Boolean))).sort() as string[],
