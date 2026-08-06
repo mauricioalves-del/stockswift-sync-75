@@ -551,7 +551,7 @@ function useBaixas(statuses: string[]) {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("baixa_operacional")
-        .select("*, motivo:motivo_baixa(descricao)")
+        .select("*, motivo:motivo_baixa(descricao), solicitacao:solicitacoes_baixa(id, solicitante_nome, solicitante_id)")
         .in("status_fluxo", statuses)
         .order("created_at", { ascending: false });
       if (error) throw error;
