@@ -838,10 +838,11 @@ function FilaAprovacao() {
           </TableHeader>
           <TableBody>
             {lista.length === 0 && (
-              <TableRow><TableCell colSpan={10} className="text-center py-10 text-muted-foreground">Nenhuma baixa pendente</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center py-10 text-muted-foreground">Nenhuma baixa pendente</TableCell></TableRow>
             )}
             {lista.map((b) => (
               <TableRow key={b.id}>
+                <TableCell className="font-mono text-xs">{b.solicitacao_id ? `#${b.solicitacao_id}` : "—"}</TableCell>
                 <TableCell className="font-mono text-xs">{b.codigo_produto}</TableCell>
                 <TableCell className="max-w-xs truncate">{b.descricao}</TableCell>
                 <TableCell className="font-mono text-xs">{b.lote || "—"}</TableCell>
