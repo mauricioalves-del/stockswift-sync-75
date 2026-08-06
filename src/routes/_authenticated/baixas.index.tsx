@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatBRL, formatNum } from "@/lib/inventory";
-import { CheckCircle2, XCircle, MessageSquareWarning, PackageMinus, Loader2, ScanBarcode, Check, ChevronsUpDown, List, Plus, Trash2, Mail, Download } from "lucide-react";
+import { CheckCircle2, XCircle, MessageSquareWarning, PackageMinus, Loader2, ScanBarcode, Check, ChevronsUpDown, List, Plus, Trash2, Mail, Download, Pencil } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { BarcodeScanner } from "@/components/app/BarcodeScanner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -566,6 +567,38 @@ function FilaAprovacao() {
   const { data } = useBaixas(["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO"]);
   const [enviandoFiscal, setEnviandoFiscal] = useState(false);
   const [avisoFiscal, setAvisoFiscal] = useState<{ code?: string; message: string } | null>(null);
+  const [fAlmox, setFAlmox] = useState("__all__");
+  const [fSolic, setFSolic] = useState("__all__");
+  const [fMotivo, setFMotivo] = useState("__all__");
+  const [editando, setEditando] = useState<any | null>(null);
+
+  const nomeSolicitante = (b: any) => (b.solicitante_nome ?? b.solicitante ?? "") as string;
+
+  const almoxUnicos = useMemo(
+    () => Array.from(new Set((data ?? []).map((b: any) => b.id_local).filter(Boolean))).sort() as string[],
+    [data],
+  );
+  const solicUnicos = useMemo(
+    () => Array.from(new Set((data ?? []).map(nomeSolicitante).filter(Boolean))).sort() as string[],
+    [data],
+  );
+  const motivosUnicos = useMemo(
+    () => Array.from(new Set((data ?? []).map((b: any) => b.motivo?.descricao).filter(Boolean))).sort() as string[],
+    [data],
+  );
+
+  const lista = useMemo(
+    () =>
+      (data ?? []).filter((b: any) => {
+        if (fAlmox !== "__all__" && (b.id_local ?? "") !== fAlmox) return false;
+        if (fSolic !== "__all__" && nomeSolicitante(b) !== fSolic) return false;
+        if (fMotivo !== "__all__" && (b.motivo?.descricao ?? "") !== fMotivo) return false;
+        return true;
+      }),
+    [data, fAlmox, fSolic, fMotivo],
+  );
+
+  const temFiltro = fAlmox !== "__all__" || fSolic !== "__all__" || fMotivo !== "__all__";
 
   function mensagemFiscal(code: string | undefined, fallback: string) {
     if (code === "MISSING_BAIXA_FISCAL_RECIPIENTS") {
@@ -729,6 +762,42 @@ function FilaAprovacao() {
         </>
       )}
       <Card>
+        <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <Select value={fAlmox} onValueChange={setFAlmox}>
+            <SelectTrigger><SelectValue placeholder="Almoxarifado" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos os almox.</SelectItem>
+              {almoxUnicos.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={fSolic} onValueChange={setFSolic}>
+            <SelectTrigger><SelectValue placeholder="Solicitante" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos os solicitantes</SelectItem>
+              {solicUnicos.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={fMotivo} onValueChange={setFMotivo}>
+            <SelectTrigger><SelectValue placeholder="Motivo" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos os motivos</SelectItem>
+              {motivosUnicos.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              disabled={!temFiltro}
+              onClick={() => { setFAlmox("__all__"); setFSolic("__all__"); setFMotivo("__all__"); }}
+            >
+              Limpar filtros
+            </Button>
+            <span className="text-xs text-muted-foreground">{lista.length} item(ns)</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
       <CardContent className="p-0 overflow-x-auto">
         <Table>
           <TableHeader>
@@ -739,15 +808,17 @@ function FilaAprovacao() {
               <TableHead className="text-right">Qtd</TableHead>
               <TableHead className="text-right">Valor</TableHead>
               <TableHead>Motivo</TableHead>
+              <TableHead>Almox.</TableHead>
+              <TableHead>Solicitante</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(data ?? []).length === 0 && (
-              <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">Nenhuma baixa pendente</TableCell></TableRow>
+            {lista.length === 0 && (
+              <TableRow><TableCell colSpan={10} className="text-center py-10 text-muted-foreground">Nenhuma baixa pendente</TableCell></TableRow>
             )}
-            {(data ?? []).map((b) => (
+            {lista.map((b) => (
               <TableRow key={b.id}>
                 <TableCell className="font-mono text-xs">{b.codigo_produto}</TableCell>
                 <TableCell className="max-w-xs truncate">{b.descricao}</TableCell>
@@ -755,11 +826,18 @@ function FilaAprovacao() {
                 <TableCell className="text-right tabular-nums">{formatNum(Number(b.quantidade))}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatBRL(Number(b.valor_total))}</TableCell>
                 <TableCell className="text-xs">{b.motivo?.descricao ?? "—"}</TableCell>
+                <TableCell className="text-xs">{b.id_local ?? "—"}</TableCell>
+                <TableCell className="text-xs">{nomeSolicitante(b) || "—"}</TableCell>
                 <TableCell>
                   <span className={`px-2 py-0.5 text-[10px] rounded font-medium ${STATUS_TONES[b.status_fluxo]}`}>{b.status_fluxo}</span>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1.5 flex-wrap">
+                    {isAdmin && (
+                      <Button size="sm" variant="outline" onClick={() => setEditando(b)}>
+                        <Pencil className="size-3.5 mr-1" /> Editar
+                      </Button>
+                    )}
                     {podeAprovar && b.status_fluxo !== "APROVADA" && (
                       <>
                         <Button size="sm" variant="outline" onClick={() => decidir(b, "AJUSTE_SOLICITADO")}>
@@ -786,7 +864,119 @@ function FilaAprovacao() {
         </Table>
       </CardContent>
     </Card>
+
+      {isAdmin && (
+        <EditarBaixaDialog
+          baixa={editando}
+          onClose={() => setEditando(null)}
+          onSaved={() => qc.invalidateQueries({ queryKey: ["baixas"] })}
+        />
+      )}
     </div>
+  );
+}
+
+function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onClose: () => void; onSaved: () => void }) {
+  const [qtd, setQtd] = useState("");
+  const [lote, setLote] = useState("");
+  const [almox, setAlmox] = useState("");
+  const [motivoId, setMotivoId] = useState("");
+  const [obs, setObs] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  const motivosQ = useQuery({
+    queryKey: ["motivo_baixa"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("motivo_baixa").select("*").eq("ativo", true).order("descricao");
+      if (error) throw error;
+      return data as { id: string; descricao: string }[];
+    },
+  });
+
+  useEffect(() => {
+    if (!baixa) return;
+    setQtd(String(baixa.quantidade ?? ""));
+    setLote(baixa.lote ?? "");
+    setAlmox(baixa.id_local ?? "");
+    setMotivoId(baixa.motivo_baixa_id ?? "");
+    setObs(baixa.observacao ?? "");
+  }, [baixa]);
+
+  async function salvar() {
+    if (!baixa) return;
+    const q = Number(String(qtd).replace(",", "."));
+    if (!Number.isFinite(q) || q <= 0) return toast.error("Quantidade inválida");
+    setSalvando(true);
+    try {
+      const unit = Number(baixa.quantidade) > 0 ? Number(baixa.valor_total ?? 0) / Number(baixa.quantidade) : 0;
+      const motivoDesc = (motivosQ.data ?? []).find((m) => m.id === motivoId)?.descricao ?? baixa.motivo_desc ?? "";
+      const patch: Record<string, unknown> = {
+        quantidade: q,
+        lote: lote || null,
+        id_local: almox || null,
+        motivo_baixa_id: motivoId || null,
+        motivo_desc: motivoDesc,
+        observacao: obs || null,
+        valor_total: Number((unit * q).toFixed(2)),
+      };
+      const { error } = await (supabase as any).from("baixa_operacional").update(patch).eq("id", baixa.id);
+      if (error) throw error;
+      const user = (await supabase.auth.getUser()).data.user!;
+      await (supabase as any).from("audit_logs").insert({
+        usuario: user.id, acao: "BAIXA_EDITADA", entidade: "baixa_operacional", entidade_id: baixa.id,
+        payload: { antes: { quantidade: baixa.quantidade, lote: baixa.lote, id_local: baixa.id_local, motivo_baixa_id: baixa.motivo_baixa_id }, depois: patch },
+      });
+      toast.success("Baixa atualizada");
+      onSaved();
+      onClose();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao salvar");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Dialog open={!!baixa} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar baixa {baixa?.codigo_produto}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs">Quantidade</Label>
+            <Input value={qtd} onChange={(e) => setQtd(e.target.value)} inputMode="decimal" />
+          </div>
+          <div>
+            <Label className="text-xs">Lote</Label>
+            <Input value={lote} onChange={(e) => setLote(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Almoxarifado</Label>
+            <Input value={almox} onChange={(e) => setAlmox(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Motivo</Label>
+            <Select value={motivoId} onValueChange={setMotivoId}>
+              <SelectTrigger><SelectValue placeholder="Selecione o motivo" /></SelectTrigger>
+              <SelectContent>
+                {(motivosQ.data ?? []).map((m) => <SelectItem key={m.id} value={m.id}>{m.descricao}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Observação</Label>
+            <Textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={salvar} disabled={salvando}>
+            {salvando && <Loader2 className="size-4 mr-1 animate-spin" />} Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
