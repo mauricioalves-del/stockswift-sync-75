@@ -852,14 +852,16 @@ function FilaAprovacao() {
                 Assinar todos — {ETAPA_LABEL[etapa]}
               </Button>
             ))}
-            <Button
-              variant="outline"
-              onClick={() => solicitarBaixaFiscal(false)}
-              disabled={enviandoFiscal || !(data && data.length > 0)}
-            >
-              {enviandoFiscal ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
-              Solicitar Baixa Fiscal
-            </Button>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                onClick={() => solicitarBaixaFiscal(false)}
+                disabled={enviandoFiscal || !(data && data.length > 0)}
+              >
+                {enviandoFiscal ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
+                Solicitar Baixa Fiscal
+              </Button>
+            )}
           </div>
 
           {avisoFiscal && (
