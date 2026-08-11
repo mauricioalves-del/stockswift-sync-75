@@ -815,7 +815,8 @@ function FilaAprovacao() {
 
   return (
     <div className="space-y-3">
-      {isAdmin && (
+      <ResumoExecutivoBaixas itens={lista} />
+      {(isAdmin || podeAprovar) && (
         <>
           <div className="flex justify-end gap-2 flex-wrap items-center">
             {sel.size > 0 && (
@@ -823,28 +824,34 @@ function FilaAprovacao() {
                 {selecionados.length} item(ns) selecionado(s)
               </span>
             )}
+            {podeAprovar && sel.size > 0 && etapasDisponiveis.map((etapa) => (
+              <Button key={etapa} onClick={() => assinar(selecionados, etapa)} disabled={assinando}>
+                {assinando ? <Loader2 className="size-4 mr-2 animate-spin" /> : <CheckCircle2 className="size-4 mr-2" />}
+                Assinar como {ETAPA_LABEL[etapa]} ({selecionados.filter((b: any) => !assinaturaFeita(b, etapa)).length})
+              </Button>
+            ))}
             {podeAprovar && sel.size > 0 && (
-              <Button onClick={aprovarSelecionados}>
-                <CheckCircle2 className="size-4 mr-2" />
-                Aprovar selecionados ({selecionados.filter((b: any) => b.status_fluxo !== "APROVADA").length})
+              <Button variant="outline" onClick={() => reprovar(selecionados)}>
+                <XCircle className="size-4 mr-2" /> Reprovar selecionados
               </Button>
             )}
-            {sel.size > 0 && (
+            {isAdmin && sel.size > 0 && (
               <Button variant="outline" onClick={() => solicitarBaixaFiscal(true)} disabled={enviandoFiscal}>
                 {enviandoFiscal ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
                 Enviar selecionados
               </Button>
             )}
-            {podeAprovar && (
+            {podeAprovar && sel.size === 0 && etapasDisponiveis.map((etapa) => (
               <Button
-                variant={sel.size > 0 ? "outline" : "default"}
-                onClick={aprovarTodos}
-                disabled={!(data && data.some((b: any) => b.status_fluxo !== "APROVADA"))}
+                key={etapa}
+                variant="outline"
+                onClick={() => assinar(lista, etapa)}
+                disabled={assinando || !lista.some((b: any) => !assinaturaFeita(b, etapa))}
               >
                 <CheckCircle2 className="size-4 mr-2" />
-                Aprovar todos
+                Assinar todos — {ETAPA_LABEL[etapa]}
               </Button>
-            )}
+            ))}
             <Button
               variant="outline"
               onClick={() => solicitarBaixaFiscal(false)}
