@@ -761,48 +761,20 @@ function FilaAprovacao() {
     }
   }
 
-  async function decidir(b: any, acao: "APROVADA" | "REPROVADA" | "AJUSTE_SOLICITADO") {
-    const comentario = window.prompt(
-      acao === "APROVADA" ? "Comentário (opcional):" : "Informe o motivo:"
-    );
-    if (acao !== "APROVADA" && !comentario) return;
+  async function solicitarAjuste(b: any) {
+    const comentario = window.prompt("Informe o ajuste necessário:");
+    if (!comentario) return;
     const user = (await supabase.auth.getUser()).data.user!;
     const { error } = await (supabase as any).from("baixa_operacional").update({
-      status_fluxo: acao,
-      aprovador_id: user.id,
-      data_aprovacao: new Date().toISOString(),
+      status_fluxo: "AJUSTE_SOLICITADO",
       comentario_aprovacao: comentario,
     }).eq("id", b.id);
     if (error) return toast.error(error.message);
     await (supabase as any).from("audit_logs").insert({
-      usuario: user.id, acao: `BAIXA_${acao}`, entidade: "baixa_operacional", entidade_id: b.id,
+      usuario: user.id, acao: "BAIXA_AJUSTE_SOLICITADO", entidade: "baixa_operacional", entidade_id: b.id,
       payload: { codigo_produto: b.codigo_produto, lote: b.lote, quantidade: b.quantidade, comentario },
     });
-    toast.success(`Baixa ${acao.toLowerCase()}`);
-    qc.invalidateQueries({ queryKey: ["baixas"] });
-  }
-
-  async function aprovarTodos() {
-    const pendentes = (data ?? []).filter((b: any) => b.status_fluxo !== "APROVADA");
-    if (pendentes.length === 0) return toast.error("Não há itens pendentes para aprovar");
-    if (!confirm(`Aprovar todos os ${pendentes.length} item(ns) pendente(s) da fila?`)) return;
-    const comentario = window.prompt("Comentário para aprovação em lote (opcional):") ?? null;
-    const user = (await supabase.auth.getUser()).data.user!;
-    const ids = pendentes.map((b: any) => b.id);
-    const { error } = await (supabase as any).from("baixa_operacional").update({
-      status_fluxo: "APROVADA",
-      aprovador_id: user.id,
-      data_aprovacao: new Date().toISOString(),
-      comentario_aprovacao: comentario,
-    }).in("id", ids);
-    if (error) return toast.error(error.message);
-    await (supabase as any).from("audit_logs").insert(
-      pendentes.map((b: any) => ({
-        usuario: user.id, acao: "BAIXA_APROVADA", entidade: "baixa_operacional", entidade_id: b.id,
-        payload: { codigo_produto: b.codigo_produto, lote: b.lote, quantidade: b.quantidade, comentario, lote_aprovacao: true },
-      }))
-    );
-    toast.success(`${pendentes.length} baixa(s) aprovada(s)`);
+    toast.success("Ajuste solicitado");
     qc.invalidateQueries({ queryKey: ["baixas"] });
   }
 
