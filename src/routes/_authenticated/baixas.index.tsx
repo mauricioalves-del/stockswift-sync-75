@@ -675,29 +675,50 @@ function FilaAprovacao() {
     });
   }
 
-  async function aprovarSelecionados() {
-    const alvos = selecionados.filter((b: any) => b.status_fluxo !== "APROVADA");
-    if (alvos.length === 0) return toast.error("Selecione ao menos um item pendente");
+  /** Registra a assinatura da etapa nos itens informados. */
+  async function assinar(itens: any[], etapa: Etapa) {
+    const alvos = itens.filter((b: any) => !assinaturaFeita(b, etapa) && statusAprovacao(b) !== "REPROVADA");
+    if (alvos.length === 0) return toast.error(`Nenhum item pendente da assinatura de ${ETAPA_LABEL[etapa]}`);
     const reqs = Array.from(new Set(alvos.map((b: any) => b.solicitacao_id).filter(Boolean)));
-    if (!confirm(`Aprovar ${alvos.length} item(ns)${reqs.length ? ` de ${reqs.length} requisição(ões)` : ""}?`)) return;
-    const comentario = window.prompt("Comentário para aprovação em lote (opcional):") ?? null;
+    if (!confirm(`Assinar como ${ETAPA_LABEL[etapa]} ${alvos.length} item(ns)${reqs.length ? ` de ${reqs.length} requisição(ões)` : ""}?`)) return;
+    const comentario = window.prompt("Comentário (opcional):") ?? null;
     const user = (await supabase.auth.getUser()).data.user!;
-    const { error } = await (supabase as any).from("baixa_operacional").update({
-      status_fluxo: "APROVADA",
-      aprovador_id: user.id,
-      data_aprovacao: new Date().toISOString(),
-      comentario_aprovacao: comentario,
-    }).in("id", alvos.map((b: any) => b.id));
-    if (error) return toast.error(error.message);
-    await (supabase as any).from("audit_logs").insert(
-      alvos.map((b: any) => ({
-        usuario: user.id, acao: "BAIXA_APROVADA", entidade: "baixa_operacional", entidade_id: b.id,
-        payload: { codigo_produto: b.codigo_produto, lote: b.lote, quantidade: b.quantidade, comentario, lote_aprovacao: true },
-      })),
-    );
-    toast.success(`${alvos.length} baixa(s) aprovada(s)`);
-    setSel(new Set());
-    qc.invalidateQueries({ queryKey: ["baixas"] });
+    setAssinando(true);
+    try {
+      const r = await assinarBaixas(alvos, etapa, {
+        userId: user.id,
+        comoAdmin: !minhasEtapas.includes(etapa),
+        comentario,
+      });
+      toast.success(
+        `${r.assinadas} item(ns) assinado(s) como ${ETAPA_LABEL[etapa]}` +
+        (r.requisicoesConcluidas.length
+          ? ` — ${r.requisicoesConcluidas.length} requisição(ões) aprovada(s), documento gerado e e-mail enviado.`
+          : ""),
+      );
+      setSel(new Set());
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao assinar");
+    } finally {
+      setAssinando(false);
+      qc.invalidateQueries({ queryKey: ["baixas"] });
+    }
+  }
+
+  async function reprovar(itens: any[]) {
+    if (itens.length === 0) return toast.error("Selecione ao menos um item");
+    const motivo = window.prompt("Informe o motivo da reprovação:");
+    if (!motivo) return;
+    const user = (await supabase.auth.getUser()).data.user!;
+    try {
+      const n = await reprovarBaixas(itens, motivo, user.id);
+      toast.success(`${n} item(ns) reprovado(s)`);
+      setSel(new Set());
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao reprovar");
+    } finally {
+      qc.invalidateQueries({ queryKey: ["baixas"] });
+    }
   }
 
 
