@@ -28,6 +28,12 @@ import { extrairCodigoNumericoQR } from "@/lib/qr-estoque";
 import { ImportarBaixasDialog } from "@/components/baixas/ImportarBaixasDialog";
 import { criarSolicitacaoBaixa } from "@/lib/solicitacoes-baixa";
 import { readEdgeFunctionFailure } from "@/lib/edge-function-errors";
+import { useMyRoles } from "@/hooks/useMyRoles";
+import {
+  assinarBaixas, reprovarBaixas, statusAprovacao, assinaturaFeita,
+  ETAPA_LABEL, type Etapa,
+} from "@/lib/baixa-aprovacao";
+import { ResumoExecutivoBaixas, DetalheBaixaDialog, BadgeAprovacao } from "@/components/baixas/ResumoAprovacao";
 
 
 
@@ -562,8 +568,18 @@ function useBaixas(statuses: string[]) {
 }
 
 function FilaAprovacao() {
-  const { isAdmin, role } = useRole();
-  const podeAprovar = isAdmin || role === "GERENTE";
+  const { isAdmin } = useRole();
+  const { roles: meusPapeis } = useMyRoles();
+  const minhasEtapas = useMemo<Etapa[]>(() => {
+    const e: Etapa[] = [];
+    if (meusPapeis.includes("DIRETOR_OPERACOES")) e.push("DIRETOR_OPERACOES");
+    if (meusPapeis.includes("COORDENADOR_FINANCEIRO")) e.push("COORDENADOR_FINANCEIRO");
+    return e;
+  }, [meusPapeis]);
+  const etapasDisponiveis: Etapa[] = isAdmin
+    ? ["DIRETOR_OPERACOES", "COORDENADOR_FINANCEIRO"]
+    : minhasEtapas;
+  const podeAprovar = etapasDisponiveis.length > 0;
   const qc = useQueryClient();
   const { data } = useBaixas(["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO"]);
   const [enviandoFiscal, setEnviandoFiscal] = useState(false);
@@ -572,6 +588,8 @@ function FilaAprovacao() {
   const [fSolic, setFSolic] = useState("__all__");
   const [fMotivo, setFMotivo] = useState("__all__");
   const [editando, setEditando] = useState<any | null>(null);
+  const [detalhe, setDetalhe] = useState<any | null>(null);
+  const [assinando, setAssinando] = useState(false);
   const [sel, setSel] = useState<Set<string>>(new Set());
 
   const perfisQ = useQuery({
@@ -657,29 +675,50 @@ function FilaAprovacao() {
     });
   }
 
-  async function aprovarSelecionados() {
-    const alvos = selecionados.filter((b: any) => b.status_fluxo !== "APROVADA");
-    if (alvos.length === 0) return toast.error("Selecione ao menos um item pendente");
+  /** Registra a assinatura da etapa nos itens informados. */
+  async function assinar(itens: any[], etapa: Etapa) {
+    const alvos = itens.filter((b: any) => !assinaturaFeita(b, etapa) && statusAprovacao(b) !== "REPROVADA");
+    if (alvos.length === 0) return toast.error(`Nenhum item pendente da assinatura de ${ETAPA_LABEL[etapa]}`);
     const reqs = Array.from(new Set(alvos.map((b: any) => b.solicitacao_id).filter(Boolean)));
-    if (!confirm(`Aprovar ${alvos.length} item(ns)${reqs.length ? ` de ${reqs.length} requisição(ões)` : ""}?`)) return;
-    const comentario = window.prompt("Comentário para aprovação em lote (opcional):") ?? null;
+    if (!confirm(`Assinar como ${ETAPA_LABEL[etapa]} ${alvos.length} item(ns)${reqs.length ? ` de ${reqs.length} requisição(ões)` : ""}?`)) return;
+    const comentario = window.prompt("Comentário (opcional):") ?? null;
     const user = (await supabase.auth.getUser()).data.user!;
-    const { error } = await (supabase as any).from("baixa_operacional").update({
-      status_fluxo: "APROVADA",
-      aprovador_id: user.id,
-      data_aprovacao: new Date().toISOString(),
-      comentario_aprovacao: comentario,
-    }).in("id", alvos.map((b: any) => b.id));
-    if (error) return toast.error(error.message);
-    await (supabase as any).from("audit_logs").insert(
-      alvos.map((b: any) => ({
-        usuario: user.id, acao: "BAIXA_APROVADA", entidade: "baixa_operacional", entidade_id: b.id,
-        payload: { codigo_produto: b.codigo_produto, lote: b.lote, quantidade: b.quantidade, comentario, lote_aprovacao: true },
-      })),
-    );
-    toast.success(`${alvos.length} baixa(s) aprovada(s)`);
-    setSel(new Set());
-    qc.invalidateQueries({ queryKey: ["baixas"] });
+    setAssinando(true);
+    try {
+      const r = await assinarBaixas(alvos, etapa, {
+        userId: user.id,
+        comoAdmin: !minhasEtapas.includes(etapa),
+        comentario,
+      });
+      toast.success(
+        `${r.assinadas} item(ns) assinado(s) como ${ETAPA_LABEL[etapa]}` +
+        (r.requisicoesConcluidas.length
+          ? ` — ${r.requisicoesConcluidas.length} requisição(ões) aprovada(s), documento gerado e e-mail enviado.`
+          : ""),
+      );
+      setSel(new Set());
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao assinar");
+    } finally {
+      setAssinando(false);
+      qc.invalidateQueries({ queryKey: ["baixas"] });
+    }
+  }
+
+  async function reprovar(itens: any[]) {
+    if (itens.length === 0) return toast.error("Selecione ao menos um item");
+    const motivo = window.prompt("Informe o motivo da reprovação:");
+    if (!motivo) return;
+    const user = (await supabase.auth.getUser()).data.user!;
+    try {
+      const n = await reprovarBaixas(itens, motivo, user.id);
+      toast.success(`${n} item(ns) reprovado(s)`);
+      setSel(new Set());
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao reprovar");
+    } finally {
+      qc.invalidateQueries({ queryKey: ["baixas"] });
+    }
   }
 
 
@@ -722,48 +761,20 @@ function FilaAprovacao() {
     }
   }
 
-  async function decidir(b: any, acao: "APROVADA" | "REPROVADA" | "AJUSTE_SOLICITADO") {
-    const comentario = window.prompt(
-      acao === "APROVADA" ? "Comentário (opcional):" : "Informe o motivo:"
-    );
-    if (acao !== "APROVADA" && !comentario) return;
+  async function solicitarAjuste(b: any) {
+    const comentario = window.prompt("Informe o ajuste necessário:");
+    if (!comentario) return;
     const user = (await supabase.auth.getUser()).data.user!;
     const { error } = await (supabase as any).from("baixa_operacional").update({
-      status_fluxo: acao,
-      aprovador_id: user.id,
-      data_aprovacao: new Date().toISOString(),
+      status_fluxo: "AJUSTE_SOLICITADO",
       comentario_aprovacao: comentario,
     }).eq("id", b.id);
     if (error) return toast.error(error.message);
     await (supabase as any).from("audit_logs").insert({
-      usuario: user.id, acao: `BAIXA_${acao}`, entidade: "baixa_operacional", entidade_id: b.id,
+      usuario: user.id, acao: "BAIXA_AJUSTE_SOLICITADO", entidade: "baixa_operacional", entidade_id: b.id,
       payload: { codigo_produto: b.codigo_produto, lote: b.lote, quantidade: b.quantidade, comentario },
     });
-    toast.success(`Baixa ${acao.toLowerCase()}`);
-    qc.invalidateQueries({ queryKey: ["baixas"] });
-  }
-
-  async function aprovarTodos() {
-    const pendentes = (data ?? []).filter((b: any) => b.status_fluxo !== "APROVADA");
-    if (pendentes.length === 0) return toast.error("Não há itens pendentes para aprovar");
-    if (!confirm(`Aprovar todos os ${pendentes.length} item(ns) pendente(s) da fila?`)) return;
-    const comentario = window.prompt("Comentário para aprovação em lote (opcional):") ?? null;
-    const user = (await supabase.auth.getUser()).data.user!;
-    const ids = pendentes.map((b: any) => b.id);
-    const { error } = await (supabase as any).from("baixa_operacional").update({
-      status_fluxo: "APROVADA",
-      aprovador_id: user.id,
-      data_aprovacao: new Date().toISOString(),
-      comentario_aprovacao: comentario,
-    }).in("id", ids);
-    if (error) return toast.error(error.message);
-    await (supabase as any).from("audit_logs").insert(
-      pendentes.map((b: any) => ({
-        usuario: user.id, acao: "BAIXA_APROVADA", entidade: "baixa_operacional", entidade_id: b.id,
-        payload: { codigo_produto: b.codigo_produto, lote: b.lote, quantidade: b.quantidade, comentario, lote_aprovacao: true },
-      }))
-    );
-    toast.success(`${pendentes.length} baixa(s) aprovada(s)`);
+    toast.success("Ajuste solicitado");
     qc.invalidateQueries({ queryKey: ["baixas"] });
   }
 
@@ -804,7 +815,8 @@ function FilaAprovacao() {
 
   return (
     <div className="space-y-3">
-      {isAdmin && (
+      <ResumoExecutivoBaixas itens={lista} />
+      {(isAdmin || podeAprovar) && (
         <>
           <div className="flex justify-end gap-2 flex-wrap items-center">
             {sel.size > 0 && (
@@ -812,36 +824,44 @@ function FilaAprovacao() {
                 {selecionados.length} item(ns) selecionado(s)
               </span>
             )}
+            {podeAprovar && sel.size > 0 && etapasDisponiveis.map((etapa) => (
+              <Button key={etapa} onClick={() => assinar(selecionados, etapa)} disabled={assinando}>
+                {assinando ? <Loader2 className="size-4 mr-2 animate-spin" /> : <CheckCircle2 className="size-4 mr-2" />}
+                Assinar como {ETAPA_LABEL[etapa]} ({selecionados.filter((b: any) => !assinaturaFeita(b, etapa)).length})
+              </Button>
+            ))}
             {podeAprovar && sel.size > 0 && (
-              <Button onClick={aprovarSelecionados}>
-                <CheckCircle2 className="size-4 mr-2" />
-                Aprovar selecionados ({selecionados.filter((b: any) => b.status_fluxo !== "APROVADA").length})
+              <Button variant="outline" onClick={() => reprovar(selecionados)}>
+                <XCircle className="size-4 mr-2" /> Reprovar selecionados
               </Button>
             )}
-            {sel.size > 0 && (
+            {isAdmin && sel.size > 0 && (
               <Button variant="outline" onClick={() => solicitarBaixaFiscal(true)} disabled={enviandoFiscal}>
                 {enviandoFiscal ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
                 Enviar selecionados
               </Button>
             )}
-            {podeAprovar && (
+            {podeAprovar && sel.size === 0 && etapasDisponiveis.map((etapa) => (
               <Button
-                variant={sel.size > 0 ? "outline" : "default"}
-                onClick={aprovarTodos}
-                disabled={!(data && data.some((b: any) => b.status_fluxo !== "APROVADA"))}
+                key={etapa}
+                variant="outline"
+                onClick={() => assinar(lista, etapa)}
+                disabled={assinando || !lista.some((b: any) => !assinaturaFeita(b, etapa))}
               >
                 <CheckCircle2 className="size-4 mr-2" />
-                Aprovar todos
+                Assinar todos — {ETAPA_LABEL[etapa]}
+              </Button>
+            ))}
+            {isAdmin && (
+              <Button
+                variant="outline"
+                onClick={() => solicitarBaixaFiscal(false)}
+                disabled={enviandoFiscal || !(data && data.length > 0)}
+              >
+                {enviandoFiscal ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
+                Solicitar Baixa Fiscal
               </Button>
             )}
-            <Button
-              variant="outline"
-              onClick={() => solicitarBaixaFiscal(false)}
-              disabled={enviandoFiscal || !(data && data.length > 0)}
-            >
-              {enviandoFiscal ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
-              Solicitar Baixa Fiscal
-            </Button>
           </div>
 
           {avisoFiscal && (
@@ -929,7 +949,12 @@ function FilaAprovacao() {
               <TableRow><TableCell colSpan={12} className="text-center py-10 text-muted-foreground">Nenhuma baixa pendente</TableCell></TableRow>
             )}
             {lista.map((b) => (
-              <TableRow key={b.id} data-state={sel.has(String(b.id)) ? "selected" : undefined}>
+              <TableRow
+                key={b.id}
+                data-state={sel.has(String(b.id)) ? "selected" : undefined}
+                onDoubleClick={() => setDetalhe(b)}
+                title="Duplo clique para ver o resumo"
+              >
                 <TableCell>
                   <Checkbox
                     checked={sel.has(String(b.id))}
@@ -959,7 +984,13 @@ function FilaAprovacao() {
                 <TableCell className="text-xs">{b.id_local ?? "—"}</TableCell>
                 <TableCell className="text-xs">{nomeSolicitante(b) || "—"}</TableCell>
                 <TableCell>
-                  <span className={`px-2 py-0.5 text-[10px] rounded font-medium ${STATUS_TONES[b.status_fluxo]}`}>{b.status_fluxo}</span>
+                  <div className="space-y-1">
+                    <BadgeAprovacao baixa={b} />
+                    <div className="text-[10px] text-muted-foreground leading-tight">
+                      <div>DO: {assinaturaFeita(b, "DIRETOR_OPERACOES") ? "✓" : "—"}</div>
+                      <div>CF: {assinaturaFeita(b, "COORDENADOR_FINANCEIRO") ? "✓" : "—"}</div>
+                    </div>
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1.5 flex-wrap">
@@ -968,20 +999,25 @@ function FilaAprovacao() {
                         <Pencil className="size-3.5 mr-1" /> Editar
                       </Button>
                     )}
-                    {podeAprovar && b.status_fluxo !== "APROVADA" && (
+                    {podeAprovar && statusAprovacao(b) !== "APROVADA" && statusAprovacao(b) !== "REPROVADA" && (
                       <>
-                        <Button size="sm" variant="outline" onClick={() => decidir(b, "AJUSTE_SOLICITADO")}>
+                        <Button size="sm" variant="outline" onClick={() => solicitarAjuste(b)}>
                           <MessageSquareWarning className="size-3.5 mr-1" /> Ajuste
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => decidir(b, "REPROVADA")}>
+                        <Button size="sm" variant="outline" onClick={() => reprovar([b])}>
                           <XCircle className="size-3.5 mr-1" /> Reprovar
                         </Button>
-                        <Button size="sm" onClick={() => decidir(b, "APROVADA")}>
-                          <CheckCircle2 className="size-3.5 mr-1" /> Aprovar
-                        </Button>
+                        {etapasDisponiveis
+                          .filter((etapa) => !assinaturaFeita(b, etapa))
+                          .map((etapa) => (
+                            <Button key={etapa} size="sm" disabled={assinando} onClick={() => assinar([b], etapa)}>
+                              <CheckCircle2 className="size-3.5 mr-1" />
+                              Assinar {etapa === "DIRETOR_OPERACOES" ? "DO" : "CF"}
+                            </Button>
+                          ))}
                       </>
                     )}
-                    {podeAprovar && b.status_fluxo === "APROVADA" && (
+                    {podeAprovar && statusAprovacao(b) === "APROVADA" && (
                       <Button size="sm" onClick={() => executar(b)}>
                         <PackageMinus className="size-3.5 mr-1" /> Executar
                       </Button>
@@ -994,6 +1030,8 @@ function FilaAprovacao() {
         </Table>
       </CardContent>
     </Card>
+
+      <DetalheBaixaDialog baixa={detalhe} onClose={() => setDetalhe(null)} />
 
       {isAdmin && (
         <EditarBaixaDialog
@@ -1117,6 +1155,7 @@ function Historico() {
   const [motivoFiltro, setMotivoFiltro] = useState("__all__");
   const [almoxFiltro, setAlmoxFiltro] = useState("__all__");
   const [ordem, setOrdem] = useState<"desc" | "asc">("desc");
+  const [detalhe, setDetalhe] = useState<any | null>(null);
 
   const motivosUnicos = useMemo(() => {
     const s = new Set<string>();
@@ -1254,18 +1293,19 @@ function Historico() {
                 </TableHead>
                 <TableHead>Motivo</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Documento</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtrados.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
                     Nenhum registro para os filtros aplicados
                   </TableCell>
                 </TableRow>
               )}
               {filtrados.map((b: any) => (
-                <TableRow key={b.id}>
+                <TableRow key={b.id} onDoubleClick={() => setDetalhe(b)} title="Duplo clique para ver o resumo">
                   <TableCell className="text-xs">{new Date(b.data_solicitacao).toLocaleDateString("pt-BR")}</TableCell>
                   <TableCell className="font-mono text-xs">{b.codigo_produto}</TableCell>
                   <TableCell className="max-w-xs truncate">{b.descricao}</TableCell>
@@ -1277,12 +1317,21 @@ function Historico() {
                   <TableCell>
                     <Badge variant="outline" className="text-[10px]">{b.status_fluxo}</Badge>
                   </TableCell>
+                  <TableCell className="text-xs">
+                    {b.documento_baixa_url ? (
+                      <Button size="sm" variant="ghost" onClick={() => setDetalhe(b)}>
+                        Ver documento
+                      </Button>
+                    ) : "—"}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      <DetalheBaixaDialog baixa={detalhe} onClose={() => setDetalhe(null)} />
     </div>
   );
 }
