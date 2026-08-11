@@ -1293,18 +1293,19 @@ function Historico() {
                 </TableHead>
                 <TableHead>Motivo</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Documento</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtrados.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
                     Nenhum registro para os filtros aplicados
                   </TableCell>
                 </TableRow>
               )}
               {filtrados.map((b: any) => (
-                <TableRow key={b.id}>
+                <TableRow key={b.id} onDoubleClick={() => setDetalhe(b)} title="Duplo clique para ver o resumo">
                   <TableCell className="text-xs">{new Date(b.data_solicitacao).toLocaleDateString("pt-BR")}</TableCell>
                   <TableCell className="font-mono text-xs">{b.codigo_produto}</TableCell>
                   <TableCell className="max-w-xs truncate">{b.descricao}</TableCell>
@@ -1315,6 +1316,13 @@ function Historico() {
                   <TableCell className="text-xs">{b.motivo?.descricao ?? "—"}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-[10px]">{b.status_fluxo}</Badge>
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {b.documento_baixa_url ? (
+                      <Button size="sm" variant="ghost" onClick={() => setDetalhe(b)}>
+                        Ver documento
+                      </Button>
+                    ) : "—"}
                   </TableCell>
                 </TableRow>
               ))}
