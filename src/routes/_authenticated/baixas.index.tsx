@@ -949,7 +949,12 @@ function FilaAprovacao() {
               <TableRow><TableCell colSpan={12} className="text-center py-10 text-muted-foreground">Nenhuma baixa pendente</TableCell></TableRow>
             )}
             {lista.map((b) => (
-              <TableRow key={b.id} data-state={sel.has(String(b.id)) ? "selected" : undefined}>
+              <TableRow
+                key={b.id}
+                data-state={sel.has(String(b.id)) ? "selected" : undefined}
+                onDoubleClick={() => setDetalhe(b)}
+                title="Duplo clique para ver o resumo"
+              >
                 <TableCell>
                   <Checkbox
                     checked={sel.has(String(b.id))}
@@ -979,7 +984,13 @@ function FilaAprovacao() {
                 <TableCell className="text-xs">{b.id_local ?? "—"}</TableCell>
                 <TableCell className="text-xs">{nomeSolicitante(b) || "—"}</TableCell>
                 <TableCell>
-                  <span className={`px-2 py-0.5 text-[10px] rounded font-medium ${STATUS_TONES[b.status_fluxo]}`}>{b.status_fluxo}</span>
+                  <div className="space-y-1">
+                    <BadgeAprovacao baixa={b} />
+                    <div className="text-[10px] text-muted-foreground leading-tight">
+                      <div>DO: {assinaturaFeita(b, "DIRETOR_OPERACOES") ? "✓" : "—"}</div>
+                      <div>CF: {assinaturaFeita(b, "COORDENADOR_FINANCEIRO") ? "✓" : "—"}</div>
+                    </div>
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1.5 flex-wrap">
@@ -988,20 +999,25 @@ function FilaAprovacao() {
                         <Pencil className="size-3.5 mr-1" /> Editar
                       </Button>
                     )}
-                    {podeAprovar && b.status_fluxo !== "APROVADA" && (
+                    {podeAprovar && statusAprovacao(b) !== "APROVADA" && statusAprovacao(b) !== "REPROVADA" && (
                       <>
-                        <Button size="sm" variant="outline" onClick={() => decidir(b, "AJUSTE_SOLICITADO")}>
+                        <Button size="sm" variant="outline" onClick={() => solicitarAjuste(b)}>
                           <MessageSquareWarning className="size-3.5 mr-1" /> Ajuste
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => decidir(b, "REPROVADA")}>
+                        <Button size="sm" variant="outline" onClick={() => reprovar([b])}>
                           <XCircle className="size-3.5 mr-1" /> Reprovar
                         </Button>
-                        <Button size="sm" onClick={() => decidir(b, "APROVADA")}>
-                          <CheckCircle2 className="size-3.5 mr-1" /> Aprovar
-                        </Button>
+                        {etapasDisponiveis
+                          .filter((etapa) => !assinaturaFeita(b, etapa))
+                          .map((etapa) => (
+                            <Button key={etapa} size="sm" disabled={assinando} onClick={() => assinar([b], etapa)}>
+                              <CheckCircle2 className="size-3.5 mr-1" />
+                              Assinar {etapa === "DIRETOR_OPERACOES" ? "DO" : "CF"}
+                            </Button>
+                          ))}
                       </>
                     )}
-                    {podeAprovar && b.status_fluxo === "APROVADA" && (
+                    {podeAprovar && statusAprovacao(b) === "APROVADA" && (
                       <Button size="sm" onClick={() => executar(b)}>
                         <PackageMinus className="size-3.5 mr-1" /> Executar
                       </Button>
@@ -1014,6 +1030,8 @@ function FilaAprovacao() {
         </Table>
       </CardContent>
     </Card>
+
+      <DetalheBaixaDialog baixa={detalhe} onClose={() => setDetalhe(null)} />
 
       {isAdmin && (
         <EditarBaixaDialog
