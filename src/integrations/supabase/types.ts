@@ -103,6 +103,10 @@ export type Database = {
       }
       baixa_operacional: {
         Row: {
+          aprovado_coordenador_financeiro_em: string | null
+          aprovado_coordenador_financeiro_por: string | null
+          aprovado_diretor_operacoes_em: string | null
+          aprovado_diretor_operacoes_por: string | null
           aprovador_id: string | null
           categoria: string | null
           codigo_produto: string
@@ -114,11 +118,13 @@ export type Database = {
           data_ocorrencia: string | null
           data_solicitacao: string
           descricao: string
+          documento_baixa_url: string | null
           foto_url: string | null
           id: string
           id_local: string | null
           lote: string | null
           motivo_baixa_id: string | null
+          motivo_reprovacao: string | null
           observacao: string | null
           origem: string | null
           origem_lancamento: string
@@ -133,6 +139,10 @@ export type Database = {
           valor_total: number
         }
         Insert: {
+          aprovado_coordenador_financeiro_em?: string | null
+          aprovado_coordenador_financeiro_por?: string | null
+          aprovado_diretor_operacoes_em?: string | null
+          aprovado_diretor_operacoes_por?: string | null
           aprovador_id?: string | null
           categoria?: string | null
           codigo_produto: string
@@ -144,11 +154,13 @@ export type Database = {
           data_ocorrencia?: string | null
           data_solicitacao?: string
           descricao: string
+          documento_baixa_url?: string | null
           foto_url?: string | null
           id?: string
           id_local?: string | null
           lote?: string | null
           motivo_baixa_id?: string | null
+          motivo_reprovacao?: string | null
           observacao?: string | null
           origem?: string | null
           origem_lancamento?: string
@@ -163,6 +175,10 @@ export type Database = {
           valor_total?: number
         }
         Update: {
+          aprovado_coordenador_financeiro_em?: string | null
+          aprovado_coordenador_financeiro_por?: string | null
+          aprovado_diretor_operacoes_em?: string | null
+          aprovado_diretor_operacoes_por?: string | null
           aprovador_id?: string | null
           categoria?: string | null
           codigo_produto?: string
@@ -174,11 +190,13 @@ export type Database = {
           data_ocorrencia?: string | null
           data_solicitacao?: string
           descricao?: string
+          documento_baixa_url?: string | null
           foto_url?: string | null
           id?: string
           id_local?: string | null
           lote?: string | null
           motivo_baixa_id?: string | null
+          motivo_reprovacao?: string | null
           observacao?: string | null
           origem?: string | null
           origem_lancamento?: string
@@ -2698,6 +2716,8 @@ export type Database = {
         | "COORDENADOR_CONTROLE"
         | "VENDEDOR"
         | "OPERADOR_ESTOQUE"
+        | "DIRETOR_OPERACOES"
+        | "COORDENADOR_FINANCEIRO"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2834,6 +2854,8 @@ export const Constants = {
         "COORDENADOR_CONTROLE",
         "VENDEDOR",
         "OPERADOR_ESTOQUE",
+        "DIRETOR_OPERACOES",
+        "COORDENADOR_FINANCEIRO",
       ],
     },
   },
