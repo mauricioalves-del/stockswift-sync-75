@@ -562,8 +562,18 @@ function useBaixas(statuses: string[]) {
 }
 
 function FilaAprovacao() {
-  const { isAdmin, role } = useRole();
-  const podeAprovar = isAdmin || role === "GERENTE";
+  const { isAdmin } = useRole();
+  const { roles: meusPapeis } = useMyRoles();
+  const minhasEtapas = useMemo<Etapa[]>(() => {
+    const e: Etapa[] = [];
+    if (meusPapeis.includes("DIRETOR_OPERACOES")) e.push("DIRETOR_OPERACOES");
+    if (meusPapeis.includes("COORDENADOR_FINANCEIRO")) e.push("COORDENADOR_FINANCEIRO");
+    return e;
+  }, [meusPapeis]);
+  const etapasDisponiveis: Etapa[] = isAdmin
+    ? ["DIRETOR_OPERACOES", "COORDENADOR_FINANCEIRO"]
+    : minhasEtapas;
+  const podeAprovar = etapasDisponiveis.length > 0;
   const qc = useQueryClient();
   const { data } = useBaixas(["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO"]);
   const [enviandoFiscal, setEnviandoFiscal] = useState(false);
@@ -572,6 +582,8 @@ function FilaAprovacao() {
   const [fSolic, setFSolic] = useState("__all__");
   const [fMotivo, setFMotivo] = useState("__all__");
   const [editando, setEditando] = useState<any | null>(null);
+  const [detalhe, setDetalhe] = useState<any | null>(null);
+  const [assinando, setAssinando] = useState(false);
   const [sel, setSel] = useState<Set<string>>(new Set());
 
   const perfisQ = useQuery({
