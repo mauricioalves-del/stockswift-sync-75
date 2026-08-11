@@ -1330,6 +1330,8 @@ function Historico() {
           </Table>
         </CardContent>
       </Card>
+
+      <DetalheBaixaDialog baixa={detalhe} onClose={() => setDetalhe(null)} />
     </div>
   );
 }
