@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL, formatNum } from "@/lib/inventory";
+import { notificarAprovacaoBaixa } from "@/lib/baixa-email.functions";
 
 export type Etapa = "DIRETOR_OPERACOES" | "COORDENADOR_FINANCEIRO";
 
