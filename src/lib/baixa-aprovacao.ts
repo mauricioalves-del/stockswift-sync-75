@@ -243,9 +243,7 @@ export async function assinarBaixas(
       concluidas.push(reqId as any);
 
       try {
-        await supabase.functions.invoke("notificar-aprovacao-baixa", {
-          body: { solicitacao_id: reqId, documento_path: path },
-        });
+        await notificarAprovacaoBaixa({ data: { solicitacaoId: reqId as any, documentoPath: path } });
       } catch (e) {
         console.warn("[assinarBaixas] falha no e-mail de aprovação", e);
         await (supabase as any).from("audit_logs").insert({
