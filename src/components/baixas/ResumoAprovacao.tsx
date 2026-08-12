@@ -161,6 +161,30 @@ export function DetalheBaixaDialog({ baixa, onClose }: { baixa: any | null; onCl
           )}
         </div>
 
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold text-muted-foreground">Foto anexada</p>
+          {!baixa.foto_url ? (
+            <p className="text-xs text-muted-foreground">Nenhuma foto anexada a esta baixa.</p>
+          ) : fotoErro ? (
+            <p className="text-xs text-destructive flex items-center gap-1.5">
+              <ImageOff className="size-3.5" /> Não foi possível carregar a foto anexada.
+            </p>
+          ) : foto ? (
+            <a href={foto} target="_blank" rel="noreferrer" className="block">
+              <img
+                src={foto}
+                alt={`Foto da baixa ${baixa.codigo_produto ?? ""}`}
+                loading="lazy"
+                onError={() => setFotoErro(true)}
+                className="max-h-64 w-full object-contain rounded border bg-muted"
+              />
+              <span className="text-[10px] text-muted-foreground">Clique para abrir em tamanho real</span>
+            </a>
+          ) : (
+            <div className="h-24 rounded border bg-muted animate-pulse" />
+          )}
+        </div>
+
         {baixa.documento_baixa_url && (
           <Button asChild variant="outline" disabled={!doc} className="w-full">
             <a href={doc ?? "#"} target="_blank" rel="noreferrer">
