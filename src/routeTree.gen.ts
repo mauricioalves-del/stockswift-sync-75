@@ -32,6 +32,7 @@ import { Route as AuthenticatedAbcRouteImport } from './routes/_authenticated/ab
 import { Route as AuthenticatedMissoesIndexRouteImport } from './routes/_authenticated/missoes.index'
 import { Route as AuthenticatedConfigIndexRouteImport } from './routes/_authenticated/config.index'
 import { Route as AuthenticatedBaixasIndexRouteImport } from './routes/_authenticated/baixas.index'
+import { Route as ApiPublicAtlasExportarBaixasRouteImport } from './routes/api/public/atlas-exportar-baixas'
 import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_authenticated/suprimentos.estoque'
 import { Route as AuthenticatedSuprimentosDashboardRouteImport } from './routes/_authenticated/suprimentos.dashboard'
 import { Route as AuthenticatedShelfLifeRiscoRouteImport } from './routes/_authenticated/shelf-life.risco'
@@ -182,6 +183,12 @@ const AuthenticatedBaixasIndexRoute =
     id: '/baixas/',
     path: '/baixas/',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const ApiPublicAtlasExportarBaixasRoute =
+  ApiPublicAtlasExportarBaixasRouteImport.update({
+    id: '/api/public/atlas-exportar-baixas',
+    path: '/api/public/atlas-exportar-baixas',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const AuthenticatedSuprimentosEstoqueRoute =
   AuthenticatedSuprimentosEstoqueRouteImport.update({
@@ -409,6 +416,7 @@ export interface FileRoutesByFullPath {
   '/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/api/public/atlas-exportar-baixas': typeof ApiPublicAtlasExportarBaixasRoute
   '/baixas/': typeof AuthenticatedBaixasIndexRoute
   '/config/': typeof AuthenticatedConfigIndexRoute
   '/missoes/': typeof AuthenticatedMissoesIndexRoute
@@ -463,6 +471,7 @@ export interface FileRoutesByTo {
   '/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/api/public/atlas-exportar-baixas': typeof ApiPublicAtlasExportarBaixasRoute
   '/baixas': typeof AuthenticatedBaixasIndexRoute
   '/config': typeof AuthenticatedConfigIndexRoute
   '/missoes': typeof AuthenticatedMissoesIndexRoute
@@ -519,6 +528,7 @@ export interface FileRoutesById {
   '/_authenticated/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/api/public/atlas-exportar-baixas': typeof ApiPublicAtlasExportarBaixasRoute
   '/_authenticated/baixas/': typeof AuthenticatedBaixasIndexRoute
   '/_authenticated/config/': typeof AuthenticatedConfigIndexRoute
   '/_authenticated/missoes/': typeof AuthenticatedMissoesIndexRoute
@@ -575,6 +585,7 @@ export interface FileRouteTypes {
     | '/shelf-life/risco'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
+    | '/api/public/atlas-exportar-baixas'
     | '/baixas/'
     | '/config/'
     | '/missoes/'
@@ -629,6 +640,7 @@ export interface FileRouteTypes {
     | '/shelf-life/risco'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
+    | '/api/public/atlas-exportar-baixas'
     | '/baixas'
     | '/config'
     | '/missoes'
@@ -684,6 +696,7 @@ export interface FileRouteTypes {
     | '/_authenticated/shelf-life/risco'
     | '/_authenticated/suprimentos/dashboard'
     | '/_authenticated/suprimentos/estoque'
+    | '/api/public/atlas-exportar-baixas'
     | '/_authenticated/baixas/'
     | '/_authenticated/config/'
     | '/_authenticated/missoes/'
@@ -698,6 +711,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiPublicAtlasExportarBaixasRoute: typeof ApiPublicAtlasExportarBaixasRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -862,6 +876,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/baixas/'
       preLoaderRoute: typeof AuthenticatedBaixasIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/atlas-exportar-baixas': {
+      id: '/api/public/atlas-exportar-baixas'
+      path: '/api/public/atlas-exportar-baixas'
+      fullPath: '/api/public/atlas-exportar-baixas'
+      preLoaderRoute: typeof ApiPublicAtlasExportarBaixasRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/suprimentos/estoque': {
       id: '/_authenticated/suprimentos/estoque'
@@ -1211,6 +1232,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiPublicAtlasExportarBaixasRoute: ApiPublicAtlasExportarBaixasRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
