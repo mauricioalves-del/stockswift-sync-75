@@ -2704,6 +2704,10 @@ export type Database = {
         Returns: boolean
       }
       is_gestor: { Args: { _user_id: string }; Returns: boolean }
+      pode_ver_documento_baixa: {
+        Args: { _path: string; _uid: string }
+        Returns: boolean
+      }
       proximo_numero_req_op: { Args: never; Returns: string }
     }
     Enums: {

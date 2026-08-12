@@ -9,9 +9,10 @@ import {
   STATUS_APROVACAO_TONE,
   assinaturaFeita,
   urlDocumento,
+  urlFoto,
   type StatusAprovacao,
 } from "@/lib/baixa-aprovacao";
-import { FileText, ExternalLink } from "lucide-react";
+import { FileText, ExternalLink, ImageOff } from "lucide-react";
 
 export function BadgeAprovacao({ baixa }: { baixa: any }) {
   const st = statusAprovacao(baixa) as StatusAprovacao;
@@ -80,6 +81,8 @@ export function ResumoExecutivoBaixas({ itens }: { itens: any[] }) {
 /** Resumo detalhado de um item (duplo clique na linha). */
 export function DetalheBaixaDialog({ baixa, onClose }: { baixa: any | null; onClose: () => void }) {
   const [doc, setDoc] = useState<string | null>(null);
+  const [foto, setFoto] = useState<string | null>(null);
+  const [fotoErro, setFotoErro] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -89,6 +92,20 @@ export function DetalheBaixaDialog({ baixa, onClose }: { baixa: any | null; onCl
     }
     return () => { vivo = false; };
   }, [baixa?.id, baixa?.documento_baixa_url]);
+
+  useEffect(() => {
+    let vivo = true;
+    setFoto(null);
+    setFotoErro(false);
+    if (baixa?.foto_url) {
+      urlFoto(baixa.foto_url).then((u) => {
+        if (!vivo) return;
+        setFoto(u);
+        if (!u) setFotoErro(true);
+      });
+    }
+    return () => { vivo = false; };
+  }, [baixa?.id, baixa?.foto_url]);
 
   if (!baixa) return null;
   const linhas: [string, string][] = [
@@ -141,6 +158,30 @@ export function DetalheBaixaDialog({ baixa, onClose }: { baixa: any | null; onCl
           ))}
           {baixa.motivo_reprovacao && (
             <p className="text-xs text-destructive">Motivo da reprovação: {baixa.motivo_reprovacao}</p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold text-muted-foreground">Foto anexada</p>
+          {!baixa.foto_url ? (
+            <p className="text-xs text-muted-foreground">Nenhuma foto anexada a esta baixa.</p>
+          ) : fotoErro ? (
+            <p className="text-xs text-destructive flex items-center gap-1.5">
+              <ImageOff className="size-3.5" /> Não foi possível carregar a foto anexada.
+            </p>
+          ) : foto ? (
+            <a href={foto} target="_blank" rel="noreferrer" className="block">
+              <img
+                src={foto}
+                alt={`Foto da baixa ${baixa.codigo_produto ?? ""}`}
+                loading="lazy"
+                onError={() => setFotoErro(true)}
+                className="max-h-64 w-full object-contain rounded border bg-muted"
+              />
+              <span className="text-[10px] text-muted-foreground">Clique para abrir em tamanho real</span>
+            </a>
+          ) : (
+            <div className="h-24 rounded border bg-muted animate-pulse" />
           )}
         </div>
 
