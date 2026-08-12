@@ -9,9 +9,10 @@ import {
   STATUS_APROVACAO_TONE,
   assinaturaFeita,
   urlDocumento,
+  urlFoto,
   type StatusAprovacao,
 } from "@/lib/baixa-aprovacao";
-import { FileText, ExternalLink } from "lucide-react";
+import { FileText, ExternalLink, ImageOff } from "lucide-react";
 
 export function BadgeAprovacao({ baixa }: { baixa: any }) {
   const st = statusAprovacao(baixa) as StatusAprovacao;
