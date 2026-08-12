@@ -168,6 +168,19 @@ export async function urlDocumento(path: string | null | undefined): Promise<str
   return data?.signedUrl ?? null;
 }
 
+/** URL temporária para visualizar a foto anexada à baixa. */
+export async function urlFoto(path: string | null | undefined): Promise<string | null> {
+  if (!path) return null;
+  // Compatibilidade: alguns registros antigos guardam a URL completa.
+  if (/^https?:\/\//i.test(path)) return path;
+  const limpo = path.replace(/^baixas-fotos\//, "");
+  const { data, error } = await supabase.storage
+    .from("baixas-fotos")
+    .createSignedUrl(limpo, 60 * 60);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
 /**
  * Registra a assinatura de uma etapa em um conjunto de linhas.
  * Quando as duas assinaturas se completam para uma requisição, gera o
