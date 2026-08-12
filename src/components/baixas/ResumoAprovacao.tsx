@@ -81,6 +81,8 @@ export function ResumoExecutivoBaixas({ itens }: { itens: any[] }) {
 /** Resumo detalhado de um item (duplo clique na linha). */
 export function DetalheBaixaDialog({ baixa, onClose }: { baixa: any | null; onClose: () => void }) {
   const [doc, setDoc] = useState<string | null>(null);
+  const [foto, setFoto] = useState<string | null>(null);
+  const [fotoErro, setFotoErro] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -90,6 +92,20 @@ export function DetalheBaixaDialog({ baixa, onClose }: { baixa: any | null; onCl
     }
     return () => { vivo = false; };
   }, [baixa?.id, baixa?.documento_baixa_url]);
+
+  useEffect(() => {
+    let vivo = true;
+    setFoto(null);
+    setFotoErro(false);
+    if (baixa?.foto_url) {
+      urlFoto(baixa.foto_url).then((u) => {
+        if (!vivo) return;
+        setFoto(u);
+        if (!u) setFotoErro(true);
+      });
+    }
+    return () => { vivo = false; };
+  }, [baixa?.id, baixa?.foto_url]);
 
   if (!baixa) return null;
   const linhas: [string, string][] = [
