@@ -177,7 +177,9 @@ export async function parsePlanilhaBaixas(
       descricao: prod?.descricao,
       unidade: prod?.unidade,
       motivo_id: motivoObj?.id,
+      observacao,
       lotes_disponiveis: lotesOrd,
+
       lote_selecionado_id: sugestao?.estoque_id ?? null,
     });
   });
