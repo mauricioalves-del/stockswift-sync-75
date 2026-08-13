@@ -1,0 +1,3 @@
+ALTER TABLE public.baixa_operacional DROP CONSTRAINT baixa_operacional_status_fluxo_check;
+ALTER TABLE public.baixa_operacional ADD CONSTRAINT baixa_operacional_status_fluxo_check CHECK (status_fluxo = ANY (ARRAY['PENDENTE','ANALISE','AGUARDANDO_ADMIN','APROVADA','REPROVADA','AJUSTE_SOLICITADO','EXECUTADA']));
+UPDATE public.baixa_operacional SET status_fluxo = 'AGUARDANDO_ADMIN' WHERE status_fluxo = 'APROVADA' AND data_aprovacao >= (now() at time zone 'America/Sao_Paulo')::date;
