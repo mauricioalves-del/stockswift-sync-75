@@ -19,11 +19,12 @@ export const CAMPO_EM = {
   COORDENADOR_FINANCEIRO: "aprovado_coordenador_financeiro_em",
 } as const;
 
-export type StatusAprovacao = "PENDENTE" | "PARCIAL" | "APROVADA" | "REPROVADA";
+export type StatusAprovacao = "PENDENTE" | "PARCIAL" | "AGUARDANDO_ADMIN" | "APROVADA" | "REPROVADA";
 
 export const STATUS_APROVACAO_LABEL: Record<StatusAprovacao, string> = {
   PENDENTE: "Pendente",
   PARCIAL: "Aprovação Parcial",
+  AGUARDANDO_ADMIN: "Aguardando Administrador",
   APROVADA: "Aprovada",
   REPROVADA: "Reprovada",
 };
@@ -31,6 +32,7 @@ export const STATUS_APROVACAO_LABEL: Record<StatusAprovacao, string> = {
 export const STATUS_APROVACAO_TONE: Record<StatusAprovacao, string> = {
   PENDENTE: "bg-muted text-muted-foreground",
   PARCIAL: "bg-warning/20 text-warning-foreground",
+  AGUARDANDO_ADMIN: "bg-primary/15 text-primary",
   APROVADA: "bg-success/15 text-success",
   REPROVADA: "bg-destructive/15 text-destructive",
 };
@@ -40,16 +42,24 @@ export function statusAprovacao(b: any): StatusAprovacao {
   if (b?.status_fluxo === "REPROVADA") return "REPROVADA";
   const dir = !!b?.aprovado_diretor_operacoes_por;
   const fin = !!b?.aprovado_coordenador_financeiro_por;
-  if (dir && fin) return "APROVADA";
+  if (dir && fin) {
+    return b?.status_fluxo === "AGUARDANDO_ADMIN" ? "AGUARDANDO_ADMIN" : "APROVADA";
+  }
   if (dir || fin) return "PARCIAL";
   // registros legados aprovados antes da dupla assinatura
   if (b?.status_fluxo === "APROVADA" || b?.status_fluxo === "EXECUTADA") return "APROVADA";
   return "PENDENTE";
 }
 
+/** Assinaturas concluídas, aguardando a aprovação final do Administrador. */
+export function aguardandoAdmin(b: any): boolean {
+  return b?.status_fluxo === "AGUARDANDO_ADMIN";
+}
+
 export function assinaturaFeita(b: any, etapa: Etapa): boolean {
   return !!b?.[CAMPO_POR[etapa]];
 }
+
 
 /** Etapa que o usuário atual pode assinar nesta linha, ou null. */
 export function etapaDisponivel(
