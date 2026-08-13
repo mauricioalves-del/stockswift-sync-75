@@ -874,12 +874,25 @@ function FilaAprovacao() {
                 <XCircle className="size-4 mr-2" /> Reprovar selecionados
               </Button>
             )}
+            {isAdmin && sel.size > 0 && selecionados.some(aguardandoAdmin) && (
+              <Button onClick={() => aprovarAdmin(selecionados)} disabled={aprovandoAdmin}>
+                {aprovandoAdmin ? <Loader2 className="size-4 mr-2 animate-spin" /> : <CheckCircle2 className="size-4 mr-2" />}
+                Aprovar e enviar Baixa Fiscal ({selecionados.filter(aguardandoAdmin).length})
+              </Button>
+            )}
+            {isAdmin && sel.size === 0 && lista.some(aguardandoAdmin) && (
+              <Button onClick={() => aprovarAdmin(lista)} disabled={aprovandoAdmin}>
+                {aprovandoAdmin ? <Loader2 className="size-4 mr-2 animate-spin" /> : <CheckCircle2 className="size-4 mr-2" />}
+                Aprovar todos assinados ({lista.filter(aguardandoAdmin).length})
+              </Button>
+            )}
             {isAdmin && sel.size > 0 && (
               <Button variant="outline" onClick={() => solicitarBaixaFiscal(true)} disabled={enviandoFiscal}>
                 {enviandoFiscal ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
                 Enviar selecionados
               </Button>
             )}
+
             {podeAprovar && sel.size === 0 && etapasDisponiveis.map((etapa) => (
               <Button
                 key={etapa}
