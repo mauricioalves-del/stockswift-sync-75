@@ -1154,6 +1154,7 @@ function Historico() {
   const [busca, setBusca] = useState("");
   const [motivoFiltro, setMotivoFiltro] = useState("__all__");
   const [almoxFiltro, setAlmoxFiltro] = useState("__all__");
+  const [sortBy, setSortBy] = useState<"data" | "valor">("valor");
   const [ordem, setOrdem] = useState<"desc" | "asc">("desc");
   const [detalhe, setDetalhe] = useState<any | null>(null);
 
