@@ -112,9 +112,18 @@ export async function enviarEmailAprovacao(
   admin: SupabaseClient<any>,
   args: { solicitacaoId: string | number; documentoPath: string | null; userId: string },
 ): Promise<{ ok: boolean; code?: string; error?: string; destinatarios?: string[] }> {
-  const { data: dests } = await admin
+  let { data: dests } = await admin
     .from("cadastro_emails").select("email")
     .eq("finalidade", FINALIDADE_APROVACAO).eq("ativo", true);
+
+  // Fallback: reaproveita os destinatários de Baixa Fiscal quando não há
+  // cadastro específico para aprovação.
+  if (!dests || dests.length === 0) {
+    const r = await admin
+      .from("cadastro_emails").select("email")
+      .eq("finalidade", "Baixa Fiscal").eq("ativo", true);
+    dests = r.data ?? null;
+  }
 
   if (!dests || dests.length === 0) {
     await admin.from("audit_logs").insert({
