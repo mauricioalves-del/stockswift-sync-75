@@ -266,19 +266,9 @@ export async function assinarBaixas(
       const pendente = (linhas ?? []).some((b: any) => statusAprovacao(b) === "PENDENTE" || statusAprovacao(b) === "PARCIAL");
       if (pendente) continue;
 
-      const path = await gerarDocumentoAprovacao(reqId as any);
+      // Documento formal já fica disponível; o e-mail sai na aprovação do Administrador.
+      await gerarDocumentoAprovacao(reqId as any);
       concluidas.push(reqId as any);
-
-      try {
-        await notificarAprovacaoBaixa({ data: { solicitacaoId: reqId as any, documentoPath: path } });
-      } catch (e) {
-        console.warn("[assinarBaixas] falha no e-mail de aprovação", e);
-        await (supabase as any).from("audit_logs").insert({
-          usuario: opts.userId, acao: "BAIXA_APROVACAO_EMAIL_FALHA",
-          entidade: "solicitacoes_baixa", entidade_id: String(reqId),
-          payload: { erro: String(e) },
-        });
-      }
     } catch (e) {
       console.warn("[assinarBaixas] falha ao gerar documento", e);
     }
@@ -286,6 +276,57 @@ export async function assinarBaixas(
 
   return { assinadas: alvos.length, requisicoesConcluidas: concluidas };
 }
+
+/**
+ * Aprovação final do Administrador: consolida o status como APROVADA e
+ * dispara o e-mail de aprovação/baixa fiscal por requisição.
+ */
+export async function aprovarComoAdministrador(
+  itens: any[],
+  userId: string,
+): Promise<{ aprovadas: number; emailsOk: number; emailsFalha: number }> {
+  const alvos = itens.filter((b) => aguardandoAdmin(b));
+  if (alvos.length === 0) return { aprovadas: 0, emailsOk: 0, emailsFalha: 0 };
+
+  const agora = new Date().toISOString();
+  const { error } = await (supabase as any)
+    .from("baixa_operacional")
+    .update({ status_fluxo: "APROVADA", data_aprovacao: agora })
+    .in("id", alvos.map((b) => b.id));
+  if (error) throw error;
+
+  await (supabase as any).from("audit_logs").insert(
+    alvos.map((b) => ({
+      usuario: userId,
+      acao: "BAIXA_APROVADA_ADMIN",
+      entidade: "baixa_operacional",
+      entidade_id: String(b.id),
+      payload: { codigo_produto: b.codigo_produto, lote: b.lote, quantidade: b.quantidade },
+    })),
+  );
+
+  const reqs = Array.from(new Set(alvos.map((b) => b.solicitacao_id).filter((v) => v != null)));
+  let emailsOk = 0;
+  let emailsFalha = 0;
+  for (const reqId of reqs) {
+    try {
+      const path = await gerarDocumentoAprovacao(reqId as any);
+      await notificarAprovacaoBaixa({ data: { solicitacaoId: reqId as any, documentoPath: path } });
+      emailsOk++;
+    } catch (e) {
+      emailsFalha++;
+      console.warn("[aprovarComoAdministrador] falha no e-mail de aprovação", e);
+      await (supabase as any).from("audit_logs").insert({
+        usuario: userId, acao: "BAIXA_APROVACAO_EMAIL_FALHA",
+        entidade: "solicitacoes_baixa", entidade_id: String(reqId),
+        payload: { erro: String(e) },
+      });
+    }
+  }
+
+  return { aprovadas: alvos.length, emailsOk, emailsFalha };
+}
+
 
 /** Reprova imediatamente (qualquer uma das duas etapas ou Administrador). */
 export async function reprovarBaixas(itens: any[], motivo: string, userId: string): Promise<number> {
