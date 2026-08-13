@@ -30,9 +30,10 @@ import { criarSolicitacaoBaixa } from "@/lib/solicitacoes-baixa";
 import { readEdgeFunctionFailure } from "@/lib/edge-function-errors";
 import { useMyRoles } from "@/hooks/useMyRoles";
 import {
-  assinarBaixas, reprovarBaixas, statusAprovacao, assinaturaFeita,
-  ETAPA_LABEL, type Etapa,
+  assinarBaixas, reprovarBaixas, statusAprovacao, assinaturaFeita, aguardandoAdmin,
+  aprovarComoAdministrador, ETAPA_LABEL, type Etapa,
 } from "@/lib/baixa-aprovacao";
+
 import { ResumoExecutivoBaixas, DetalheBaixaDialog, BadgeAprovacao } from "@/components/baixas/ResumoAprovacao";
 
 
