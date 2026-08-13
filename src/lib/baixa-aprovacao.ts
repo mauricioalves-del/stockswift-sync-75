@@ -99,7 +99,11 @@ export async function gerarDocumentoAprovacao(solicitacaoId: number | string): P
     .eq("solicitacao_id", solicitacaoId);
   if (error) throw error;
 
-  const aprovadas = (linhas ?? []).filter((b: any) => statusAprovacao(b) === "APROVADA");
+  const aprovadas = (linhas ?? []).filter((b: any) => {
+    const s = statusAprovacao(b);
+    return s === "APROVADA" || s === "AGUARDANDO_ADMIN";
+  });
+
   if (aprovadas.length === 0) return null;
 
   const ref = aprovadas[0];
