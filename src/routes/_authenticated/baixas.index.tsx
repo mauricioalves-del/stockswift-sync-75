@@ -584,7 +584,7 @@ function FilaAprovacao() {
     : minhasEtapas;
   const podeAprovar = etapasDisponiveis.length > 0;
   const qc = useQueryClient();
-  const { data } = useBaixas(["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO"]);
+  const { data } = useBaixas(["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO", "AGUARDANDO_ADMIN"]);
   const [enviandoFiscal, setEnviandoFiscal] = useState(false);
   const [avisoFiscal, setAvisoFiscal] = useState<{ code?: string; message: string } | null>(null);
   const [fAlmox, setFAlmox] = useState("__all__");
