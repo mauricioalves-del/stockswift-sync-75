@@ -69,13 +69,14 @@ export function gerarModeloBaixas(catalogo: CatalogoProduto[]): Blob {
 
   const baixaAOA: unknown[][] = [
     ["Modelo de Baixa Operacional — preencher a partir da linha 3. Almoxarifado e Lote são escolhidos no sistema."],
-    ["Categoria", "Subcategoria", "Itens", "SKU", "QTD", "MOTIVO", "DATA", "RESPONSÁVEL"],
+    ["Categoria", "Subcategoria", "Itens", "SKU", "QTD", "MOTIVO", "DATA", "RESPONSÁVEL", "OBSERVAÇÃO"],
   ];
   const wsBaixa = XLSX.utils.aoa_to_sheet(baixaAOA);
   wsBaixa["!cols"] = [
     { wch: 18 }, { wch: 18 }, { wch: 40 }, { wch: 14 },
-    { wch: 8 }, { wch: 14 }, { wch: 12 }, { wch: 20 },
+    { wch: 8 }, { wch: 14 }, { wch: 12 }, { wch: 20 }, { wch: 32 },
   ];
+
   XLSX.utils.book_append_sheet(wb, wsBaixa, "BAIXA");
 
   const baseAOA: unknown[][] = [["Categoria", "Subcategoria", "SKU", "Produto"]];
@@ -135,7 +136,11 @@ export async function parsePlanilhaBaixas(
     const dataRaw = pick(r, "DATA", "Data", "data");
     const responsavel = pick(r, "RESPONSÁVEL", "RESPONSAVEL", "Responsável", "Responsavel", "responsavel");
 
+    const observacao = pick(r, "OBSERVAÇÃO", "OBSERVACAO", "Observação", "Observacao", "observacao");
+
     if (!sku && !produto && !qtdRaw && !motivo && !dataRaw && !responsavel) return;
+
+
 
     const erros: string[] = [];
     const qtd = Number(String(qtdRaw).replace(",", "."));
