@@ -225,11 +225,14 @@ export async function assinarBaixas(
     .map((b) => b.id);
 
   if (concluidasIds.length > 0) {
+    // Assinaturas completas: segue para a aprovação final do Administrador,
+    // que também dispara o e-mail de Baixa Fiscal.
     await (supabase as any)
       .from("baixa_operacional")
-      .update({ status_fluxo: "APROVADA", data_aprovacao: agora })
+      .update({ status_fluxo: "AGUARDANDO_ADMIN", data_aprovacao: agora })
       .in("id", concluidasIds);
   }
+
 
   await (supabase as any).from("audit_logs").insert(
     alvos.map((b) => ({
