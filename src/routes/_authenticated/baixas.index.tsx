@@ -230,6 +230,8 @@ function NovaBaixaForm() {
     if (!qtd || qtd <= 0) return toast.error("Informe a quantidade");
     if (qtd > saldo) return toast.error("Quantidade maior que saldo disponível");
     if (!motivoId) return toast.error("Selecione o motivo");
+    if (!observacaoItem.trim()) return toast.error("Informe a Observação do item");
+
     if (foto) {
       if (!["image/jpeg", "image/png", "image/jpg"].includes(foto.type)) return toast.error("Use JPG ou PNG");
       if (foto.size > MAX_BYTES) return toast.error("Foto excede 10MB");
@@ -465,9 +467,10 @@ function NovaBaixaForm() {
                 {foto && <div className="mt-1 text-xs text-muted-foreground">{foto.name} — {(foto.size / 1024).toFixed(0)} KB</div>}
               </div>
               <div>
-                <Label>Observação do item</Label>
-                <Input value={observacaoItem} onChange={(e) => setObservacaoItem(e.target.value)} />
+                <Label>Observação do item *</Label>
+                <Input value={observacaoItem} onChange={(e) => setObservacaoItem(e.target.value)} placeholder="Descreva o motivo/contexto da baixa deste item" />
               </div>
+
 
               <div className="md:col-span-2 flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={limparItem}>Limpar item</Button>

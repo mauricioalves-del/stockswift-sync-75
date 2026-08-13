@@ -9,6 +9,8 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -154,6 +156,10 @@ export function ImportarBaixasDialog() {
     setRows((prev) => prev.map((r) => r.linha === linha ? { ...r, lote_selecionado_id: estoqueId } : r));
   }
 
+  function alterarObservacao(linha: number, valor: string) {
+    setRows((prev) => prev.map((r) => r.linha === linha ? { ...r, observacao: valor } : r));
+  }
+
   function loteDaLinha(r: ParsedRow): LoteDisponivel | undefined {
     return r.lotes_disponiveis?.find((l) => l.estoque_id === r.lote_selecionado_id);
   }
@@ -161,6 +167,11 @@ export function ImportarBaixasDialog() {
   async function confirmar() {
     const okRows = rows.filter((r) => r.status === "OK");
     if (okRows.length === 0) return toast.error("Nenhuma linha válida para importar");
+    const semObs = okRows.filter((r) => !(r.observacao ?? "").trim());
+    if (semObs.length > 0) {
+      return toast.error(`Preencha a Observação obrigatória nas linhas: ${semObs.map((r) => r.linha).join(", ")}`);
+    }
+
     setImporting(true);
     try {
       const user = (await supabase.auth.getUser()).data.user!;
@@ -179,7 +190,9 @@ export function ImportarBaixasDialog() {
           data_ocorrencia: r.data,
           id_local: almoxSel,
           lote: lote?.lote || null,
+          observacao: (r.observacao ?? "").trim(),
           origem_lancamento: "IMPORTACAO_PLANILHA",
+
         };
       });
 
@@ -288,7 +301,9 @@ export function ImportarBaixasDialog() {
                       <TableHead>Data</TableHead>
                       <TableHead>Lote</TableHead>
                       <TableHead className="text-right">Valor Total</TableHead>
-                      <TableHead>Observações</TableHead>
+                      <TableHead>Observação do item *</TableHead>
+                      <TableHead>Erros</TableHead>
+
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -339,9 +354,18 @@ export function ImportarBaixasDialog() {
                           <TableCell className="text-right tabular-nums text-xs">
                             {valorTotal > 0 ? valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}
                           </TableCell>
+                          <TableCell className="min-w-[16rem]">
+                            <Input
+                              value={r.observacao ?? ""}
+                              onChange={(e) => alterarObservacao(r.linha, e.target.value)}
+                              placeholder="Obrigatório"
+                              className={`h-8 text-xs ${r.status === "OK" && !(r.observacao ?? "").trim() ? "border-destructive" : ""}`}
+                            />
+                          </TableCell>
                           <TableCell className="text-xs text-destructive">
                             {r.erros.join("; ")}
                           </TableCell>
+
                         </TableRow>
                       );
                     })}
