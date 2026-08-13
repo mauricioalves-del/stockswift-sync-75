@@ -735,6 +735,31 @@ function FilaAprovacao() {
     return fallback;
   }
 
+  /** Dispara o e-mail de Baixa Fiscal para os itens informados. Retorna true em caso de sucesso. */
+  async function enviarFiscal(ids: string[] | null): Promise<boolean> {
+    try {
+      const { data: resp, error } = await supabase.functions.invoke("solicitar-baixa-fiscal", {
+        body: ids ? { ids } : {},
+      });
+      const failure = error ? await readEdgeFunctionFailure(error) : ((resp as any)?.ok === false ? resp as any : null);
+      if (failure) {
+        const message = mensagemFiscal(failure.code, failure.error ?? "Falha no envio");
+        setAvisoFiscal({ code: failure.code, message });
+        toast.error(message);
+        return false;
+      }
+      const r = resp as any;
+      setAvisoFiscal(null);
+      toast.success(`E-mail de Baixa Fiscal enviado a ${r?.destinatarios?.length ?? 0} destinatário(s) — ${r?.qtd_itens ?? 0} item(ns).`);
+      return true;
+    } catch (err: any) {
+      const message = err?.message ?? "Falha ao enviar";
+      setAvisoFiscal({ message });
+      toast.error(message);
+      return false;
+    }
+  }
+
   async function solicitarBaixaFiscal(apenasSelecionados = false) {
     const alvos = apenasSelecionados ? selecionados : (data ?? []);
     if (alvos.length === 0)
@@ -742,27 +767,36 @@ function FilaAprovacao() {
     if (!confirm(`Enviar solicitação de Baixa Fiscal com ${alvos.length} item(ns)?`)) return;
     setEnviandoFiscal(true);
     try {
-      const { data: resp, error } = await supabase.functions.invoke("solicitar-baixa-fiscal", {
-        body: apenasSelecionados ? { ids: alvos.map((b: any) => b.id) } : {},
-      });
-      const failure = error ? await readEdgeFunctionFailure(error) : ((resp as any)?.ok === false ? resp as any : null);
-      if (failure) {
-        const message = mensagemFiscal(failure.code, failure.error ?? "Falha no envio");
-        setAvisoFiscal({ code: failure.code, message });
-        toast.error(message);
-        return;
-      }
-      const r = resp as any;
-      setAvisoFiscal(null);
-      toast.success(`E-mail enviado a ${r?.destinatarios?.length ?? 0} destinatário(s) — ${r?.qtd_itens ?? 0} item(ns).`);
-    } catch (err: any) {
-      const message = err?.message ?? "Falha ao enviar";
-      setAvisoFiscal({ message });
-      toast.error(message);
+      await enviarFiscal(apenasSelecionados ? alvos.map((b: any) => b.id) : null);
     } finally {
       setEnviandoFiscal(false);
     }
   }
+
+  /** Aprovação final do Administrador: consolida a baixa e envia o e-mail fiscal. */
+  async function aprovarAdmin(itens: any[]) {
+    const alvos = itens.filter((b: any) => aguardandoAdmin(b));
+    if (alvos.length === 0)
+      return toast.error("Nenhum item com as duas assinaturas aguardando aprovação do Administrador");
+    if (!confirm(`Aprovar ${alvos.length} item(ns) assinado(s) e enviar o e-mail de Baixa Fiscal?`)) return;
+    const user = (await supabase.auth.getUser()).data.user!;
+    setAprovandoAdmin(true);
+    try {
+      const r = await aprovarComoAdministrador(alvos, user.id);
+      await enviarFiscal(alvos.map((b: any) => b.id));
+      toast.success(
+        `${r.aprovadas} item(ns) aprovado(s)` +
+        (r.emailsFalha ? ` — ${r.emailsFalha} e-mail(s) de aprovação falharam.` : ""),
+      );
+      setSel(new Set());
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao aprovar");
+    } finally {
+      setAprovandoAdmin(false);
+      qc.invalidateQueries({ queryKey: ["baixas"] });
+    }
+  }
+
 
   async function solicitarAjuste(b: any) {
     const comentario = window.prompt("Informe o ajuste necessário:");
