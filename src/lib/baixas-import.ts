@@ -21,6 +21,9 @@ export type ParsedRow = {
   // seleção de lote (feita na tela de prévia)
   lotes_disponiveis?: LoteDisponivel[];
   lote_selecionado_id?: string | null;
+  // observação obrigatória, preenchida na prévia
+  observacao?: string;
+
 };
 
 export type LoteDisponivel = {
