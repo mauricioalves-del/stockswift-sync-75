@@ -1051,7 +1051,7 @@ function FilaAprovacao() {
                         <Pencil className="size-3.5 mr-1" /> Editar
                       </Button>
                     )}
-                    {podeAprovar && statusAprovacao(b) !== "APROVADA" && statusAprovacao(b) !== "REPROVADA" && (
+                    {podeAprovar && statusAprovacao(b) !== "APROVADA" && statusAprovacao(b) !== "REPROVADA" && !aguardandoAdmin(b) && (
                       <>
                         <Button size="sm" variant="outline" onClick={() => solicitarAjuste(b)}>
                           <MessageSquareWarning className="size-3.5 mr-1" /> Ajuste
@@ -1069,11 +1069,22 @@ function FilaAprovacao() {
                           ))}
                       </>
                     )}
+                    {aguardandoAdmin(b) && (
+                      isAdmin ? (
+                        <Button size="sm" disabled={aprovandoAdmin} onClick={() => aprovarAdmin([b])}>
+                          {aprovandoAdmin ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <Mail className="size-3.5 mr-1" />}
+                          Aprovar e enviar
+                        </Button>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">Aguardando Administrador</span>
+                      )
+                    )}
                     {podeAprovar && statusAprovacao(b) === "APROVADA" && (
                       <Button size="sm" onClick={() => executar(b)}>
                         <PackageMinus className="size-3.5 mr-1" /> Executar
                       </Button>
                     )}
+
                   </div>
                 </TableCell>
               </TableRow>
