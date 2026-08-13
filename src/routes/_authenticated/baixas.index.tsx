@@ -1291,7 +1291,19 @@ function Historico() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Data</TableHead>
+                <TableHead
+                  className="cursor-pointer select-none"
+                  onClick={() => {
+                    if (sortBy === "data") {
+                      setOrdem(ordem === "desc" ? "asc" : "desc");
+                    } else {
+                      setSortBy("data");
+                      setOrdem("desc");
+                    }
+                  }}
+                >
+                  Data {sortBy === "data" && (ordem === "desc" ? "↓" : "↑")}
+                </TableHead>
                 <TableHead>Código</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Lote</TableHead>
@@ -1299,9 +1311,16 @@ function Historico() {
                 <TableHead className="text-right">Qtd</TableHead>
                 <TableHead
                   className="text-right cursor-pointer select-none"
-                  onClick={() => setOrdem(ordem === "desc" ? "asc" : "desc")}
+                  onClick={() => {
+                    if (sortBy === "valor") {
+                      setOrdem(ordem === "desc" ? "asc" : "desc");
+                    } else {
+                      setSortBy("valor");
+                      setOrdem("desc");
+                    }
+                  }}
                 >
-                  Valor {ordem === "desc" ? "↓" : "↑"}
+                  Valor {sortBy === "valor" && (ordem === "desc" ? "↓" : "↑")}
                 </TableHead>
                 <TableHead>Motivo</TableHead>
                 <TableHead>Status</TableHead>
