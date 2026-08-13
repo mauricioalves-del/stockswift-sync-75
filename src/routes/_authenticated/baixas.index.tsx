@@ -593,6 +593,8 @@ function FilaAprovacao() {
   const [editando, setEditando] = useState<any | null>(null);
   const [detalhe, setDetalhe] = useState<any | null>(null);
   const [assinando, setAssinando] = useState(false);
+  const [aprovandoAdmin, setAprovandoAdmin] = useState(false);
+
   const [sel, setSel] = useState<Set<string>>(new Set());
 
   const perfisQ = useQuery({
