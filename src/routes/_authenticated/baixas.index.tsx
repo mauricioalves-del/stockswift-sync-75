@@ -1188,11 +1188,16 @@ function Historico() {
       );
     });
     return [...arr].sort((a: any, b: any) => {
+      if (sortBy === "data") {
+        const da = new Date(a.data_solicitacao ?? 0).getTime();
+        const db = new Date(b.data_solicitacao ?? 0).getTime();
+        return ordem === "desc" ? db - da : da - db;
+      }
       const va = Number(a.valor_total ?? 0);
       const vb = Number(b.valor_total ?? 0);
       return ordem === "desc" ? vb - va : va - vb;
     });
-  }, [data, busca, motivoFiltro, almoxFiltro, ordem]);
+  }, [data, busca, motivoFiltro, almoxFiltro, sortBy, ordem]);
 
   const podeLimpar = busca || motivoFiltro !== "__all__" || almoxFiltro !== "__all__";
 
