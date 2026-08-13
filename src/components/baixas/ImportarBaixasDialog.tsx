@@ -154,6 +154,10 @@ export function ImportarBaixasDialog() {
     setRows((prev) => prev.map((r) => r.linha === linha ? { ...r, lote_selecionado_id: estoqueId } : r));
   }
 
+  function alterarObservacao(linha: number, valor: string) {
+    setRows((prev) => prev.map((r) => r.linha === linha ? { ...r, observacao: valor } : r));
+  }
+
   function loteDaLinha(r: ParsedRow): LoteDisponivel | undefined {
     return r.lotes_disponiveis?.find((l) => l.estoque_id === r.lote_selecionado_id);
   }
@@ -161,6 +165,11 @@ export function ImportarBaixasDialog() {
   async function confirmar() {
     const okRows = rows.filter((r) => r.status === "OK");
     if (okRows.length === 0) return toast.error("Nenhuma linha válida para importar");
+    const semObs = okRows.filter((r) => !(r.observacao ?? "").trim());
+    if (semObs.length > 0) {
+      return toast.error(`Preencha a Observação obrigatória nas linhas: ${semObs.map((r) => r.linha).join(", ")}`);
+    }
+
     setImporting(true);
     try {
       const user = (await supabase.auth.getUser()).data.user!;
