@@ -188,7 +188,9 @@ export function ImportarBaixasDialog() {
           data_ocorrencia: r.data,
           id_local: almoxSel,
           lote: lote?.lote || null,
+          observacao: (r.observacao ?? "").trim(),
           origem_lancamento: "IMPORTACAO_PLANILHA",
+
         };
       });
 
