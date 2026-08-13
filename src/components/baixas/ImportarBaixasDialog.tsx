@@ -299,7 +299,9 @@ export function ImportarBaixasDialog() {
                       <TableHead>Data</TableHead>
                       <TableHead>Lote</TableHead>
                       <TableHead className="text-right">Valor Total</TableHead>
-                      <TableHead>Observações</TableHead>
+                      <TableHead>Observação do item *</TableHead>
+                      <TableHead>Erros</TableHead>
+
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -350,9 +352,18 @@ export function ImportarBaixasDialog() {
                           <TableCell className="text-right tabular-nums text-xs">
                             {valorTotal > 0 ? valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}
                           </TableCell>
+                          <TableCell className="min-w-[16rem]">
+                            <Input
+                              value={r.observacao ?? ""}
+                              onChange={(e) => alterarObservacao(r.linha, e.target.value)}
+                              placeholder="Obrigatório"
+                              className={`h-8 text-xs ${r.status === "OK" && !(r.observacao ?? "").trim() ? "border-destructive" : ""}`}
+                            />
+                          </TableCell>
                           <TableCell className="text-xs text-destructive">
                             {r.erros.join("; ")}
                           </TableCell>
+
                         </TableRow>
                       );
                     })}
