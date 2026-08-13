@@ -19,11 +19,12 @@ export const CAMPO_EM = {
   COORDENADOR_FINANCEIRO: "aprovado_coordenador_financeiro_em",
 } as const;
 
-export type StatusAprovacao = "PENDENTE" | "PARCIAL" | "APROVADA" | "REPROVADA";
+export type StatusAprovacao = "PENDENTE" | "PARCIAL" | "AGUARDANDO_ADMIN" | "APROVADA" | "REPROVADA";
 
 export const STATUS_APROVACAO_LABEL: Record<StatusAprovacao, string> = {
   PENDENTE: "Pendente",
   PARCIAL: "Aprovação Parcial",
+  AGUARDANDO_ADMIN: "Aguardando Administrador",
   APROVADA: "Aprovada",
   REPROVADA: "Reprovada",
 };
@@ -31,6 +32,7 @@ export const STATUS_APROVACAO_LABEL: Record<StatusAprovacao, string> = {
 export const STATUS_APROVACAO_TONE: Record<StatusAprovacao, string> = {
   PENDENTE: "bg-muted text-muted-foreground",
   PARCIAL: "bg-warning/20 text-warning-foreground",
+  AGUARDANDO_ADMIN: "bg-primary/15 text-primary",
   APROVADA: "bg-success/15 text-success",
   REPROVADA: "bg-destructive/15 text-destructive",
 };
@@ -40,16 +42,24 @@ export function statusAprovacao(b: any): StatusAprovacao {
   if (b?.status_fluxo === "REPROVADA") return "REPROVADA";
   const dir = !!b?.aprovado_diretor_operacoes_por;
   const fin = !!b?.aprovado_coordenador_financeiro_por;
-  if (dir && fin) return "APROVADA";
+  if (dir && fin) {
+    return b?.status_fluxo === "AGUARDANDO_ADMIN" ? "AGUARDANDO_ADMIN" : "APROVADA";
+  }
   if (dir || fin) return "PARCIAL";
   // registros legados aprovados antes da dupla assinatura
   if (b?.status_fluxo === "APROVADA" || b?.status_fluxo === "EXECUTADA") return "APROVADA";
   return "PENDENTE";
 }
 
+/** Assinaturas concluídas, aguardando a aprovação final do Administrador. */
+export function aguardandoAdmin(b: any): boolean {
+  return b?.status_fluxo === "AGUARDANDO_ADMIN";
+}
+
 export function assinaturaFeita(b: any, etapa: Etapa): boolean {
   return !!b?.[CAMPO_POR[etapa]];
 }
+
 
 /** Etapa que o usuário atual pode assinar nesta linha, ou null. */
 export function etapaDisponivel(
@@ -89,7 +99,11 @@ export async function gerarDocumentoAprovacao(solicitacaoId: number | string): P
     .eq("solicitacao_id", solicitacaoId);
   if (error) throw error;
 
-  const aprovadas = (linhas ?? []).filter((b: any) => statusAprovacao(b) === "APROVADA");
+  const aprovadas = (linhas ?? []).filter((b: any) => {
+    const s = statusAprovacao(b);
+    return s === "APROVADA" || s === "AGUARDANDO_ADMIN";
+  });
+
   if (aprovadas.length === 0) return null;
 
   const ref = aprovadas[0];
@@ -215,11 +229,14 @@ export async function assinarBaixas(
     .map((b) => b.id);
 
   if (concluidasIds.length > 0) {
+    // Assinaturas completas: segue para a aprovação final do Administrador,
+    // que também dispara o e-mail de Baixa Fiscal.
     await (supabase as any)
       .from("baixa_operacional")
-      .update({ status_fluxo: "APROVADA", data_aprovacao: agora })
+      .update({ status_fluxo: "AGUARDANDO_ADMIN", data_aprovacao: agora })
       .in("id", concluidasIds);
   }
+
 
   await (supabase as any).from("audit_logs").insert(
     alvos.map((b) => ({
@@ -253,19 +270,9 @@ export async function assinarBaixas(
       const pendente = (linhas ?? []).some((b: any) => statusAprovacao(b) === "PENDENTE" || statusAprovacao(b) === "PARCIAL");
       if (pendente) continue;
 
-      const path = await gerarDocumentoAprovacao(reqId as any);
+      // Documento formal já fica disponível; o e-mail sai na aprovação do Administrador.
+      await gerarDocumentoAprovacao(reqId as any);
       concluidas.push(reqId as any);
-
-      try {
-        await notificarAprovacaoBaixa({ data: { solicitacaoId: reqId as any, documentoPath: path } });
-      } catch (e) {
-        console.warn("[assinarBaixas] falha no e-mail de aprovação", e);
-        await (supabase as any).from("audit_logs").insert({
-          usuario: opts.userId, acao: "BAIXA_APROVACAO_EMAIL_FALHA",
-          entidade: "solicitacoes_baixa", entidade_id: String(reqId),
-          payload: { erro: String(e) },
-        });
-      }
     } catch (e) {
       console.warn("[assinarBaixas] falha ao gerar documento", e);
     }
@@ -273,6 +280,57 @@ export async function assinarBaixas(
 
   return { assinadas: alvos.length, requisicoesConcluidas: concluidas };
 }
+
+/**
+ * Aprovação final do Administrador: consolida o status como APROVADA e
+ * dispara o e-mail de aprovação/baixa fiscal por requisição.
+ */
+export async function aprovarComoAdministrador(
+  itens: any[],
+  userId: string,
+): Promise<{ aprovadas: number; emailsOk: number; emailsFalha: number }> {
+  const alvos = itens.filter((b) => aguardandoAdmin(b));
+  if (alvos.length === 0) return { aprovadas: 0, emailsOk: 0, emailsFalha: 0 };
+
+  const agora = new Date().toISOString();
+  const { error } = await (supabase as any)
+    .from("baixa_operacional")
+    .update({ status_fluxo: "APROVADA", data_aprovacao: agora })
+    .in("id", alvos.map((b) => b.id));
+  if (error) throw error;
+
+  await (supabase as any).from("audit_logs").insert(
+    alvos.map((b) => ({
+      usuario: userId,
+      acao: "BAIXA_APROVADA_ADMIN",
+      entidade: "baixa_operacional",
+      entidade_id: String(b.id),
+      payload: { codigo_produto: b.codigo_produto, lote: b.lote, quantidade: b.quantidade },
+    })),
+  );
+
+  const reqs = Array.from(new Set(alvos.map((b) => b.solicitacao_id).filter((v) => v != null)));
+  let emailsOk = 0;
+  let emailsFalha = 0;
+  for (const reqId of reqs) {
+    try {
+      const path = await gerarDocumentoAprovacao(reqId as any);
+      await notificarAprovacaoBaixa({ data: { solicitacaoId: reqId as any, documentoPath: path } });
+      emailsOk++;
+    } catch (e) {
+      emailsFalha++;
+      console.warn("[aprovarComoAdministrador] falha no e-mail de aprovação", e);
+      await (supabase as any).from("audit_logs").insert({
+        usuario: userId, acao: "BAIXA_APROVACAO_EMAIL_FALHA",
+        entidade: "solicitacoes_baixa", entidade_id: String(reqId),
+        payload: { erro: String(e) },
+      });
+    }
+  }
+
+  return { aprovadas: alvos.length, emailsOk, emailsFalha };
+}
+
 
 /** Reprova imediatamente (qualquer uma das duas etapas ou Administrador). */
 export async function reprovarBaixas(itens: any[], motivo: string, userId: string): Promise<number> {

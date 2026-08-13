@@ -30,9 +30,10 @@ import { criarSolicitacaoBaixa } from "@/lib/solicitacoes-baixa";
 import { readEdgeFunctionFailure } from "@/lib/edge-function-errors";
 import { useMyRoles } from "@/hooks/useMyRoles";
 import {
-  assinarBaixas, reprovarBaixas, statusAprovacao, assinaturaFeita,
-  ETAPA_LABEL, type Etapa,
+  assinarBaixas, reprovarBaixas, statusAprovacao, assinaturaFeita, aguardandoAdmin,
+  aprovarComoAdministrador, ETAPA_LABEL, type Etapa,
 } from "@/lib/baixa-aprovacao";
+
 import { ResumoExecutivoBaixas, DetalheBaixaDialog, BadgeAprovacao } from "@/components/baixas/ResumoAprovacao";
 
 
@@ -46,6 +47,8 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const STATUS_TONES: Record<string, string> = {
   PENDENTE: "bg-muted text-muted-foreground",
   ANALISE: "bg-info/15 text-info",
+  AGUARDANDO_ADMIN: "bg-primary/15 text-primary",
+
   APROVADA: "bg-success/15 text-success",
   REPROVADA: "bg-destructive/15 text-destructive",
   AJUSTE_SOLICITADO: "bg-warning/20 text-warning-foreground",
@@ -581,7 +584,7 @@ function FilaAprovacao() {
     : minhasEtapas;
   const podeAprovar = etapasDisponiveis.length > 0;
   const qc = useQueryClient();
-  const { data } = useBaixas(["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO"]);
+  const { data } = useBaixas(["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO", "AGUARDANDO_ADMIN"]);
   const [enviandoFiscal, setEnviandoFiscal] = useState(false);
   const [avisoFiscal, setAvisoFiscal] = useState<{ code?: string; message: string } | null>(null);
   const [fAlmox, setFAlmox] = useState("__all__");
@@ -590,6 +593,8 @@ function FilaAprovacao() {
   const [editando, setEditando] = useState<any | null>(null);
   const [detalhe, setDetalhe] = useState<any | null>(null);
   const [assinando, setAssinando] = useState(false);
+  const [aprovandoAdmin, setAprovandoAdmin] = useState(false);
+
   const [sel, setSel] = useState<Set<string>>(new Set());
 
   const perfisQ = useQuery({
@@ -732,6 +737,31 @@ function FilaAprovacao() {
     return fallback;
   }
 
+  /** Dispara o e-mail de Baixa Fiscal para os itens informados. Retorna true em caso de sucesso. */
+  async function enviarFiscal(ids: string[] | null): Promise<boolean> {
+    try {
+      const { data: resp, error } = await supabase.functions.invoke("solicitar-baixa-fiscal", {
+        body: ids ? { ids } : {},
+      });
+      const failure = error ? await readEdgeFunctionFailure(error) : ((resp as any)?.ok === false ? resp as any : null);
+      if (failure) {
+        const message = mensagemFiscal(failure.code, failure.error ?? "Falha no envio");
+        setAvisoFiscal({ code: failure.code, message });
+        toast.error(message);
+        return false;
+      }
+      const r = resp as any;
+      setAvisoFiscal(null);
+      toast.success(`E-mail de Baixa Fiscal enviado a ${r?.destinatarios?.length ?? 0} destinatário(s) — ${r?.qtd_itens ?? 0} item(ns).`);
+      return true;
+    } catch (err: any) {
+      const message = err?.message ?? "Falha ao enviar";
+      setAvisoFiscal({ message });
+      toast.error(message);
+      return false;
+    }
+  }
+
   async function solicitarBaixaFiscal(apenasSelecionados = false) {
     const alvos = apenasSelecionados ? selecionados : (data ?? []);
     if (alvos.length === 0)
@@ -739,27 +769,36 @@ function FilaAprovacao() {
     if (!confirm(`Enviar solicitação de Baixa Fiscal com ${alvos.length} item(ns)?`)) return;
     setEnviandoFiscal(true);
     try {
-      const { data: resp, error } = await supabase.functions.invoke("solicitar-baixa-fiscal", {
-        body: apenasSelecionados ? { ids: alvos.map((b: any) => b.id) } : {},
-      });
-      const failure = error ? await readEdgeFunctionFailure(error) : ((resp as any)?.ok === false ? resp as any : null);
-      if (failure) {
-        const message = mensagemFiscal(failure.code, failure.error ?? "Falha no envio");
-        setAvisoFiscal({ code: failure.code, message });
-        toast.error(message);
-        return;
-      }
-      const r = resp as any;
-      setAvisoFiscal(null);
-      toast.success(`E-mail enviado a ${r?.destinatarios?.length ?? 0} destinatário(s) — ${r?.qtd_itens ?? 0} item(ns).`);
-    } catch (err: any) {
-      const message = err?.message ?? "Falha ao enviar";
-      setAvisoFiscal({ message });
-      toast.error(message);
+      await enviarFiscal(apenasSelecionados ? alvos.map((b: any) => b.id) : null);
     } finally {
       setEnviandoFiscal(false);
     }
   }
+
+  /** Aprovação final do Administrador: consolida a baixa e envia o e-mail fiscal. */
+  async function aprovarAdmin(itens: any[]) {
+    const alvos = itens.filter((b: any) => aguardandoAdmin(b));
+    if (alvos.length === 0)
+      return toast.error("Nenhum item com as duas assinaturas aguardando aprovação do Administrador");
+    if (!confirm(`Aprovar ${alvos.length} item(ns) assinado(s) e enviar o e-mail de Baixa Fiscal?`)) return;
+    const user = (await supabase.auth.getUser()).data.user!;
+    setAprovandoAdmin(true);
+    try {
+      const r = await aprovarComoAdministrador(alvos, user.id);
+      await enviarFiscal(alvos.map((b: any) => b.id));
+      toast.success(
+        `${r.aprovadas} item(ns) aprovado(s)` +
+        (r.emailsFalha ? ` — ${r.emailsFalha} e-mail(s) de aprovação falharam.` : ""),
+      );
+      setSel(new Set());
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao aprovar");
+    } finally {
+      setAprovandoAdmin(false);
+      qc.invalidateQueries({ queryKey: ["baixas"] });
+    }
+  }
+
 
   async function solicitarAjuste(b: any) {
     const comentario = window.prompt("Informe o ajuste necessário:");
@@ -835,12 +874,25 @@ function FilaAprovacao() {
                 <XCircle className="size-4 mr-2" /> Reprovar selecionados
               </Button>
             )}
+            {isAdmin && sel.size > 0 && selecionados.some(aguardandoAdmin) && (
+              <Button onClick={() => aprovarAdmin(selecionados)} disabled={aprovandoAdmin}>
+                {aprovandoAdmin ? <Loader2 className="size-4 mr-2 animate-spin" /> : <CheckCircle2 className="size-4 mr-2" />}
+                Aprovar e enviar Baixa Fiscal ({selecionados.filter(aguardandoAdmin).length})
+              </Button>
+            )}
+            {isAdmin && sel.size === 0 && lista.some(aguardandoAdmin) && (
+              <Button onClick={() => aprovarAdmin(lista)} disabled={aprovandoAdmin}>
+                {aprovandoAdmin ? <Loader2 className="size-4 mr-2 animate-spin" /> : <CheckCircle2 className="size-4 mr-2" />}
+                Aprovar todos assinados ({lista.filter(aguardandoAdmin).length})
+              </Button>
+            )}
             {isAdmin && sel.size > 0 && (
               <Button variant="outline" onClick={() => solicitarBaixaFiscal(true)} disabled={enviandoFiscal}>
                 {enviandoFiscal ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
                 Enviar selecionados
               </Button>
             )}
+
             {podeAprovar && sel.size === 0 && etapasDisponiveis.map((etapa) => (
               <Button
                 key={etapa}
@@ -999,7 +1051,7 @@ function FilaAprovacao() {
                         <Pencil className="size-3.5 mr-1" /> Editar
                       </Button>
                     )}
-                    {podeAprovar && statusAprovacao(b) !== "APROVADA" && statusAprovacao(b) !== "REPROVADA" && (
+                    {podeAprovar && statusAprovacao(b) !== "APROVADA" && statusAprovacao(b) !== "REPROVADA" && !aguardandoAdmin(b) && (
                       <>
                         <Button size="sm" variant="outline" onClick={() => solicitarAjuste(b)}>
                           <MessageSquareWarning className="size-3.5 mr-1" /> Ajuste
@@ -1017,11 +1069,22 @@ function FilaAprovacao() {
                           ))}
                       </>
                     )}
+                    {aguardandoAdmin(b) && (
+                      isAdmin ? (
+                        <Button size="sm" disabled={aprovandoAdmin} onClick={() => aprovarAdmin([b])}>
+                          {aprovandoAdmin ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <Mail className="size-3.5 mr-1" />}
+                          Aprovar e enviar
+                        </Button>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">Aguardando Administrador</span>
+                      )
+                    )}
                     {podeAprovar && statusAprovacao(b) === "APROVADA" && (
                       <Button size="sm" onClick={() => executar(b)}>
                         <PackageMinus className="size-3.5 mr-1" /> Executar
                       </Button>
                     )}
+
                   </div>
                 </TableCell>
               </TableRow>
