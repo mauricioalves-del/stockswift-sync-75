@@ -47,6 +47,8 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const STATUS_TONES: Record<string, string> = {
   PENDENTE: "bg-muted text-muted-foreground",
   ANALISE: "bg-info/15 text-info",
+  AGUARDANDO_ADMIN: "bg-primary/15 text-primary",
+
   APROVADA: "bg-success/15 text-success",
   REPROVADA: "bg-destructive/15 text-destructive",
   AJUSTE_SOLICITADO: "bg-warning/20 text-warning-foreground",
