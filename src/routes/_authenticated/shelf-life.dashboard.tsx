@@ -177,7 +177,7 @@ function ShelfLifeDashboard() {
 
   const ind = useMemo(() => calcularIndicadores(linhas, campanhasPeriodo), [linhas, campanhasPeriodo]);
 
-  const met = useMemo(() => indicadoresMetodologia(campanhasPeriodo as any), [campanhasPeriodo]);
+  const met = useMemo(() => indicadoresMetodologia(campanhasPeriodo as any, ind.perda), [campanhasPeriodo, ind.perda]);
   const composicao = useMemo(
     () => met.porCategoria.filter((x) => x.valor > 0).map((x, i) => ({ name: x.categoria, value: x.valor, fill: COR_CATEGORIA[i % COR_CATEGORIA.length] })),
     [met],
