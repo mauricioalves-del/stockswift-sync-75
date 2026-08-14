@@ -36,10 +36,10 @@ export const Route = createFileRoute("/_authenticated/shelf-life/dashboard")({
   }),
 });
 
-const COR_PERDA = "#E57373";
-const COR_RECEITA = "#4FC3F7";
-const COR_SAVING = "#81C784";
-const COR_CATEGORIA = ["#4FC3F7", "#FFB74D", "#81C784", "#E57373"];
+const COR_PERDA = "var(--chart-5)";
+const COR_RECEITA = "var(--chart-1)";
+const COR_SAVING = "var(--chart-3)";
+const COR_CATEGORIA = ["var(--chart-1)", "var(--chart-3)", "var(--chart-2)", "var(--chart-4)"];
 
 function isoDaysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); }
 function todayISO() { return new Date().toISOString().slice(0, 10); }
