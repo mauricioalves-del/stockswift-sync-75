@@ -130,6 +130,9 @@ export function savingRecuperadoFinal(c: CampanhaFin): number {
 export type IndicadoresMetodologia = {
   receitaRecuperada: number;
   perdaEvitada: number;
+  /** Perda efetiva das ações: custo das ações de Descarte (nada é recuperado). */
+  perdaDescarte: number;
+  /** Perda real = descarte das ações + perda externa informada (baixas sem cobertura). */
   perdaReal: number;
   savingRecuperado: number;
   custoTotal: number;
@@ -138,10 +141,14 @@ export type IndicadoresMetodologia = {
 };
 
 /** §7 — Indicadores executivos calculados sobre as ações concluídas. */
-export function indicadoresMetodologia(campanhas: CampanhaFin[]): IndicadoresMetodologia {
+export function indicadoresMetodologia(
+  campanhas: CampanhaFin[],
+  perdaExterna = 0,
+): IndicadoresMetodologia {
   const concluidas = campanhas.filter((c) => c.status === "CONCLUIDA");
   let receitaRecuperada = 0;
   let perdaEvitada = 0;
+  let perdaDescarte = 0;
   let savingRecuperado = 0;
   let custoTotal = 0;
   const porCat = new Map<CategoriaFinanceira, number>();
@@ -149,13 +156,15 @@ export function indicadoresMetodologia(campanhas: CampanhaFin[]): IndicadoresMet
   for (const c of concluidas) {
     const cat = categoriaDaCampanha(c);
     const valor = valorRecuperadoFinal(c);
-    custoTotal += Number(c.custo_acao) || 0;
+    const custo = Number(c.custo_acao) || 0;
+    custoTotal += custo;
     savingRecuperado += savingRecuperadoFinal(c);
     if (cat === "Vendas") receitaRecuperada += valor;
     if (cat !== "Descarte") {
       perdaEvitada += valor;
       porCat.set(cat, (porCat.get(cat) ?? 0) + valor);
     } else {
+      perdaDescarte += custo;
       porCat.set(cat, porCat.get(cat) ?? 0);
     }
   }
@@ -163,7 +172,8 @@ export function indicadoresMetodologia(campanhas: CampanhaFin[]): IndicadoresMet
   return {
     receitaRecuperada: round2(receitaRecuperada),
     perdaEvitada: round2(perdaEvitada),
-    perdaReal: round2(custoTotal - perdaEvitada),
+    perdaDescarte: round2(perdaDescarte),
+    perdaReal: round2(perdaDescarte + (Number(perdaExterna) || 0)),
     savingRecuperado: round2(savingRecuperado),
     custoTotal: round2(custoTotal),
     roiOperacional: custoTotal > 0 ? (savingRecuperado / custoTotal) * 100 : null,
@@ -173,3 +183,4 @@ export function indicadoresMetodologia(campanhas: CampanhaFin[]): IndicadoresMet
     })),
   };
 }
+
