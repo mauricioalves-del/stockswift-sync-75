@@ -208,26 +208,39 @@ function ShelfLifeDashboard() {
   const roscaTotal = rosca.reduce((s, r) => s + r.value, 0);
 
   const topRecuperados = useMemo(() => {
-    const m = new Map<string, { nome: string; valor: number }>();
+    const m = new Map<string, { nome: string; valor: number; acoes: Set<string>; qtdAcoes: number; custo: number; saving: number }>();
     campanhasPeriodo.filter((c) => c.status === "CONCLUIDA").forEach((c) => {
       const k = c.sku;
-      const e = m.get(k) ?? { nome: c.descricao || c.sku, valor: 0 };
+      const e = m.get(k) ?? { nome: c.descricao || c.sku, valor: 0, acoes: new Set<string>(), qtdAcoes: 0, custo: 0, saving: 0 };
       e.valor += valorRecuperadoCampanha(c);
+      e.custo += Number(c.custo_acao) || 0;
+      e.saving += Number(c.valor_estimado_saving) || 0;
+      e.qtdAcoes += 1;
+      if (c.tipo_nome) e.acoes.add(c.tipo_nome);
       m.set(k, e);
     });
-    return Array.from(m.values()).sort((a, b) => b.valor - a.valor).slice(0, 10);
+    return Array.from(m.values())
+      .map((e) => ({ ...e, acao: Array.from(e.acoes).join(", ") || "—" }))
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 10);
   }, [campanhasPeriodo]);
 
   const topPerda = useMemo(() => {
-    const m = new Map<string, { nome: string; valor: number }>();
+    const m = new Map<string, { nome: string; valor: number; quantidade: number; ocorrencias: number; motivos: Set<string> }>();
     linhas.forEach((l) => {
       if (l.perda <= 0) return;
       const k = l.baixa.codigo_produto;
-      const e = m.get(k) ?? { nome: l.baixa.descricao || k, valor: 0 };
+      const e = m.get(k) ?? { nome: l.baixa.descricao || k, valor: 0, quantidade: 0, ocorrencias: 0, motivos: new Set<string>() };
       e.valor += l.perda;
+      e.quantidade += Number(l.baixa.quantidade) || 0;
+      e.ocorrencias += 1;
+      if (l.baixa.motivo_nome) e.motivos.add(l.baixa.motivo_nome);
       m.set(k, e);
     });
-    return Array.from(m.values()).sort((a, b) => b.valor - a.valor).slice(0, 10);
+    return Array.from(m.values())
+      .map((e) => ({ ...e, motivo: Array.from(e.motivos).join(", ") || "—" }))
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 10);
   }, [linhas]);
 
   const estrategias = useMemo(() => {
