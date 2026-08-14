@@ -510,28 +510,5 @@ function Kpi({ title, value, tone, hint }: { title: string; value: string; tone:
   );
 }
 
-function RankCard({ title, rows, color }: { title: string; rows: { nome: string; valor: number }[]; color: string }) {
-  const max = Math.max(1, ...rows.map((r) => r.valor));
-  return (
-    <Card>
-      <CardHeader className="pb-2"><CardTitle className="text-base">{title}</CardTitle></CardHeader>
-      <CardContent className="space-y-2">
-        {!rows.length && <Vazio />}
-        {rows.map((r) => (
-          <div key={r.nome} className="space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="truncate max-w-[70%]">{r.nome}</span>
-              <span className="font-medium">{formatBRL(r.valor)}</span>
-            </div>
-            <div className="h-2 rounded bg-muted overflow-hidden">
-              <div className="h-full rounded" style={{ width: `${(r.valor / max) * 100}%`, background: color }} />
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
 const Skel = () => <div className="h-full grid place-items-center text-sm text-muted-foreground">Carregando...</div>;
 const Vazio = () => <div className="h-full grid place-items-center text-sm text-muted-foreground">Sem dados no período.</div>;
