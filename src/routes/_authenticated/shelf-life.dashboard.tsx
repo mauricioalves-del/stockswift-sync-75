@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import { formatBRL } from "@/lib/inventory";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  PieChart, Pie, Cell,
+  PieChart, Pie, Cell, LabelList,
 } from "recharts";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   calcularIndicadores, cruzarBaixasComCampanhas, valorRecuperadoCampanha,
   type BaixaCalc,
