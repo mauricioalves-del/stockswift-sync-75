@@ -317,42 +317,6 @@ function ShelfLifeDashboard() {
         <Kpi title="Saving Recuperado" value={formatBRL(ind.savingRecuperado)} tone="text-success" />
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Metodologia de Recuperação Financeira (ações concluídas)</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 grid-cols-2 lg:grid-cols-5">
-          <Kpi title="Receita Recuperada" value={formatBRL(met.receitaRecuperada)} tone="text-info" hint="Ações de categoria Vendas" />
-          <Kpi title="Perda Evitada" value={formatBRL(met.perdaEvitada)} tone="text-success" hint="Todas as categorias, exceto Descarte" />
-          <Kpi title="Perda Real" value={formatBRL(met.perdaReal)} tone="text-destructive" hint={`Custo total: ${formatBRL(met.custoTotal)}`} />
-          <Kpi title="Saving Recuperado" value={formatBRL(met.savingRecuperado)} tone="text-success" hint="Valor recuperado − custo da ação" />
-          <Kpi title="ROI Operacional" value={met.roiOperacional === null ? "—" : `${met.roiOperacional.toFixed(0)}%`} tone="text-primary" hint="Saving ÷ custo das ações" />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Composição da Perda Evitada por Categoria</CardTitle></CardHeader>
-        <CardContent className="h-[300px]">
-          {loading ? <Skel /> : composicaoTotal === 0 ? <Vazio /> : (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={composicao} dataKey="value" nameKey="name" innerRadius={60} outerRadius={100}
-                  label={(e: any) => `${((e.value / composicaoTotal) * 100).toFixed(0)}%`}>
-                  {composicao.map((r) => <Cell key={r.name} fill={r.fill} />)}
-                </Pie>
-                <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Perda no período (baixas por Vencimento sem cobertura)</CardTitle></CardHeader>
-        <CardContent><div className="text-2xl font-bold text-destructive">{formatBRL(ind.perda)}</div></CardContent>
-      </Card>
-
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2"><CardTitle className="text-base">Evolução Mensal</CardTitle></CardHeader>
@@ -360,14 +324,17 @@ function ShelfLifeDashboard() {
             {loading ? <Skel /> : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={mensal}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                  <XAxis dataKey="label" fontSize={11} />
-                  <YAxis fontSize={11} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
+                  <XAxis dataKey="label" fontSize={11} stroke="var(--muted-foreground)" />
+                  <YAxis fontSize={11} stroke="var(--muted-foreground)" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    formatter={(v: any) => formatBRL(Number(v))}
+                    contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--popover-foreground)" }}
+                  />
                   <Legend />
                   <Bar dataKey="Perda" stackId="a" fill={COR_PERDA} />
                   <Bar dataKey="Receita Recuperada" stackId="a" fill={COR_RECEITA} />
-                  <Bar dataKey="Saving Recuperado" stackId="a" fill={COR_SAVING} />
+                  <Bar dataKey="Saving Recuperado" stackId="a" fill={COR_SAVING} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -382,9 +349,12 @@ function ShelfLifeDashboard() {
                 <PieChart>
                   <Pie data={rosca} dataKey="value" nameKey="name" innerRadius={60} outerRadius={100}
                     label={(e: any) => `${((e.value / roscaTotal) * 100).toFixed(0)}%`}>
-                    {rosca.map((r) => <Cell key={r.name} fill={r.fill} />)}
+                    {rosca.map((r) => <Cell key={r.name} fill={r.fill} stroke="var(--card)" />)}
                   </Pie>
-                  <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
+                  <Tooltip
+                    formatter={(v: any) => formatBRL(Number(v))}
+                    contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--popover-foreground)" }}
+                  />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -393,22 +363,132 @@ function ShelfLifeDashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <RankCard title="Top 10 Recuperados" rows={topRecuperados} color={COR_SAVING} />
-        <RankCard title="Top 10 Perda" rows={topPerda} color={COR_PERDA} />
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Metodologia de Recuperação Financeira (ações concluídas)</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+          <Kpi title="Receita Recuperada" value={formatBRL(met.receitaRecuperada)} tone="text-info" hint="Ações de categoria Vendas" />
+          <Kpi title="Perda Evitada" value={formatBRL(met.perdaEvitada)} tone="text-success" hint="Todas as categorias, exceto Descarte" />
+          <Kpi title="Perda Real" value={formatBRL(met.perdaReal)} tone="text-destructive" hint={`Custo total: ${formatBRL(met.custoTotal)}`} />
+          <Kpi title="Saving Recuperado" value={formatBRL(met.savingRecuperado)} tone="text-success" hint="Valor recuperado − custo da ação" />
+          <Kpi title="ROI Operacional" value={met.roiOperacional === null ? "—" : `${met.roiOperacional.toFixed(0)}%`} tone="text-primary" hint="Saving ÷ custo das ações" />
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Composição da Perda Evitada por Categoria</CardTitle></CardHeader>
+          <CardContent className="h-[300px]">
+            {loading ? <Skel /> : composicaoTotal === 0 ? <Vazio /> : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={composicao} dataKey="value" nameKey="name" outerRadius={100}
+                    label={(e: any) => `${((e.value / composicaoTotal) * 100).toFixed(0)}%`} labelLine={false}>
+                    {composicao.map((r) => <Cell key={r.name} fill={r.fill} stroke="var(--card)" />)}
+                  </Pie>
+                  <Tooltip
+                    formatter={(v: any) => formatBRL(Number(v))}
+                    contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--popover-foreground)" }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2"><CardTitle className="text-base">Perda no período (baixas por Vencimento sem cobertura)</CardTitle></CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-destructive">{formatBRL(ind.perda)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Considera apenas baixas por vencimento sem ação de lote vinculada.</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Top 10 Recuperados — ação e resultado</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto">
+            {!topRecuperados.length ? <Vazio /> : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Produto</TableHead>
+                    <TableHead>Ação</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                    <TableHead className="text-right">Custo</TableHead>
+                    <TableHead className="text-right">Saving</TableHead>
+                    <TableHead className="text-right">Recuperado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topRecuperados.map((r) => (
+                    <TableRow key={r.nome}>
+                      <TableCell className="max-w-[220px] truncate">{r.nome}</TableCell>
+                      <TableCell className="max-w-[180px] truncate text-muted-foreground">{r.acao}</TableCell>
+                      <TableCell className="text-right">{r.qtdAcoes}</TableCell>
+                      <TableCell className="text-right">{formatBRL(r.custo)}</TableCell>
+                      <TableCell className="text-right text-success">{formatBRL(r.saving)}</TableCell>
+                      <TableCell className="text-right font-medium">{formatBRL(r.valor)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Top 10 Perda — motivo e resultado</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto">
+            {!topPerda.length ? <Vazio /> : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Produto</TableHead>
+                    <TableHead>Motivo</TableHead>
+                    <TableHead className="text-right">Baixas</TableHead>
+                    <TableHead className="text-right">Qtd.</TableHead>
+                    <TableHead className="text-right">Perda</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topPerda.map((r) => (
+                    <TableRow key={r.nome}>
+                      <TableCell className="max-w-[220px] truncate">{r.nome}</TableCell>
+                      <TableCell className="max-w-[180px] truncate text-muted-foreground">{r.motivo}</TableCell>
+                      <TableCell className="text-right">{r.ocorrencias}</TableCell>
+                      <TableCell className="text-right">{r.quantidade.toLocaleString("pt-BR")}</TableCell>
+                      <TableCell className="text-right font-medium text-destructive">{formatBRL(r.valor)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-base">Estratégias mais eficientes</CardTitle></CardHeader>
-        <CardContent className="h-[300px]">
+        <CardContent style={{ height: Math.max(240, estrategias.length * 46 + 60) }}>
           {loading ? <Skel /> : !estrategias.length ? <Vazio /> : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={estrategias} layout="vertical" margin={{ left: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                <XAxis type="number" fontSize={11} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                <YAxis type="category" dataKey="nome" width={150} fontSize={11} />
-                <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
-                <Bar dataKey="valor" fill={COR_RECEITA} radius={[0, 4, 4, 0]} />
+              <BarChart data={estrategias} layout="vertical" margin={{ left: 20, right: 90 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} horizontal={false} />
+                <XAxis type="number" fontSize={11} stroke="var(--muted-foreground)" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <YAxis type="category" dataKey="nome" width={170} fontSize={11} stroke="var(--muted-foreground)" />
+                <Tooltip
+                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+                  formatter={(v: any) => formatBRL(Number(v))}
+                  contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--popover-foreground)" }}
+                />
+                <Bar dataKey="valor" fill={COR_RECEITA} radius={[0, 4, 4, 0]}>
+                  <LabelList dataKey="valor" position="right" fontSize={11} fill="var(--foreground)"
+                    formatter={(v: any) => formatBRL(Number(v))} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           )}
