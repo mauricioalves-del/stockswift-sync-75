@@ -315,7 +315,7 @@ function ShelfLifeDashboard() {
         <CardContent className="grid gap-3 grid-cols-2 lg:grid-cols-5">
           <Kpi title="Receita Recuperada" value={formatBRL(met.receitaRecuperada)} tone="text-info" hint="Ações de categoria Vendas" />
           <Kpi title="Perda Evitada" value={formatBRL(met.perdaEvitada)} tone="text-success" hint="Todas as categorias, exceto Descarte" />
-          <Kpi title="Perda Real" value={formatBRL(met.perdaReal)} tone="text-destructive" hint={`Custo total: ${formatBRL(met.custoTotal)}`} />
+          <Kpi title="Perda Real" value={formatBRL(met.perdaReal)} tone="text-destructive" hint={`Descarte: ${formatBRL(met.perdaDescarte)} + baixas sem cobertura: ${formatBRL(ind.perda)}`} />
           <Kpi title="Saving Recuperado" value={formatBRL(met.savingRecuperado)} tone="text-success" hint="Valor recuperado − custo da ação" />
           <Kpi title="ROI Operacional" value={met.roiOperacional === null ? "—" : `${met.roiOperacional.toFixed(0)}%`} tone="text-primary" hint="Saving ÷ custo das ações" />
         </CardContent>
