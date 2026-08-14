@@ -308,34 +308,59 @@ function ShelfLifeDashboard() {
       </Card>
 
 
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
-        <Kpi title="Perda Evitada" value={formatBRL(ind.perdaEvitada)} tone="text-success" />
-        <Kpi title="Receita Recuperada" value={formatBRL(ind.receitaRecuperada)} tone="text-info" />
-        <Kpi title="ROI Operacional" value={ind.roi === null ? "—" : `${ind.roi.toFixed(0)}%`} tone="text-primary"
-          hint={ind.roi === null ? "Informe o custo das ações concluídas" : `Custo: ${formatBRL(ind.custoAcoes)}`} />
-        <Kpi title="Eficiência de Recuperação" value={ind.eficiencia === null ? "—" : `${ind.eficiencia.toFixed(1)}%`} tone="text-primary" />
-        <Kpi title="Saving Recuperado" value={formatBRL(ind.savingRecuperado)} tone="text-success" />
-      </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Metodologia de Recuperação Financeira (ações concluídas)</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+          <Kpi title="Receita Recuperada" value={formatBRL(met.receitaRecuperada)} tone="text-info" hint="Ações de categoria Vendas" />
+          <Kpi title="Perda Evitada" value={formatBRL(met.perdaEvitada)} tone="text-success" hint="Todas as categorias, exceto Descarte" />
+          <Kpi title="Perda Real" value={formatBRL(met.perdaReal)} tone="text-destructive" hint={`Custo total: ${formatBRL(met.custoTotal)}`} />
+          <Kpi title="Saving Recuperado" value={formatBRL(met.savingRecuperado)} tone="text-success" hint="Valor recuperado − custo da ação" />
+          <Kpi title="ROI Operacional" value={met.roiOperacional === null ? "—" : `${met.roiOperacional.toFixed(0)}%`} tone="text-primary" hint="Saving ÷ custo das ações" />
+        </CardContent>
+      </Card>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2"><CardTitle className="text-base">Evolução Mensal</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-base">Evolução Mensal</CardTitle></CardHeader>
+        <CardContent className="h-[320px]">
+          {loading ? <Skel /> : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={mensal}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
+                <XAxis dataKey="label" fontSize={11} stroke="var(--muted-foreground)" />
+                <YAxis fontSize={11} stroke="var(--muted-foreground)" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <Tooltip
+                  formatter={(v: any) => formatBRL(Number(v))}
+                  contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--popover-foreground)" }}
+                />
+                <Legend />
+                <Bar dataKey="Perda" stackId="a" fill={COR_PERDA} />
+                <Bar dataKey="Receita Recuperada" stackId="a" fill={COR_RECEITA} />
+                <Bar dataKey="Saving Recuperado" stackId="a" fill={COR_SAVING} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Composição da Perda Evitada por Categoria</CardTitle></CardHeader>
           <CardContent className="h-[320px]">
-            {loading ? <Skel /> : (
+            {loading ? <Skel /> : composicaoTotal === 0 ? <Vazio /> : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mensal}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
-                  <XAxis dataKey="label" fontSize={11} stroke="var(--muted-foreground)" />
-                  <YAxis fontSize={11} stroke="var(--muted-foreground)" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <PieChart>
+                  <Pie data={composicao} dataKey="value" nameKey="name" outerRadius={100}
+                    label={(e: any) => `${((e.value / composicaoTotal) * 100).toFixed(0)}%`} labelLine={false}>
+                    {composicao.map((r) => <Cell key={r.name} fill={r.fill} stroke="var(--card)" />)}
+                  </Pie>
                   <Tooltip
                     formatter={(v: any) => formatBRL(Number(v))}
                     contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--popover-foreground)" }}
                   />
                   <Legend />
-                  <Bar dataKey="Perda" stackId="a" fill={COR_PERDA} />
-                  <Bar dataKey="Receita Recuperada" stackId="a" fill={COR_RECEITA} />
-                  <Bar dataKey="Saving Recuperado" stackId="a" fill={COR_SAVING} radius={[4, 4, 0, 0]} />
-                </BarChart>
+                </PieChart>
               </ResponsiveContainer>
             )}
           </CardContent>
@@ -364,48 +389,13 @@ function ShelfLifeDashboard() {
       </div>
 
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Metodologia de Recuperação Financeira (ações concluídas)</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 grid-cols-2 lg:grid-cols-5">
-          <Kpi title="Receita Recuperada" value={formatBRL(met.receitaRecuperada)} tone="text-info" hint="Ações de categoria Vendas" />
-          <Kpi title="Perda Evitada" value={formatBRL(met.perdaEvitada)} tone="text-success" hint="Todas as categorias, exceto Descarte" />
-          <Kpi title="Perda Real" value={formatBRL(met.perdaReal)} tone="text-destructive" hint={`Custo total: ${formatBRL(met.custoTotal)}`} />
-          <Kpi title="Saving Recuperado" value={formatBRL(met.savingRecuperado)} tone="text-success" hint="Valor recuperado − custo da ação" />
-          <Kpi title="ROI Operacional" value={met.roiOperacional === null ? "—" : `${met.roiOperacional.toFixed(0)}%`} tone="text-primary" hint="Saving ÷ custo das ações" />
+        <CardHeader className="pb-2"><CardTitle className="text-base">Perda no período (baixas por Vencimento sem cobertura)</CardTitle></CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold text-destructive">{formatBRL(ind.perda)}</div>
+          <p className="text-xs text-muted-foreground mt-1">Considera apenas baixas por vencimento sem ação de lote vinculada.</p>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Composição da Perda Evitada por Categoria</CardTitle></CardHeader>
-          <CardContent className="h-[300px]">
-            {loading ? <Skel /> : composicaoTotal === 0 ? <Vazio /> : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={composicao} dataKey="value" nameKey="name" outerRadius={100}
-                    label={(e: any) => `${((e.value / composicaoTotal) * 100).toFixed(0)}%`} labelLine={false}>
-                    {composicao.map((r) => <Cell key={r.name} fill={r.fill} stroke="var(--card)" />)}
-                  </Pie>
-                  <Tooltip
-                    formatter={(v: any) => formatBRL(Number(v))}
-                    contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--popover-foreground)" }}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2"><CardTitle className="text-base">Perda no período (baixas por Vencimento sem cobertura)</CardTitle></CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-destructive">{formatBRL(ind.perda)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Considera apenas baixas por vencimento sem ação de lote vinculada.</p>
-          </CardContent>
-        </Card>
-      </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
