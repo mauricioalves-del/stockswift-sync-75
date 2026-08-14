@@ -210,31 +210,6 @@ function FarolShelf() {
         />
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-        <Card className="border-destructive/50 bg-destructive/10">
-          <CardContent className="pt-4">
-            <div className="text-base font-bold text-destructive">
-              Perda potencial de {formatBRL(kpis.total)} · Sendo {formatBRL(kpis.vencidoValor)} já vencidos
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Resumo de Perdas — lotes com saldo e validade em até 90 dias.</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="flex min-w-0 items-center gap-2">
-              <Skull className="size-5 shrink-0 text-muted-foreground" />
-              <div className="min-w-0">
-                <div className="text-lg font-bold truncate">Vencido</div>
-                <div className="text-[11px] text-muted-foreground">Status Geral Farol</div>
-              </div>
-            </div>
-            <Contador valor={kpis.vencidoQtd} label="Qtd Vencidos" />
-            <Contador valor={kpis.qtd030} label="Qtd 0-30 dias" />
-            <Contador valor={kpis.qtd3160 + kpis.qtd6190} label="Qtd 31-90 dias" />
-          </CardContent>
-        </Card>
-      </div>
-
       <ConfigFiltrosCard />
 
       <Card>
@@ -258,6 +233,32 @@ function FarolShelf() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
+        <Card className="border-destructive/50 bg-destructive/10">
+          <CardContent className="pt-4">
+            <div className="text-base font-bold text-destructive">
+              Perda potencial de {formatBRL(kpis.total)} · Sendo {formatBRL(kpis.vencidoValor)} já vencidos
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Resumo de Perdas — lotes com saldo e validade em até 90 dias.</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <Skull className="size-5 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <div className="text-lg font-bold truncate">Vencido</div>
+                <div className="text-[11px] text-muted-foreground">Status Geral Farol</div>
+              </div>
+            </div>
+            <Contador valor={kpis.vencidoQtd} label="Qtd Vencidos" />
+            <Contador valor={kpis.qtd030} label="Qtd 0-30 dias" />
+            <Contador valor={kpis.qtd3160} label="Qtd 31-60 dias" />
+            <Contador valor={kpis.qtd6190} label="Qtd 61-90 dias" />
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
