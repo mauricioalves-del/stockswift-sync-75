@@ -537,7 +537,14 @@ function ShelfLifeDashboard() {
           )}
         </CardContent>
       </Card>
+      <DetalheMesDialog
+        open={!!mesSel}
+        onOpenChange={(v) => !v && setMesSel(null)}
+        titulo={`Detalhes — ${mesSel ? fmtMonth(mesSel) : ""}`}
+        linhas={detalheLinhas}
+      />
     </div>
+
   );
 }
 
