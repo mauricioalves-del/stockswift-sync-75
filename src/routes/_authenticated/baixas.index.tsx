@@ -1147,7 +1147,7 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
     return Number.isFinite(n) ? n : NaN;
   })();
   const qtdNum = Number(String(qtd).replace(",", ".")) || 0;
-  const totalPrevisto = unitEditado * qtdNum;
+  const totalPrevisto = Number.isFinite(unitEditado) ? unitEditado * qtdNum : 0;
 
   async function salvar() {
     if (!baixa) return;
