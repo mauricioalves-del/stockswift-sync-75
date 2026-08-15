@@ -1160,6 +1160,7 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
     try {
       const unit = unitEditado;
       const patch: Record<string, unknown> = {
+        codigo_produto: codigoProduto.trim() || baixa.codigo_produto,
         quantidade: q,
         custo_unitario: Number(unit.toFixed(6)),
         lote: lote || null,
@@ -1174,7 +1175,7 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
       const user = (await supabase.auth.getUser()).data.user!;
       await (supabase as any).from("audit_logs").insert({
         usuario: user.id, acao: "BAIXA_EDITADA", entidade: "baixa_operacional", entidade_id: baixa.id,
-        payload: { antes: { quantidade: baixa.quantidade, lote: baixa.lote, id_local: baixa.id_local, motivo_baixa_id: baixa.motivo_baixa_id, custo_unitario: baixa.custo_unitario, valor_total: baixa.valor_total }, depois: patch },
+        payload: { antes: { codigo_produto: baixa.codigo_produto, quantidade: baixa.quantidade, lote: baixa.lote, id_local: baixa.id_local, motivo_baixa_id: baixa.motivo_baixa_id, custo_unitario: baixa.custo_unitario, valor_total: baixa.valor_total }, depois: patch },
       });
       toast.success("Baixa atualizada");
       onSaved();
