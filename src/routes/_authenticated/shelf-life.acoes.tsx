@@ -17,10 +17,11 @@ import { autoVincularBaixas, useCampanhas, useLotesComSaldo, useTiposAcao } from
 
 import { CampanhaDialog, type CampanhaDraft } from "@/components/shelf-life/CampanhaDialog";
 import { useRole } from "@/hooks/useRole";
-import { Link2, MessageCircle, Pencil, Plus, Trash2 } from "lucide-react";
+import { Link2, MessageCircle, Pencil, Plus, RotateCw, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { WhatsAppFallbackDialog } from "@/components/shelf-life/WhatsAppFallbackDialog";
 import { copiarEAbrirWhatsApp, montarMensagemQueimaLote } from "@/lib/whatsapp-message";
+import { RecalcularValoresDialog } from "@/components/shelf-life/RecalcularValoresDialog";
 
 export const Route = createFileRoute("/_authenticated/shelf-life/acoes")({
   component: AcoesLote,
@@ -44,6 +45,7 @@ function AcoesLote() {
 
   const { isAdmin, role } = useRole();
   const podeExcluir = isAdmin || role === "COORDENADOR_CONTROLE";
+  const podeRecalcular = isAdmin || role === "COORDENADOR_CONTROLE" || role === "GERENTE";
 
   const [draft, setDraft] = useState<CampanhaDraft | null>(null);
   const [status, setStatus] = useState(TODAS);
@@ -51,6 +53,7 @@ function AcoesLote() {
   const [busca, setBusca] = useState("");
   const [selecionados, setSelecionados] = useState<Record<string, boolean>>({});
   const [mensagemFallback, setMensagemFallback] = useState<string | null>(null);
+  const [recalcOpen, setRecalcOpen] = useState(false);
 
   // Vínculo automático de baixas (ex.: Degustação) às campanhas abertas do mesmo SKU+Lote.
   const jaRodou = useRef(false);
@@ -123,11 +126,16 @@ function AcoesLote() {
           <h1 className="text-2xl font-bold">Ações de Lote</h1>
           <p className="text-sm text-muted-foreground">Campanhas de recuperação para lotes próximos do vencimento.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {selecionadas.length > 0 && (
             <Button variant="outline" onClick={enviarSelecao}>
               <MessageCircle className="size-4 mr-2" /> Enviar WhatsApp ({selecionadas.length} selecionado
               {selecionadas.length > 1 ? "s" : ""})
+            </Button>
+          )}
+          {podeRecalcular && (
+            <Button variant="outline" onClick={() => setRecalcOpen(true)}>
+              <RotateCw className="size-4 mr-2" /> Recalcular Valores
             </Button>
           )}
           <Button onClick={() => setDraft({ sku: "", lote: "" })}>
@@ -135,6 +143,7 @@ function AcoesLote() {
           </Button>
         </div>
       </div>
+
 
       <Card>
         <CardContent className="pt-4 grid gap-3 sm:grid-cols-3">
@@ -241,6 +250,8 @@ function AcoesLote() {
       </Card>
 
       <WhatsAppFallbackDialog mensagem={mensagemFallback} onClose={() => setMensagemFallback(null)} />
+
+      <RecalcularValoresDialog open={recalcOpen} onOpenChange={setRecalcOpen} campanhas={campanhas.data ?? []} />
 
       <CampanhaDialog open={!!draft} onOpenChange={(v) => !v && setDraft(null)} draft={draft} />
     </div>

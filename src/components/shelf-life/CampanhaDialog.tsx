@@ -29,6 +29,7 @@ import {
   valorRecuperadoCalculado,
 } from "@/lib/shelf-life-financeiro";
 import { RotateCcw } from "lucide-react";
+import { baixaDentroDaJanela, dataDaBaixa, formatarDataBR, janelaVinculo } from "@/lib/shelf-life-recalculo";
 
 
 export type CampanhaDraft = Partial<CampanhaRow> & {
@@ -125,21 +126,38 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       : 0;
   const precoComDesconto = calcularPrecoComDesconto(precoVendaNum, percentualEfetivo);
 
-  // Baixas do mesmo SKU+Lote, para vínculo manual
+  // Baixas elegíveis: mesmo SKU + mesmo lote, dentro da janela de 7 dias após a
+  // validade do lote e ainda não vinculadas a outra ação.
+  const janela = janelaVinculo(form.data_validade);
   const baixas = useQuery({
-    queryKey: ["shelf-baixas-lote", form.sku, form.lote],
+    queryKey: ["shelf-baixas-lote", form.sku, form.lote, form.data_validade, form.id],
     enabled: open && podeVincular && !!form.sku,
     queryFn: async () => {
       let q = (supabase as any)
         .from("baixa_operacional")
-        .select("id, codigo_produto, lote, quantidade, valor_total, data_ocorrencia, data_solicitacao")
+        .select("id, codigo_produto, lote, quantidade, valor_total, data_ocorrencia, data_solicitacao, status_fluxo, descricao, motivo_baixa_id")
         .eq("codigo_produto", form.sku)
         .order("data_solicitacao", { ascending: false })
-        .limit(30);
+        .limit(100);
       if (form.lote) q = q.eq("lote", form.lote);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as any[];
+
+      const candidatas = (data ?? []).filter((b: any) =>
+        baixaDentroDaJanela(dataDaBaixa(b), form.data_validade),
+      );
+      if (!candidatas.length) return [] as any[];
+
+      const { data: vinculadas } = await (supabase as any)
+        .from("campanhas_lote")
+        .select("id, baixa_operacional_id")
+        .in("baixa_operacional_id", candidatas.map((b: any) => b.id));
+      const ocupadas = new Set(
+        (vinculadas ?? [])
+          .filter((v: any) => v.id !== form.id)
+          .map((v: any) => v.baixa_operacional_id),
+      );
+      return candidatas.filter((b: any) => !ocupadas.has(b.id)) as any[];
     },
   });
 
@@ -147,6 +165,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
     () => (baixas.data ?? []).find((b) => b.id === form.baixa_operacional_id),
     [baixas.data, form.baixa_operacional_id],
   );
+
 
   // ——— Metodologia financeira ———
   const qtdEnderecada = Number(form.quantidade_enderecada) || 0;
@@ -505,17 +524,43 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
                   <SelectItem value="__none__">Sem vínculo</SelectItem>
                   {(baixas.data ?? []).map((b) => (
                     <SelectItem key={b.id} value={b.id}>
-                      {(b.data_ocorrencia ?? b.data_solicitacao ?? "").slice(0, 10)} · Lote {b.lote || "—"} ·{" "}
-                      {Number(b.quantidade)} un · {formatBRL(Number(b.valor_total))}
+                      BAIXA · {formatarDataBR(dataDaBaixa(b))} · Lote {b.lote || "—"} · {Number(b.quantidade)} un ·{" "}
+                      {formatBRL(Number(b.valor_total))} · {b.status_fluxo ?? "—"}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {qtdBaixa != null && (
+              {form.baixa_operacional_id ? (
+                <div className="mt-1 flex items-center gap-2">
+                  <p className="text-[11px] text-muted-foreground">
+                    Quantidade da baixa vinculada: {qtdBaixa ?? 0}
+                    <br />
+                    Quantidade que será considerada recuperada: {qtdRecuperada} (mínimo 0)
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-[11px] text-destructive"
+                    onClick={() => {
+                      if (window.confirm("Deseja remover a baixa operacional vinculada a esta ação?")) {
+                        set("baixa_operacional_id", "");
+                      }
+                    }}
+                  >
+                    Desvincular
+                  </Button>
+                </div>
+              ) : janela ? (
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Quantidade da baixa vinculada: {qtdBaixa}
-                  <br />
-                  Quantidade que será considerada recuperada: {qtdRecuperada} (mínimo 0)
+                  Janela para vinculação: {formatarDataBR(janela.inicio)} a {formatarDataBR(janela.fim)}
+                  {!baixas.isLoading && (baixas.data ?? []).length === 0 && (
+                    <> — nenhuma baixa elegível neste período.</>
+                  )}
+                </p>
+              ) : (
+                <p className="mt-1 text-[11px] text-warning">
+                  Informe a validade do lote para habilitar a janela de vinculação.
                 </p>
               )}
             </div>
