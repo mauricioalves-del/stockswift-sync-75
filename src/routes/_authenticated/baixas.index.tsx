@@ -1195,6 +1195,10 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
         </DialogHeader>
         <div className="space-y-3">
           <div>
+            <Label className="text-xs">Código do produto</Label>
+            <Input value={codigoProduto} onChange={(e) => setCodigoProduto(e.target.value)} />
+          </div>
+          <div>
             <Label className="text-xs">Quantidade</Label>
             <Input value={qtd} onChange={(e) => setQtd(e.target.value)} inputMode="decimal" />
           </div>
