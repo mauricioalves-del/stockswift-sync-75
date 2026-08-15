@@ -364,11 +364,21 @@ function ShelfLifeDashboard() {
       </Card>
 
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Evolução Mensal</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Evolução Mensal</CardTitle>
+          <p className="text-xs text-muted-foreground">Clique em uma barra para ver os detalhes do mês.</p>
+        </CardHeader>
         <CardContent className="h-[320px]">
           {loading ? <Skel /> : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mensal}>
+              <BarChart
+                data={mensal}
+                style={{ cursor: "pointer" }}
+                onClick={(st: any) => {
+                  const mes = st?.activePayload?.[0]?.payload?.mes;
+                  if (mes) setMesSel(mes);
+                }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
                 <XAxis dataKey="label" fontSize={11} stroke="var(--muted-foreground)" />
                 <YAxis fontSize={11} stroke="var(--muted-foreground)" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
@@ -377,9 +387,10 @@ function ShelfLifeDashboard() {
                   contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--popover-foreground)" }}
                 />
                 <Legend />
-                <Bar dataKey="Perda" stackId="a" fill={COR_PERDA} />
-                <Bar dataKey="Receita Recuperada" stackId="a" fill={COR_RECEITA} />
-                <Bar dataKey="Saving Recuperado" stackId="a" fill={COR_SAVING} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Perda" stackId="a" fill={COR_PERDA} cursor="pointer" />
+                <Bar dataKey="Receita Recuperada" stackId="a" fill={COR_RECEITA} cursor="pointer" />
+                <Bar dataKey="Saving Recuperado" stackId="a" fill={COR_SAVING} radius={[4, 4, 0, 0]} cursor="pointer" />
+
               </BarChart>
             </ResponsiveContainer>
           )}
