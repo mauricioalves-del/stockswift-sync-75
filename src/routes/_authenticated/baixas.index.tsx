@@ -1131,6 +1131,7 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
 
   useEffect(() => {
     if (!baixa) return;
+    setCodigoProduto(baixa.codigo_produto ?? "");
     setQtd(String(baixa.quantidade ?? ""));
     setLote(baixa.lote ?? "");
     setAlmox(baixa.id_local ?? "");
