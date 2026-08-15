@@ -29,6 +29,7 @@ import {
   valorRecuperadoCalculado,
 } from "@/lib/shelf-life-financeiro";
 import { RotateCcw } from "lucide-react";
+import { baixaDentroDaJanela, dataDaBaixa, formatarDataBR, janelaVinculo } from "@/lib/shelf-life-recalculo";
 
 
 export type CampanhaDraft = Partial<CampanhaRow> & {
@@ -523,17 +524,43 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
                   <SelectItem value="__none__">Sem vínculo</SelectItem>
                   {(baixas.data ?? []).map((b) => (
                     <SelectItem key={b.id} value={b.id}>
-                      {(b.data_ocorrencia ?? b.data_solicitacao ?? "").slice(0, 10)} · Lote {b.lote || "—"} ·{" "}
-                      {Number(b.quantidade)} un · {formatBRL(Number(b.valor_total))}
+                      BAIXA · {formatarDataBR(dataDaBaixa(b))} · Lote {b.lote || "—"} · {Number(b.quantidade)} un ·{" "}
+                      {formatBRL(Number(b.valor_total))} · {b.status_fluxo ?? "—"}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {qtdBaixa != null && (
+              {form.baixa_operacional_id ? (
+                <div className="mt-1 flex items-center gap-2">
+                  <p className="text-[11px] text-muted-foreground">
+                    Quantidade da baixa vinculada: {qtdBaixa ?? 0}
+                    <br />
+                    Quantidade que será considerada recuperada: {qtdRecuperada} (mínimo 0)
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-[11px] text-destructive"
+                    onClick={() => {
+                      if (window.confirm("Deseja remover a baixa operacional vinculada a esta ação?")) {
+                        set("baixa_operacional_id", "");
+                      }
+                    }}
+                  >
+                    Desvincular
+                  </Button>
+                </div>
+              ) : janela ? (
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Quantidade da baixa vinculada: {qtdBaixa}
-                  <br />
-                  Quantidade que será considerada recuperada: {qtdRecuperada} (mínimo 0)
+                  Janela para vinculação: {formatarDataBR(janela.inicio)} a {formatarDataBR(janela.fim)}
+                  {!baixas.isLoading && (baixas.data ?? []).length === 0 && (
+                    <> — nenhuma baixa elegível neste período.</>
+                  )}
+                </p>
+              ) : (
+                <p className="mt-1 text-[11px] text-warning">
+                  Informe a validade do lote para habilitar a janela de vinculação.
                 </p>
               )}
             </div>
