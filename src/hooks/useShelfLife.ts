@@ -4,6 +4,7 @@ import { fetchAll } from "@/lib/fetch-all";
 import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
 import { almoxEfetivos } from "@/hooks/useFiltrosShelfLife";
 import { faixaDeRisco, type Faixa, type CampanhaCalc, type CategoriaAcao, chaveLote } from "@/lib/shelf-life";
+import { baixaDentroDaJanela, dataDaBaixa } from "@/lib/shelf-life-recalculo";
 
 
 export type TipoAcao = {
@@ -171,16 +172,23 @@ export function indexarCampanhasPorLote(campanhas: CampanhaRow[] | undefined) {
 }
 
 /**
- * Vínculo automático (item 3): baixas cujo motivo corresponde a um tipo de ação
- * (ex.: Degustação) são amarradas à campanha aberta do mesmo SKU+Lote, evitando
- * que o mesmo evento seja contado duas vezes.
+ * Vínculo automático: amarra baixas às ações abertas do mesmo SKU+Lote.
+ * 1) Preferência para a baixa cujo motivo corresponde ao tipo da ação (ex.: Degustação).
+ * 2) Caso não haja, vincula qualquer baixa elegível do mesmo SKU+Lote dentro da
+ *    janela de validade (validade até validade + 7 dias), respeitando a regra do banco.
+ * Baixas já vinculadas a outra ação nunca são reutilizadas.
  * Retorna a quantidade de vínculos criados.
  */
 export async function autoVincularBaixas(): Promise<number> {
-  const [tiposRes, campanhasRes, motivosRes] = await Promise.all([
+  const [tiposRes, campanhasRes, motivosRes, vinculadasRes] = await Promise.all([
     (supabase as any).from("tipos_acao_shelf_life").select("id, nome, motivo_baixa_id"),
-    (supabase as any).from("campanhas_lote").select("id, sku, lote, tipo_acao_id, status, baixa_operacional_id").is("baixa_operacional_id", null).neq("status", "CANCELADA"),
+    (supabase as any)
+      .from("campanhas_lote")
+      .select("id, sku, lote, data_validade, tipo_acao_id, status, baixa_operacional_id")
+      .is("baixa_operacional_id", null)
+      .neq("status", "CANCELADA"),
     (supabase as any).from("motivo_baixa").select("id, descricao"),
+    (supabase as any).from("campanhas_lote").select("baixa_operacional_id").not("baixa_operacional_id", "is", null),
   ]);
 
   const campanhas = (campanhasRes.data ?? []) as any[];
@@ -193,36 +201,52 @@ export async function autoVincularBaixas(): Promise<number> {
     tipos.map((t) => [t.id, t.motivo_baixa_id ?? motivoIdPorNome.get(String(t.nome).trim().toLowerCase()) ?? null]),
   );
 
+  const usadas = new Set<string>(
+    ((vinculadasRes.data ?? []) as any[]).map((c) => String(c.baixa_operacional_id)),
+  );
+
   const skus = Array.from(new Set(campanhas.map((c) => c.sku)));
   const baixas = await fetchAll<any>((from, to) =>
     (supabase as any)
       .from("baixa_operacional")
-      .select("id, codigo_produto, lote, motivo_baixa_id")
+      .select("id, codigo_produto, lote, motivo_baixa_id, data_ocorrencia, data_solicitacao")
       .in("codigo_produto", skus)
       .range(from, to),
   );
 
-  const porChaveMotivo = new Map<string, string>();
+  const porChave = new Map<string, any[]>();
   for (const b of baixas) {
-    if (!b.motivo_baixa_id) continue;
-    porChaveMotivo.set(`${chaveLote(b.codigo_produto, b.lote)}||${b.motivo_baixa_id}`, b.id);
+    const k = chaveLote(b.codigo_produto, b.lote);
+    const arr = porChave.get(k) ?? [];
+    arr.push(b);
+    porChave.set(k, arr);
   }
 
   let n = 0;
   for (const c of campanhas) {
+    const candidatas = (porChave.get(chaveLote(c.sku, c.lote)) ?? []).filter(
+      (b) => !usadas.has(String(b.id)) && baixaDentroDaJanela(dataDaBaixa(b), c.data_validade),
+    );
+    if (!candidatas.length) continue;
+
     const motivoId = c.tipo_acao_id ? motivoDoTipo.get(c.tipo_acao_id) : null;
-    if (!motivoId) continue;
-    const baixaId = porChaveMotivo.get(`${chaveLote(c.sku, c.lote)}||${motivoId}`);
-    if (!baixaId) continue;
+    const escolhida =
+      (motivoId ? candidatas.find((b) => b.motivo_baixa_id === motivoId) : undefined) ?? candidatas[0];
+    if (!escolhida) continue;
+
     const { error } = await (supabase as any)
       .from("campanhas_lote")
-      .update({ baixa_operacional_id: baixaId })
+      .update({ baixa_operacional_id: escolhida.id })
       .eq("id", c.id)
       .is("baixa_operacional_id", null);
-    if (!error) n++;
+    if (!error) {
+      usadas.add(String(escolhida.id));
+      n++;
+    }
   }
   return n;
 }
+
 
 /**
  * Conjunto de chaves SKU||Lote que ainda possuem saldo em estoque_sistemico.
