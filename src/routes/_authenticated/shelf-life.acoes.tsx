@@ -123,11 +123,16 @@ function AcoesLote() {
           <h1 className="text-2xl font-bold">Ações de Lote</h1>
           <p className="text-sm text-muted-foreground">Campanhas de recuperação para lotes próximos do vencimento.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {selecionadas.length > 0 && (
             <Button variant="outline" onClick={enviarSelecao}>
               <MessageCircle className="size-4 mr-2" /> Enviar WhatsApp ({selecionadas.length} selecionado
               {selecionadas.length > 1 ? "s" : ""})
+            </Button>
+          )}
+          {podeRecalcular && (
+            <Button variant="outline" onClick={() => setRecalcOpen(true)}>
+              <RotateCw className="size-4 mr-2" /> Recalcular Valores
             </Button>
           )}
           <Button onClick={() => setDraft({ sku: "", lote: "" })}>
@@ -135,6 +140,7 @@ function AcoesLote() {
           </Button>
         </div>
       </div>
+
 
       <Card>
         <CardContent className="pt-4 grid gap-3 sm:grid-cols-3">
