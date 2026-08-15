@@ -1111,6 +1111,7 @@ function FilaAprovacao() {
 }
 
 function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onClose: () => void; onSaved: () => void }) {
+  const [codigoProduto, setCodigoProduto] = useState("");
   const [qtd, setQtd] = useState("");
   const [lote, setLote] = useState("");
   const [almox, setAlmox] = useState("");
