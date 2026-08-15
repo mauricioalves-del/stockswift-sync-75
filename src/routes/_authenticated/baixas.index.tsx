@@ -1216,7 +1216,10 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
 }
 
 function Historico() {
+  const { isAdmin } = useRole();
+  const qc = useQueryClient();
   const { data } = useBaixas(["APROVADA", "REPROVADA", "EXECUTADA"]);
+  const [editando, setEditando] = useState<any | null>(null);
   const [busca, setBusca] = useState("");
   const [motivoFiltro, setMotivoFiltro] = useState("__all__");
   const [almoxFiltro, setAlmoxFiltro] = useState("__all__");
@@ -1391,12 +1394,13 @@ function Historico() {
                 <TableHead>Motivo</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Documento</TableHead>
+                {isAdmin && <TableHead className="w-10" />}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtrados.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 11 : 10} className="text-center py-10 text-muted-foreground">
                     Nenhum registro para os filtros aplicados
                   </TableCell>
                 </TableRow>
@@ -1421,6 +1425,19 @@ function Historico() {
                       </Button>
                     ) : "—"}
                   </TableCell>
+                  {isAdmin && (
+                    <TableCell>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label="Editar baixa"
+                        title="Editar baixa aprovada"
+                        onClick={(e) => { e.stopPropagation(); setEditando(b); }}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
@@ -1429,6 +1446,14 @@ function Historico() {
       </Card>
 
       <DetalheBaixaDialog baixa={detalhe} onClose={() => setDetalhe(null)} />
+
+      {isAdmin && (
+        <EditarBaixaDialog
+          baixa={editando}
+          onClose={() => setEditando(null)}
+          onSaved={() => qc.invalidateQueries({ queryKey: ["baixas"] })}
+        />
+      )}
     </div>
   );
 }
