@@ -1141,7 +1141,11 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
     setObs(baixa.observacao ?? "");
   }, [baixa]);
 
-  const unitEditado = Number(String(custo).replace(/\./g, "").replace(",", ".")) || Number(String(custo).replace(",", ".")) || 0;
+  const unitEditado = (() => {
+    const t = String(custo).trim();
+    const n = Number(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t);
+    return Number.isFinite(n) ? n : NaN;
+  })();
   const qtdNum = Number(String(qtd).replace(",", ".")) || 0;
   const totalPrevisto = unitEditado * qtdNum;
 
