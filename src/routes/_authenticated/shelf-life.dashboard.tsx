@@ -252,7 +252,47 @@ function ShelfLifeDashboard() {
     return Array.from(m.entries()).map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor);
   }, [campanhasPeriodo]);
 
+  const [mesSel, setMesSel] = useState<string | null>(null);
+  const detalheLinhas = useMemo<DetalheLinha[]>(() => {
+    if (!mesSel) return [];
+    const out: DetalheLinha[] = [];
+    linhas.forEach((l) => {
+      if (!l.baixa.data || l.baixa.data.slice(0, 7) !== mesSel || l.perda <= 0) return;
+      out.push({
+        tipo: "Perda",
+        data: l.baixa.data,
+        sku: l.baixa.codigo_produto,
+        descricao: l.baixa.descricao ?? "",
+        lote: l.baixa.lote ?? "",
+        origem: (l.baixa as any).origem ?? "",
+        referencia: l.baixa.motivo_nome ?? "",
+        quantidade: Number(l.baixa.quantidade) || 0,
+        valor: l.perda,
+      });
+    });
+    campanhasPeriodo
+      .filter((c) => c.status === "CONCLUIDA" && (c.data_acao ?? "").slice(0, 7) === mesSel)
+      .forEach((c) => {
+        const receita = c.categoria === "RECEITA";
+        const valor = receita ? Number(c.valor_estimado_recuperado) || 0 : Number(c.valor_estimado_saving) || 0;
+        if (valor <= 0) return;
+        out.push({
+          tipo: receita ? "Receita Recuperada" : "Saving Recuperado",
+          data: (c.data_acao ?? "").slice(0, 10),
+          sku: c.sku,
+          descricao: c.descricao ?? "",
+          lote: c.lote ?? "",
+          origem: c.almoxarifado ?? "",
+          referencia: c.tipo_nome ?? "",
+          quantidade: Number(c.quantidade_enderecada) || 0,
+          valor,
+        });
+      });
+    return out;
+  }, [mesSel, linhas, campanhasPeriodo]);
+
   const loading = baixasQ.isLoading || campanhasQ.isLoading;
+
 
   return (
     <div className="space-y-4" id="dash-shelf-life">
