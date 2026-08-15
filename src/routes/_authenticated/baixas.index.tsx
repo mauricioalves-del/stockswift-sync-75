@@ -1114,6 +1114,7 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
   const [qtd, setQtd] = useState("");
   const [lote, setLote] = useState("");
   const [almox, setAlmox] = useState("");
+  const [custo, setCusto] = useState("");
   const [motivoId, setMotivoId] = useState("");
   const [obs, setObs] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -1132,21 +1133,29 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
     setQtd(String(baixa.quantidade ?? ""));
     setLote(baixa.lote ?? "");
     setAlmox(baixa.id_local ?? "");
+    const unitAtual = Number(baixa.custo_unitario ?? 0) > 0
+      ? Number(baixa.custo_unitario)
+      : (Number(baixa.quantidade) > 0 ? Number(baixa.valor_total ?? 0) / Number(baixa.quantidade) : 0);
+    setCusto(unitAtual ? String(unitAtual) : "");
     setMotivoId(baixa.motivo_baixa_id ?? "");
     setObs(baixa.observacao ?? "");
   }, [baixa]);
+
+  const unitEditado = Number(String(custo).replace(/\./g, "").replace(",", ".")) || Number(String(custo).replace(",", ".")) || 0;
+  const qtdNum = Number(String(qtd).replace(",", ".")) || 0;
+  const totalPrevisto = unitEditado * qtdNum;
 
   async function salvar() {
     if (!baixa) return;
     const q = Number(String(qtd).replace(",", "."));
     if (!Number.isFinite(q) || q <= 0) return toast.error("Quantidade inválida");
+    if (!Number.isFinite(unitEditado) || unitEditado < 0) return toast.error("Custo unitário inválido");
     setSalvando(true);
     try {
-      const unit = Number(baixa.custo_unitario ?? 0) > 0
-        ? Number(baixa.custo_unitario)
-        : (Number(baixa.quantidade) > 0 ? Number(baixa.valor_total ?? 0) / Number(baixa.quantidade) : 0);
+      const unit = unitEditado;
       const patch: Record<string, unknown> = {
         quantidade: q,
+        custo_unitario: Number(unit.toFixed(6)),
         lote: lote || null,
         id_local: almox || null,
         motivo_baixa_id: motivoId || null,
@@ -1159,7 +1168,7 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
       const user = (await supabase.auth.getUser()).data.user!;
       await (supabase as any).from("audit_logs").insert({
         usuario: user.id, acao: "BAIXA_EDITADA", entidade: "baixa_operacional", entidade_id: baixa.id,
-        payload: { antes: { quantidade: baixa.quantidade, lote: baixa.lote, id_local: baixa.id_local, motivo_baixa_id: baixa.motivo_baixa_id }, depois: patch },
+        payload: { antes: { quantidade: baixa.quantidade, lote: baixa.lote, id_local: baixa.id_local, motivo_baixa_id: baixa.motivo_baixa_id, custo_unitario: baixa.custo_unitario, valor_total: baixa.valor_total }, depois: patch },
       });
       toast.success("Baixa atualizada");
       onSaved();
@@ -1189,6 +1198,13 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
           <div>
             <Label className="text-xs">Almoxarifado</Label>
             <Input value={almox} onChange={(e) => setAlmox(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Custo unitário (R$)</Label>
+            <Input value={custo} onChange={(e) => setCusto(e.target.value)} inputMode="decimal" />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Valor total recalculado: R$ {formatBRL(totalPrevisto)}
+            </p>
           </div>
           <div>
             <Label className="text-xs">Motivo</Label>
