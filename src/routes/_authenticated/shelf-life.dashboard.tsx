@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ExportarHtmlButton } from "@/components/app/ExportarHtmlButton";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { DetalheMesDialog, type DetalheLinha } from "@/components/shelf-life/DetalheMesDialog";
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
