@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ExportarHtmlButton } from "@/components/app/ExportarHtmlButton";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { DetalheMesDialog, type DetalheLinha } from "@/components/shelf-life/DetalheMesDialog";
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
@@ -252,7 +254,47 @@ function ShelfLifeDashboard() {
     return Array.from(m.entries()).map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor);
   }, [campanhasPeriodo]);
 
+  const [mesSel, setMesSel] = useState<string | null>(null);
+  const detalheLinhas = useMemo<DetalheLinha[]>(() => {
+    if (!mesSel) return [];
+    const out: DetalheLinha[] = [];
+    linhas.forEach((l) => {
+      if (!l.baixa.data || l.baixa.data.slice(0, 7) !== mesSel || l.perda <= 0) return;
+      out.push({
+        tipo: "Perda",
+        data: l.baixa.data,
+        sku: l.baixa.codigo_produto,
+        descricao: l.baixa.descricao ?? "",
+        lote: l.baixa.lote ?? "",
+        origem: (l.baixa as any).origem ?? "",
+        referencia: l.baixa.motivo_nome ?? "",
+        quantidade: Number(l.baixa.quantidade) || 0,
+        valor: l.perda,
+      });
+    });
+    campanhasPeriodo
+      .filter((c) => c.status === "CONCLUIDA" && (c.data_acao ?? "").slice(0, 7) === mesSel)
+      .forEach((c) => {
+        const receita = c.categoria === "RECEITA";
+        const valor = receita ? Number(c.valor_estimado_recuperado) || 0 : Number(c.valor_estimado_saving) || 0;
+        if (valor <= 0) return;
+        out.push({
+          tipo: receita ? "Receita Recuperada" : "Saving Recuperado",
+          data: (c.data_acao ?? "").slice(0, 10),
+          sku: c.sku,
+          descricao: c.descricao ?? "",
+          lote: c.lote ?? "",
+          origem: c.almoxarifado ?? "",
+          referencia: c.tipo_nome ?? "",
+          quantidade: Number(c.quantidade_enderecada) || 0,
+          valor,
+        });
+      });
+    return out;
+  }, [mesSel, linhas, campanhasPeriodo]);
+
   const loading = baixasQ.isLoading || campanhasQ.isLoading;
+
 
   return (
     <div className="space-y-4" id="dash-shelf-life">
@@ -322,11 +364,21 @@ function ShelfLifeDashboard() {
       </Card>
 
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Evolução Mensal</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Evolução Mensal</CardTitle>
+          <p className="text-xs text-muted-foreground">Clique em uma barra para ver os detalhes do mês.</p>
+        </CardHeader>
         <CardContent className="h-[320px]">
           {loading ? <Skel /> : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mensal}>
+              <BarChart
+                data={mensal}
+                style={{ cursor: "pointer" }}
+                onClick={(st: any) => {
+                  const mes = st?.activePayload?.[0]?.payload?.mes;
+                  if (mes) setMesSel(mes);
+                }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
                 <XAxis dataKey="label" fontSize={11} stroke="var(--muted-foreground)" />
                 <YAxis fontSize={11} stroke="var(--muted-foreground)" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
@@ -335,9 +387,10 @@ function ShelfLifeDashboard() {
                   contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--popover-foreground)" }}
                 />
                 <Legend />
-                <Bar dataKey="Perda" stackId="a" fill={COR_PERDA} />
-                <Bar dataKey="Receita Recuperada" stackId="a" fill={COR_RECEITA} />
-                <Bar dataKey="Saving Recuperado" stackId="a" fill={COR_SAVING} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Perda" stackId="a" fill={COR_PERDA} cursor="pointer" />
+                <Bar dataKey="Receita Recuperada" stackId="a" fill={COR_RECEITA} cursor="pointer" />
+                <Bar dataKey="Saving Recuperado" stackId="a" fill={COR_SAVING} radius={[4, 4, 0, 0]} cursor="pointer" />
+
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -484,7 +537,14 @@ function ShelfLifeDashboard() {
           )}
         </CardContent>
       </Card>
+      <DetalheMesDialog
+        open={!!mesSel}
+        onOpenChange={(v) => !v && setMesSel(null)}
+        titulo={`Detalhes — ${mesSel ? fmtMonth(mesSel) : ""}`}
+        linhas={detalheLinhas}
+      />
     </div>
+
   );
 }
 
