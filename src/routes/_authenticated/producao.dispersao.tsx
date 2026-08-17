@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -46,9 +47,13 @@ type Impacto = {
 
 const SEM_DATA = "sem-data";
 
-/** Data de referência da produção (campo "Data"). Só aceita ano_mes plausível como fallback. */
+/** Data de referência da produção. Descarta datas corrompidas fora do intervalo operacional. */
 function refData(r: { dt_producao: string | null; ano_mes: string | null }): string | null {
-  if (r.dt_producao) return String(r.dt_producao).slice(0, 10);
+  if (r.dt_producao) {
+    const data = String(r.dt_producao).slice(0, 10);
+    const mData = /^(\d{4})-(\d{2})-(\d{2})$/.exec(data);
+    if (mData && Number(mData[1]) >= 2000 && Number(mData[1]) <= 2100) return data;
+  }
   const am = String(r.ano_mes ?? "");
   const m = /^(\d{4})-(\d{2})$/.exec(am);
   if (m && Number(m[1]) >= 2000 && Number(m[1]) <= 2100 && Number(m[2]) >= 1 && Number(m[2]) <= 12) return `${am}-01`;
@@ -134,7 +139,7 @@ function DispersaoPage() {
         id_op: r.numero_op,
         produto: r.sku_produto_final,
         desc_produto: r.desc_prod,
-        data,                                   // yyyy-mm-dd (campo "Data")
+        data,
         mes: data ? data.slice(0, 7) : SEM_DATA, // yyyy-mm
         ano: data ? data.slice(0, 4) : SEM_DATA,
         custo,
@@ -300,18 +305,6 @@ function DispersaoPage() {
             </Select>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground">Agrupar por</label>
-            <Select value={granul} onValueChange={(v) => setGranul(v as "dia" | "mes" | "ano")}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="dia">Dia</SelectItem>
-                <SelectItem value="mes">Mês</SelectItem>
-                <SelectItem value="ano">Ano</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
             <label className="text-xs text-muted-foreground">Produto</label>
             <Input value={produto} onChange={(e) => setProduto(e.target.value)} placeholder="Buscar produto…" />
           </div>
@@ -429,7 +422,25 @@ function DispersaoPage() {
 
           <div className="grid gap-3 lg:grid-cols-3">
             <Card className="lg:col-span-2">
-              <CardHeader className="pb-2"><CardTitle className="text-base">Tendência {granul === "dia" ? "Diária" : granul === "ano" ? "Anual" : "Mensal"} (R$)</CardTitle></CardHeader>
+              <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-2">
+                <div>
+                  <CardTitle className="text-base">Tendência {granul === "dia" ? "Diária" : granul === "ano" ? "Anual" : "Mensal"} (R$)</CardTitle>
+                  <p className="mt-1 text-xs text-muted-foreground">Período calculado exclusivamente pela data de produção válida.</p>
+                </div>
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  size="sm"
+                  value={granul}
+                  onValueChange={(value) => value && setGranul(value as "dia" | "mes" | "ano")}
+                  aria-label="Escolher visão temporal do gráfico"
+                  className="rounded-md border bg-muted/30 p-1"
+                >
+                  <ToggleGroupItem value="dia" aria-label="Visão por dia">Dia</ToggleGroupItem>
+                  <ToggleGroupItem value="mes" aria-label="Visão por mês">Mês</ToggleGroupItem>
+                  <ToggleGroupItem value="ano" aria-label="Visão por ano">Ano</ToggleGroupItem>
+                </ToggleGroup>
+              </CardHeader>
               <CardContent className="h-64">
                 <ResponsiveContainer>
                   <BarChart data={serieMes}>

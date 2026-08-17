@@ -124,6 +124,8 @@ export function toDataISO(s: string): string | null {
   if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
   const br = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
   if (br) return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  const brCurto = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2})$/);
+  if (brCurto) return `20${brCurto[3]}-${brCurto[2].padStart(2, "0")}-${brCurto[1].padStart(2, "0")}`;
   const n = Number(raw);
   if (!Number.isNaN(n) && n > 30000) {
     const d = XLSX.SSF.parse_date_code(n);
@@ -175,7 +177,7 @@ export function parseConsumoPlanilha(file: ArrayBuffer): ConsumoRow[] {
     const qtd_previsto = num(pick(r, "QtdPrevisto", "Qtd_Previsto", "qtd_previsto", "Previsto"));
     const qtd_produzida_s = pick(r, "QtdProduzida", "Qtd_Produzida", "qtd_produzida", "Produzido");
     const erros: string[] = [];
-    if (!ano_mes) erros.push("AnoMes/Data inválido");
+    if (!data_producao) erros.push("Data de produção inválida ou vazia");
     if (!id_op) erros.push("IDOP vazio");
     if (!material) erros.push("Material vazio");
     return {
