@@ -513,7 +513,10 @@ function DispersaoPage() {
                     <XAxis dataKey="status" fontSize={10} interval={0} angle={-15} textAnchor="end" height={60} />
                     <YAxis fontSize={12} />
                     <RTooltip />
-                    <Bar dataKey="qtd" fill="#4FC3F7" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="qtd" fill="#4FC3F7" radius={[3, 3, 0, 0]}>
+                      <LabelList dataKey="qtd" position="top" fontSize={11} fill="currentColor" />
+                    </Bar>
+
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
