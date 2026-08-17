@@ -225,7 +225,7 @@ export async function autoVincularBaixas(): Promise<number> {
   let n = 0;
   for (const c of campanhas) {
     const candidatas = (porChave.get(chaveLote(c.sku, c.lote)) ?? []).filter(
-      (b) => !usadas.has(String(b.id)) && baixaDentroDaJanela(dataDaBaixa(b), c.data_validade),
+      (b) => !usadas.has(String(b.id)),
     );
     if (!candidatas.length) continue;
 
