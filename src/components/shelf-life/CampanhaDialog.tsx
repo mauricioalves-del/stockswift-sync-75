@@ -29,7 +29,7 @@ import {
   valorRecuperadoCalculado,
 } from "@/lib/shelf-life-financeiro";
 import { RotateCcw } from "lucide-react";
-import { baixaDentroDaJanela, dataDaBaixa, formatarDataBR, janelaVinculo } from "@/lib/shelf-life-recalculo";
+import { dataDaBaixa, formatarDataBR } from "@/lib/shelf-life-recalculo";
 
 
 export type CampanhaDraft = Partial<CampanhaRow> & {
