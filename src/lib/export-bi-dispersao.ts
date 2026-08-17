@@ -434,7 +434,7 @@ var COLS=[
   {c:'id_op',l:'OP'},{c:'produto',l:'Produto'},{c:'desc_produto',l:'Descrição produto'},
   {c:'material',l:'Material'},{c:'desc_material',l:'Descrição material'},{c:'um',l:'UM'},
   {c:'qtd_previsto',l:'Previsto',n:1},{c:'qtd_consumo',l:'Consumo',n:1},{c:'qtd_dif',l:'Diferença',n:1},
-  {c:'pct',l:'% Disp.',f:function(r){return r.pct==null?'—':Number(r.pct).toFixed(1)+'%';},n:1},
+  {c:'pct',l:'% Disp.',f:function(r){ if(r.pct==null) return '—'; var n=Number(r.pct); return isNaN(n)? String(r.pct) : n.toFixed(1)+'%'; },n:1},
   {c:'custo',l:'Custo unit.',f:function(r){return brl(r.custo);},n:1},
   {c:'impacto',l:'Impacto',f:function(r){return brl(r.impacto);},n:1},
   {c:'cls',l:'Classificação'},{c:'linha_origem',l:'Linha/Origem'}
