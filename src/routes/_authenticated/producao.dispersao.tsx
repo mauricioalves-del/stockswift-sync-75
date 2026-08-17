@@ -25,6 +25,7 @@ import {
   CAUSAS, STATUS_ACAO, FAIXAS_DEFAULT, type Faixas, type Quadrante,
 } from "@/lib/dispersao";
 import { ImportarDispersaoDialog } from "@/components/producao/ImportarDispersaoDialog";
+import { fetchAll } from "@/lib/fetch-all";
 import { AlertCircle, Plus, Search, Settings2 } from "lucide-react";
 
 
@@ -47,16 +48,19 @@ type Impacto = {
 
 const SEM_DATA = "sem-data";
 
-/** Data de referência da produção. Descarta datas corrompidas fora do intervalo operacional. */
-function refData(r: { dt_producao: string | null; ano_mes: string | null }): string | null {
-  if (r.dt_producao) {
-    const data = String(r.dt_producao).slice(0, 10);
-    const mData = /^(\d{4})-(\d{2})-(\d{2})$/.exec(data);
-    if (mData && Number(mData[1]) >= 2000 && Number(mData[1]) <= 2100) return data;
+/** Data de referência da produção. Usa a data real e, para o legado, o período válido da mesma OP. */
+function refData(r: { dt_producao: string | null; ano_mes: string | null; numero_op: string }, periodoPorOp: Map<string, string>): string | null {
+  const candidatos = [r.dt_producao, r.ano_mes ? `${r.ano_mes}-01` : null, periodoPorOp.get(r.numero_op)];
+  for (const candidato of candidatos) {
+    if (!candidato) continue;
+    const data = String(candidato).slice(0, 10);
+    const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(data);
+    if (!partes) continue;
+    const ano = Number(partes[1]);
+    const mes = Number(partes[2]);
+    const dia = Number(partes[3]);
+    if (ano >= 2000 && ano <= 2100 && mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) return data;
   }
-  const am = String(r.ano_mes ?? "");
-  const m = /^(\d{4})-(\d{2})$/.exec(am);
-  if (m && Number(m[1]) >= 2000 && Number(m[1]) <= 2100 && Number(m[2]) >= 1 && Number(m[2]) <= 12) return `${am}-01`;
   return null;
 }
 
@@ -95,13 +99,27 @@ function DispersaoPage() {
   const impactoQ = useQuery({
     queryKey: ["dispersao", "v-impacto"],
     queryFn: async (): Promise<Impacto[]> => {
-      const { data, error } = await (supabase as any).from("v_impacto_consumo")
+      return fetchAll<Impacto>((from, to) => (supabase as any).from("v_impacto_consumo")
         .select("id, ano_mes, dt_producao, numero_op, sku_produto_final, desc_prod, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, custo_unit_medio, impacto_rs, tipo_desvio, tem_furo")
-        .order("dt_producao", { ascending: false, nullsFirst: false }).limit(20000);
-      if (error) throw error;
-      return (data ?? []) as Impacto[];
+        .order("dt_producao", { ascending: false, nullsFirst: false })
+        .range(from, to));
     },
   });
+
+  const periodoPorOp = useMemo(() => {
+    const periodos = new Map<string, Set<string>>();
+    for (const r of impactoQ.data ?? []) {
+      if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(r.ano_mes ?? "")) continue;
+      const opPeriodos = periodos.get(r.numero_op) ?? new Set<string>();
+      opPeriodos.add(r.ano_mes);
+      periodos.set(r.numero_op, opPeriodos);
+    }
+    const porOp = new Map<string, string>();
+    for (const [op, valores] of periodos) {
+      if (valores.size === 1) porOp.set(op, `${Array.from(valores)[0]}-01`);
+    }
+    return porOp;
+  }, [impactoQ.data]);
 
   const origemQ = useQuery({
     queryKey: ["dispersao", "origem-item"],
@@ -133,7 +151,7 @@ function DispersaoPage() {
       const impacto = Number(r.impacto_rs ?? 0);
       const pct = percentualDispersao(r.qtd_dif, r.qtd_previsto, r.qtd_consumo);
       const cls = classificar(pct, faixas);
-      const data = refData(r);
+      const data = refData(r, periodoPorOp);
       return {
         ...r,
         id_op: r.numero_op,
@@ -151,7 +169,7 @@ function DispersaoPage() {
         linha_origem: origemQ.data?.get(r.material) ?? null,
       };
     });
-  }, [impactoQ.data, origemQ.data, faixas]);
+  }, [impactoQ.data, origemQ.data, faixas, periodoPorOp]);
 
   const meses = useMemo(
     () => Array.from(new Set(linhas.map((r) => r.mes))).filter((m) => m !== SEM_DATA).sort().reverse(),
@@ -229,7 +247,8 @@ function DispersaoPage() {
   const serieMes = useMemo(() => {
     const map = new Map<string, { chave: string; perda: number; economia: number }>();
     for (const r of filtradas) {
-      const chave = granul === "dia" ? (r.data ?? SEM_DATA) : granul === "ano" ? r.ano : r.mes;
+      if (!r.data) continue;
+      const chave = granul === "dia" ? r.data : granul === "ano" ? r.ano : r.mes;
       const cur = map.get(chave) ?? { chave, perda: 0, economia: 0 };
       if (r.impacto > 0) cur.perda += r.impacto; else cur.economia += -r.impacto;
       map.set(chave, cur);
