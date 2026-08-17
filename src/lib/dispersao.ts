@@ -65,6 +65,7 @@ export type ConsumoRow = {
   um?: string;
   qtd_consumo: number; qtd_previsto: number;
   qtd_produzida?: number;
+  data_producao?: string | null;
   status: "OK" | "ERRO"; erros: string[];
 };
 
