@@ -126,9 +126,8 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       : 0;
   const precoComDesconto = calcularPrecoComDesconto(precoVendaNum, percentualEfetivo);
 
-  // Baixas elegíveis: mesmo SKU + mesmo lote, dentro da janela de 7 dias após a
-  // validade do lote e ainda não vinculadas a outra ação.
-  const janela = janelaVinculo(form.data_validade);
+  // Baixas elegíveis: mesmo SKU + mesmo lote, sem restrição de data,
+  // desde que ainda não estejam vinculadas a outra ação.
   const baixas = useQuery({
     queryKey: ["shelf-baixas-lote", form.sku, form.lote, form.data_validade, form.id],
     enabled: open && podeVincular && !!form.sku,
