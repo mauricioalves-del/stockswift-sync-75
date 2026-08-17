@@ -481,17 +481,62 @@ function DispersaoPage() {
   );
 }
 
-function Kpi({ label, value, tone }: { label: string; value: string; tone?: "danger" | "success" }) {
+function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "danger" | "success" }) {
   const cls = tone === "danger" ? "text-destructive" : tone === "success" ? "text-success" : "";
   return (
     <Card>
       <CardContent className="p-4">
         <div className="text-xs text-muted-foreground">{label}</div>
         <div className={"text-xl font-semibold mt-1 " + cls}>{value}</div>
+        {sub && <div className="text-[11px] text-muted-foreground mt-1">{sub}</div>}
       </CardContent>
     </Card>
   );
 }
+
+type MatrizRow = {
+  material: string; desc_material: string; freq_ops: number;
+  impacto_liquido: number; impacto_abs: number; quadrante: Quadrante;
+};
+
+function TopMateriais({ rows }: { rows: MatrizRow[] }) {
+  return (
+    <div className="max-h-[320px] overflow-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Material</TableHead>
+            <TableHead className="text-right">OPs</TableHead>
+            <TableHead className="text-right">Impacto</TableHead>
+            <TableHead>Classif.</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r) => (
+            <TableRow key={r.material}>
+              <TableCell className="max-w-[240px] truncate">
+                <Link to="/producao/material/$material" params={{ material: r.material }} className="hover:underline">
+                  {r.material} — {r.desc_material}
+                </Link>
+              </TableCell>
+              <TableCell className="text-right">{r.freq_ops}</TableCell>
+              <TableCell className={"text-right " + (r.impacto_liquido > 0 ? "text-destructive" : "text-success")}>
+                {fmtBRL(r.impacto_liquido)}
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline" className={QUADRANTES[r.quadrante].badge}>{QUADRANTES[r.quadrante].label}</Badge>
+              </TableCell>
+            </TableRow>
+          ))}
+          {rows.length === 0 && (
+            <TableRow><TableCell colSpan={4} className="text-center text-xs text-muted-foreground">Sem dados</TableCell></TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 
 function TopTable({ rows, modo }: { rows: any[]; modo: "pct" | "rs" }) {
   return (
