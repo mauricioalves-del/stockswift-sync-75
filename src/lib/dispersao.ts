@@ -94,10 +94,17 @@ function boolFrom(s: string): boolean { const v = s.toLowerCase(); return v === 
 
 function toAnoMes(s: string): string {
   if (!s) return "";
+  s = String(s).trim();
   const m = s.match(/^(\d{4})[-/](\d{1,2})/);
   if (m) return `${m[1]}-${m[2].padStart(2, "0")}`;
+  // dd/mm/yyyy ou d-m-yyyy
+  const md = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (md) return `${md[3]}-${md[2].padStart(2, "0")}`;
   const m2 = s.match(/^(\d{1,2})[-/](\d{4})$/);
   if (m2) return `${m2[2]}-${m2[1].padStart(2, "0")}`;
+  // yyyymm compacto (ex.: 202609)
+  const m3 = s.match(/^(\d{4})(\d{2})$/);
+  if (m3 && Number(m3[2]) >= 1 && Number(m3[2]) <= 12) return `${m3[1]}-${m3[2]}`;
   const n = Number(s);
   if (!Number.isNaN(n) && n > 30000) {
     const d = XLSX.SSF.parse_date_code(n);
@@ -105,6 +112,7 @@ function toAnoMes(s: string): string {
   }
   return "";
 }
+
 
 export function parseBomPlanilha(file: ArrayBuffer): BomRow[] {
   const wb = XLSX.read(file, { type: "array" });
