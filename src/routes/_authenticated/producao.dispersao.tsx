@@ -220,17 +220,26 @@ function DispersaoPage() {
   const topEconomia = useMemo(() => matriz.filter((m) => m.impacto_liquido < 0)
     .sort((a, b) => a.impacto_liquido - b.impacto_liquido).slice(0, 10), [matriz]);
 
-  // Tendência mensal em R$
+  // Tendência em R$ por dia / mês / ano (baseada no campo "Data")
   const serieMes = useMemo(() => {
-    const map = new Map<string, { ano_mes: string; perda: number; economia: number }>();
+    const map = new Map<string, { chave: string; perda: number; economia: number }>();
     for (const r of filtradas) {
-      const cur = map.get(r.ano_mes) ?? { ano_mes: r.ano_mes, perda: 0, economia: 0 };
+      const chave = granul === "dia" ? (r.data ?? SEM_DATA) : granul === "ano" ? r.ano : r.mes;
+      const cur = map.get(chave) ?? { chave, perda: 0, economia: 0 };
       if (r.impacto > 0) cur.perda += r.impacto; else cur.economia += -r.impacto;
-      map.set(r.ano_mes, cur);
+      map.set(chave, cur);
     }
-    return Array.from(map.values()).sort((a, b) => a.ano_mes.localeCompare(b.ano_mes))
-      .map((x) => ({ mes: labelMes(x.ano_mes), perda: +x.perda.toFixed(2), economia: +x.economia.toFixed(2) }));
-  }, [filtradas]);
+    const label = (k: string) => {
+      if (k === SEM_DATA) return "Sem data";
+      if (granul === "ano") return k;
+      if (granul === "mes") return labelMes(k);
+      const [y, m, d] = k.split("-");
+      return `${d}/${m}/${y}`;
+    };
+    return Array.from(map.values()).sort((a, b) => a.chave.localeCompare(b.chave))
+      .map((x) => ({ mes: label(x.chave), perda: +x.perda.toFixed(2), economia: +x.economia.toFixed(2) }));
+  }, [filtradas, granul]);
+
 
   // Impacto por linha/origem (R$)
   const serieLinha = useMemo(() => {
