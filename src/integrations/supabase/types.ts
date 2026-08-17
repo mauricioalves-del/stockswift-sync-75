@@ -2714,6 +2714,7 @@ export type Database = {
           custo_unit_medio: number | null
           custo_unit_min: number | null
           descricao_item: string | null
+          fonte_custo: string | null
           id_item: string | null
           qtd_custos_distintos: number | null
         }
