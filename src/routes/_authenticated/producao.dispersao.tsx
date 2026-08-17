@@ -523,7 +523,7 @@ function DispersaoPage() {
                   </TableRow>
                 ))}
                 {filtradas.length > 500 && (
-                  <TableRow><TableCell colSpan={10} className="text-center text-xs text-muted-foreground">Exibindo 500 de {filtradas.length}. Refine os filtros.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center text-xs text-muted-foreground">Exibindo 500 de {filtradas.length}. Refine os filtros.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
