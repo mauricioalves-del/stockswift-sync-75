@@ -429,7 +429,7 @@ function DispersaoPage() {
 
           <div className="grid gap-3 lg:grid-cols-3">
             <Card className="lg:col-span-2">
-              <CardHeader className="pb-2"><CardTitle className="text-base">Tendência Mensal (R$)</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Tendência {granul === "dia" ? "Diária" : granul === "ano" ? "Anual" : "Mensal"} (R$)</CardTitle></CardHeader>
               <CardContent className="h-64">
                 <ResponsiveContainer>
                   <BarChart data={serieMes}>
