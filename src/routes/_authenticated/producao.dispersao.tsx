@@ -300,42 +300,91 @@ function DispersaoPage() {
         <TabsContent value="visao" className="space-y-4">
           <div className="grid gap-3 md:grid-cols-4">
             <Kpi label="OPs Analisadas" value={kpis.ops.toString()} />
-            <Kpi label="% Dispersão Média" value={`${kpis.pctMedia.toFixed(1)}%`} />
-            <Kpi label="Custo de Perda" value={fmtBRL(kpis.perda)} tone="danger" />
-            <Kpi label="Custo de Sobra" value={fmtBRL(kpis.sobra)} tone="success" />
-            <Kpi label="Materiais Críticos" value={kpis.matsCriticos.toString()} tone="danger" />
+            <Kpi label="Taxa de Furo" value={`${kpis.taxaFuro.toFixed(1)}%`} sub={`${kpis.opsFuro} de ${kpis.ops} OPs com desvio`} tone={kpis.taxaFuro > 50 ? "danger" : undefined} />
+            <Kpi
+              label="Impacto Financeiro Líquido"
+              value={fmtBRL(kpis.liquido)}
+              sub={`Perda ${fmtBRL(kpis.perda)} · Economia ${fmtBRL(kpis.economia)}`}
+              tone={kpis.liquido > 0 ? "danger" : "success"}
+            />
+            <Kpi label="Concentração de Risco" value={`${kpis.pctTop20.toFixed(1)}%`} sub="do impacto nos 20 maiores materiais" />
+            <Kpi label="Materiais Críticos" value={kpis.cronicos.toString()} sub={`≥ ${limFreq} OPs com furo`} tone="danger" />
             <Kpi label="OPs Críticas" value={kpis.opsCriticas.toString()} tone="danger" />
             <Kpi label="Ações Abertas" value={acoesAbertas.toString()} />
             <Kpi label="Ações Concluídas (período)" value={acoesConcluidas.toString()} tone="success" />
           </div>
 
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Matriz de Criticidade (frequência × impacto)</CardTitle>
+              <p className="text-xs text-muted-foreground">Limiares atuais: {limFreq} OPs e {fmtBRL(limImpacto)} — configuráveis em Faixas de Alerta.</p>
+            </CardHeader>
+            <CardContent className="h-80">
+              <ResponsiveContainer>
+                <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                  <XAxis type="number" dataKey="freq_ops" name="OPs" fontSize={12} label={{ value: "Frequência (OPs)", position: "insideBottom", offset: -10, fontSize: 11 }} />
+                  <YAxis type="number" dataKey="impacto_abs" name="Impacto" fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
+                  <ZAxis range={[60, 60]} />
+                  <RTooltip
+                    cursor={{ strokeDasharray: "3 3" }}
+                    content={({ payload }) => {
+                      const p: any = payload?.[0]?.payload;
+                      if (!p) return null;
+                      return (
+                        <div className="rounded-md border bg-popover p-2 text-xs shadow">
+                          <div className="font-medium">{p.material} — {p.desc_material}</div>
+                          <div>Frequência: {p.freq_ops} OP(s)</div>
+                          <div>Impacto líquido: {fmtBRL(p.impacto_liquido)}</div>
+                          <div>Impacto absoluto: {fmtBRL(p.impacto_abs)}</div>
+                          <div>{labelQuadrante(p.quadrante)}</div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Scatter data={matriz}>
+                    {matriz.map((m) => (
+                      <Cell key={m.material} fill={QUADRANTES[m.quadrante].color} />
+                    ))}
+                  </Scatter>
+                </ScatterChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground pt-2">
+                {(Object.keys(QUADRANTES) as Quadrante[]).map((q) => (
+                  <span key={q} className="inline-flex items-center gap-1">
+                    <span className="size-2 rounded-full" style={{ background: QUADRANTES[q].color }} />
+                    {QUADRANTES[q].label}
+                  </span>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid gap-3 lg:grid-cols-2">
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Top 10 Maiores Dispersões (|%|)</CardTitle></CardHeader>
-              <CardContent>
-                <TopTable rows={top10Pct} modo="pct" />
-              </CardContent>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Top 10 Perda (R$)</CardTitle></CardHeader>
+              <CardContent><TopMateriais rows={topPerda} /></CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Top 10 Maiores Dispersões (R$)</CardTitle></CardHeader>
-              <CardContent>
-                <TopTable rows={top10RS} modo="rs" />
-              </CardContent>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Top 10 Economia / Risco de apontamento</CardTitle></CardHeader>
+              <CardContent><TopMateriais rows={topEconomia} /></CardContent>
             </Card>
           </div>
 
           <div className="grid gap-3 lg:grid-cols-3">
             <Card className="lg:col-span-2">
-              <CardHeader className="pb-2"><CardTitle className="text-base">% Dispersão Média por Mês</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Tendência Mensal (R$)</CardTitle></CardHeader>
               <CardContent className="h-64">
                 <ResponsiveContainer>
-                  <LineChart data={serieMes}>
+                  <BarChart data={serieMes}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                    <XAxis dataKey="ano_mes" fontSize={12} />
-                    <YAxis fontSize={12} />
-                    <RTooltip />
-                    <Line type="monotone" dataKey="pct" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                  </LineChart>
+                    <XAxis dataKey="mes" fontSize={12} />
+                    <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
+                    <RTooltip formatter={(v: any, n: any) => [fmtBRL(Number(v)), n === "perda" ? "Perda" : "Economia"]} />
+                    <Legend formatter={(v) => (v === "perda" ? "Perda" : "Economia")} />
+                    <Bar dataKey="perda" fill="hsl(var(--destructive))" />
+                    <Bar dataKey="economia" fill="hsl(var(--success))" />
+                  </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
@@ -357,20 +406,22 @@ function DispersaoPage() {
 
           {serieLinha.length > 0 && (
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">% Dispersão por Linha / Origem</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Impacto por Linha / Origem (R$)</CardTitle></CardHeader>
               <CardContent className="h-64">
                 <ResponsiveContainer>
                   <BarChart data={serieLinha}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                     <XAxis dataKey="linha" fontSize={12} />
-                    <YAxis fontSize={12} />
-                    <RTooltip />
-                    <Bar dataKey="pct" fill="hsl(var(--accent))" />
+                    <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
+                    <RTooltip formatter={(v: any) => fmtBRL(Number(v))} />
+                    <Bar dataKey="impacto_abs" fill="hsl(var(--accent))" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
         </TabsContent>
 
         {/* ============ LISTA ============ */}
