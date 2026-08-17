@@ -142,9 +142,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       const { data, error } = await q;
       if (error) throw error;
 
-      const candidatas = (data ?? []).filter((b: any) =>
-        baixaDentroDaJanela(dataDaBaixa(b), form.data_validade),
-      );
+      const candidatas = (data ?? []) as any[];
       if (!candidatas.length) return [] as any[];
 
       const { data: vinculadas } = await (supabase as any)
