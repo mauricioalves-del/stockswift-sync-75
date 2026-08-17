@@ -18,15 +18,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, Legend,
-  ScatterChart, Scatter, Cell, ZAxis,
+  ScatterChart, Scatter, Cell, ZAxis, LabelList,
 } from "recharts";
 import {
   percentualDispersao, classificar, badgeCor, labelClass, fmtBRL, labelMes, QUADRANTES, labelQuadrante,
   CAUSAS, STATUS_ACAO, FAIXAS_DEFAULT, type Faixas, type Quadrante,
 } from "@/lib/dispersao";
 import { ImportarDispersaoDialog } from "@/components/producao/ImportarDispersaoDialog";
+import { ExportarHtmlButton } from "@/components/app/ExportarHtmlButton";
 import { fetchAll } from "@/lib/fetch-all";
 import { AlertCircle, Plus, Search, Settings2 } from "lucide-react";
+
+/** Rótulo compacto em R$ para exibição dentro dos gráficos. */
+function fmtCompacto(v: number) {
+  const abs = Math.abs(v);
+  if (abs >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${(v / 1_000).toFixed(1)}k`;
+  return v.toFixed(0);
+}
+
 
 
 export const Route = createFileRoute("/_authenticated/producao/dispersao")({
