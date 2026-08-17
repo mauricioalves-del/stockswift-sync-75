@@ -181,6 +181,7 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
                 ) : (
                   <>
                     <TableHead>AnoMes</TableHead>
+                    <TableHead>Data</TableHead>
                     <TableHead>OP</TableHead>
                     <TableHead>Material</TableHead>
                     <TableHead>Consumo</TableHead>
