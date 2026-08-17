@@ -279,17 +279,38 @@ function DispersaoPage() {
 
       {/* Filtros */}
       <Card>
-        <CardContent className="p-4 grid gap-3 md:grid-cols-5">
+        <CardContent className="p-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
           <div>
-            <label className="text-xs text-muted-foreground">Período</label>
+            <label className="text-xs text-muted-foreground">Data inicial</label>
+            <Input type="date" value={dtDe} onChange={(e) => setDtDe(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Data final</label>
+            <Input type="date" value={dtAte} onChange={(e) => setDtAte(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Mês (Data)</label>
             <Select value={anoMes} onValueChange={setAnoMes}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
-                {meses.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                {meses.map((m) => <SelectItem key={m} value={m}>{labelMes(m)}</SelectItem>)}
+                {temSemData && <SelectItem value={SEM_DATA}>Sem data</SelectItem>}
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Agrupar por</label>
+            <Select value={granul} onValueChange={(v) => setGranul(v as "dia" | "mes" | "ano")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="dia">Dia</SelectItem>
+                <SelectItem value="mes">Mês</SelectItem>
+                <SelectItem value="ano">Ano</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div>
             <label className="text-xs text-muted-foreground">Produto</label>
             <Input value={produto} onChange={(e) => setProduto(e.target.value)} placeholder="Buscar produto…" />
