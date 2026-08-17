@@ -301,20 +301,43 @@ function DispersaoPage() {
           <p className="text-sm text-muted-foreground">Ficha Técnica × Consumo real por Ordem de Produção.</p>
         </div>
         <div className="flex gap-2">
-          <ExportarHtmlButton
-            targetId="dash-dispersao"
-            titulo="Dispersão de Lote — Produção"
-            filtros={[
-              { label: "Data inicial", valor: dtDe },
-              { label: "Data final", valor: dtAte },
-              { label: "Mês", valor: anoMes === "todos" ? "Todos" : anoMes === SEM_DATA ? "Sem data" : labelMes(anoMes) },
-              { label: "Produto", valor: produto },
-              { label: "Material", valor: material },
-              { label: "Linha/Origem", valor: linha === "todas" ? "Todas" : linha },
-              { label: "Classificação", valor: classFilter === "todas" ? "Todas" : classFilter },
-              { label: "Granularidade", valor: granul },
-            ]}
-          />
+          <Button
+            variant="outline"
+            onClick={() =>
+              exportarDispersaoBI({
+                titulo: "Dispersão de Lote — Produção",
+                linhas: linhas.map((r) => ({
+                  data: r.data,
+                  mes: r.mes,
+                  ano: r.ano,
+                  id_op: r.id_op,
+                  produto: r.produto ?? null,
+                  desc_produto: r.desc_produto ?? null,
+                  material: r.material,
+                  desc_material: r.desc_material ?? null,
+                  um: r.um ?? null,
+                  qtd_previsto: Number(r.qtd_previsto ?? 0),
+                  qtd_consumo: Number(r.qtd_consumo ?? 0),
+                  qtd_dif: Number(r.qtd_dif ?? 0),
+                  custo: r.custo,
+                  impacto: r.impacto,
+                  pct: r.pct,
+                  cls: r.cls,
+                  tem_furo: !!r.tem_furo,
+                  linha_origem: r.linha_origem,
+                })),
+                limFreq,
+                limImpacto,
+                filtrosIniciais: {
+                  dtDe, dtAte, produto, material,
+                  linha, classificacao: classFilter, granularidade: granul,
+                },
+              })
+            }
+          >
+            Exportar HTML interativo
+          </Button>
+
           {canImport && <ImportarDispersaoDialog modo="BOM" />}
           {canImport && <ImportarDispersaoDialog modo="CONSUMO" />}
 
