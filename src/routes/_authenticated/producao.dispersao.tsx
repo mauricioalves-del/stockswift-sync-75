@@ -485,6 +485,7 @@ function DispersaoPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Data</TableHead>
                   <TableHead>OP</TableHead>
                   <TableHead>Produto</TableHead>
                   <TableHead>Material</TableHead>
