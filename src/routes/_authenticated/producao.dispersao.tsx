@@ -533,7 +533,10 @@ function DispersaoPage() {
                     <XAxis dataKey="linha" fontSize={12} />
                     <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
                     <RTooltip formatter={(v: any) => fmtBRL(Number(v))} />
-                    <Bar dataKey="impacto_abs" fill="#FFB74D" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="impacto_abs" fill="#FFB74D" radius={[3, 3, 0, 0]}>
+                      <LabelList dataKey="impacto_abs" position="top" fontSize={10} fill="currentColor" formatter={(v: any) => fmtCompacto(Number(v))} />
+                    </Bar>
+
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
