@@ -551,16 +551,12 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
                     Desvincular
                   </Button>
                 </div>
-              ) : janela ? (
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Janela para vinculação: {formatarDataBR(janela.inicio)} a {formatarDataBR(janela.fim)}
-                  {!baixas.isLoading && (baixas.data ?? []).length === 0 && (
-                    <> — nenhuma baixa elegível neste período.</>
-                  )}
-                </p>
               ) : (
-                <p className="mt-1 text-[11px] text-warning">
-                  Informe a validade do lote para habilitar a janela de vinculação.
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Vincula qualquer baixa do mesmo SKU + lote, sem restrição de data.
+                  {!baixas.isLoading && (baixas.data ?? []).length === 0 && (
+                    <> — nenhuma baixa disponível para este SKU/lote.</>
+                  )}
                 </p>
               )}
             </div>
