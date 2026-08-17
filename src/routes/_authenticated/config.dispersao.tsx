@@ -27,18 +27,31 @@ function ConfigDispersao() {
   });
   const [atencao, setAtencao] = useState<string>("");
   const [critico, setCritico] = useState<string>("");
+  const [freqOps, setFreqOps] = useState<string>("");
+  const [impactoRs, setImpactoRs] = useState<string>("");
   useEffect(() => {
-    if (q.data) { setAtencao(String(q.data.limite_atencao_pct)); setCritico(String(q.data.limite_critico_pct)); }
+    if (q.data) {
+      setAtencao(String(q.data.limite_atencao_pct));
+      setCritico(String(q.data.limite_critico_pct));
+      setFreqOps(String(q.data.limite_freq_ops ?? 5));
+      setImpactoRs(String(q.data.limite_impacto_rs ?? 150));
+    }
   }, [q.data]);
 
   async function salvar() {
     const a = Number(atencao), c = Number(critico);
+    const f = Number(freqOps), i = Number(impactoRs);
     if (!(a > 0) || !(c > 0) || a >= c) { toast.error("Atenção precisa ser < Crítico e ambos > 0."); return; }
+    if (!(f > 0) || !(i > 0)) { toast.error("Limiares da matriz precisam ser maiores que zero."); return; }
     const { error } = await (supabase as any).from("parametros_dispersao")
-      .update({ limite_atencao_pct: a, limite_critico_pct: c, updated_at: new Date().toISOString() }).eq("id", 1);
+      .update({
+        limite_atencao_pct: a, limite_critico_pct: c,
+        limite_freq_ops: Math.round(f), limite_impacto_rs: i,
+        updated_at: new Date().toISOString(),
+      }).eq("id", 1);
     if (error) { toast.error(error.message); return; }
     toast.success("Faixas atualizadas");
-    qc.invalidateQueries({ queryKey: ["dispersao", "faixas"] });
+    qc.invalidateQueries({ queryKey: ["dispersao"] });
   }
 
   if (!isAdmin) return <div className="p-6 text-sm">Somente Administrador pode editar as faixas.</div>;
@@ -62,9 +75,20 @@ function ConfigDispersao() {
             <Input type="number" step="0.1" value={critico} onChange={(e) => setCritico(e.target.value)} />
             <p className="text-xs text-muted-foreground mt-1">Entre Atenção e Crítico → Atenção. Acima → Crítico. Default: 15%</p>
           </div>
+          <div>
+            <Label>Matriz de Criticidade — frequência mínima (nº de OPs)</Label>
+            <Input type="number" step="1" value={freqOps} onChange={(e) => setFreqOps(e.target.value)} />
+            <p className="text-xs text-muted-foreground mt-1">A partir de quantas OPs com furo o material é considerado recorrente. Default: 5</p>
+          </div>
+          <div>
+            <Label>Matriz de Criticidade — impacto mínimo (R$)</Label>
+            <Input type="number" step="1" value={impactoRs} onChange={(e) => setImpactoRs(e.target.value)} />
+            <p className="text-xs text-muted-foreground mt-1">Impacto absoluto acumulado a partir do qual o material entra nos quadrantes de alto impacto. Default: R$ 150</p>
+          </div>
           <Button onClick={salvar}>Salvar</Button>
         </CardContent>
       </Card>
     </div>
   );
 }
+
