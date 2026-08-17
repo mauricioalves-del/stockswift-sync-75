@@ -186,6 +186,7 @@ export function parseConsumoPlanilha(file: ArrayBuffer): ConsumoRow[] {
       um: pick(r, "UM", "um", "Unidade"),
       qtd_consumo, qtd_previsto,
       qtd_produzida: qtd_produzida_s ? num(qtd_produzida_s) : undefined,
+      data_producao,
       status: erros.length ? "ERRO" : "OK",
       erros,
     };
