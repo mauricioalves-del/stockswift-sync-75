@@ -390,7 +390,7 @@ function DispersaoPage() {
         </TabsList>
 
         {/* ============ VISÃO GERAL ============ */}
-        <TabsContent value="visao" className="space-y-4">
+        <TabsContent value="visao" className="space-y-4" id="dash-dispersao">
           <div className="grid gap-3 md:grid-cols-4">
             <Kpi label="OPs Analisadas" value={kpis.ops.toString()} />
             <Kpi label="Taxa de Furo" value={`${kpis.taxaFuro.toFixed(1)}%`} sub={`${kpis.opsFuro} de ${kpis.ops} OPs com desvio`} tone={kpis.taxaFuro > 50 ? "danger" : undefined} />
