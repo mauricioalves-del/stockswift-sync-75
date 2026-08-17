@@ -501,6 +501,7 @@ function DispersaoPage() {
               <TableBody>
                 {filtradas.slice(0, 500).map((r) => (
                   <TableRow key={r.id}>
+                    <TableCell className="whitespace-nowrap">{r.data ? r.data.split("-").reverse().join("/") : "—"}</TableCell>
                     <TableCell>{r.id_op}</TableCell>
                     <TableCell className="max-w-[240px] truncate">
                       <Link to="/producao/material/$material" params={{ material: r.material }} className="hover:underline">
