@@ -25,7 +25,7 @@ import {
   CAUSAS, STATUS_ACAO, FAIXAS_DEFAULT, type Faixas, type Quadrante,
 } from "@/lib/dispersao";
 import { ImportarDispersaoDialog } from "@/components/producao/ImportarDispersaoDialog";
-import { ExportarHtmlButton } from "@/components/app/ExportarHtmlButton";
+import { exportarDispersaoBI } from "@/lib/export-bi-dispersao";
 import { fetchAll } from "@/lib/fetch-all";
 import { AlertCircle, Plus, Search, Settings2 } from "lucide-react";
 
