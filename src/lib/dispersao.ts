@@ -235,10 +235,10 @@ export const STATUS_ACAO: Array<{ v: string; l: string }> = [
 export type Quadrante = "critico_recorrente" | "pontual" | "cronico" | "controle";
 
 export const QUADRANTES: Record<Quadrante, { label: string; color: string; badge: string }> = {
-  critico_recorrente: { label: "Crítico recorrente", color: "hsl(var(--destructive))", badge: "bg-destructive/15 text-destructive border-destructive/30" },
-  pontual: { label: "Pontual", color: "hsl(25 70% 50%)", badge: "bg-warning/15 text-warning border-warning/30" },
-  cronico: { label: "Crônico", color: "hsl(45 90% 45%)", badge: "bg-warning/10 text-warning border-warning/30" },
-  controle: { label: "Sob controle", color: "hsl(var(--success))", badge: "bg-success/15 text-success border-success/30" },
+  critico_recorrente: { label: "Crítico recorrente", color: "#E57373", badge: "bg-destructive/15 text-destructive border-destructive/30" },
+  pontual: { label: "Pontual", color: "#FFB74D", badge: "bg-warning/15 text-warning border-warning/30" },
+  cronico: { label: "Crônico", color: "#FFD54F", badge: "bg-warning/10 text-warning border-warning/30" },
+  controle: { label: "Sob controle", color: "#81C784", badge: "bg-success/15 text-success border-success/30" },
 };
 
 export function labelQuadrante(q: string): string {
