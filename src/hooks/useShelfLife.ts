@@ -251,9 +251,33 @@ export async function autoVincularBaixas(): Promise<number> {
       (motivoId ? candidatas.find((b) => b.motivo_baixa_id === motivoId) : undefined) ?? candidatas[0];
     if (!escolhida) continue;
 
+    const calc = calculateActionFinancials(
+      { ...c, baixa_operacional_id: escolhida.id, tipo_nome: c.tipo_acao_id ? nomeDoTipo.get(c.tipo_acao_id) : null },
+      {
+        quantidadeBaixa: Number(escolhida.quantidade) || 0,
+        precoVendaCadastro: precoPorSku.get(normSku(c.sku)) ?? null,
+        percentualPadrao,
+      },
+    );
+    const concluida = c.status === "CONCLUIDA";
+    const valor = concluida ? calc.valor_recuperado : 0;
+    const saving = concluida ? calc.saving_recuperado : 0;
+
     const { error } = await (supabase as any)
       .from("campanhas_lote")
-      .update({ baixa_operacional_id: escolhida.id })
+      .update({
+        baixa_operacional_id: escolhida.id,
+        custo_unitario: calc.custo_unitario,
+        custo_acao: calc.custo_acao,
+        categoria_financeira: calc.categoria,
+        quantidade_recuperada: calc.quantidade_recuperada,
+        preco_com_desconto: calc.preco_praticado > 0 ? calc.preco_praticado : null,
+        valor_recuperado: valor,
+        saving_recuperado: saving,
+        valor_estimado_recuperado: calc.categoria === "Vendas" ? valor : 0,
+        valor_estimado_saving: calc.categoria === "Vendas" ? 0 : valor,
+        recalculado_em: agora,
+      })
       .eq("id", c.id)
       .is("baixa_operacional_id", null);
     if (!error) {
