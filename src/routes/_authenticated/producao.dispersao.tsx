@@ -16,14 +16,16 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend,
+  BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, Legend,
+  ScatterChart, Scatter, Cell, ZAxis,
 } from "recharts";
 import {
-  percentualDispersao, classificar, custoDesvio, badgeCor, labelClass, fmtBRL,
-  CAUSAS, STATUS_ACAO, FAIXAS_DEFAULT, type Faixas,
+  percentualDispersao, classificar, badgeCor, labelClass, fmtBRL, labelMes, QUADRANTES, labelQuadrante,
+  CAUSAS, STATUS_ACAO, FAIXAS_DEFAULT, type Faixas, type Quadrante,
 } from "@/lib/dispersao";
 import { ImportarDispersaoDialog } from "@/components/producao/ImportarDispersaoDialog";
 import { AlertCircle, Plus, Search, Settings2 } from "lucide-react";
+
 
 export const Route = createFileRoute("/_authenticated/producao/dispersao")({
   component: DispersaoPage,
