@@ -1891,6 +1891,7 @@ export type Database = {
           ano_mes: string
           created_at: string
           criado_por: string | null
+          data_producao: string | null
           desc_material: string | null
           desc_produto: string | null
           id: string
@@ -1908,6 +1909,7 @@ export type Database = {
           ano_mes: string
           created_at?: string
           criado_por?: string | null
+          data_producao?: string | null
           desc_material?: string | null
           desc_produto?: string | null
           id?: string
@@ -1925,6 +1927,7 @@ export type Database = {
           ano_mes?: string
           created_at?: string
           criado_por?: string | null
+          data_producao?: string | null
           desc_material?: string | null
           desc_produto?: string | null
           id?: string

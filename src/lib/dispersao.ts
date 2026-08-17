@@ -65,6 +65,7 @@ export type ConsumoRow = {
   um?: string;
   qtd_consumo: number; qtd_previsto: number;
   qtd_produzida?: number;
+  data_producao?: string | null;
   status: "OK" | "ERRO"; erros: string[];
 };
 
@@ -114,6 +115,23 @@ function toAnoMes(s: string): string {
 }
 
 
+/** Converte "14/08/2026", "2026-08-14" ou serial Excel em ISO yyyy-mm-dd. */
+export function toDataISO(s: string): string | null {
+  if (!s) return null;
+  const raw = String(s).trim();
+  if (!raw) return null;
+  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+  const br = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (br) return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  const n = Number(raw);
+  if (!Number.isNaN(n) && n > 30000) {
+    const d = XLSX.SSF.parse_date_code(n);
+    if (d) return `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
+  }
+  return null;
+}
+
 export function parseBomPlanilha(file: ArrayBuffer): BomRow[] {
   const wb = XLSX.read(file, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
@@ -149,14 +167,15 @@ export function parseConsumoPlanilha(file: ArrayBuffer): ConsumoRow[] {
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = normalizeSheetRows(XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" }));
   return rows.map((r, i) => {
-    const ano_mes = toAnoMes(pick(r, "AnoMes", "Ano_Mes", "ano_mes", "Período", "Periodo"));
+    const data_producao = toDataISO(pick(r, "Data", "data", "DataProducao", "Data_Producao", "data_producao", "DtProducao", "Dt_Producao"));
+    const ano_mes = data_producao ? data_producao.slice(0, 7) : toAnoMes(pick(r, "AnoMes", "Ano_Mes", "ano_mes", "Período", "Periodo"));
     const id_op = pick(r, "IDOP", "ID_OP", "id_op", "OP");
     const material = pick(r, "Material", "material", "SKU");
     const qtd_consumo = num(pick(r, "QtdConsumo", "Qtd_Consumo", "qtd_consumo", "Consumo"));
     const qtd_previsto = num(pick(r, "QtdPrevisto", "Qtd_Previsto", "qtd_previsto", "Previsto"));
     const qtd_produzida_s = pick(r, "QtdProduzida", "Qtd_Produzida", "qtd_produzida", "Produzido");
     const erros: string[] = [];
-    if (!ano_mes) erros.push("AnoMes inválido");
+    if (!ano_mes) erros.push("AnoMes/Data inválido");
     if (!id_op) erros.push("IDOP vazio");
     if (!material) erros.push("Material vazio");
     return {
@@ -167,6 +186,7 @@ export function parseConsumoPlanilha(file: ArrayBuffer): ConsumoRow[] {
       um: pick(r, "UM", "um", "Unidade"),
       qtd_consumo, qtd_previsto,
       qtd_produzida: qtd_produzida_s ? num(qtd_produzida_s) : undefined,
+      data_producao,
       status: erros.length ? "ERRO" : "OK",
       erros,
     };
@@ -186,8 +206,8 @@ export function gerarModeloBOM(): Blob {
 
 export function gerarModeloConsumo(): Blob {
   const aoa = [
-    ["AnoMes", "IDOP", "Produto", "DescProduto", "Material", "DescMaterial", "UM", "QtdConsumo", "QtdPrevisto", "QtdProduzida"],
-    ["2026-04", "OP-1001", "PROD-001", "Chocolate 70%", "MAT-001", "Cacau em pó", "KG", 72.5, 70, 100],
+    ["AnoMes", "IDOP", "Produto", "DescProduto", "Material", "DescMaterial", "UM", "QtdConsumo", "QtdPrevisto", "QtdProduzida", "Data"],
+    ["2026-04", "OP-1001", "PROD-001", "Chocolate 70%", "MAT-001", "Cacau em pó", "KG", 72.5, 70, 100, "14/04/2026"],
   ];
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(aoa);
