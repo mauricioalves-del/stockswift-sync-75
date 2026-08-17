@@ -224,6 +224,21 @@ export async function autoVincularBaixas(): Promise<number> {
     porChave.set(k, arr);
   }
 
+  // Contexto para recálculo financeiro após o vínculo.
+  const normSku = (s: any) => String(s ?? "").trim().toUpperCase();
+  const precos = await fetchAll<any>((from, to) =>
+    (supabase as any).from("precos_venda").select("sku, pr_venda").range(from, to),
+  );
+  const precoPorSku = new Map<string, number>(precos.map((p) => [normSku(p.sku), Number(p.pr_venda) || 0]));
+  const { data: paramDesc } = await (supabase as any)
+    .from("parametros_desconto_colaborador")
+    .select("percentual_desconto")
+    .order("atualizado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const percentualPadrao = Number(paramDesc?.percentual_desconto) || null;
+  const agora = new Date().toISOString();
+
   let n = 0;
   for (const c of campanhas) {
     const candidatas = (porChave.get(chaveLote(c.sku, c.lote)) ?? []).filter(
