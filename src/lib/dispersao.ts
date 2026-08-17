@@ -206,8 +206,8 @@ export function gerarModeloBOM(): Blob {
 
 export function gerarModeloConsumo(): Blob {
   const aoa = [
-    ["AnoMes", "IDOP", "Produto", "DescProduto", "Material", "DescMaterial", "UM", "QtdConsumo", "QtdPrevisto", "QtdProduzida"],
-    ["2026-04", "OP-1001", "PROD-001", "Chocolate 70%", "MAT-001", "Cacau em pó", "KG", 72.5, 70, 100],
+    ["AnoMes", "IDOP", "Produto", "DescProduto", "Material", "DescMaterial", "UM", "QtdConsumo", "QtdPrevisto", "QtdProduzida", "Data"],
+    ["2026-04", "OP-1001", "PROD-001", "Chocolate 70%", "MAT-001", "Cacau em pó", "KG", 72.5, 70, 100, "14/04/2026"],
   ];
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(aoa);
