@@ -214,6 +214,7 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
                     <TableRow key={r.linha}>
                       <TableCell>{r.linha}</TableCell>
                       <TableCell>{r.ano_mes}</TableCell>
+                      <TableCell>{r.data_producao ? r.data_producao.split("-").reverse().join("/") : "—"}</TableCell>
                       <TableCell>{r.id_op}</TableCell>
                       <TableCell>{r.material} {r.desc_material ? `— ${r.desc_material}` : ""}</TableCell>
                       <TableCell>{r.qtd_consumo}</TableCell>
