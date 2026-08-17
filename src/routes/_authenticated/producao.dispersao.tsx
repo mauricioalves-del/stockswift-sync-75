@@ -322,7 +322,7 @@ function DispersaoPage() {
             <CardContent className="h-80">
               <ResponsiveContainer>
                 <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
                   <XAxis type="number" dataKey="freq_ops" name="OPs" fontSize={12} label={{ value: "Frequência (OPs)", position: "insideBottom", offset: -10, fontSize: 11 }} />
                   <YAxis type="number" dataKey="impacto_abs" name="Impacto" fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
                   <ZAxis range={[60, 60]} />
@@ -377,13 +377,13 @@ function DispersaoPage() {
               <CardContent className="h-64">
                 <ResponsiveContainer>
                   <BarChart data={serieMes}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
                     <XAxis dataKey="mes" fontSize={12} />
                     <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
                     <RTooltip formatter={(v: any, n: any) => [fmtBRL(Number(v)), n === "perda" ? "Perda" : "Economia"]} />
                     <Legend formatter={(v) => (v === "perda" ? "Perda" : "Economia")} />
-                    <Bar dataKey="perda" fill="hsl(var(--destructive))" />
-                    <Bar dataKey="economia" fill="hsl(var(--success))" />
+                    <Bar dataKey="perda" fill="#E57373" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="economia" fill="#81C784" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -393,11 +393,11 @@ function DispersaoPage() {
               <CardContent className="h-64">
                 <ResponsiveContainer>
                   <BarChart data={serieStatus}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
                     <XAxis dataKey="status" fontSize={10} interval={0} angle={-15} textAnchor="end" height={60} />
                     <YAxis fontSize={12} />
                     <RTooltip />
-                    <Bar dataKey="qtd" fill="hsl(var(--primary))" />
+                    <Bar dataKey="qtd" fill="#4FC3F7" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -410,11 +410,11 @@ function DispersaoPage() {
               <CardContent className="h-64">
                 <ResponsiveContainer>
                   <BarChart data={serieLinha}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
                     <XAxis dataKey="linha" fontSize={12} />
                     <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
                     <RTooltip formatter={(v: any) => fmtBRL(Number(v))} />
-                    <Bar dataKey="impacto_abs" fill="hsl(var(--accent))" />
+                    <Bar dataKey="impacto_abs" fill="#FFB74D" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
