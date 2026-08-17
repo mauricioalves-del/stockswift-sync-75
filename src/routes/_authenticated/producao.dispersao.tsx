@@ -493,8 +493,13 @@ function DispersaoPage() {
                     <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
                     <RTooltip formatter={(v: any, n: any) => [fmtBRL(Number(v)), n === "perda" ? "Perda" : "Economia"]} />
                     <Legend formatter={(v) => (v === "perda" ? "Perda" : "Economia")} />
-                    <Bar dataKey="perda" fill="#E57373" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="economia" fill="#81C784" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="perda" fill="#E57373" radius={[3, 3, 0, 0]}>
+                      <LabelList dataKey="perda" position="top" fontSize={10} fill="currentColor" formatter={(v: any) => (Number(v) ? fmtCompacto(Number(v)) : "")} />
+                    </Bar>
+                    <Bar dataKey="economia" fill="#81C784" radius={[3, 3, 0, 0]}>
+                      <LabelList dataKey="economia" position="top" fontSize={10} fill="currentColor" formatter={(v: any) => (Number(v) ? fmtCompacto(Number(v)) : "")} />
+                    </Bar>
+
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
