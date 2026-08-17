@@ -18,15 +18,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, Legend,
-  ScatterChart, Scatter, Cell, ZAxis,
+  ScatterChart, Scatter, Cell, ZAxis, LabelList,
 } from "recharts";
 import {
   percentualDispersao, classificar, badgeCor, labelClass, fmtBRL, labelMes, QUADRANTES, labelQuadrante,
   CAUSAS, STATUS_ACAO, FAIXAS_DEFAULT, type Faixas, type Quadrante,
 } from "@/lib/dispersao";
 import { ImportarDispersaoDialog } from "@/components/producao/ImportarDispersaoDialog";
+import { ExportarHtmlButton } from "@/components/app/ExportarHtmlButton";
 import { fetchAll } from "@/lib/fetch-all";
 import { AlertCircle, Plus, Search, Settings2 } from "lucide-react";
+
+/** Rótulo compacto em R$ para exibição dentro dos gráficos. */
+function fmtCompacto(v: number) {
+  const abs = Math.abs(v);
+  if (abs >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${(v / 1_000).toFixed(1)}k`;
+  return v.toFixed(0);
+}
+
 
 
 export const Route = createFileRoute("/_authenticated/producao/dispersao")({
@@ -291,8 +301,23 @@ function DispersaoPage() {
           <p className="text-sm text-muted-foreground">Ficha Técnica × Consumo real por Ordem de Produção.</p>
         </div>
         <div className="flex gap-2">
+          <ExportarHtmlButton
+            targetId="dash-dispersao"
+            titulo="Dispersão de Lote — Produção"
+            filtros={[
+              { label: "Data inicial", valor: dtDe },
+              { label: "Data final", valor: dtAte },
+              { label: "Mês", valor: anoMes === "todos" ? "Todos" : anoMes === SEM_DATA ? "Sem data" : labelMes(anoMes) },
+              { label: "Produto", valor: produto },
+              { label: "Material", valor: material },
+              { label: "Linha/Origem", valor: linha === "todas" ? "Todas" : linha },
+              { label: "Classificação", valor: classFilter === "todas" ? "Todas" : classFilter },
+              { label: "Granularidade", valor: granul },
+            ]}
+          />
           {canImport && <ImportarDispersaoDialog modo="BOM" />}
           {canImport && <ImportarDispersaoDialog modo="CONSUMO" />}
+
           {isAdmin && (
             <Button asChild variant="outline" size="icon" title="Configurar faixas de alerta">
               <Link to="/config/dispersao"><Settings2 className="size-4" /></Link>
@@ -365,7 +390,7 @@ function DispersaoPage() {
         </TabsList>
 
         {/* ============ VISÃO GERAL ============ */}
-        <TabsContent value="visao" className="space-y-4">
+        <TabsContent value="visao" className="space-y-4" id="dash-dispersao">
           <div className="grid gap-3 md:grid-cols-4">
             <Kpi label="OPs Analisadas" value={kpis.ops.toString()} />
             <Kpi label="Taxa de Furo" value={`${kpis.taxaFuro.toFixed(1)}%`} sub={`${kpis.opsFuro} de ${kpis.ops} OPs com desvio`} tone={kpis.taxaFuro > 50 ? "danger" : undefined} />
@@ -414,7 +439,9 @@ function DispersaoPage() {
                     {matriz.map((m) => (
                       <Cell key={m.material} fill={QUADRANTES[m.quadrante].color} />
                     ))}
+                    <LabelList dataKey="material" position="top" fontSize={9} fill="currentColor" />
                   </Scatter>
+
                 </ScatterChart>
               </ResponsiveContainer>
               <div className="flex flex-wrap gap-3 text-xs text-muted-foreground pt-2">
@@ -468,8 +495,13 @@ function DispersaoPage() {
                     <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
                     <RTooltip formatter={(v: any, n: any) => [fmtBRL(Number(v)), n === "perda" ? "Perda" : "Economia"]} />
                     <Legend formatter={(v) => (v === "perda" ? "Perda" : "Economia")} />
-                    <Bar dataKey="perda" fill="#E57373" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="economia" fill="#81C784" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="perda" fill="#E57373" radius={[3, 3, 0, 0]}>
+                      <LabelList dataKey="perda" position="top" fontSize={10} fill="currentColor" formatter={(v: any) => (Number(v) ? fmtCompacto(Number(v)) : "")} />
+                    </Bar>
+                    <Bar dataKey="economia" fill="#81C784" radius={[3, 3, 0, 0]}>
+                      <LabelList dataKey="economia" position="top" fontSize={10} fill="currentColor" formatter={(v: any) => (Number(v) ? fmtCompacto(Number(v)) : "")} />
+                    </Bar>
+
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -483,7 +515,10 @@ function DispersaoPage() {
                     <XAxis dataKey="status" fontSize={10} interval={0} angle={-15} textAnchor="end" height={60} />
                     <YAxis fontSize={12} />
                     <RTooltip />
-                    <Bar dataKey="qtd" fill="#4FC3F7" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="qtd" fill="#4FC3F7" radius={[3, 3, 0, 0]}>
+                      <LabelList dataKey="qtd" position="top" fontSize={11} fill="currentColor" />
+                    </Bar>
+
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -500,7 +535,10 @@ function DispersaoPage() {
                     <XAxis dataKey="linha" fontSize={12} />
                     <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
                     <RTooltip formatter={(v: any) => fmtBRL(Number(v))} />
-                    <Bar dataKey="impacto_abs" fill="#FFB74D" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="impacto_abs" fill="#FFB74D" radius={[3, 3, 0, 0]}>
+                      <LabelList dataKey="impacto_abs" position="top" fontSize={10} fill="currentColor" formatter={(v: any) => fmtCompacto(Number(v))} />
+                    </Bar>
+
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
