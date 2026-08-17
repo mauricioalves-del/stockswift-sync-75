@@ -84,7 +84,7 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
           produto: r.produto || null, desc_produto: r.desc_produto || null,
           material: r.material, desc_material: r.desc_material || null,
           um: r.um || null, qtd_consumo: r.qtd_consumo, qtd_previsto: r.qtd_previsto,
-          qtd_produzida: r.qtd_produzida ?? null, criado_por: uid,
+          qtd_produzida: r.qtd_produzida ?? null, data_producao: r.data_producao ?? null, criado_por: uid,
         }));
         const CHUNK = 500;
         for (let i = 0; i < payload.length; i += CHUNK) {
