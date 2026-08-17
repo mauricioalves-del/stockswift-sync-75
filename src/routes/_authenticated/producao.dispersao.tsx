@@ -128,11 +128,15 @@ function DispersaoPage() {
       const impacto = Number(r.impacto_rs ?? 0);
       const pct = percentualDispersao(r.qtd_dif, r.qtd_previsto, r.qtd_consumo);
       const cls = classificar(pct, faixas);
+      const data = refData(r);
       return {
         ...r,
         id_op: r.numero_op,
         produto: r.sku_produto_final,
         desc_produto: r.desc_prod,
+        data,                                   // yyyy-mm-dd (campo "Data")
+        mes: data ? data.slice(0, 7) : SEM_DATA, // yyyy-mm
+        ano: data ? data.slice(0, 4) : SEM_DATA,
         custo,
         impacto,
         pct,
@@ -144,17 +148,24 @@ function DispersaoPage() {
     });
   }, [impactoQ.data, origemQ.data, faixas]);
 
-  const meses = useMemo(() => Array.from(new Set(linhas.map((r) => r.ano_mes))).sort().reverse(), [linhas]);
+  const meses = useMemo(
+    () => Array.from(new Set(linhas.map((r) => r.mes))).filter((m) => m !== SEM_DATA).sort().reverse(),
+    [linhas],
+  );
+  const temSemData = useMemo(() => linhas.some((r) => r.mes === SEM_DATA), [linhas]);
   const linhasOrigem = useMemo(() => Array.from(new Set(linhas.map((r) => r.linha_origem).filter((v): v is string => !!v))).sort(), [linhas]);
 
   const filtradas = useMemo(() => linhas.filter((r) => {
-    if (anoMes !== "todos" && r.ano_mes !== anoMes) return false;
+    if (anoMes !== "todos" && r.mes !== anoMes) return false;
+    if (dtDe && (!r.data || r.data < dtDe)) return false;
+    if (dtAte && (!r.data || r.data > dtAte)) return false;
     if (material && !r.material.toLowerCase().includes(material.toLowerCase()) && !(r.desc_material ?? "").toLowerCase().includes(material.toLowerCase())) return false;
     if (produto && !(r.produto ?? "").toLowerCase().includes(produto.toLowerCase()) && !(r.desc_produto ?? "").toLowerCase().includes(produto.toLowerCase())) return false;
     if (linha !== "todas" && r.linha_origem !== linha) return false;
     if (classFilter !== "todas" && r.cls !== classFilter) return false;
     return true;
-  }), [linhas, anoMes, material, produto, linha, classFilter]);
+  }), [linhas, anoMes, dtDe, dtAte, material, produto, linha, classFilter]);
+
 
   // Matriz de criticidade (mesma regra da view v_matriz_criticidade, com limiares configuráveis)
   const matriz = useMemo(() => {
