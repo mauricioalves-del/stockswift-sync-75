@@ -4,6 +4,7 @@ import { fetchAll } from "@/lib/fetch-all";
 import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
 import { almoxEfetivos } from "@/hooks/useFiltrosShelfLife";
 import { faixaDeRisco, type Faixa, type CampanhaCalc, type CategoriaAcao, chaveLote } from "@/lib/shelf-life";
+import { calculateActionFinancials } from "@/lib/shelf-life-recalculo";
 
 
 
