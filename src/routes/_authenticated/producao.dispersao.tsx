@@ -16,14 +16,16 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend,
+  BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, Legend,
+  ScatterChart, Scatter, Cell, ZAxis,
 } from "recharts";
 import {
-  percentualDispersao, classificar, custoDesvio, badgeCor, labelClass, fmtBRL,
-  CAUSAS, STATUS_ACAO, FAIXAS_DEFAULT, type Faixas,
+  percentualDispersao, classificar, badgeCor, labelClass, fmtBRL, labelMes, QUADRANTES, labelQuadrante,
+  CAUSAS, STATUS_ACAO, FAIXAS_DEFAULT, type Faixas, type Quadrante,
 } from "@/lib/dispersao";
 import { ImportarDispersaoDialog } from "@/components/producao/ImportarDispersaoDialog";
 import { AlertCircle, Plus, Search, Settings2 } from "lucide-react";
+
 
 export const Route = createFileRoute("/_authenticated/producao/dispersao")({
   component: DispersaoPage,
@@ -33,15 +35,14 @@ export const Route = createFileRoute("/_authenticated/producao/dispersao")({
   ] }),
 });
 
-type PC = {
-  id: string; ano_mes: string; id_op: string;
-  produto: string | null; desc_produto: string | null;
+type Impacto = {
+  id: string; ano_mes: string; numero_op: string;
+  sku_produto_final: string | null; desc_prod: string | null;
   material: string; desc_material: string | null; um: string | null;
   qtd_consumo: number; qtd_previsto: number; qtd_dif: number;
-  qtd_produzida: number | null;
+  custo_unit_medio: number | null; impacto_rs: number | null;
+  tipo_desvio: "ok" | "perda" | "economia"; tem_furo: boolean;
 };
-
-type Bom = { id_item: string; item: string | null; custo: number; linha_origem: string | null };
 
 function DispersaoPage() {
   const { role, isAdmin } = useRole();
@@ -54,36 +55,42 @@ function DispersaoPage() {
   const [linha, setLinha] = useState<string>("todas");
   const [classFilter, setClassFilter] = useState<string>("todas");
 
-  const faixasQ = useQuery({
+  const paramsQ = useQuery({
     queryKey: ["dispersao", "faixas"],
-    queryFn: async (): Promise<Faixas> => {
+    queryFn: async (): Promise<Faixas & { freqOps: number; impactoRs: number }> => {
       const { data } = await (supabase as any).from("parametros_dispersao").select("*").maybeSingle();
-      if (!data) return FAIXAS_DEFAULT;
-      return { atencao: Number(data.limite_atencao_pct), critico: Number(data.limite_critico_pct) };
+      if (!data) return { ...FAIXAS_DEFAULT, freqOps: 5, impactoRs: 150 };
+      return {
+        atencao: Number(data.limite_atencao_pct),
+        critico: Number(data.limite_critico_pct),
+        freqOps: Number(data.limite_freq_ops ?? 5),
+        impactoRs: Number(data.limite_impacto_rs ?? 150),
+      };
     },
   });
-  const faixas = faixasQ.data ?? FAIXAS_DEFAULT;
+  const faixas: Faixas = paramsQ.data ?? FAIXAS_DEFAULT;
+  const limFreq = paramsQ.data?.freqOps ?? 5;
+  const limImpacto = paramsQ.data?.impactoRs ?? 150;
 
-  const pcQ = useQuery({
-    queryKey: ["dispersao", "pc"],
-    queryFn: async (): Promise<PC[]> => {
-      const { data, error } = await (supabase as any).from("producao_consumo")
-        .select("id, ano_mes, id_op, produto, desc_produto, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, qtd_produzida")
+  const impactoQ = useQuery({
+    queryKey: ["dispersao", "v-impacto"],
+    queryFn: async (): Promise<Impacto[]> => {
+      const { data, error } = await (supabase as any).from("v_impacto_consumo")
+        .select("id, ano_mes, numero_op, sku_produto_final, desc_prod, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, custo_unit_medio, impacto_rs, tipo_desvio, tem_furo")
         .order("ano_mes", { ascending: false }).limit(20000);
       if (error) throw error;
-      return (data ?? []) as PC[];
+      return (data ?? []) as Impacto[];
     },
   });
 
-  const bomQ = useQuery({
-    queryKey: ["dispersao", "bom-custos"],
-    queryFn: async (): Promise<Map<string, Bom>> => {
-      const { data, error } = await (supabase as any).from("ficha_tecnica_bom").select("id_item, item, custo, linha_origem");
+  const origemQ = useQuery({
+    queryKey: ["dispersao", "origem-item"],
+    queryFn: async (): Promise<Map<string, string>> => {
+      const { data, error } = await (supabase as any).from("ficha_tecnica_bom").select("id_item, linha_origem");
       if (error) throw error;
-      const map = new Map<string, Bom>();
-      for (const r of (data ?? []) as Bom[]) {
-        // primeiro custo encontrado por item
-        if (!map.has(r.id_item)) map.set(r.id_item, r);
+      const map = new Map<string, string>();
+      for (const r of (data ?? []) as any[]) {
+        if (r.linha_origem && !map.has(r.id_item)) map.set(r.id_item, r.linha_origem);
       }
       return map;
     },
@@ -100,16 +107,27 @@ function DispersaoPage() {
   });
 
   const linhas = useMemo(() => {
-    const rows = pcQ.data ?? [];
+    const rows = impactoQ.data ?? [];
     return rows.map((r) => {
-      const bom = bomQ.data?.get(r.material);
-      const custo = bom?.custo ?? 0;
+      const custo = Number(r.custo_unit_medio ?? 0);
+      const impacto = Number(r.impacto_rs ?? 0);
       const pct = percentualDispersao(r.qtd_dif, r.qtd_previsto, r.qtd_consumo);
       const cls = classificar(pct, faixas);
-      const cd = custoDesvio(r.qtd_dif, custo);
-      return { ...r, custo, pct, cls, custoPerda: cd.perda, custoSobra: cd.sobra, linha_origem: bom?.linha_origem ?? null };
+      return {
+        ...r,
+        id_op: r.numero_op,
+        produto: r.sku_produto_final,
+        desc_produto: r.desc_prod,
+        custo,
+        impacto,
+        pct,
+        cls,
+        custoPerda: impacto > 0 ? impacto : 0,
+        custoSobra: impacto < 0 ? -impacto : 0,
+        linha_origem: origemQ.data?.get(r.material) ?? null,
+      };
     });
-  }, [pcQ.data, bomQ.data, faixas]);
+  }, [impactoQ.data, origemQ.data, faixas]);
 
   const meses = useMemo(() => Array.from(new Set(linhas.map((r) => r.ano_mes))).sort().reverse(), [linhas]);
   const linhasOrigem = useMemo(() => Array.from(new Set(linhas.map((r) => r.linha_origem).filter((v): v is string => !!v))).sort(), [linhas]);
@@ -123,53 +141,82 @@ function DispersaoPage() {
     return true;
   }), [linhas, anoMes, material, produto, linha, classFilter]);
 
-  // KPIs
-  const kpis = useMemo(() => {
-    const opsSet = new Set<string>();
-    const opsCriticas = new Set<string>();
-    const matsCriticos = new Set<string>();
-    let perda = 0, sobra = 0, pctSum = 0, pctN = 0;
+  // Matriz de criticidade (mesma regra da view v_matriz_criticidade, com limiares configuráveis)
+  const matriz = useMemo(() => {
+    const map = new Map<string, { material: string; desc_material: string; ops: Set<string>; liq: number; abs: number }>();
     for (const r of filtradas) {
-      opsSet.add(r.id_op);
-      perda += r.custoPerda; sobra += r.custoSobra;
-      if (r.pct !== "NAO_PREVISTO") { pctSum += Math.abs(r.pct); pctN += 1; }
-      if (r.cls === "CRITICO") { opsCriticas.add(r.id_op); matsCriticos.add(r.material); }
+      if (!r.tem_furo) continue;
+      const key = r.material;
+      const cur = map.get(key) ?? { material: r.material, desc_material: r.desc_material || r.material, ops: new Set<string>(), liq: 0, abs: 0 };
+      cur.ops.add(r.id_op); cur.liq += r.impacto; cur.abs += Math.abs(r.impacto);
+      map.set(key, cur);
     }
+    return Array.from(map.values()).map((m) => {
+      const freq = m.ops.size;
+      const quadrante: Quadrante =
+        freq >= limFreq && m.abs >= limImpacto ? "critico_recorrente"
+        : freq < limFreq && m.abs >= limImpacto ? "pontual"
+        : freq >= limFreq ? "cronico" : "controle";
+      return { material: m.material, desc_material: m.desc_material, freq_ops: freq, impacto_liquido: m.liq, impacto_abs: m.abs, quadrante };
+    }).sort((a, b) => b.impacto_abs - a.impacto_abs);
+  }, [filtradas, limFreq, limImpacto]);
+
+  // KPIs executivos
+  const kpis = useMemo(() => {
+    const ops = new Set<string>();
+    const opsFuro = new Set<string>();
+    const opsCriticas = new Set<string>();
+    let perda = 0, economia = 0;
+    for (const r of filtradas) {
+      ops.add(r.id_op);
+      if (r.tem_furo) opsFuro.add(r.id_op);
+      if (r.impacto > 0) perda += r.impacto; else economia += -r.impacto;
+      if (r.cls === "CRITICO") opsCriticas.add(r.id_op);
+    }
+    const cronicos = matriz.filter((m) => m.freq_ops >= limFreq).length;
+    const totalAbs = matriz.reduce((s, m) => s + m.impacto_abs, 0);
+    const top20 = matriz.slice(0, 20).reduce((s, m) => s + m.impacto_abs, 0);
     return {
-      ops: opsSet.size, opsCriticas: opsCriticas.size, matsCriticos: matsCriticos.size,
-      pctMedia: pctN ? pctSum / pctN : 0, perda, sobra,
+      ops: ops.size, opsFuro: opsFuro.size,
+      taxaFuro: ops.size ? (100 * opsFuro.size) / ops.size : 0,
+      perda, economia, liquido: perda - economia,
+      cronicos, opsCriticas: opsCriticas.size,
+      pctTop20: totalAbs ? (100 * top20) / totalAbs : 0,
     };
-  }, [filtradas]);
+  }, [filtradas, matriz, limFreq]);
 
   const acoes = acoesQ.data ?? [];
   const acoesAbertas = acoes.filter((a: any) => a.status !== "CONCLUIDA").length;
   const acoesConcluidas = acoes.filter((a: any) => a.status === "CONCLUIDA" && (anoMes === "todos" || a.ano_mes === anoMes)).length;
 
-  const top10Pct = useMemo(() => [...filtradas].filter((r) => r.pct !== "NAO_PREVISTO")
-    .sort((a, b) => Math.abs(b.pct as number) - Math.abs(a.pct as number)).slice(0, 10), [filtradas]);
-  const top10RS = useMemo(() => [...filtradas]
-    .sort((a, b) => (b.custoPerda + b.custoSobra) - (a.custoPerda + a.custoSobra)).slice(0, 10), [filtradas]);
+  const topPerda = useMemo(() => matriz.filter((m) => m.impacto_liquido > 0)
+    .sort((a, b) => b.impacto_liquido - a.impacto_liquido).slice(0, 10), [matriz]);
+  const topEconomia = useMemo(() => matriz.filter((m) => m.impacto_liquido < 0)
+    .sort((a, b) => a.impacto_liquido - b.impacto_liquido).slice(0, 10), [matriz]);
 
-  // Séries para gráficos
+  // Tendência mensal em R$
   const serieMes = useMemo(() => {
-    const map = new Map<string, { m: string; soma: number; n: number }>();
+    const map = new Map<string, { ano_mes: string; perda: number; economia: number }>();
     for (const r of filtradas) {
-      if (r.pct === "NAO_PREVISTO") continue;
-      const cur = map.get(r.ano_mes) ?? { m: r.ano_mes, soma: 0, n: 0 };
-      cur.soma += Math.abs(r.pct); cur.n += 1; map.set(r.ano_mes, cur);
+      const cur = map.get(r.ano_mes) ?? { ano_mes: r.ano_mes, perda: 0, economia: 0 };
+      if (r.impacto > 0) cur.perda += r.impacto; else cur.economia += -r.impacto;
+      map.set(r.ano_mes, cur);
     }
-    return Array.from(map.values()).sort((a, b) => a.m.localeCompare(b.m)).map((x) => ({ ano_mes: x.m, pct: +(x.soma / x.n).toFixed(2) }));
+    return Array.from(map.values()).sort((a, b) => a.ano_mes.localeCompare(b.ano_mes))
+      .map((x) => ({ mes: labelMes(x.ano_mes), perda: +x.perda.toFixed(2), economia: +x.economia.toFixed(2) }));
   }, [filtradas]);
 
+  // Impacto por linha/origem (R$)
   const serieLinha = useMemo(() => {
-    const map = new Map<string, { l: string; soma: number; n: number }>();
+    const map = new Map<string, number>();
     for (const r of filtradas) {
-      if (r.pct === "NAO_PREVISTO" || !r.linha_origem) continue;
-      const cur = map.get(r.linha_origem) ?? { l: r.linha_origem, soma: 0, n: 0 };
-      cur.soma += Math.abs(r.pct); cur.n += 1; map.set(r.linha_origem, cur);
+      if (!r.linha_origem) continue;
+      map.set(r.linha_origem, (map.get(r.linha_origem) ?? 0) + Math.abs(r.impacto));
     }
-    return Array.from(map.values()).map((x) => ({ linha: x.l, pct: +(x.soma / x.n).toFixed(2) }));
+    return Array.from(map.entries()).map(([linha, impacto_abs]) => ({ linha, impacto_abs: +impacto_abs.toFixed(2) }))
+      .sort((a, b) => b.impacto_abs - a.impacto_abs);
   }, [filtradas]);
+
 
   const serieStatus = useMemo(() => {
     const map = new Map<string, number>();
@@ -253,42 +300,91 @@ function DispersaoPage() {
         <TabsContent value="visao" className="space-y-4">
           <div className="grid gap-3 md:grid-cols-4">
             <Kpi label="OPs Analisadas" value={kpis.ops.toString()} />
-            <Kpi label="% Dispersão Média" value={`${kpis.pctMedia.toFixed(1)}%`} />
-            <Kpi label="Custo de Perda" value={fmtBRL(kpis.perda)} tone="danger" />
-            <Kpi label="Custo de Sobra" value={fmtBRL(kpis.sobra)} tone="success" />
-            <Kpi label="Materiais Críticos" value={kpis.matsCriticos.toString()} tone="danger" />
+            <Kpi label="Taxa de Furo" value={`${kpis.taxaFuro.toFixed(1)}%`} sub={`${kpis.opsFuro} de ${kpis.ops} OPs com desvio`} tone={kpis.taxaFuro > 50 ? "danger" : undefined} />
+            <Kpi
+              label="Impacto Financeiro Líquido"
+              value={fmtBRL(kpis.liquido)}
+              sub={`Perda ${fmtBRL(kpis.perda)} · Economia ${fmtBRL(kpis.economia)}`}
+              tone={kpis.liquido > 0 ? "danger" : "success"}
+            />
+            <Kpi label="Concentração de Risco" value={`${kpis.pctTop20.toFixed(1)}%`} sub="do impacto nos 20 maiores materiais" />
+            <Kpi label="Materiais Críticos" value={kpis.cronicos.toString()} sub={`≥ ${limFreq} OPs com furo`} tone="danger" />
             <Kpi label="OPs Críticas" value={kpis.opsCriticas.toString()} tone="danger" />
             <Kpi label="Ações Abertas" value={acoesAbertas.toString()} />
             <Kpi label="Ações Concluídas (período)" value={acoesConcluidas.toString()} tone="success" />
           </div>
 
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Matriz de Criticidade (frequência × impacto)</CardTitle>
+              <p className="text-xs text-muted-foreground">Limiares atuais: {limFreq} OPs e {fmtBRL(limImpacto)} — configuráveis em Faixas de Alerta.</p>
+            </CardHeader>
+            <CardContent className="h-80">
+              <ResponsiveContainer>
+                <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                  <XAxis type="number" dataKey="freq_ops" name="OPs" fontSize={12} label={{ value: "Frequência (OPs)", position: "insideBottom", offset: -10, fontSize: 11 }} />
+                  <YAxis type="number" dataKey="impacto_abs" name="Impacto" fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
+                  <ZAxis range={[60, 60]} />
+                  <RTooltip
+                    cursor={{ strokeDasharray: "3 3" }}
+                    content={({ payload }) => {
+                      const p: any = payload?.[0]?.payload;
+                      if (!p) return null;
+                      return (
+                        <div className="rounded-md border bg-popover p-2 text-xs shadow">
+                          <div className="font-medium">{p.material} — {p.desc_material}</div>
+                          <div>Frequência: {p.freq_ops} OP(s)</div>
+                          <div>Impacto líquido: {fmtBRL(p.impacto_liquido)}</div>
+                          <div>Impacto absoluto: {fmtBRL(p.impacto_abs)}</div>
+                          <div>{labelQuadrante(p.quadrante)}</div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Scatter data={matriz}>
+                    {matriz.map((m) => (
+                      <Cell key={m.material} fill={QUADRANTES[m.quadrante].color} />
+                    ))}
+                  </Scatter>
+                </ScatterChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground pt-2">
+                {(Object.keys(QUADRANTES) as Quadrante[]).map((q) => (
+                  <span key={q} className="inline-flex items-center gap-1">
+                    <span className="size-2 rounded-full" style={{ background: QUADRANTES[q].color }} />
+                    {QUADRANTES[q].label}
+                  </span>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid gap-3 lg:grid-cols-2">
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Top 10 Maiores Dispersões (|%|)</CardTitle></CardHeader>
-              <CardContent>
-                <TopTable rows={top10Pct} modo="pct" />
-              </CardContent>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Top 10 Perda (R$)</CardTitle></CardHeader>
+              <CardContent><TopMateriais rows={topPerda} /></CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Top 10 Maiores Dispersões (R$)</CardTitle></CardHeader>
-              <CardContent>
-                <TopTable rows={top10RS} modo="rs" />
-              </CardContent>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Top 10 Economia / Risco de apontamento</CardTitle></CardHeader>
+              <CardContent><TopMateriais rows={topEconomia} /></CardContent>
             </Card>
           </div>
 
           <div className="grid gap-3 lg:grid-cols-3">
             <Card className="lg:col-span-2">
-              <CardHeader className="pb-2"><CardTitle className="text-base">% Dispersão Média por Mês</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Tendência Mensal (R$)</CardTitle></CardHeader>
               <CardContent className="h-64">
                 <ResponsiveContainer>
-                  <LineChart data={serieMes}>
+                  <BarChart data={serieMes}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                    <XAxis dataKey="ano_mes" fontSize={12} />
-                    <YAxis fontSize={12} />
-                    <RTooltip />
-                    <Line type="monotone" dataKey="pct" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                  </LineChart>
+                    <XAxis dataKey="mes" fontSize={12} />
+                    <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
+                    <RTooltip formatter={(v: any, n: any) => [fmtBRL(Number(v)), n === "perda" ? "Perda" : "Economia"]} />
+                    <Legend formatter={(v) => (v === "perda" ? "Perda" : "Economia")} />
+                    <Bar dataKey="perda" fill="hsl(var(--destructive))" />
+                    <Bar dataKey="economia" fill="hsl(var(--success))" />
+                  </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
@@ -310,15 +406,15 @@ function DispersaoPage() {
 
           {serieLinha.length > 0 && (
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">% Dispersão por Linha / Origem</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Impacto por Linha / Origem (R$)</CardTitle></CardHeader>
               <CardContent className="h-64">
                 <ResponsiveContainer>
                   <BarChart data={serieLinha}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                     <XAxis dataKey="linha" fontSize={12} />
-                    <YAxis fontSize={12} />
-                    <RTooltip />
-                    <Bar dataKey="pct" fill="hsl(var(--accent))" />
+                    <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
+                    <RTooltip formatter={(v: any) => fmtBRL(Number(v))} />
+                    <Bar dataKey="impacto_abs" fill="hsl(var(--accent))" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -385,17 +481,62 @@ function DispersaoPage() {
   );
 }
 
-function Kpi({ label, value, tone }: { label: string; value: string; tone?: "danger" | "success" }) {
+function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "danger" | "success" }) {
   const cls = tone === "danger" ? "text-destructive" : tone === "success" ? "text-success" : "";
   return (
     <Card>
       <CardContent className="p-4">
         <div className="text-xs text-muted-foreground">{label}</div>
         <div className={"text-xl font-semibold mt-1 " + cls}>{value}</div>
+        {sub && <div className="text-[11px] text-muted-foreground mt-1">{sub}</div>}
       </CardContent>
     </Card>
   );
 }
+
+type MatrizRow = {
+  material: string; desc_material: string; freq_ops: number;
+  impacto_liquido: number; impacto_abs: number; quadrante: Quadrante;
+};
+
+function TopMateriais({ rows }: { rows: MatrizRow[] }) {
+  return (
+    <div className="max-h-[320px] overflow-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Material</TableHead>
+            <TableHead className="text-right">OPs</TableHead>
+            <TableHead className="text-right">Impacto</TableHead>
+            <TableHead>Classif.</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r) => (
+            <TableRow key={r.material}>
+              <TableCell className="max-w-[240px] truncate">
+                <Link to="/producao/material/$material" params={{ material: r.material }} className="hover:underline">
+                  {r.material} — {r.desc_material}
+                </Link>
+              </TableCell>
+              <TableCell className="text-right">{r.freq_ops}</TableCell>
+              <TableCell className={"text-right " + (r.impacto_liquido > 0 ? "text-destructive" : "text-success")}>
+                {fmtBRL(r.impacto_liquido)}
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline" className={QUADRANTES[r.quadrante].badge}>{QUADRANTES[r.quadrante].label}</Badge>
+              </TableCell>
+            </TableRow>
+          ))}
+          {rows.length === 0 && (
+            <TableRow><TableCell colSpan={4} className="text-center text-xs text-muted-foreground">Sem dados</TableCell></TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 
 function TopTable({ rows, modo }: { rows: any[]; modo: "pct" | "rs" }) {
   return (
