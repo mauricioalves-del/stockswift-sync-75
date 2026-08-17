@@ -22,7 +22,7 @@ export type LinhaBI = {
   qtd_dif: number;
   custo: number;
   impacto: number;
-  pct: number | null;
+  pct: number | string | null;
   cls: string;
   tem_furo: boolean;
   linha_origem: string | null;
