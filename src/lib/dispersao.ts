@@ -204,6 +204,29 @@ export const STATUS_ACAO: Array<{ v: string; l: string }> = [
   { v: "CONCLUIDA", l: "Concluída" },
 ];
 
-export function fmtBRL(n: number): string {
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+export type Quadrante = "critico_recorrente" | "pontual" | "cronico" | "controle";
+
+export const QUADRANTES: Record<Quadrante, { label: string; color: string; badge: string }> = {
+  critico_recorrente: { label: "Crítico recorrente", color: "hsl(var(--destructive))", badge: "bg-destructive/15 text-destructive border-destructive/30" },
+  pontual: { label: "Pontual", color: "hsl(25 70% 50%)", badge: "bg-warning/15 text-warning border-warning/30" },
+  cronico: { label: "Crônico", color: "hsl(45 90% 45%)", badge: "bg-warning/10 text-warning border-warning/30" },
+  controle: { label: "Sob controle", color: "hsl(var(--success))", badge: "bg-success/15 text-success border-success/30" },
+};
+
+export function labelQuadrante(q: string): string {
+  return QUADRANTES[q as Quadrante]?.label ?? q;
 }
+
+/** "2026-06" -> "Jun/2026" */
+export function labelMes(anoMes: string): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(anoMes ?? "");
+  if (!m) return anoMes || "—";
+  const nomes = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const idx = Number(m[2]) - 1;
+  return `${nomes[idx] ?? m[2]}/${m[1]}`;
+}
+
+export function fmtBRL(n: number): string {
+  return (Number.isFinite(n) ? n : 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
