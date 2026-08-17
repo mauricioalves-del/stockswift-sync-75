@@ -35,15 +35,14 @@ export const Route = createFileRoute("/_authenticated/producao/dispersao")({
   ] }),
 });
 
-type PC = {
-  id: string; ano_mes: string; id_op: string;
-  produto: string | null; desc_produto: string | null;
+type Impacto = {
+  id: string; ano_mes: string; numero_op: string;
+  sku_produto_final: string | null; desc_prod: string | null;
   material: string; desc_material: string | null; um: string | null;
   qtd_consumo: number; qtd_previsto: number; qtd_dif: number;
-  qtd_produzida: number | null;
+  custo_unit_medio: number | null; impacto_rs: number | null;
+  tipo_desvio: "ok" | "perda" | "economia"; tem_furo: boolean;
 };
-
-type Bom = { id_item: string; item: string | null; custo: number; linha_origem: string | null };
 
 function DispersaoPage() {
   const { role, isAdmin } = useRole();
@@ -56,36 +55,42 @@ function DispersaoPage() {
   const [linha, setLinha] = useState<string>("todas");
   const [classFilter, setClassFilter] = useState<string>("todas");
 
-  const faixasQ = useQuery({
+  const paramsQ = useQuery({
     queryKey: ["dispersao", "faixas"],
-    queryFn: async (): Promise<Faixas> => {
+    queryFn: async (): Promise<Faixas & { freqOps: number; impactoRs: number }> => {
       const { data } = await (supabase as any).from("parametros_dispersao").select("*").maybeSingle();
-      if (!data) return FAIXAS_DEFAULT;
-      return { atencao: Number(data.limite_atencao_pct), critico: Number(data.limite_critico_pct) };
+      if (!data) return { ...FAIXAS_DEFAULT, freqOps: 5, impactoRs: 150 };
+      return {
+        atencao: Number(data.limite_atencao_pct),
+        critico: Number(data.limite_critico_pct),
+        freqOps: Number(data.limite_freq_ops ?? 5),
+        impactoRs: Number(data.limite_impacto_rs ?? 150),
+      };
     },
   });
-  const faixas = faixasQ.data ?? FAIXAS_DEFAULT;
+  const faixas: Faixas = paramsQ.data ?? FAIXAS_DEFAULT;
+  const limFreq = paramsQ.data?.freqOps ?? 5;
+  const limImpacto = paramsQ.data?.impactoRs ?? 150;
 
-  const pcQ = useQuery({
-    queryKey: ["dispersao", "pc"],
-    queryFn: async (): Promise<PC[]> => {
-      const { data, error } = await (supabase as any).from("producao_consumo")
-        .select("id, ano_mes, id_op, produto, desc_produto, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, qtd_produzida")
+  const impactoQ = useQuery({
+    queryKey: ["dispersao", "v-impacto"],
+    queryFn: async (): Promise<Impacto[]> => {
+      const { data, error } = await (supabase as any).from("v_impacto_consumo")
+        .select("id, ano_mes, numero_op, sku_produto_final, desc_prod, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, custo_unit_medio, impacto_rs, tipo_desvio, tem_furo")
         .order("ano_mes", { ascending: false }).limit(20000);
       if (error) throw error;
-      return (data ?? []) as PC[];
+      return (data ?? []) as Impacto[];
     },
   });
 
-  const bomQ = useQuery({
-    queryKey: ["dispersao", "bom-custos"],
-    queryFn: async (): Promise<Map<string, Bom>> => {
-      const { data, error } = await (supabase as any).from("ficha_tecnica_bom").select("id_item, item, custo, linha_origem");
+  const origemQ = useQuery({
+    queryKey: ["dispersao", "origem-item"],
+    queryFn: async (): Promise<Map<string, string>> => {
+      const { data, error } = await (supabase as any).from("ficha_tecnica_bom").select("id_item, linha_origem");
       if (error) throw error;
-      const map = new Map<string, Bom>();
-      for (const r of (data ?? []) as Bom[]) {
-        // primeiro custo encontrado por item
-        if (!map.has(r.id_item)) map.set(r.id_item, r);
+      const map = new Map<string, string>();
+      for (const r of (data ?? []) as any[]) {
+        if (r.linha_origem && !map.has(r.id_item)) map.set(r.id_item, r.linha_origem);
       }
       return map;
     },
@@ -102,16 +107,27 @@ function DispersaoPage() {
   });
 
   const linhas = useMemo(() => {
-    const rows = pcQ.data ?? [];
+    const rows = impactoQ.data ?? [];
     return rows.map((r) => {
-      const bom = bomQ.data?.get(r.material);
-      const custo = bom?.custo ?? 0;
+      const custo = Number(r.custo_unit_medio ?? 0);
+      const impacto = Number(r.impacto_rs ?? 0);
       const pct = percentualDispersao(r.qtd_dif, r.qtd_previsto, r.qtd_consumo);
       const cls = classificar(pct, faixas);
-      const cd = custoDesvio(r.qtd_dif, custo);
-      return { ...r, custo, pct, cls, custoPerda: cd.perda, custoSobra: cd.sobra, linha_origem: bom?.linha_origem ?? null };
+      return {
+        ...r,
+        id_op: r.numero_op,
+        produto: r.sku_produto_final,
+        desc_produto: r.desc_prod,
+        custo,
+        impacto,
+        pct,
+        cls,
+        custoPerda: impacto > 0 ? impacto : 0,
+        custoSobra: impacto < 0 ? -impacto : 0,
+        linha_origem: origemQ.data?.get(r.material) ?? null,
+      };
     });
-  }, [pcQ.data, bomQ.data, faixas]);
+  }, [impactoQ.data, origemQ.data, faixas]);
 
   const meses = useMemo(() => Array.from(new Set(linhas.map((r) => r.ano_mes))).sort().reverse(), [linhas]);
   const linhasOrigem = useMemo(() => Array.from(new Set(linhas.map((r) => r.linha_origem).filter((v): v is string => !!v))).sort(), [linhas]);
@@ -125,53 +141,82 @@ function DispersaoPage() {
     return true;
   }), [linhas, anoMes, material, produto, linha, classFilter]);
 
-  // KPIs
-  const kpis = useMemo(() => {
-    const opsSet = new Set<string>();
-    const opsCriticas = new Set<string>();
-    const matsCriticos = new Set<string>();
-    let perda = 0, sobra = 0, pctSum = 0, pctN = 0;
+  // Matriz de criticidade (mesma regra da view v_matriz_criticidade, com limiares configuráveis)
+  const matriz = useMemo(() => {
+    const map = new Map<string, { material: string; desc_material: string; ops: Set<string>; liq: number; abs: number }>();
     for (const r of filtradas) {
-      opsSet.add(r.id_op);
-      perda += r.custoPerda; sobra += r.custoSobra;
-      if (r.pct !== "NAO_PREVISTO") { pctSum += Math.abs(r.pct); pctN += 1; }
-      if (r.cls === "CRITICO") { opsCriticas.add(r.id_op); matsCriticos.add(r.material); }
+      if (!r.tem_furo) continue;
+      const key = r.material;
+      const cur = map.get(key) ?? { material: r.material, desc_material: r.desc_material || r.material, ops: new Set<string>(), liq: 0, abs: 0 };
+      cur.ops.add(r.id_op); cur.liq += r.impacto; cur.abs += Math.abs(r.impacto);
+      map.set(key, cur);
     }
+    return Array.from(map.values()).map((m) => {
+      const freq = m.ops.size;
+      const quadrante: Quadrante =
+        freq >= limFreq && m.abs >= limImpacto ? "critico_recorrente"
+        : freq < limFreq && m.abs >= limImpacto ? "pontual"
+        : freq >= limFreq ? "cronico" : "controle";
+      return { material: m.material, desc_material: m.desc_material, freq_ops: freq, impacto_liquido: m.liq, impacto_abs: m.abs, quadrante };
+    }).sort((a, b) => b.impacto_abs - a.impacto_abs);
+  }, [filtradas, limFreq, limImpacto]);
+
+  // KPIs executivos
+  const kpis = useMemo(() => {
+    const ops = new Set<string>();
+    const opsFuro = new Set<string>();
+    const opsCriticas = new Set<string>();
+    let perda = 0, economia = 0;
+    for (const r of filtradas) {
+      ops.add(r.id_op);
+      if (r.tem_furo) opsFuro.add(r.id_op);
+      if (r.impacto > 0) perda += r.impacto; else economia += -r.impacto;
+      if (r.cls === "CRITICO") opsCriticas.add(r.id_op);
+    }
+    const cronicos = matriz.filter((m) => m.freq_ops >= limFreq).length;
+    const totalAbs = matriz.reduce((s, m) => s + m.impacto_abs, 0);
+    const top20 = matriz.slice(0, 20).reduce((s, m) => s + m.impacto_abs, 0);
     return {
-      ops: opsSet.size, opsCriticas: opsCriticas.size, matsCriticos: matsCriticos.size,
-      pctMedia: pctN ? pctSum / pctN : 0, perda, sobra,
+      ops: ops.size, opsFuro: opsFuro.size,
+      taxaFuro: ops.size ? (100 * opsFuro.size) / ops.size : 0,
+      perda, economia, liquido: perda - economia,
+      cronicos, opsCriticas: opsCriticas.size,
+      pctTop20: totalAbs ? (100 * top20) / totalAbs : 0,
     };
-  }, [filtradas]);
+  }, [filtradas, matriz, limFreq]);
 
   const acoes = acoesQ.data ?? [];
   const acoesAbertas = acoes.filter((a: any) => a.status !== "CONCLUIDA").length;
   const acoesConcluidas = acoes.filter((a: any) => a.status === "CONCLUIDA" && (anoMes === "todos" || a.ano_mes === anoMes)).length;
 
-  const top10Pct = useMemo(() => [...filtradas].filter((r) => r.pct !== "NAO_PREVISTO")
-    .sort((a, b) => Math.abs(b.pct as number) - Math.abs(a.pct as number)).slice(0, 10), [filtradas]);
-  const top10RS = useMemo(() => [...filtradas]
-    .sort((a, b) => (b.custoPerda + b.custoSobra) - (a.custoPerda + a.custoSobra)).slice(0, 10), [filtradas]);
+  const topPerda = useMemo(() => matriz.filter((m) => m.impacto_liquido > 0)
+    .sort((a, b) => b.impacto_liquido - a.impacto_liquido).slice(0, 10), [matriz]);
+  const topEconomia = useMemo(() => matriz.filter((m) => m.impacto_liquido < 0)
+    .sort((a, b) => a.impacto_liquido - b.impacto_liquido).slice(0, 10), [matriz]);
 
-  // Séries para gráficos
+  // Tendência mensal em R$
   const serieMes = useMemo(() => {
-    const map = new Map<string, { m: string; soma: number; n: number }>();
+    const map = new Map<string, { ano_mes: string; perda: number; economia: number }>();
     for (const r of filtradas) {
-      if (r.pct === "NAO_PREVISTO") continue;
-      const cur = map.get(r.ano_mes) ?? { m: r.ano_mes, soma: 0, n: 0 };
-      cur.soma += Math.abs(r.pct); cur.n += 1; map.set(r.ano_mes, cur);
+      const cur = map.get(r.ano_mes) ?? { ano_mes: r.ano_mes, perda: 0, economia: 0 };
+      if (r.impacto > 0) cur.perda += r.impacto; else cur.economia += -r.impacto;
+      map.set(r.ano_mes, cur);
     }
-    return Array.from(map.values()).sort((a, b) => a.m.localeCompare(b.m)).map((x) => ({ ano_mes: x.m, pct: +(x.soma / x.n).toFixed(2) }));
+    return Array.from(map.values()).sort((a, b) => a.ano_mes.localeCompare(b.ano_mes))
+      .map((x) => ({ mes: labelMes(x.ano_mes), perda: +x.perda.toFixed(2), economia: +x.economia.toFixed(2) }));
   }, [filtradas]);
 
+  // Impacto por linha/origem (R$)
   const serieLinha = useMemo(() => {
-    const map = new Map<string, { l: string; soma: number; n: number }>();
+    const map = new Map<string, number>();
     for (const r of filtradas) {
-      if (r.pct === "NAO_PREVISTO" || !r.linha_origem) continue;
-      const cur = map.get(r.linha_origem) ?? { l: r.linha_origem, soma: 0, n: 0 };
-      cur.soma += Math.abs(r.pct); cur.n += 1; map.set(r.linha_origem, cur);
+      if (!r.linha_origem) continue;
+      map.set(r.linha_origem, (map.get(r.linha_origem) ?? 0) + Math.abs(r.impacto));
     }
-    return Array.from(map.values()).map((x) => ({ linha: x.l, pct: +(x.soma / x.n).toFixed(2) }));
+    return Array.from(map.entries()).map(([linha, impacto_abs]) => ({ linha, impacto_abs: +impacto_abs.toFixed(2) }))
+      .sort((a, b) => b.impacto_abs - a.impacto_abs);
   }, [filtradas]);
+
 
   const serieStatus = useMemo(() => {
     const map = new Map<string, number>();
