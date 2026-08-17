@@ -173,10 +173,11 @@ export function indexarCampanhasPorLote(campanhas: CampanhaRow[] | undefined) {
 
 /**
  * Vínculo automático: amarra baixas às ações abertas do mesmo SKU+Lote.
- * 1) Preferência para a baixa cujo motivo corresponde ao tipo da ação (ex.: Degustação).
- * 2) Caso não haja, vincula qualquer baixa elegível do mesmo SKU+Lote dentro da
- *    janela de validade (validade até validade + 7 dias), respeitando a regra do banco.
- * Baixas já vinculadas a outra ação nunca são reutilizadas.
+ * Toda baixa do mesmo código de produto + lote é vinculada automaticamente,
+ * sem restrição de data. Preferência para a baixa cujo motivo corresponde ao
+ * tipo da ação (ex.: Degustação). Baixas já vinculadas nunca são reutilizadas.
+ * Após vincular, os valores financeiros da ação são recalculados
+ * (custo da ação, valor recuperado e saving).
  * Retorna a quantidade de vínculos criados.
  */
 export async function autoVincularBaixas(): Promise<number> {
@@ -184,7 +185,7 @@ export async function autoVincularBaixas(): Promise<number> {
     (supabase as any).from("tipos_acao_shelf_life").select("id, nome, motivo_baixa_id"),
     (supabase as any)
       .from("campanhas_lote")
-      .select("id, sku, lote, data_validade, tipo_acao_id, status, baixa_operacional_id")
+      .select("*")
       .is("baixa_operacional_id", null)
       .neq("status", "CANCELADA"),
     (supabase as any).from("motivo_baixa").select("id, descricao"),
@@ -200,6 +201,7 @@ export async function autoVincularBaixas(): Promise<number> {
   const motivoDoTipo = new Map<string, string | null>(
     tipos.map((t) => [t.id, t.motivo_baixa_id ?? motivoIdPorNome.get(String(t.nome).trim().toLowerCase()) ?? null]),
   );
+  const nomeDoTipo = new Map<string, string>(tipos.map((t) => [t.id, String(t.nome ?? "")]));
 
   const usadas = new Set<string>(
     ((vinculadasRes.data ?? []) as any[]).map((c) => String(c.baixa_operacional_id)),
@@ -209,7 +211,7 @@ export async function autoVincularBaixas(): Promise<number> {
   const baixas = await fetchAll<any>((from, to) =>
     (supabase as any)
       .from("baixa_operacional")
-      .select("id, codigo_produto, lote, motivo_baixa_id, data_ocorrencia, data_solicitacao")
+      .select("id, codigo_produto, lote, quantidade, motivo_baixa_id, data_ocorrencia, data_solicitacao")
       .in("codigo_produto", skus)
       .range(from, to),
   );
