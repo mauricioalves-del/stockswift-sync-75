@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/producao/dispersao")({
 });
 
 type Impacto = {
-  id: string; ano_mes: string; numero_op: string;
+  id: string; ano_mes: string; dt_producao: string | null; numero_op: string;
   sku_produto_final: string | null; desc_prod: string | null;
   material: string; desc_material: string | null; um: string | null;
   qtd_consumo: number; qtd_previsto: number; qtd_dif: number;
@@ -44,16 +44,31 @@ type Impacto = {
   tipo_desvio: "ok" | "perda" | "economia"; tem_furo: boolean;
 };
 
+const SEM_DATA = "sem-data";
+
+/** Data de referência da produção (campo "Data"). Só aceita ano_mes plausível como fallback. */
+function refData(r: { dt_producao: string | null; ano_mes: string | null }): string | null {
+  if (r.dt_producao) return String(r.dt_producao).slice(0, 10);
+  const am = String(r.ano_mes ?? "");
+  const m = /^(\d{4})-(\d{2})$/.exec(am);
+  if (m && Number(m[1]) >= 2000 && Number(m[1]) <= 2100 && Number(m[2]) >= 1 && Number(m[2]) <= 12) return `${am}-01`;
+  return null;
+}
+
 function DispersaoPage() {
   const { role, isAdmin } = useRole();
   const isCoord = role === "COORDENADOR_CONTROLE";
   const canImport = isAdmin || isCoord;
   const [tab, setTab] = useState("visao");
   const [anoMes, setAnoMes] = useState<string>("todos");
+  const [dtDe, setDtDe] = useState<string>("");
+  const [dtAte, setDtAte] = useState<string>("");
+  const [granul, setGranul] = useState<"dia" | "mes" | "ano">("mes");
   const [material, setMaterial] = useState<string>("");
   const [produto, setProduto] = useState<string>("");
   const [linha, setLinha] = useState<string>("todas");
   const [classFilter, setClassFilter] = useState<string>("todas");
+
 
   const paramsQ = useQuery({
     queryKey: ["dispersao", "faixas"],
