@@ -91,8 +91,8 @@ function DispersaoPage() {
     queryKey: ["dispersao", "v-impacto"],
     queryFn: async (): Promise<Impacto[]> => {
       const { data, error } = await (supabase as any).from("v_impacto_consumo")
-        .select("id, ano_mes, numero_op, sku_produto_final, desc_prod, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, custo_unit_medio, impacto_rs, tipo_desvio, tem_furo")
-        .order("ano_mes", { ascending: false }).limit(20000);
+        .select("id, ano_mes, dt_producao, numero_op, sku_produto_final, desc_prod, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, custo_unit_medio, impacto_rs, tipo_desvio, tem_furo")
+        .order("dt_producao", { ascending: false, nullsFirst: false }).limit(20000);
       if (error) throw error;
       return (data ?? []) as Impacto[];
     },
