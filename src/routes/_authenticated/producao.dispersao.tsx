@@ -439,7 +439,9 @@ function DispersaoPage() {
                     {matriz.map((m) => (
                       <Cell key={m.material} fill={QUADRANTES[m.quadrante].color} />
                     ))}
+                    <LabelList dataKey="material" position="top" fontSize={9} fill="currentColor" />
                   </Scatter>
+
                 </ScatterChart>
               </ResponsiveContainer>
               <div className="flex flex-wrap gap-3 text-xs text-muted-foreground pt-2">
