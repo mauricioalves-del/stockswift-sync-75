@@ -569,6 +569,13 @@ export type Database = {
             referencedRelation: "producao_consumo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "dispersao_acoes_corretivas_producao_consumo_id_fkey"
+            columns: ["producao_consumo_id"]
+            isOneToOne: false
+            referencedRelation: "v_impacto_consumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       dispersao_causa_raiz: {
@@ -608,6 +615,13 @@ export type Database = {
             columns: ["producao_consumo_id"]
             isOneToOne: false
             referencedRelation: "producao_consumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispersao_causa_raiz_producao_consumo_id_fkey"
+            columns: ["producao_consumo_id"]
+            isOneToOne: false
+            referencedRelation: "v_impacto_consumo"
             referencedColumns: ["id"]
           },
         ]
@@ -1619,18 +1633,24 @@ export type Database = {
           id: number
           limite_atencao_pct: number
           limite_critico_pct: number
+          limite_freq_ops: number
+          limite_impacto_rs: number
           updated_at: string
         }
         Insert: {
           id?: number
           limite_atencao_pct?: number
           limite_critico_pct?: number
+          limite_freq_ops?: number
+          limite_impacto_rs?: number
           updated_at?: string
         }
         Update: {
           id?: number
           limite_atencao_pct?: number
           limite_critico_pct?: number
+          limite_freq_ops?: number
+          limite_impacto_rs?: number
           updated_at?: string
         }
         Relationships: []
@@ -2688,7 +2708,90 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      item_custo_mestre: {
+        Row: {
+          custo_unit_max: number | null
+          custo_unit_medio: number | null
+          custo_unit_min: number | null
+          descricao_item: string | null
+          id_item: string | null
+          qtd_custos_distintos: number | null
+        }
+        Relationships: []
+      }
+      v_impacto_consumo: {
+        Row: {
+          ano_mes: string | null
+          custo_unit_medio: number | null
+          desc_material: string | null
+          desc_prod: string | null
+          dt_producao: string | null
+          id: string | null
+          impacto_rs: number | null
+          material: string | null
+          numero_op: string | null
+          qtd_consumo: number | null
+          qtd_custos_distintos: number | null
+          qtd_dif: number | null
+          qtd_previsto: number | null
+          sku_produto_final: string | null
+          tem_furo: boolean | null
+          tipo_desvio: string | null
+          um: string | null
+        }
+        Relationships: []
+      }
+      v_impacto_origem: {
+        Row: {
+          ano_mes: string | null
+          impacto_abs: number | null
+          impacto_liquido: number | null
+          n_furos: number | null
+          n_itens: number | null
+          origem: string | null
+          taxa_furo_pct: number | null
+        }
+        Relationships: []
+      }
+      v_kpis_executivo: {
+        Row: {
+          economia_total_rs: number | null
+          impacto_liquido_rs: number | null
+          materiais_cronicos: number | null
+          ops_com_furo: number | null
+          perda_total_rs: number | null
+          taxa_furo_pct: number | null
+          total_ops: number | null
+        }
+        Relationships: []
+      }
+      v_matriz_criticidade: {
+        Row: {
+          ano_mes: string | null
+          desc_material: string | null
+          freq_ops: number | null
+          impacto_abs: number | null
+          impacto_liquido: number | null
+          material: string | null
+          quadrante: string | null
+        }
+        Relationships: []
+      }
+      v_pareto_concentracao: {
+        Row: {
+          pct_top20: number | null
+        }
+        Relationships: []
+      }
+      v_tendencia_mensal: {
+        Row: {
+          ano_mes: string | null
+          economia_rs: number | null
+          n_furos: number | null
+          perda_rs: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       almoxarifados_permitidos: { Args: { _uid: string }; Returns: string[] }
