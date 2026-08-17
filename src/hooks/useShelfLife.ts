@@ -4,7 +4,8 @@ import { fetchAll } from "@/lib/fetch-all";
 import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
 import { almoxEfetivos } from "@/hooks/useFiltrosShelfLife";
 import { faixaDeRisco, type Faixa, type CampanhaCalc, type CategoriaAcao, chaveLote } from "@/lib/shelf-life";
-import { baixaDentroDaJanela, dataDaBaixa } from "@/lib/shelf-life-recalculo";
+import { calculateActionFinancials } from "@/lib/shelf-life-recalculo";
+
 
 
 export type TipoAcao = {
@@ -173,10 +174,11 @@ export function indexarCampanhasPorLote(campanhas: CampanhaRow[] | undefined) {
 
 /**
  * Vínculo automático: amarra baixas às ações abertas do mesmo SKU+Lote.
- * 1) Preferência para a baixa cujo motivo corresponde ao tipo da ação (ex.: Degustação).
- * 2) Caso não haja, vincula qualquer baixa elegível do mesmo SKU+Lote dentro da
- *    janela de validade (validade até validade + 7 dias), respeitando a regra do banco.
- * Baixas já vinculadas a outra ação nunca são reutilizadas.
+ * Toda baixa do mesmo código de produto + lote é vinculada automaticamente,
+ * sem restrição de data. Preferência para a baixa cujo motivo corresponde ao
+ * tipo da ação (ex.: Degustação). Baixas já vinculadas nunca são reutilizadas.
+ * Após vincular, os valores financeiros da ação são recalculados
+ * (custo da ação, valor recuperado e saving).
  * Retorna a quantidade de vínculos criados.
  */
 export async function autoVincularBaixas(): Promise<number> {
@@ -184,7 +186,7 @@ export async function autoVincularBaixas(): Promise<number> {
     (supabase as any).from("tipos_acao_shelf_life").select("id, nome, motivo_baixa_id"),
     (supabase as any)
       .from("campanhas_lote")
-      .select("id, sku, lote, data_validade, tipo_acao_id, status, baixa_operacional_id")
+      .select("*")
       .is("baixa_operacional_id", null)
       .neq("status", "CANCELADA"),
     (supabase as any).from("motivo_baixa").select("id, descricao"),
@@ -200,6 +202,7 @@ export async function autoVincularBaixas(): Promise<number> {
   const motivoDoTipo = new Map<string, string | null>(
     tipos.map((t) => [t.id, t.motivo_baixa_id ?? motivoIdPorNome.get(String(t.nome).trim().toLowerCase()) ?? null]),
   );
+  const nomeDoTipo = new Map<string, string>(tipos.map((t) => [t.id, String(t.nome ?? "")]));
 
   const usadas = new Set<string>(
     ((vinculadasRes.data ?? []) as any[]).map((c) => String(c.baixa_operacional_id)),
@@ -209,7 +212,7 @@ export async function autoVincularBaixas(): Promise<number> {
   const baixas = await fetchAll<any>((from, to) =>
     (supabase as any)
       .from("baixa_operacional")
-      .select("id, codigo_produto, lote, motivo_baixa_id, data_ocorrencia, data_solicitacao")
+      .select("id, codigo_produto, lote, quantidade, motivo_baixa_id, data_ocorrencia, data_solicitacao")
       .in("codigo_produto", skus)
       .range(from, to),
   );
@@ -222,10 +225,25 @@ export async function autoVincularBaixas(): Promise<number> {
     porChave.set(k, arr);
   }
 
+  // Contexto para recálculo financeiro após o vínculo.
+  const normSku = (s: any) => String(s ?? "").trim().toUpperCase();
+  const precos = await fetchAll<any>((from, to) =>
+    (supabase as any).from("precos_venda").select("sku, pr_venda").range(from, to),
+  );
+  const precoPorSku = new Map<string, number>(precos.map((p) => [normSku(p.sku), Number(p.pr_venda) || 0]));
+  const { data: paramDesc } = await (supabase as any)
+    .from("parametros_desconto_colaborador")
+    .select("percentual_desconto")
+    .order("atualizado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const percentualPadrao = Number(paramDesc?.percentual_desconto) || null;
+  const agora = new Date().toISOString();
+
   let n = 0;
   for (const c of campanhas) {
     const candidatas = (porChave.get(chaveLote(c.sku, c.lote)) ?? []).filter(
-      (b) => !usadas.has(String(b.id)) && baixaDentroDaJanela(dataDaBaixa(b), c.data_validade),
+      (b) => !usadas.has(String(b.id)),
     );
     if (!candidatas.length) continue;
 
@@ -234,9 +252,33 @@ export async function autoVincularBaixas(): Promise<number> {
       (motivoId ? candidatas.find((b) => b.motivo_baixa_id === motivoId) : undefined) ?? candidatas[0];
     if (!escolhida) continue;
 
+    const calc = calculateActionFinancials(
+      { ...c, baixa_operacional_id: escolhida.id, tipo_nome: c.tipo_acao_id ? nomeDoTipo.get(c.tipo_acao_id) : null },
+      {
+        quantidadeBaixa: Number(escolhida.quantidade) || 0,
+        precoVendaCadastro: precoPorSku.get(normSku(c.sku)) ?? null,
+        percentualPadrao,
+      },
+    );
+    const concluida = c.status === "CONCLUIDA";
+    const valor = concluida ? calc.valor_recuperado : 0;
+    const saving = concluida ? calc.saving_recuperado : 0;
+
     const { error } = await (supabase as any)
       .from("campanhas_lote")
-      .update({ baixa_operacional_id: escolhida.id })
+      .update({
+        baixa_operacional_id: escolhida.id,
+        custo_unitario: calc.custo_unitario,
+        custo_acao: calc.custo_acao,
+        categoria_financeira: calc.categoria,
+        quantidade_recuperada: calc.quantidade_recuperada,
+        preco_com_desconto: calc.preco_praticado > 0 ? calc.preco_praticado : null,
+        valor_recuperado: valor,
+        saving_recuperado: saving,
+        valor_estimado_recuperado: calc.categoria === "Vendas" ? valor : 0,
+        valor_estimado_saving: calc.categoria === "Vendas" ? 0 : valor,
+        recalculado_em: agora,
+      })
       .eq("id", c.id)
       .is("baixa_operacional_id", null);
     if (!error) {

@@ -29,7 +29,7 @@ import {
   valorRecuperadoCalculado,
 } from "@/lib/shelf-life-financeiro";
 import { RotateCcw } from "lucide-react";
-import { baixaDentroDaJanela, dataDaBaixa, formatarDataBR, janelaVinculo } from "@/lib/shelf-life-recalculo";
+import { dataDaBaixa, formatarDataBR } from "@/lib/shelf-life-recalculo";
 
 
 export type CampanhaDraft = Partial<CampanhaRow> & {
@@ -126,9 +126,8 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       : 0;
   const precoComDesconto = calcularPrecoComDesconto(precoVendaNum, percentualEfetivo);
 
-  // Baixas elegíveis: mesmo SKU + mesmo lote, dentro da janela de 7 dias após a
-  // validade do lote e ainda não vinculadas a outra ação.
-  const janela = janelaVinculo(form.data_validade);
+  // Baixas elegíveis: mesmo SKU + mesmo lote, sem restrição de data,
+  // desde que ainda não estejam vinculadas a outra ação.
   const baixas = useQuery({
     queryKey: ["shelf-baixas-lote", form.sku, form.lote, form.data_validade, form.id],
     enabled: open && podeVincular && !!form.sku,
@@ -143,9 +142,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       const { data, error } = await q;
       if (error) throw error;
 
-      const candidatas = (data ?? []).filter((b: any) =>
-        baixaDentroDaJanela(dataDaBaixa(b), form.data_validade),
-      );
+      const candidatas = (data ?? []) as any[];
       if (!candidatas.length) return [] as any[];
 
       const { data: vinculadas } = await (supabase as any)
@@ -551,16 +548,12 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
                     Desvincular
                   </Button>
                 </div>
-              ) : janela ? (
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Janela para vinculação: {formatarDataBR(janela.inicio)} a {formatarDataBR(janela.fim)}
-                  {!baixas.isLoading && (baixas.data ?? []).length === 0 && (
-                    <> — nenhuma baixa elegível neste período.</>
-                  )}
-                </p>
               ) : (
-                <p className="mt-1 text-[11px] text-warning">
-                  Informe a validade do lote para habilitar a janela de vinculação.
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Vincula qualquer baixa do mesmo SKU + lote, sem restrição de data.
+                  {!baixas.isLoading && (baixas.data ?? []).length === 0 && (
+                    <> — nenhuma baixa disponível para este SKU/lote.</>
+                  )}
                 </p>
               )}
             </div>
