@@ -114,6 +114,23 @@ function toAnoMes(s: string): string {
 }
 
 
+/** Converte "14/08/2026", "2026-08-14" ou serial Excel em ISO yyyy-mm-dd. */
+export function toDataISO(s: string): string | null {
+  if (!s) return null;
+  const raw = String(s).trim();
+  if (!raw) return null;
+  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+  const br = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (br) return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  const n = Number(raw);
+  if (!Number.isNaN(n) && n > 30000) {
+    const d = XLSX.SSF.parse_date_code(n);
+    if (d) return `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
+  }
+  return null;
+}
+
 export function parseBomPlanilha(file: ArrayBuffer): BomRow[] {
   const wb = XLSX.read(file, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
