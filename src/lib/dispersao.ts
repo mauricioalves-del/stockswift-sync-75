@@ -167,14 +167,15 @@ export function parseConsumoPlanilha(file: ArrayBuffer): ConsumoRow[] {
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = normalizeSheetRows(XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" }));
   return rows.map((r, i) => {
-    const ano_mes = toAnoMes(pick(r, "AnoMes", "Ano_Mes", "ano_mes", "Período", "Periodo"));
+    const data_producao = toDataISO(pick(r, "Data", "data", "DataProducao", "Data_Producao", "data_producao", "DtProducao", "Dt_Producao"));
+    const ano_mes = data_producao ? data_producao.slice(0, 7) : toAnoMes(pick(r, "AnoMes", "Ano_Mes", "ano_mes", "Período", "Periodo"));
     const id_op = pick(r, "IDOP", "ID_OP", "id_op", "OP");
     const material = pick(r, "Material", "material", "SKU");
     const qtd_consumo = num(pick(r, "QtdConsumo", "Qtd_Consumo", "qtd_consumo", "Consumo"));
     const qtd_previsto = num(pick(r, "QtdPrevisto", "Qtd_Previsto", "qtd_previsto", "Previsto"));
     const qtd_produzida_s = pick(r, "QtdProduzida", "Qtd_Produzida", "qtd_produzida", "Produzido");
     const erros: string[] = [];
-    if (!ano_mes) erros.push("AnoMes inválido");
+    if (!ano_mes) erros.push("AnoMes/Data inválido");
     if (!id_op) erros.push("IDOP vazio");
     if (!material) erros.push("Material vazio");
     return {
