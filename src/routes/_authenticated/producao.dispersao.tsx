@@ -422,8 +422,6 @@ function DispersaoPage() {
           )}
         </TabsContent>
 
-        </TabsContent>
-
         {/* ============ LISTA ============ */}
         <TabsContent value="lista" className="space-y-2">
           <div className="text-sm text-muted-foreground">{filtradas.length} linhas</div>
