@@ -301,8 +301,23 @@ function DispersaoPage() {
           <p className="text-sm text-muted-foreground">Ficha Técnica × Consumo real por Ordem de Produção.</p>
         </div>
         <div className="flex gap-2">
+          <ExportarHtmlButton
+            targetId="dash-dispersao"
+            titulo="Dispersão de Lote — Produção"
+            filtros={[
+              { label: "Data inicial", valor: dtDe },
+              { label: "Data final", valor: dtAte },
+              { label: "Mês", valor: anoMes === "todos" ? "Todos" : anoMes === SEM_DATA ? "Sem data" : labelMes(anoMes) },
+              { label: "Produto", valor: produto },
+              { label: "Material", valor: material },
+              { label: "Linha/Origem", valor: linha === "todas" ? "Todas" : linha },
+              { label: "Classificação", valor: classFilter === "todas" ? "Todas" : classFilter },
+              { label: "Granularidade", valor: granul },
+            ]}
+          />
           {canImport && <ImportarDispersaoDialog modo="BOM" />}
           {canImport && <ImportarDispersaoDialog modo="CONSUMO" />}
+
           {isAdmin && (
             <Button asChild variant="outline" size="icon" title="Configurar faixas de alerta">
               <Link to="/config/dispersao"><Settings2 className="size-4" /></Link>
