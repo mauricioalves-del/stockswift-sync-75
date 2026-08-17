@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/producao/dispersao")({
 });
 
 type Impacto = {
-  id: string; ano_mes: string; numero_op: string;
+  id: string; ano_mes: string; dt_producao: string | null; numero_op: string;
   sku_produto_final: string | null; desc_prod: string | null;
   material: string; desc_material: string | null; um: string | null;
   qtd_consumo: number; qtd_previsto: number; qtd_dif: number;
@@ -44,16 +44,31 @@ type Impacto = {
   tipo_desvio: "ok" | "perda" | "economia"; tem_furo: boolean;
 };
 
+const SEM_DATA = "sem-data";
+
+/** Data de referência da produção (campo "Data"). Só aceita ano_mes plausível como fallback. */
+function refData(r: { dt_producao: string | null; ano_mes: string | null }): string | null {
+  if (r.dt_producao) return String(r.dt_producao).slice(0, 10);
+  const am = String(r.ano_mes ?? "");
+  const m = /^(\d{4})-(\d{2})$/.exec(am);
+  if (m && Number(m[1]) >= 2000 && Number(m[1]) <= 2100 && Number(m[2]) >= 1 && Number(m[2]) <= 12) return `${am}-01`;
+  return null;
+}
+
 function DispersaoPage() {
   const { role, isAdmin } = useRole();
   const isCoord = role === "COORDENADOR_CONTROLE";
   const canImport = isAdmin || isCoord;
   const [tab, setTab] = useState("visao");
   const [anoMes, setAnoMes] = useState<string>("todos");
+  const [dtDe, setDtDe] = useState<string>("");
+  const [dtAte, setDtAte] = useState<string>("");
+  const [granul, setGranul] = useState<"dia" | "mes" | "ano">("mes");
   const [material, setMaterial] = useState<string>("");
   const [produto, setProduto] = useState<string>("");
   const [linha, setLinha] = useState<string>("todas");
   const [classFilter, setClassFilter] = useState<string>("todas");
+
 
   const paramsQ = useQuery({
     queryKey: ["dispersao", "faixas"],
@@ -76,8 +91,8 @@ function DispersaoPage() {
     queryKey: ["dispersao", "v-impacto"],
     queryFn: async (): Promise<Impacto[]> => {
       const { data, error } = await (supabase as any).from("v_impacto_consumo")
-        .select("id, ano_mes, numero_op, sku_produto_final, desc_prod, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, custo_unit_medio, impacto_rs, tipo_desvio, tem_furo")
-        .order("ano_mes", { ascending: false }).limit(20000);
+        .select("id, ano_mes, dt_producao, numero_op, sku_produto_final, desc_prod, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, custo_unit_medio, impacto_rs, tipo_desvio, tem_furo")
+        .order("dt_producao", { ascending: false, nullsFirst: false }).limit(20000);
       if (error) throw error;
       return (data ?? []) as Impacto[];
     },
@@ -113,11 +128,15 @@ function DispersaoPage() {
       const impacto = Number(r.impacto_rs ?? 0);
       const pct = percentualDispersao(r.qtd_dif, r.qtd_previsto, r.qtd_consumo);
       const cls = classificar(pct, faixas);
+      const data = refData(r);
       return {
         ...r,
         id_op: r.numero_op,
         produto: r.sku_produto_final,
         desc_produto: r.desc_prod,
+        data,                                   // yyyy-mm-dd (campo "Data")
+        mes: data ? data.slice(0, 7) : SEM_DATA, // yyyy-mm
+        ano: data ? data.slice(0, 4) : SEM_DATA,
         custo,
         impacto,
         pct,
@@ -129,17 +148,24 @@ function DispersaoPage() {
     });
   }, [impactoQ.data, origemQ.data, faixas]);
 
-  const meses = useMemo(() => Array.from(new Set(linhas.map((r) => r.ano_mes))).sort().reverse(), [linhas]);
+  const meses = useMemo(
+    () => Array.from(new Set(linhas.map((r) => r.mes))).filter((m) => m !== SEM_DATA).sort().reverse(),
+    [linhas],
+  );
+  const temSemData = useMemo(() => linhas.some((r) => r.mes === SEM_DATA), [linhas]);
   const linhasOrigem = useMemo(() => Array.from(new Set(linhas.map((r) => r.linha_origem).filter((v): v is string => !!v))).sort(), [linhas]);
 
   const filtradas = useMemo(() => linhas.filter((r) => {
-    if (anoMes !== "todos" && r.ano_mes !== anoMes) return false;
+    if (anoMes !== "todos" && r.mes !== anoMes) return false;
+    if (dtDe && (!r.data || r.data < dtDe)) return false;
+    if (dtAte && (!r.data || r.data > dtAte)) return false;
     if (material && !r.material.toLowerCase().includes(material.toLowerCase()) && !(r.desc_material ?? "").toLowerCase().includes(material.toLowerCase())) return false;
     if (produto && !(r.produto ?? "").toLowerCase().includes(produto.toLowerCase()) && !(r.desc_produto ?? "").toLowerCase().includes(produto.toLowerCase())) return false;
     if (linha !== "todas" && r.linha_origem !== linha) return false;
     if (classFilter !== "todas" && r.cls !== classFilter) return false;
     return true;
-  }), [linhas, anoMes, material, produto, linha, classFilter]);
+  }), [linhas, anoMes, dtDe, dtAte, material, produto, linha, classFilter]);
+
 
   // Matriz de criticidade (mesma regra da view v_matriz_criticidade, com limiares configuráveis)
   const matriz = useMemo(() => {
@@ -194,17 +220,26 @@ function DispersaoPage() {
   const topEconomia = useMemo(() => matriz.filter((m) => m.impacto_liquido < 0)
     .sort((a, b) => a.impacto_liquido - b.impacto_liquido).slice(0, 10), [matriz]);
 
-  // Tendência mensal em R$
+  // Tendência em R$ por dia / mês / ano (baseada no campo "Data")
   const serieMes = useMemo(() => {
-    const map = new Map<string, { ano_mes: string; perda: number; economia: number }>();
+    const map = new Map<string, { chave: string; perda: number; economia: number }>();
     for (const r of filtradas) {
-      const cur = map.get(r.ano_mes) ?? { ano_mes: r.ano_mes, perda: 0, economia: 0 };
+      const chave = granul === "dia" ? (r.data ?? SEM_DATA) : granul === "ano" ? r.ano : r.mes;
+      const cur = map.get(chave) ?? { chave, perda: 0, economia: 0 };
       if (r.impacto > 0) cur.perda += r.impacto; else cur.economia += -r.impacto;
-      map.set(r.ano_mes, cur);
+      map.set(chave, cur);
     }
-    return Array.from(map.values()).sort((a, b) => a.ano_mes.localeCompare(b.ano_mes))
-      .map((x) => ({ mes: labelMes(x.ano_mes), perda: +x.perda.toFixed(2), economia: +x.economia.toFixed(2) }));
-  }, [filtradas]);
+    const label = (k: string) => {
+      if (k === SEM_DATA) return "Sem data";
+      if (granul === "ano") return k;
+      if (granul === "mes") return labelMes(k);
+      const [y, m, d] = k.split("-");
+      return `${d}/${m}/${y}`;
+    };
+    return Array.from(map.values()).sort((a, b) => a.chave.localeCompare(b.chave))
+      .map((x) => ({ mes: label(x.chave), perda: +x.perda.toFixed(2), economia: +x.economia.toFixed(2) }));
+  }, [filtradas, granul]);
+
 
   // Impacto por linha/origem (R$)
   const serieLinha = useMemo(() => {
@@ -244,17 +279,38 @@ function DispersaoPage() {
 
       {/* Filtros */}
       <Card>
-        <CardContent className="p-4 grid gap-3 md:grid-cols-5">
+        <CardContent className="p-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
           <div>
-            <label className="text-xs text-muted-foreground">Período</label>
+            <label className="text-xs text-muted-foreground">Data inicial</label>
+            <Input type="date" value={dtDe} onChange={(e) => setDtDe(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Data final</label>
+            <Input type="date" value={dtAte} onChange={(e) => setDtAte(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Mês (Data)</label>
             <Select value={anoMes} onValueChange={setAnoMes}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
-                {meses.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                {meses.map((m) => <SelectItem key={m} value={m}>{labelMes(m)}</SelectItem>)}
+                {temSemData && <SelectItem value={SEM_DATA}>Sem data</SelectItem>}
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Agrupar por</label>
+            <Select value={granul} onValueChange={(v) => setGranul(v as "dia" | "mes" | "ano")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="dia">Dia</SelectItem>
+                <SelectItem value="mes">Mês</SelectItem>
+                <SelectItem value="ano">Ano</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div>
             <label className="text-xs text-muted-foreground">Produto</label>
             <Input value={produto} onChange={(e) => setProduto(e.target.value)} placeholder="Buscar produto…" />
@@ -373,7 +429,7 @@ function DispersaoPage() {
 
           <div className="grid gap-3 lg:grid-cols-3">
             <Card className="lg:col-span-2">
-              <CardHeader className="pb-2"><CardTitle className="text-base">Tendência Mensal (R$)</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Tendência {granul === "dia" ? "Diária" : granul === "ano" ? "Anual" : "Mensal"} (R$)</CardTitle></CardHeader>
               <CardContent className="h-64">
                 <ResponsiveContainer>
                   <BarChart data={serieMes}>
@@ -429,6 +485,7 @@ function DispersaoPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Data</TableHead>
                   <TableHead>OP</TableHead>
                   <TableHead>Produto</TableHead>
                   <TableHead>Material</TableHead>
@@ -444,6 +501,7 @@ function DispersaoPage() {
               <TableBody>
                 {filtradas.slice(0, 500).map((r) => (
                   <TableRow key={r.id}>
+                    <TableCell className="whitespace-nowrap">{r.data ? r.data.split("-").reverse().join("/") : "—"}</TableCell>
                     <TableCell>{r.id_op}</TableCell>
                     <TableCell className="max-w-[240px] truncate">
                       <Link to="/producao/material/$material" params={{ material: r.material }} className="hover:underline">
@@ -465,7 +523,7 @@ function DispersaoPage() {
                   </TableRow>
                 ))}
                 {filtradas.length > 500 && (
-                  <TableRow><TableCell colSpan={10} className="text-center text-xs text-muted-foreground">Exibindo 500 de {filtradas.length}. Refine os filtros.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center text-xs text-muted-foreground">Exibindo 500 de {filtradas.length}. Refine os filtros.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
