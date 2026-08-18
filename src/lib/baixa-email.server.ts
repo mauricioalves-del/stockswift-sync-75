@@ -91,6 +91,7 @@ export function htmlAprovacao(opts: {
         <th style="padding:8px;font-size:12px;text-align:right">Valor</th>
         <th style="padding:8px;font-size:12px;text-align:left">Motivo</th>
         <th style="padding:8px;font-size:12px;text-align:left">Almox.</th>
+        <th style="padding:8px;font-size:12px;text-align:left">Observação</th>
       </tr></thead>
       <tbody>${linhas}</tbody>
     </table>
