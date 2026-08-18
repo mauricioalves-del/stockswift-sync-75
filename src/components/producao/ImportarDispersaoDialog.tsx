@@ -86,6 +86,15 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
           um: r.um || null, qtd_consumo: r.qtd_consumo, qtd_previsto: r.qtd_previsto,
           qtd_produzida: r.qtd_produzida ?? null, data_producao: r.data_producao ?? null, criado_por: uid,
         }));
+        // O relatório de consumo é uma fotografia completa da movimentação.
+        // Substituir a base evita duplicidades e registros antigos sem a Data
+        // de produção, que distorcem todos os indicadores do dashboard.
+        const { error: deleteError } = await (supabase as any)
+          .from("producao_consumo")
+          .delete()
+          .not("id", "is", null);
+        if (deleteError) throw deleteError;
+
         const CHUNK = 500;
         for (let i = 0; i < payload.length; i += CHUNK) {
           const slice = payload.slice(i, i + CHUNK);
@@ -136,6 +145,12 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
               <Badge variant="outline" className="gap-1"><AlertCircle className="size-3.5 text-destructive" />Erros: {isBom ? errosBom : errosCon}</Badge>
             )}
           </div>
+        )}
+
+        {!isBom && total > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Ao confirmar, este relatório completo substituirá a base de consumo atual para evitar duplicidades.
+          </p>
         )}
 
         {total > 0 && (() => {
