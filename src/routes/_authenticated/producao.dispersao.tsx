@@ -58,20 +58,17 @@ type Impacto = {
 
 const SEM_DATA = "sem-data";
 
-/** Data de referência da produção. Usa a data real e, para o legado, o período válido da mesma OP. */
-function refData(r: { dt_producao: string | null; ano_mes: string | null; numero_op: string }, periodoPorOp: Map<string, string>): string | null {
-  const candidatos = [r.dt_producao, r.ano_mes ? `${r.ano_mes}-01` : null, periodoPorOp.get(r.numero_op)];
-  for (const candidato of candidatos) {
-    if (!candidato) continue;
-    const data = String(candidato).slice(0, 10);
-    const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(data);
-    if (!partes) continue;
-    const ano = Number(partes[1]);
-    const mes = Number(partes[2]);
-    const dia = Number(partes[3]);
-    if (ano >= 2000 && ano <= 2100 && mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) return data;
-  }
-  return null;
+/** Data de referência real importada no relatório de consumo; nunca sintetiza o primeiro dia do mês. */
+function refData(dtProducao: string | null): string | null {
+  if (!dtProducao) return null;
+  const data = String(dtProducao).slice(0, 10);
+  const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(data);
+  if (!partes) return null;
+  const ano = Number(partes[1]);
+  const mes = Number(partes[2]);
+  const dia = Number(partes[3]);
+  if (ano < 2000 || ano > 2100 || mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+  return data;
 }
 
 function DispersaoPage() {
@@ -116,21 +113,6 @@ function DispersaoPage() {
     },
   });
 
-  const periodoPorOp = useMemo(() => {
-    const periodos = new Map<string, Set<string>>();
-    for (const r of impactoQ.data ?? []) {
-      if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(r.ano_mes ?? "")) continue;
-      const opPeriodos = periodos.get(r.numero_op) ?? new Set<string>();
-      opPeriodos.add(r.ano_mes);
-      periodos.set(r.numero_op, opPeriodos);
-    }
-    const porOp = new Map<string, string>();
-    for (const [op, valores] of periodos) {
-      if (valores.size === 1) porOp.set(op, `${Array.from(valores)[0]}-01`);
-    }
-    return porOp;
-  }, [impactoQ.data]);
-
   const origemQ = useQuery({
     queryKey: ["dispersao", "origem-item"],
     queryFn: async (): Promise<Map<string, string>> => {
@@ -161,7 +143,7 @@ function DispersaoPage() {
       const impacto = Number(r.impacto_rs ?? 0);
       const pct = percentualDispersao(r.qtd_dif, r.qtd_previsto, r.qtd_consumo);
       const cls = classificar(pct, faixas);
-      const data = refData(r, periodoPorOp);
+      const data = refData(r.dt_producao);
       return {
         ...r,
         id_op: r.numero_op,
@@ -179,7 +161,7 @@ function DispersaoPage() {
         linha_origem: origemQ.data?.get(r.material) ?? null,
       };
     });
-  }, [impactoQ.data, origemQ.data, faixas, periodoPorOp]);
+  }, [impactoQ.data, origemQ.data, faixas]);
 
   const meses = useMemo(
     () => Array.from(new Set(linhas.map((r) => r.mes))).filter((m) => m !== SEM_DATA).sort().reverse(),

@@ -1,0 +1,1 @@
+ALTER VIEW public.v_impacto_consumo SET (security_invoker = true);
