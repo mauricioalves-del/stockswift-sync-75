@@ -76,6 +76,7 @@ export function htmlAprovacao(opts: {
       <td style="padding:6px 8px;font-size:12px;text-align:right">R$ ${formatBRL(Number(b.valor_total ?? 0))}</td>
       <td style="padding:6px 8px;font-size:12px">${esc(b.motivo?.descricao ?? "—")}</td>
       <td style="padding:6px 8px;font-size:12px">${esc(b.id_local ?? "—")}</td>
+      <td style="padding:6px 8px;font-size:12px">${esc(b.observacao || "—")}</td>
     </tr>`).join("");
 
   return `<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;color:#111827;padding:16px;background:#ffffff">
