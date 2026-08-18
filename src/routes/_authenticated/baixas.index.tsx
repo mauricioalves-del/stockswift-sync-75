@@ -505,6 +505,7 @@ function NovaBaixaForm() {
                     <TableHead>Lote</TableHead>
                     <TableHead className="text-right">Qtd</TableHead>
                     <TableHead>Motivo</TableHead>
+                    <TableHead>Observação</TableHead>
                     <TableHead className="text-right">Custo</TableHead>
                     <TableHead />
                   </TableRow>
