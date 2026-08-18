@@ -505,6 +505,7 @@ function NovaBaixaForm() {
                     <TableHead>Lote</TableHead>
                     <TableHead className="text-right">Qtd</TableHead>
                     <TableHead>Motivo</TableHead>
+                    <TableHead>Observação</TableHead>
                     <TableHead className="text-right">Custo</TableHead>
                     <TableHead />
                   </TableRow>
@@ -517,6 +518,7 @@ function NovaBaixaForm() {
                       <TableCell className="font-mono text-xs">{c.lote || "—"}</TableCell>
                       <TableCell className="text-right tabular-nums text-xs">{formatNum(c.quantidade)}</TableCell>
                       <TableCell className="text-xs">{c.motivo_desc}</TableCell>
+                      <TableCell className="max-w-[16rem] truncate text-xs" title={c.observacao}>{c.observacao || "—"}</TableCell>
                       <TableCell className="text-right tabular-nums text-xs">
                         {formatBRL(c.quantidade * c.custo_unitario)}
                       </TableCell>

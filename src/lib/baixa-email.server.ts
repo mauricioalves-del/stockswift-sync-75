@@ -76,6 +76,7 @@ export function htmlAprovacao(opts: {
       <td style="padding:6px 8px;font-size:12px;text-align:right">R$ ${formatBRL(Number(b.valor_total ?? 0))}</td>
       <td style="padding:6px 8px;font-size:12px">${esc(b.motivo?.descricao ?? "—")}</td>
       <td style="padding:6px 8px;font-size:12px">${esc(b.id_local ?? "—")}</td>
+      <td style="padding:6px 8px;font-size:12px">${esc(b.observacao || "—")}</td>
     </tr>`).join("");
 
   return `<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;color:#111827;padding:16px;background:#ffffff">
@@ -90,6 +91,7 @@ export function htmlAprovacao(opts: {
         <th style="padding:8px;font-size:12px;text-align:right">Valor</th>
         <th style="padding:8px;font-size:12px;text-align:left">Motivo</th>
         <th style="padding:8px;font-size:12px;text-align:left">Almox.</th>
+        <th style="padding:8px;font-size:12px;text-align:left">Observação</th>
       </tr></thead>
       <tbody>${linhas}</tbody>
     </table>
@@ -139,7 +141,7 @@ export async function enviarEmailAprovacao(
 
   const { data: itens } = await admin
     .from("baixa_operacional")
-    .select("codigo_produto, descricao, lote, quantidade, valor_total, id_local, aprovado_diretor_operacoes_por, aprovado_diretor_operacoes_em, aprovado_coordenador_financeiro_por, aprovado_coordenador_financeiro_em, motivo:motivo_baixa(descricao)")
+    .select("codigo_produto, descricao, lote, quantidade, valor_total, id_local, observacao, aprovado_diretor_operacoes_por, aprovado_diretor_operacoes_em, aprovado_coordenador_financeiro_por, aprovado_coordenador_financeiro_em, motivo:motivo_baixa(descricao)")
     .eq("solicitacao_id", args.solicitacaoId);
 
   if (!itens || itens.length === 0) return { ok: false, code: "NO_ITEMS", error: "Requisição sem itens" };

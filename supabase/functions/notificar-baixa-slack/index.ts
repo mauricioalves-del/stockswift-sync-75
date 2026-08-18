@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     // Itens
     const { data: itens, error: itErr } = await admin
       .from("baixa_operacional")
-      .select("codigo_produto, descricao, unidade, lote, quantidade, custo_unitario, motivo:motivo_baixa(descricao)")
+      .select("codigo_produto, descricao, unidade, lote, quantidade, custo_unitario, observacao, motivo:motivo_baixa(descricao)")
       .eq("solicitacao_id", solicitacao_id)
       .order("created_at", { ascending: true });
     if (itErr) throw itErr;
@@ -104,7 +104,8 @@ Deno.serve(async (req) => {
       const custoStr = semCusto ? "N/D" : `R$ ${formatBRL(custoItem)}`;
       const unidade = i.unidade ? `/${i.unidade}` : "";
       const lote = i.lote ?? "s/lote";
-      return `• ${i.codigo_produto} - ${i.descricao}${unidade} - LT:${lote} | Qtd: ${qtd} | Custo: ${custoStr}${motivoLinha}`;
+      const obsLinha = i.observacao?.trim() ? ` | Obs: ${i.observacao.trim()}` : "";
+      return `• ${i.codigo_produto} - ${i.descricao}${unidade} - LT:${lote} | Qtd: ${qtd} | Custo: ${custoStr}${motivoLinha}${obsLinha}`;
     });
 
     const custoTotalStr = itensSemCusto > 0
