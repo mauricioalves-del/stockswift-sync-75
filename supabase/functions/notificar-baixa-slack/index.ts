@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     // Itens
     const { data: itens, error: itErr } = await admin
       .from("baixa_operacional")
-      .select("codigo_produto, descricao, unidade, lote, quantidade, custo_unitario, motivo:motivo_baixa(descricao)")
+      .select("codigo_produto, descricao, unidade, lote, quantidade, custo_unitario, observacao, motivo:motivo_baixa(descricao)")
       .eq("solicitacao_id", solicitacao_id)
       .order("created_at", { ascending: true });
     if (itErr) throw itErr;
