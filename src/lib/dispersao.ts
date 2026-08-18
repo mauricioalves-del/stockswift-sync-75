@@ -165,7 +165,7 @@ export function parseBomPlanilha(file: ArrayBuffer): BomRow[] {
 }
 
 export function parseConsumoPlanilha(file: ArrayBuffer): ConsumoRow[] {
-  const wb = XLSX.read(file, { type: "array", cellDates: true });
+  const wb = XLSX.read(file, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
   // Datas precisam permanecer como valores reais do Excel. Com raw:false, a
   // biblioteca aplica o formato regional da planilha (ex.: 17/08 vira 8/17)
