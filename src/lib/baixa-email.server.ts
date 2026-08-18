@@ -141,7 +141,7 @@ export async function enviarEmailAprovacao(
 
   const { data: itens } = await admin
     .from("baixa_operacional")
-    .select("codigo_produto, descricao, lote, quantidade, valor_total, id_local, aprovado_diretor_operacoes_por, aprovado_diretor_operacoes_em, aprovado_coordenador_financeiro_por, aprovado_coordenador_financeiro_em, motivo:motivo_baixa(descricao)")
+    .select("codigo_produto, descricao, lote, quantidade, valor_total, id_local, observacao, aprovado_diretor_operacoes_por, aprovado_diretor_operacoes_em, aprovado_coordenador_financeiro_por, aprovado_coordenador_financeiro_em, motivo:motivo_baixa(descricao)")
     .eq("solicitacao_id", args.solicitacaoId);
 
   if (!itens || itens.length === 0) return { ok: false, code: "NO_ITEMS", error: "Requisição sem itens" };
