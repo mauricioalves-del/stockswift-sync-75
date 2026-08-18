@@ -167,7 +167,10 @@ export function parseBomPlanilha(file: ArrayBuffer): BomRow[] {
 export function parseConsumoPlanilha(file: ArrayBuffer): ConsumoRow[] {
   const wb = XLSX.read(file, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = normalizeSheetRows(XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" }));
+  // Datas precisam permanecer como valores reais do Excel. Com raw:false, a
+  // biblioteca aplica o formato regional da planilha (ex.: 17/08 vira 8/17)
+  // antes do parser e pode trocar dia por mês.
+  const rows = normalizeSheetRows(XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: true, defval: "" }));
   return rows.map((r, i) => {
     const data_producao = toDataISO(pick(r, "Data", "data", "DataProducao", "Data_Producao", "data_producao", "DtProducao", "Dt_Producao"));
     const ano_mes = data_producao ? data_producao.slice(0, 7) : toAnoMes(pick(r, "AnoMes", "Ano_Mes", "ano_mes", "Período", "Periodo"));
