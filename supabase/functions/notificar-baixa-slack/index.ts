@@ -104,7 +104,8 @@ Deno.serve(async (req) => {
       const custoStr = semCusto ? "N/D" : `R$ ${formatBRL(custoItem)}`;
       const unidade = i.unidade ? `/${i.unidade}` : "";
       const lote = i.lote ?? "s/lote";
-      return `• ${i.codigo_produto} - ${i.descricao}${unidade} - LT:${lote} | Qtd: ${qtd} | Custo: ${custoStr}${motivoLinha}`;
+      const obsLinha = i.observacao?.trim() ? ` | Obs: ${i.observacao.trim()}` : "";
+      return `• ${i.codigo_produto} - ${i.descricao}${unidade} - LT:${lote} | Qtd: ${qtd} | Custo: ${custoStr}${motivoLinha}${obsLinha}`;
     });
 
     const custoTotalStr = itensSemCusto > 0
