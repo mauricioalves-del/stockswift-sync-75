@@ -24,7 +24,26 @@ export type LinhaPeriodo = {
   impacto: number;
   mes: string;
   data: string | null;
+  produto?: string | null;
+  desc_produto?: string | null;
 };
+
+type OpInfo = {
+  numero_op: string;
+  data: string | null;
+  produto: string | null;
+  desc_produto: string | null;
+  qtd_prevista: number | null;
+  qtd_realizada: number | null;
+  almoxarifado: string | null;
+  status: string | null;
+};
+
+const fmtQtd = (v: number | null | undefined) =>
+  v == null ? "—" : Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+const fmtData = (d: string | null) =>
+  d ? d.slice(0, 10).split("-").reverse().join("/") : "—";
+
 
 type Props = {
   open: boolean;
