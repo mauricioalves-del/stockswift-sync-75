@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { extrairCodigoNumericoQR } from "@/lib/qr-estoque";
 import { ImportarBaixasDialog } from "@/components/baixas/ImportarBaixasDialog";
 import { criarSolicitacaoBaixa } from "@/lib/solicitacoes-baixa";
+import { fetchAll } from "@/lib/fetch-all";
 import { readEdgeFunctionFailure } from "@/lib/edge-function-errors";
 import { useMyRoles } from "@/hooks/useMyRoles";
 import {
