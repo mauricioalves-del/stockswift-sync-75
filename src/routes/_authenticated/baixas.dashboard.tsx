@@ -88,6 +88,8 @@ function BaixasDashboard() {
   const [to, setTo] = useState<string>(todayISO());
   const [almoxFilter, setAlmoxFilter] = useState<string>("__all__");
   const [motivoFilter, setMotivoFilter] = useState<string>("__all__");
+  const [detalheMotivo, setDetalheMotivo] = useState<DetalheMotivoCtx | null>(null);
+
 
 
   const baixasQ = useQuery({
