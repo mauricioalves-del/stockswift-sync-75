@@ -1,388 +1,210 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { fetchAll } from "@/lib/fetch-all";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  LineChart, Line,
-} from "recharts";
-import {
-  Boxes, Target, TrendingUp, TrendingDown, Percent, DollarSign, CheckCircle2, ArrowUpRight, RotateCcw, Gauge, BadgeCheck,
-} from "lucide-react";
-import { formatBRL, formatNum } from "@/lib/inventory";
-import { cn } from "@/lib/utils";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { MobileHome } from "@/components/app/MobileHome";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { BadgeCheck, ScanLine, ClipboardList, Boxes, Truck, BarChart3, Target } from "lucide-react";
+import { useRole } from "@/hooks/useRole";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  component: Dashboard,
-  head: () => ({ meta: [{ title: "Dashboard — Inventário Cloud" }] }),
+  component: HomePage,
+  head: () => ({
+    meta: [
+      { title: "Início — Controle Operacional" },
+      { name: "description", content: "Central de controle operacional com inventário, scanner, suprimentos e produção." },
+    ],
+  }),
 });
 
-function Dashboard() {
+function HomePage() {
   const isMobile = useIsMobile();
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ["dashboard-stats"],
-    queryFn: async () => {
-      const [inv, est, rec, gpRows, famRows] = await Promise.all([
-        fetchAll<any>((f, t) => supabase.from("inventario").select("id, status, acuracidade, divergencia, valor_divergencia, descricao, id_produto, id_local, data_contagem, usuario").order("id").range(f, t)),
-        fetchAll<any>((f, t) => supabase.from("estoque_sistemico").select("id_produto, lote, quantidade").order("id_produto").range(f, t)),
-        fetchAll<any>((f, t) => supabase.from("recontagem").select("id, status").order("id").range(f, t)),
-        fetchAll<any>((f, t) => supabase.from("grupo_produtos").select("codigo_produto, grupo").order("codigo_produto").range(f, t)),
-        fetchAll<any>((f, t) => supabase.from("familias").select("codigo_produto, familia").order("codigo_produto").range(f, t)),
-      ]);
-      const gpRes = { data: gpRows };
-      const famRes = { data: famRows };
-      const grupoMap = new Map<string, string>((gpRes.data ?? []).map((r) => [r.codigo_produto, r.grupo]));
-      const famMap = new Map<string, string>((famRes.data ?? []).map((r) => [r.codigo_produto, r.familia]));
-      const totalPlanejado = new Set(est.map((e) => `${e.id_produto}|${e.lote}`)).size || est.length;
-      const totalContados = inv.length;
-      const acurados = inv.filter((i) => i.acuracidade != null && i.acuracidade >= 97 && i.acuracidade <= 100).length;
-      const aprovados = inv.filter((i) => i.status === "APROVADO").length;
-      const emRecontagem = rec.filter((r) => r.status === "PENDENTE_RECONTAGEM" || r.status === "RECONTAGEM_OBRIGATORIA").length;
-      const totalRecontagens = rec.length;
-      const positivos = inv.filter((i) => (i.divergencia ?? 0) > 0).length;
-      const negativos = inv.filter((i) => (i.divergencia ?? 0) < 0).length;
-      const divFin = inv.reduce((s, i) => s + (Number(i.valor_divergencia) || 0), 0);
-      const acuracidadeGeral = totalContados > 0 ? (acurados / totalContados) * 100 : 0;
-      const acsValidas = inv.filter((i) => i.acuracidade != null).map((i) => Number(i.acuracidade));
-      const acuracidadeMedia = acsValidas.length ? acsValidas.reduce((a, b) => a + b, 0) / acsValidas.length : 0;
-      const taxaAprovacao = totalContados > 0 ? ((aprovados + acurados) / totalContados) * 100 : 0;
-      const concluido = totalPlanejado > 0 ? (totalContados / totalPlanejado) * 100 : 0;
+  const { isAdmin, canWrite } = useRole();
 
-      const top10 = [...inv].sort((a, b) => (Number(b.valor_divergencia) || 0) - (Number(a.valor_divergencia) || 0))
-        .slice(0, 10).map((i) => ({ nome: (i.descricao || i.id_produto).slice(0, 22), valor: Number(i.valor_divergencia) || 0 }));
-
-      const porLocal: Record<string, number> = {};
-      inv.forEach((i) => { porLocal[i.id_local || "—"] = (porLocal[i.id_local || "—"] || 0) + (Number(i.valor_divergencia) || 0); });
-      const locais = Object.entries(porLocal).map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor).slice(0, 8);
-
-      const porHora: Record<string, number> = {};
-      inv.forEach((i) => {
-        const d = new Date(i.data_contagem);
-        const k = `${d.getHours().toString().padStart(2, "0")}h`;
-        porHora[k] = (porHora[k] || 0) + 1;
-      });
-      const evolucao = Object.entries(porHora).sort().map(([hora, qtd]) => ({ hora, qtd }));
-
-      const sortedTop = [...top10].sort((a, b) => b.valor - a.valor);
-      const totalAbs = sortedTop.reduce((s, x) => s + x.valor, 0);
-      let acc = 0;
-      const pareto = sortedTop.map((x) => { acc += x.valor; return { ...x, acumulado: totalAbs ? (acc / totalAbs) * 100 : 0 }; });
-
-      // ===== POR FAMÍLIA =====
-      const skusPorFamilia: Record<string, Set<string>> = {};
-      famMap.forEach((fam, cod) => { (skusPorFamilia[fam] = skusPorFamilia[fam] || new Set()).add(cod); });
-      const invPorFamilia: Record<string, { acs: number[]; div: number; feitos: Set<string> }> = {};
-      inv.forEach((i) => {
-        const fam = famMap.get(i.id_produto);
-        if (!fam) return;
-        invPorFamilia[fam] = invPorFamilia[fam] || { acs: [], div: 0, feitos: new Set() };
-        if (i.acuracidade != null) invPorFamilia[fam].acs.push(Number(i.acuracidade));
-        invPorFamilia[fam].div += Number(i.valor_divergencia) || 0;
-        invPorFamilia[fam].feitos.add(i.id_produto);
-      });
-      const familias = Object.keys(skusPorFamilia).map((fam) => {
-        const total = skusPorFamilia[fam].size;
-        const d = invPorFamilia[fam] || { acs: [], div: 0, feitos: new Set() };
-        const feitos = Array.from(d.feitos).filter((c) => skusPorFamilia[fam].has(c)).length;
-        const ac = d.acs.length ? d.acs.reduce((a, b) => a + b, 0) / d.acs.length : 0;
-        return { familia: fam, total, feitos, pctConcluido: total ? (feitos / total) * 100 : 0, acuracidade: ac, divergencia: d.div };
-      }).sort((a, b) => b.divergencia - a.divergencia);
-
-      // ===== POR GRUPO =====
-      const skusPorGrupo: Record<string, Set<string>> = {};
-      grupoMap.forEach((g, cod) => { (skusPorGrupo[g] = skusPorGrupo[g] || new Set()).add(cod); });
-      const invPorGrupo: Record<string, { acs: number[]; div: number; feitos: Set<string> }> = {};
-      inv.forEach((i) => {
-        const g = grupoMap.get(i.id_produto);
-        if (!g) return;
-        invPorGrupo[g] = invPorGrupo[g] || { acs: [], div: 0, feitos: new Set() };
-        if (i.acuracidade != null) invPorGrupo[g].acs.push(Number(i.acuracidade));
-        invPorGrupo[g].div += Number(i.valor_divergencia) || 0;
-        invPorGrupo[g].feitos.add(i.id_produto);
-      });
-      const grupos = Object.keys(skusPorGrupo).map((g) => {
-        const total = skusPorGrupo[g].size;
-        const d = invPorGrupo[g] || { acs: [], div: 0, feitos: new Set() };
-        const feitos = Array.from(d.feitos).filter((c) => skusPorGrupo[g].has(c)).length;
-        const ac = d.acs.length ? d.acs.reduce((a, b) => a + b, 0) / d.acs.length : 0;
-        return { grupo: g, total, feitos, pctConcluido: total ? (feitos / total) * 100 : 0, acuracidade: ac, divergencia: d.div };
-      }).sort((a, b) => b.divergencia - a.divergencia);
-
-      return {
-        totalContados, acurados, aprovados, emRecontagem, totalRecontagens,
-        positivos, negativos, divFin,
-        acuracidadeGeral, acuracidadeMedia, taxaAprovacao, concluido, totalPlanejado,
-        top10, locais, evolucao, pareto,
-        familias, grupos,
-      };
-    },
-    refetchInterval: 15_000,
-  });
-
-
-  if (isMobile) return <MobileHome />;
-  if (isLoading || !stats) return <div className="p-8 text-muted-foreground">Carregando dashboard...</div>;
-
-  const COLORS = ["var(--success)", "var(--warning)", "var(--destructive)"];
-  const rosca = [
-    { name: "Acurados", value: stats.acurados },
-    { name: "Positivos", value: stats.positivos },
-    { name: "Negativos", value: stats.negativos },
-  ];
+  if (isMobile) {
+    return <MobileLanding />;
+  }
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
-      {/* Header institucional Mágio */}
-      <div className="rounded-xl p-5 md:p-6 text-sidebar-foreground" style={{ background: "var(--gradient-amazon)" }}>
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="size-12 rounded-lg flex items-center justify-center" style={{ background: "var(--gradient-gold)" }}>
-            <BadgeCheck className="size-6 text-sidebar-primary-foreground" />
-          </div>
-          <div className="flex-1 min-w-[260px]">
-            <h1 className="text-2xl font-bold tracking-tight">Mágio Chocolates · Dashboard Executivo</h1>
-            <p className="text-sm opacity-90 italic">"Controle, rastreabilidade e acuracidade inspirados na Amazônia."</p>
+    <div className="w-full min-h-[calc(100vh-8rem)] flex flex-col items-center justify-center py-8 px-4">
+      <div className="w-full max-w-4xl space-y-8 text-center">
+        <div className="mx-auto size-32 rounded-3xl p-1 shadow-xl" style={{ background: "var(--gradient-gold)" }}>
+          <div className="size-full rounded-[22px] bg-card flex items-center justify-center">
+            <img
+              src="/estoque-icon.png"
+              alt="Ícone Controle Operacional"
+              className="size-20 object-contain"
+            />
           </div>
         </div>
-      </div>
 
-
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        <Kpi icon={Boxes} label="Itens Inventariados" value={formatNum(stats.totalContados)} />
-        <Kpi icon={BadgeCheck} label="Itens Aprovados" value={formatNum(stats.aprovados)} tone="success" />
-        <Kpi icon={RotateCcw} label="Em Recontagem" value={formatNum(stats.emRecontagem)} tone="destructive" />
-        <Kpi icon={Gauge} label="Acuracidade Média" value={`${stats.acuracidadeMedia.toFixed(1)}%`} tone="info" />
-        <Kpi icon={RotateCcw} label="Qtd. Recontagens" value={formatNum(stats.totalRecontagens)} tone="warning" />
-        <Kpi icon={CheckCircle2} label="Taxa de Aprovação" value={`${stats.taxaAprovacao.toFixed(1)}%`} tone="success" />
-        <Kpi icon={Target} label="Planejados" value={formatNum(stats.totalPlanejado)} sub={`${stats.concluido.toFixed(1)}% concluído`} />
-        <Kpi icon={Percent} label="Acuracidade Geral" value={`${stats.acuracidadeGeral.toFixed(1)}%`} tone="success" />
-        <Kpi icon={TrendingUp} label="Divergência Positiva" value={formatNum(stats.positivos)} tone="warning" />
-        <Kpi icon={TrendingDown} label="Divergência Negativa" value={formatNum(stats.negativos)} tone="destructive" />
-        <Kpi icon={DollarSign} label="Divergência Financeira" value={formatBRL(stats.divFin)} tone="destructive" />
-        <Kpi icon={ArrowUpRight} label="Inventário Concluído" value={`${stats.concluido.toFixed(1)}%`} tone="info" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-1">
-          <CardHeader><CardTitle className="text-base">Distribuição de Contagens</CardTitle></CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie data={rosca} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={3}>
-                  {rosca.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader><CardTitle className="text-base">Top 10 Divergências Financeiras</CardTitle></CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer>
-              <BarChart data={stats.top10} layout="vertical" margin={{ left: 50 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis type="number" />
-                <YAxis type="category" dataKey="nome" width={120} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => formatBRL(v)} />
-                <Bar dataKey="valor" fill="var(--destructive)" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader><CardTitle className="text-base">Pareto — 80% das perdas</CardTitle></CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer>
-              <BarChart data={stats.pareto}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="nome" tick={{ fontSize: 10 }} interval={0} angle={-25} textAnchor="end" height={70} />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                <Tooltip />
-                <Bar yAxisId="left" dataKey="valor" fill="var(--warning)" />
-                <Line yAxisId="right" type="monotone" dataKey="acumulado" stroke="var(--destructive)" strokeWidth={2} dot />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-1">
-          <CardHeader><CardTitle className="text-base">Divergência por Local</CardTitle></CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer>
-              <BarChart data={stats.locais}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="nome" tick={{ fontSize: 10 }} />
-                <YAxis />
-                <Tooltip formatter={(v: number) => formatBRL(v)} />
-                <Bar dataKey="valor" fill="var(--chart-4)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-3">
-          <CardHeader><CardTitle className="text-base">Evolução de Contagens por Hora</CardTitle></CardHeader>
-          <CardContent className="h-64">
-            <ResponsiveContainer>
-              <LineChart data={stats.evolucao}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="hora" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="qtd" stroke="var(--success)" strokeWidth={2} dot />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Por Família */}
-      {stats.familias.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Conclusão por Família</CardTitle></CardHeader>
-            <CardContent className="h-72">
-              <ResponsiveContainer>
-                <BarChart data={stats.familias.slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                  <YAxis type="category" dataKey="familia" width={130} tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
-                  <Bar dataKey="pctConcluido" fill="var(--chart-1)" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="text-base">Acuracidade por Família</CardTitle></CardHeader>
-            <CardContent className="h-72">
-              <ResponsiveContainer>
-                <BarChart data={stats.familias.slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                  <YAxis type="category" dataKey="familia" width={130} tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
-                  <Bar dataKey="acuracidade" fill="var(--chart-2)" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-          <Card className="lg:col-span-2">
-            <CardHeader><CardTitle className="text-base">Divergência Financeira por Família</CardTitle></CardHeader>
-            <CardContent className="h-72">
-              <ResponsiveContainer>
-                <BarChart data={stats.familias.slice(0, 12)}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="familia" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={70} />
-                  <YAxis />
-                  <Tooltip formatter={(v: number) => formatBRL(v)} />
-                  <Bar dataKey="divergencia" fill="var(--chart-3)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+        <div className="space-y-3">
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
+            Controle Operacional
+          </h1>
+          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            Sistema integrado de gestão operacional para controle de estoque, inventário,
+            rastreabilidade de lotes, suprimentos, baixas e produção. Tudo em um só lugar,
+            com foco em acuracidade, agilidade e tomada de decisão.
+          </p>
         </div>
-      )}
 
-      {/* Indicadores por Família / Grupo */}
-      {stats.familias.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Indicadores por Família</CardTitle></CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-muted-foreground text-xs uppercase tracking-wider">
-                <tr className="border-b border-border">
-                  <th className="text-left py-2">Família</th>
-                  <th className="text-right py-2">SKUs</th>
-                  <th className="text-right py-2">Acuracidade</th>
-                  <th className="text-right py-2">Concluído</th>
-                  <th className="text-right py-2">Divergência (R$)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.familias.map((f) => (
-                  <tr key={f.familia} className="border-b border-border/40">
-                    <td className="py-2">{f.familia}</td>
-                    <td className="text-right tabular-nums">{f.feitos}/{f.total}</td>
-                    <td className={cn("text-right tabular-nums font-medium", f.acuracidade >= 97 ? "text-success" : f.acuracidade >= 80 ? "text-warning-foreground" : "text-destructive")}>{f.acuracidade.toFixed(1)}%</td>
-                    <td className={cn("text-right tabular-nums font-medium", f.pctConcluido === 100 ? "text-success" : f.pctConcluido >= 80 ? "text-warning-foreground" : "text-destructive")}>{f.pctConcluido.toFixed(0)}%</td>
-                    <td className="text-right tabular-nums">{formatBRL(f.divergencia)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-      )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
+          <AtalhoCard
+            to="/scanner"
+            icon={ScanLine}
+            title="Scanner"
+            description="Leitura rápida de códigos de barras e QR para contagem e movimentação."
+            show={canWrite}
+          />
+          <AtalhoCard
+            to="/contar"
+            icon={ClipboardList}
+            title="Contagem"
+            description="Registre contagens de inventário com múltiplos lotes e validação automática."
+            show={canWrite}
+          />
+          <AtalhoCard
+            to="/suprimentos/dashboard"
+            icon={Boxes}
+            title="Suprimentos"
+            description="Estoque, requisições e planejamento de abastecimento por almoxarifado."
+            show
+          />
+          <AtalhoCard
+            to="/baixas"
+            icon={Truck}
+            title="Baixas Operacionais"
+            description="Solicitação, aprovação e acompanhamento de baixas com rastreabilidade."
+            show={canWrite}
+          />
+          <AtalhoCard
+            to="/producao/dispersao"
+            icon={BarChart3}
+            title="Produção"
+            description="Dispersão de lote, consumo e análise de ordens de produção."
+            show
+          />
+          <AtalhoCard
+            to="/gestao/minhas-tarefas"
+            icon={Target}
+            title="Minhas Tarefas"
+            description="Acompanhe missões, tarefas e pendências do seu dia."
+            show
+          />
+        </div>
 
-      {stats.grupos.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Indicadores por Grupo de Produto</CardTitle></CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-muted-foreground text-xs uppercase tracking-wider">
-                <tr className="border-b border-border">
-                  <th className="text-left py-2">Grupo</th>
-                  <th className="text-right py-2">SKUs</th>
-                  <th className="text-right py-2">Acuracidade</th>
-                  <th className="text-right py-2">Concluído</th>
-                  <th className="text-right py-2">Divergência (R$)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.grupos.map((g) => (
-                  <tr key={g.grupo} className="border-b border-border/40">
-                    <td className="py-2 font-medium">{g.grupo}</td>
-                    <td className="text-right tabular-nums">{g.feitos}/{g.total}</td>
-                    <td className={cn("text-right tabular-nums font-medium", g.acuracidade >= 97 ? "text-success" : g.acuracidade >= 80 ? "text-warning-foreground" : "text-destructive")}>{g.acuracidade.toFixed(1)}%</td>
-                    <td className={cn("text-right tabular-nums font-medium", g.pctConcluido === 100 ? "text-success" : g.pctConcluido >= 80 ? "text-warning-foreground" : "text-destructive")}>{g.pctConcluido.toFixed(0)}%</td>
-                    <td className="text-right tabular-nums">{formatBRL(g.divergencia)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-      )}
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <Button asChild size="lg" className="gap-2">
+            <Link to="/gestao/minhas-tarefas">
+              <BadgeCheck className="size-5" />
+              Acessar tarefas
+            </Link>
+          </Button>
+          {isAdmin && (
+            <Button asChild variant="outline" size="lg">
+              <Link to="/config">Configurações</Link>
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
-
-function Kpi({
-  icon: Icon, label, value, sub, tone,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string; value: string; sub?: string;
-  tone?: "success" | "destructive" | "warning" | "info";
-}) {
-  const toneClass = tone
-    ? tone === "success" ? "text-success bg-success/10"
-    : tone === "destructive" ? "text-destructive bg-destructive/10"
-    : tone === "warning" ? "text-warning-foreground bg-warning/30"
-    : "text-info bg-info/10"
-    : "text-primary bg-primary/10";
+function MobileLanding() {
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className={cn("size-10 rounded-lg flex items-center justify-center", toneClass)}>
-          <Icon className="size-5" />
+    <div className="w-full py-6 px-4 space-y-6">
+      <div className="rounded-2xl p-5 text-sidebar-foreground shadow-md" style={{ background: "var(--gradient-amazon)" }}>
+        <div className="flex items-center gap-3">
+          <div className="size-14 rounded-xl flex items-center justify-center bg-card/20">
+            <img
+              src="/estoque-icon.png"
+              alt="Ícone Controle Operacional"
+              className="size-10 object-contain"
+            />
+          </div>
+          <div className="min-w-0 text-left">
+            <div className="text-[11px] uppercase tracking-widest opacity-80">Mágio Chocolates</div>
+            <h1 className="text-lg font-bold leading-tight truncate">Controle Operacional</h1>
+            <p className="text-[11px] opacity-90 leading-snug mt-0.5">
+              Inventário, suprimentos, baixas e produção em um só lugar.
+            </p>
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium truncate">{label}</div>
-          <div className="text-xl font-bold leading-tight">{value}</div>
-          {sub && <div className="text-[11px] text-muted-foreground">{sub}</div>}
+      </div>
+
+      <section>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1">
+          Acesso rápido
+        </h2>
+        <div className="grid grid-cols-2 gap-3">
+          <MobileTile to="/gestao/minhas-tarefas" label="Minhas Tarefas" icon={Target} tone="info" />
+          <MobileTile to="/suprimentos/dashboard" label="Suprimentos" icon={Boxes} tone="primary" />
+          <MobileTile to="/baixas" label="Baixas" icon={Truck} tone="warning" />
+          <MobileTile to="/producao/dispersao" label="Produção" icon={BarChart3} tone="default" />
         </div>
-      </CardContent>
-    </Card>
+      </section>
+    </div>
+  );
+}
+
+function AtalhoCard({
+  to,
+  icon: Icon,
+  title,
+  description,
+  show,
+}: {
+  to: string;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  show: boolean;
+}) {
+  if (!show) return null;
+  return (
+    <Link to={to} className="group block">
+      <Card className="h-full transition-all hover:shadow-md hover:border-primary/40">
+        <CardContent className="p-4 space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Icon className="size-5 text-primary" />
+            </div>
+            <h3 className="font-semibold text-foreground">{title}</h3>
+          </div>
+          <p className="text-sm text-muted-foreground leading-snug">{description}</p>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
+function MobileTile({
+  to,
+  label,
+  icon: Icon,
+  tone,
+}: {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tone: "primary" | "info" | "warning" | "default";
+}) {
+  const toneClass = {
+    primary: "bg-primary/10 text-primary",
+    info: "bg-blue-500/10 text-blue-500 dark:text-blue-400",
+    warning: "bg-warning/15 text-warning-foreground",
+    default: "bg-muted text-foreground",
+  }[tone];
+
+  return (
+    <Link
+      to={to}
+      className="group rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform shadow-sm hover:shadow-md"
+    >
+      <div className={`size-11 rounded-xl flex items-center justify-center ${toneClass}`}>
+        <Icon className="size-5" />
+      </div>
+      <div className="text-sm font-semibold leading-tight">{label}</div>
+    </Link>
   );
 }
