@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { fmtBRL, STATUS_ACAO } from "@/lib/dispersao";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Factory, Plus } from "lucide-react";
 
 export type LinhaPeriodo = {
   id_op: string;
@@ -372,6 +372,87 @@ function Acompanhamento({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Ordens de produção ligadas ao material no período, com dados da OP. */
+function OrdensDoMaterial({
+  linhas, ops, carregando,
+}: {
+  linhas: LinhaPeriodo[];
+  ops?: Map<string, OpInfo>;
+  carregando: boolean;
+}) {
+  const rows = useMemo(() => {
+    const map = new Map<string, LinhaPeriodo & { chaveData: string | null }>();
+    for (const l of linhas) {
+      const cur = map.get(l.id_op);
+      if (!cur) { map.set(l.id_op, { ...l, chaveData: l.data }); continue; }
+      cur.qtd_previsto += Number(l.qtd_previsto ?? 0);
+      cur.qtd_consumo += Number(l.qtd_consumo ?? 0);
+      cur.qtd_dif += Number(l.qtd_dif ?? 0);
+      cur.impacto += Number(l.impacto ?? 0);
+    }
+    return Array.from(map.values()).sort((a, b) => Math.abs(b.impacto) - Math.abs(a.impacto));
+  }, [linhas]);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-xs font-medium">
+        <Factory className="size-4" />
+        Ordens de produção ({rows.length})
+        {carregando && <span className="text-muted-foreground">carregando dados das OPs…</span>}
+      </div>
+      <div className="rounded-md border bg-background">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>OP</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead>Produto</TableHead>
+              <TableHead>Almoxarifado</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Qtd. prevista (OP)</TableHead>
+              <TableHead className="text-right">Qtd. realizada (OP)</TableHead>
+              <TableHead className="text-right">Previsto (mat.)</TableHead>
+              <TableHead className="text-right">Consumo (mat.)</TableHead>
+              <TableHead className="text-right">Dif.</TableHead>
+              <TableHead className="text-right">Impacto (R$)</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => {
+              const op = ops?.get(r.id_op);
+              return (
+                <TableRow key={r.id_op}>
+                  <TableCell className="text-xs font-medium">{r.id_op}</TableCell>
+                  <TableCell className="text-xs">{fmtData(op?.data ?? r.data)}</TableCell>
+                  <TableCell className="text-xs">
+                    <div>{op?.produto ?? r.produto ?? "—"}</div>
+                    <div className="text-muted-foreground">{op?.desc_produto ?? r.desc_produto ?? ""}</div>
+                  </TableCell>
+                  <TableCell className="text-xs">{op?.almoxarifado ?? "—"}</TableCell>
+                  <TableCell className="text-xs">
+                    {op?.status ? <Badge variant="outline">{op.status}</Badge> : <span className="text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(op?.qtd_prevista)}</TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(op?.qtd_realizada)}</TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(r.qtd_previsto)}</TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(r.qtd_consumo)}</TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(r.qtd_dif)}</TableCell>
+                  <TableCell className={`text-right text-xs tabular-nums font-medium ${r.impacto > 0 ? "text-destructive" : "text-success"}`}>
+                    {fmtBRL(r.impacto)}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {rows.length === 0 && (
+              <TableRow><TableCell colSpan={11} className="py-4 text-center text-xs text-muted-foreground">Sem OPs para este material.</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
