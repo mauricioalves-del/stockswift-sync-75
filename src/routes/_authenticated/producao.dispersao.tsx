@@ -25,6 +25,7 @@ import {
   CAUSAS, STATUS_ACAO, FAIXAS_DEFAULT, type Faixas, type Quadrante,
 } from "@/lib/dispersao";
 import { ImportarDispersaoDialog } from "@/components/producao/ImportarDispersaoDialog";
+import { DetalhePeriodoDispersaoDialog } from "@/components/producao/DetalhePeriodoDispersaoDialog";
 import { exportarDispersaoBI } from "@/lib/export-bi-dispersao";
 import { fetchAll } from "@/lib/fetch-all";
 import { AlertCircle, Plus, Search, Settings2 } from "lucide-react";
@@ -253,8 +254,19 @@ function DispersaoPage() {
       return `${d}/${m}/${y}`;
     };
     return Array.from(map.values()).sort((a, b) => a.chave.localeCompare(b.chave))
-      .map((x) => ({ mes: label(x.chave), perda: +x.perda.toFixed(2), economia: +x.economia.toFixed(2) }));
+      .map((x) => ({ chave: x.chave, mes: label(x.chave), perda: +x.perda.toFixed(2), economia: +x.economia.toFixed(2) }));
   }, [filtradas, granul]);
+
+  const [periodoSel, setPeriodoSel] = useState<{ chave: string; label: string } | null>(null);
+  const linhasPeriodo = useMemo(() => {
+    if (!periodoSel) return [];
+    return filtradas.filter((r) => {
+      if (!r.data) return false;
+      const chave = granul === "dia" ? r.data : granul === "ano" ? r.ano : r.mes;
+      return chave === periodoSel.chave;
+    });
+  }, [filtradas, granul, periodoSel]);
+
 
 
   // Impacto por linha/origem (R$)
@@ -277,6 +289,13 @@ function DispersaoPage() {
 
   return (
     <div className="space-y-4">
+      <DetalhePeriodoDispersaoDialog
+        open={!!periodoSel}
+        onOpenChange={(v) => !v && setPeriodoSel(null)}
+        label={periodoSel?.label ?? ""}
+        anoMes={periodoSel ? periodoSel.chave.slice(0, 7) : null}
+        linhas={linhasPeriodo as any}
+      />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Dispersão de Lote</h1>
@@ -475,7 +494,7 @@ function DispersaoPage() {
               <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-2">
                 <div>
                   <CardTitle className="text-base">Tendência {granul === "dia" ? "Diária" : granul === "ano" ? "Anual" : "Mensal"} (R$)</CardTitle>
-                  <p className="mt-1 text-xs text-muted-foreground">Período calculado exclusivamente pela data de produção válida.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Clique em uma coluna para ver os itens do período e criar ações.</p>
                 </div>
                 <ToggleGroup
                   type="single"
@@ -493,7 +512,16 @@ function DispersaoPage() {
               </CardHeader>
               <CardContent className="h-64">
                 <ResponsiveContainer>
-                  <BarChart data={serieMes}>
+                  <BarChart
+                    data={serieMes}
+                    className="cursor-pointer"
+                    onClick={(state: any) => {
+                      const idx = state?.activeTooltipIndex;
+                      const item = typeof idx === "number" ? serieMes[idx] : undefined;
+                      if (item) setPeriodoSel({ chave: item.chave, label: item.mes });
+                    }}
+                  >
+
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
                     <XAxis dataKey="mes" fontSize={12} />
                     <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
