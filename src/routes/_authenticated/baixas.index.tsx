@@ -131,20 +131,26 @@ function NovaBaixaForm() {
   });
 
   const produtosQ = useQuery({
-    queryKey: ["produtos-distintos"],
+    queryKey: ["produtos-distintos", origem || "todos"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("estoque_sistemico")
-        .select("id_produto, descricao, unidade")
-        .order("id_produto");
-      if (error) throw error;
+      const rows = await fetchAll<any>((from, to) => {
+        let q = (supabase as any)
+          .from("estoque_sistemico")
+          .select("id_produto, descricao, unidade, origem, quantidade")
+          .gt("quantidade", 0)
+          .order("id_produto")
+          .range(from, to);
+        if (origem) q = q.eq("origem", origem);
+        return q;
+      });
       const map = new Map<string, { id_produto: string; descricao: string; unidade: string }>();
-      for (const r of (data ?? []) as any[]) {
+      for (const r of rows) {
         if (r.id_produto && !map.has(r.id_produto)) {
           map.set(r.id_produto, { id_produto: r.id_produto, descricao: r.descricao ?? "", unidade: r.unidade ?? "" });
         }
       }
       return Array.from(map.values());
+
     },
   });
 
