@@ -253,8 +253,6 @@ export function DetalhePeriodoDispersaoDialog({ open, onOpenChange, label, anoMe
                       </TableCell>
                     </TableRow>
                   ) : null,
-
-                  ) : null,
                 ];
               })}
               {itens.length === 0 && (
