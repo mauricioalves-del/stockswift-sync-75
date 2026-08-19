@@ -108,6 +108,73 @@ export function DetalhePeriodoDispersaoDialog({ open, onOpenChange, label, anoMe
     return map;
   }, [acoesQ.data]);
 
+  const opsPeriodo = useMemo(
+    () => Array.from(new Set(linhas.map((l) => l.id_op).filter(Boolean))),
+    [linhas],
+  );
+
+  /** Dados das ordens de produção do período (consumo importado + cadastro de OP). */
+  const opsQ = useQuery({
+    queryKey: ["dispersao", "ops-periodo", opsPeriodo.length, opsPeriodo[0] ?? "", opsPeriodo[opsPeriodo.length - 1] ?? ""],
+    enabled: open && opsPeriodo.length > 0,
+    queryFn: async (): Promise<Map<string, OpInfo>> => {
+      const map = new Map<string, OpInfo>();
+      const chunks: string[][] = [];
+      for (let i = 0; i < opsPeriodo.length; i += 200) chunks.push(opsPeriodo.slice(i, i + 200));
+
+      for (const chunk of chunks) {
+        const { data } = await (supabase as any)
+          .from("producao_consumo")
+          .select("id_op, produto, desc_produto, qtd_produzida, data_producao, ano_mes")
+          .in("id_op", chunk);
+        for (const r of (data ?? []) as any[]) {
+          const cur = map.get(r.id_op);
+          map.set(r.id_op, {
+            numero_op: r.id_op,
+            data: r.data_producao ?? cur?.data ?? null,
+            produto: r.produto ?? cur?.produto ?? null,
+            desc_produto: r.desc_produto ?? cur?.desc_produto ?? null,
+            qtd_prevista: cur?.qtd_prevista ?? null,
+            qtd_realizada: r.qtd_produzida != null ? Number(r.qtd_produzida) : (cur?.qtd_realizada ?? null),
+            almoxarifado: cur?.almoxarifado ?? null,
+            status: cur?.status ?? null,
+          });
+        }
+
+        const { data: ops } = await (supabase as any)
+          .from("ordens_producao")
+          .select("numero_op, produto, desc_produto, quantidade_planejada, quantidade_produzida_real, almoxarifado_producao, status, data_planejada, data_conclusao_real")
+          .in("numero_op", chunk);
+        for (const o of (ops ?? []) as any[]) {
+          const cur = map.get(o.numero_op);
+          map.set(o.numero_op, {
+            numero_op: o.numero_op,
+            data: cur?.data ?? (o.data_conclusao_real ?? o.data_planejada ?? null),
+            produto: cur?.produto ?? o.produto ?? null,
+            desc_produto: cur?.desc_produto ?? o.desc_produto ?? null,
+            qtd_prevista: o.quantidade_planejada != null ? Number(o.quantidade_planejada) : (cur?.qtd_prevista ?? null),
+            qtd_realizada: o.quantidade_produzida_real != null ? Number(o.quantidade_produzida_real) : (cur?.qtd_realizada ?? null),
+            almoxarifado: o.almoxarifado_producao ?? null,
+            status: o.status ?? null,
+          });
+        }
+      }
+      return map;
+    },
+  });
+
+  const linhasPorMaterial = useMemo(() => {
+    const map = new Map<string, LinhaPeriodo[]>();
+    for (const l of linhas) {
+      const arr = map.get(l.material) ?? [];
+      arr.push(l);
+      map.set(l.material, arr);
+    }
+    return map;
+  }, [linhas]);
+
+
+
   const totalPerda = itens.reduce((s, i) => s + (i.impacto > 0 ? i.impacto : 0), 0);
   const totalEconomia = itens.reduce((s, i) => s + (i.impacto < 0 ? -i.impacto : 0), 0);
 
