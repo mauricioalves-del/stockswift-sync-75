@@ -16,6 +16,8 @@ import {
   ComposedChart, Line,
 } from "recharts";
 import type { ReactNode } from "react";
+import { DetalheMotivoBaixasDialog, type DetalheMotivoCtx } from "@/components/baixas/DetalheMotivoBaixasDialog";
+
 
 export const Route = createFileRoute("/_authenticated/baixas/dashboard")({
   component: BaixasDashboard,
@@ -88,6 +90,8 @@ function BaixasDashboard() {
   const [to, setTo] = useState<string>(todayISO());
   const [almoxFilter, setAlmoxFilter] = useState<string>("__all__");
   const [motivoFilter, setMotivoFilter] = useState<string>("__all__");
+  const [detalheMotivo, setDetalheMotivo] = useState<DetalheMotivoCtx | null>(null);
+
 
 
   const baixasQ = useQuery({
@@ -434,19 +438,30 @@ function BaixasDashboard() {
             const h = Math.max(28, Math.round((m.valor / max) * 140));
             return (
               <div key={m.id} className="flex flex-col items-center gap-1">
-                <div
-                  className="w-full rounded-sm flex items-start justify-center pt-1 text-[11px] font-semibold text-slate-900 tabular-nums"
+                <button
+                  type="button"
+                  className="w-full rounded-sm flex items-start justify-center pt-1 text-[11px] font-semibold text-slate-900 tabular-nums cursor-pointer transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-white/60"
                   style={{ background: m.cor, height: h }}
-                  title={`${m.nome}: ${formatBRL(m.valor)}`}
+                  title={`${m.nome}: ${formatBRL(m.valor)} — clique para ver os produtos`}
+                  onClick={() =>
+                    setDetalheMotivo({
+                      motivoId: m.id,
+                      motivoNome: m.nome,
+                      fromISO: new Date(from + "T00:00:00").toISOString(),
+                      toISO: new Date(to + "T23:59:59").toISOString(),
+                      almoxFilter,
+                    })
+                  }
                 >
                   {m.valor > 0 ? fmtMil(m.valor).replace("R$ ", "") : ""}
-                </div>
+                </button>
                 <div className="text-[10px] text-slate-300 text-center leading-tight line-clamp-2 min-h-[24px]" title={m.nome}>
                   {m.nome}
                 </div>
               </div>
             );
           })}
+
           {view.kpiMotivos.length === 0 && (
             <div className="col-span-full text-sm text-slate-400 py-6 text-center">Sem baixas no período.</div>
           )}
@@ -698,8 +713,11 @@ function BaixasDashboard() {
         </p>
       </BiPanel>
 
+      <DetalheMotivoBaixasDialog ctx={detalheMotivo} onOpenChange={(o) => !o && setDetalheMotivo(null)} />
+
       {/* Ícone TrendingUp usado como marcador visual (não remover) */}
       <div className="hidden"><TrendingUp /></div>
+
     </div>
   );
 }
