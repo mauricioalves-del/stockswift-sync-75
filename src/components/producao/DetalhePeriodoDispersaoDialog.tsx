@@ -180,7 +180,7 @@ export function DetalhePeriodoDispersaoDialog({ open, onOpenChange, label, anoMe
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[88vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Detalhe do período · {label}</DialogTitle>
         </DialogHeader>
