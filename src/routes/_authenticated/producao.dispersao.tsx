@@ -486,7 +486,7 @@ function DispersaoPage() {
               <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-2">
                 <div>
                   <CardTitle className="text-base">Tendência {granul === "dia" ? "Diária" : granul === "ano" ? "Anual" : "Mensal"} (R$)</CardTitle>
-                  <p className="mt-1 text-xs text-muted-foreground">Período calculado exclusivamente pela data de produção válida.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Clique em uma coluna para ver os itens do período e criar ações.</p>
                 </div>
                 <ToggleGroup
                   type="single"
@@ -504,7 +504,16 @@ function DispersaoPage() {
               </CardHeader>
               <CardContent className="h-64">
                 <ResponsiveContainer>
-                  <BarChart data={serieMes}>
+                  <BarChart
+                    data={serieMes}
+                    className="cursor-pointer"
+                    onClick={(state: any) => {
+                      const idx = state?.activeTooltipIndex;
+                      const item = typeof idx === "number" ? serieMes[idx] : undefined;
+                      if (item) setPeriodoSel({ chave: item.chave, label: item.mes });
+                    }}
+                  >
+
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
                     <XAxis dataKey="mes" fontSize={12} />
                     <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
