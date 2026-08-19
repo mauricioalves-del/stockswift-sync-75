@@ -16,6 +16,8 @@ import {
   ComposedChart, Line,
 } from "recharts";
 import type { ReactNode } from "react";
+import { DetalheMotivoBaixasDialog, type DetalheMotivoCtx } from "@/components/baixas/DetalheMotivoBaixasDialog";
+
 
 export const Route = createFileRoute("/_authenticated/baixas/dashboard")({
   component: BaixasDashboard,
