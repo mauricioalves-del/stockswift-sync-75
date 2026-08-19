@@ -33,11 +33,21 @@ type OpInfo = {
   data: string | null;
   produto: string | null;
   desc_produto: string | null;
+  /** Quantidade planejada cadastrada no PCP (quando a OP existe em ordens_producao). */
   qtd_prevista: number | null;
+  /** Quantidade realizada cadastrada no PCP. */
   qtd_realizada: number | null;
+  /** Quantidade produzida estimada pela ficha técnica (previsto do material ÷ qtd por unidade). */
+  qtd_estimada: number | null;
   almoxarifado: string | null;
   status: string | null;
+  /** Nº de materiais da OP no relatório de consumo. */
+  materiais: number;
+  previsto_total: number;
+  consumo_total: number;
+  cadastrada: boolean;
 };
+
 
 const fmtQtd = (v: number | null | undefined) =>
   v == null ? "—" : Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 3 });
