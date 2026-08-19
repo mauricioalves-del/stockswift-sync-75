@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAll } from "@/lib/fetch-all";
 import { useRole } from "@/hooks/useRole";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -33,11 +34,21 @@ type OpInfo = {
   data: string | null;
   produto: string | null;
   desc_produto: string | null;
+  /** Quantidade planejada cadastrada no PCP (quando a OP existe em ordens_producao). */
   qtd_prevista: number | null;
+  /** Quantidade realizada cadastrada no PCP. */
   qtd_realizada: number | null;
+  /** Quantidade produzida estimada pela ficha técnica (previsto do material ÷ qtd por unidade). */
+  qtd_estimada: number | null;
   almoxarifado: string | null;
   status: string | null;
+  /** Nº de materiais da OP no relatório de consumo. */
+  materiais: number;
+  previsto_total: number;
+  consumo_total: number;
+  cadastrada: boolean;
 };
+
 
 const fmtQtd = (v: number | null | undefined) =>
   v == null ? "—" : Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 3 });
@@ -113,7 +124,7 @@ export function DetalhePeriodoDispersaoDialog({ open, onOpenChange, label, anoMe
     [linhas],
   );
 
-  /** Dados das ordens de produção do período (consumo importado + cadastro de OP). */
+  /** Dados das ordens de produção do período (consumo importado + ficha técnica + cadastro de OP). */
   const opsQ = useQuery({
     queryKey: ["dispersao", "ops-periodo", opsPeriodo.length, opsPeriodo[0] ?? "", opsPeriodo[opsPeriodo.length - 1] ?? ""],
     enabled: open && opsPeriodo.length > 0,
@@ -122,46 +133,109 @@ export function DetalhePeriodoDispersaoDialog({ open, onOpenChange, label, anoMe
       const chunks: string[][] = [];
       for (let i = 0; i < opsPeriodo.length; i += 200) chunks.push(opsPeriodo.slice(i, i + 200));
 
+      // 1) Consumo importado: todas as linhas de cada OP (base real dos dados)
+      const consumoPorOp = new Map<string, any[]>();
       for (const chunk of chunks) {
-        const { data } = await (supabase as any)
-          .from("producao_consumo")
-          .select("id_op, produto, desc_produto, qtd_produzida, data_producao, ano_mes")
-          .in("id_op", chunk);
-        for (const r of (data ?? []) as any[]) {
-          const cur = map.get(r.id_op);
-          map.set(r.id_op, {
-            numero_op: r.id_op,
-            data: r.data_producao ?? cur?.data ?? null,
-            produto: r.produto ?? cur?.produto ?? null,
-            desc_produto: r.desc_produto ?? cur?.desc_produto ?? null,
-            qtd_prevista: cur?.qtd_prevista ?? null,
-            qtd_realizada: r.qtd_produzida != null ? Number(r.qtd_produzida) : (cur?.qtd_realizada ?? null),
-            almoxarifado: cur?.almoxarifado ?? null,
-            status: cur?.status ?? null,
-          });
+        const linhasOp = await fetchAll<any>((f, t) =>
+          (supabase as any)
+            .from("producao_consumo")
+            .select("id_op, produto, desc_produto, material, qtd_previsto, qtd_consumo, qtd_produzida, data_producao")
+            .in("id_op", chunk)
+            .order("id_op")
+            .range(f, t),
+        );
+        for (const r of linhasOp) {
+          const arr = consumoPorOp.get(r.id_op) ?? [];
+          arr.push(r);
+          consumoPorOp.set(r.id_op, arr);
         }
+      }
 
+      // 2) Ficha técnica dos produtos envolvidos → estimativa de quantidade produzida
+      const produtos = Array.from(
+        new Set(
+          Array.from(consumoPorOp.values())
+            .map((rows) => rows.find((r) => r.produto)?.produto)
+            .filter(Boolean),
+        ),
+      ) as string[];
+      const bom = new Map<string, number>(); // `${produto}|${material}` -> qtd por unidade
+      for (let i = 0; i < produtos.length; i += 100) {
+        const parte = produtos.slice(i, i + 100);
+        const rows = await fetchAll<any>((f, t) =>
+          (supabase as any)
+            .from("ficha_tecnica_bom")
+            .select("id_produto, id_item, qtd")
+            .in("id_produto", parte)
+            .order("id_produto")
+            .range(f, t),
+        );
+        for (const b of rows) {
+          const k = `${b.id_produto}|${b.id_item}`;
+          bom.set(k, (bom.get(k) ?? 0) + Number(b.qtd ?? 0));
+        }
+      }
+
+      for (const [idOp, rows] of consumoPorOp) {
+        const base = rows.find((r) => r.produto) ?? rows[0];
+        const produto = base?.produto ?? null;
+        const estimativas: number[] = [];
+        if (produto) {
+          for (const r of rows) {
+            const porUnidade = bom.get(`${produto}|${r.material}`);
+            const previsto = Number(r.qtd_previsto ?? 0);
+            if (porUnidade && porUnidade > 0 && previsto > 0) estimativas.push(previsto / porUnidade);
+          }
+        }
+        estimativas.sort((a, b) => a - b);
+        const mediana = estimativas.length
+          ? estimativas[Math.floor(estimativas.length / 2)]
+          : null;
+        const realizadaImportada = rows.map((r) => r.qtd_produzida).find((v) => v != null);
+
+        map.set(idOp, {
+          numero_op: idOp,
+          data: rows.map((r) => r.data_producao).find(Boolean) ?? null,
+          produto,
+          desc_produto: base?.desc_produto ?? null,
+          qtd_prevista: null,
+          qtd_realizada: realizadaImportada != null ? Number(realizadaImportada) : null,
+          qtd_estimada: mediana != null ? Number(mediana.toFixed(2)) : null,
+          almoxarifado: null,
+          status: null,
+          materiais: new Set(rows.map((r) => r.material)).size,
+          previsto_total: rows.reduce((s, r) => s + Number(r.qtd_previsto ?? 0), 0),
+          consumo_total: rows.reduce((s, r) => s + Number(r.qtd_consumo ?? 0), 0),
+          cadastrada: false,
+        });
+      }
+
+      // 3) Enriquecimento opcional com o cadastro de OPs do PCP (quando existir)
+      for (const chunk of chunks) {
         const { data: ops } = await (supabase as any)
           .from("ordens_producao")
           .select("numero_op, produto, desc_produto, quantidade_planejada, quantidade_produzida_real, almoxarifado_producao, status, data_planejada, data_conclusao_real")
           .in("numero_op", chunk);
         for (const o of (ops ?? []) as any[]) {
           const cur = map.get(o.numero_op);
+          if (!cur) continue;
           map.set(o.numero_op, {
-            numero_op: o.numero_op,
-            data: cur?.data ?? (o.data_conclusao_real ?? o.data_planejada ?? null),
-            produto: cur?.produto ?? o.produto ?? null,
-            desc_produto: cur?.desc_produto ?? o.desc_produto ?? null,
-            qtd_prevista: o.quantidade_planejada != null ? Number(o.quantidade_planejada) : (cur?.qtd_prevista ?? null),
-            qtd_realizada: o.quantidade_produzida_real != null ? Number(o.quantidade_produzida_real) : (cur?.qtd_realizada ?? null),
-            almoxarifado: o.almoxarifado_producao ?? null,
-            status: o.status ?? null,
+            ...cur,
+            data: cur.data ?? o.data_conclusao_real ?? o.data_planejada ?? null,
+            produto: cur.produto ?? o.produto ?? null,
+            desc_produto: cur.desc_produto ?? o.desc_produto ?? null,
+            qtd_prevista: o.quantidade_planejada != null ? Number(o.quantidade_planejada) : null,
+            qtd_realizada: o.quantidade_produzida_real != null ? Number(o.quantidade_produzida_real) : cur.qtd_realizada,
+            almoxarifado: o.almoxarifado_producao || null,
+            status: o.status || null,
+            cadastrada: true,
           });
         }
       }
       return map;
     },
   });
+
 
   const linhasPorMaterial = useMemo(() => {
     const map = new Map<string, LinhaPeriodo[]>();
@@ -397,6 +471,8 @@ function OrdensDoMaterial({
     return Array.from(map.values()).sort((a, b) => Math.abs(b.impacto) - Math.abs(a.impacto));
   }, [linhas]);
 
+  const semCadastro = rows.some((r) => !ops?.get(r.id_op)?.cadastrada);
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 text-xs font-medium">
@@ -413,8 +489,10 @@ function OrdensDoMaterial({
               <TableHead>Produto</TableHead>
               <TableHead>Almoxarifado</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Qtd. prevista (OP)</TableHead>
-              <TableHead className="text-right">Qtd. realizada (OP)</TableHead>
+              <TableHead className="text-right">Materiais (OP)</TableHead>
+              <TableHead className="text-right">Qtd. produzida (OP)</TableHead>
+              <TableHead className="text-right">Previsto total (OP)</TableHead>
+              <TableHead className="text-right">Consumo total (OP)</TableHead>
               <TableHead className="text-right">Previsto (mat.)</TableHead>
               <TableHead className="text-right">Consumo (mat.)</TableHead>
               <TableHead className="text-right">Dif.</TableHead>
@@ -424,6 +502,8 @@ function OrdensDoMaterial({
           <TableBody>
             {rows.map((r) => {
               const op = ops?.get(r.id_op);
+              const produzida = op?.qtd_realizada ?? op?.qtd_prevista ?? op?.qtd_estimada ?? null;
+              const estimada = op?.qtd_realizada == null && op?.qtd_prevista == null && op?.qtd_estimada != null;
               return (
                 <TableRow key={r.id_op}>
                   <TableCell className="text-xs font-medium">{r.id_op}</TableCell>
@@ -432,12 +512,21 @@ function OrdensDoMaterial({
                     <div>{op?.produto ?? r.produto ?? "—"}</div>
                     <div className="text-muted-foreground">{op?.desc_produto ?? r.desc_produto ?? ""}</div>
                   </TableCell>
-                  <TableCell className="text-xs">{op?.almoxarifado ?? "—"}</TableCell>
                   <TableCell className="text-xs">
-                    {op?.status ? <Badge variant="outline">{op.status}</Badge> : <span className="text-muted-foreground">—</span>}
+                    {op?.almoxarifado ?? <span className="text-muted-foreground">não informado</span>}
                   </TableCell>
-                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(op?.qtd_prevista)}</TableCell>
-                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(op?.qtd_realizada)}</TableCell>
+                  <TableCell className="text-xs">
+                    {op?.status
+                      ? <Badge variant="outline">{op.status}</Badge>
+                      : <Badge variant="secondary">CONSUMO IMPORTADO</Badge>}
+                  </TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{op?.materiais ?? "—"}</TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">
+                    {fmtQtd(produzida)}
+                    {estimada && <span className="ml-1 text-[10px] text-muted-foreground">est.</span>}
+                  </TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(op?.previsto_total)}</TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(op?.consumo_total)}</TableCell>
                   <TableCell className="text-right text-xs tabular-nums">{fmtQtd(r.qtd_previsto)}</TableCell>
                   <TableCell className="text-right text-xs tabular-nums">{fmtQtd(r.qtd_consumo)}</TableCell>
                   <TableCell className="text-right text-xs tabular-nums">{fmtQtd(r.qtd_dif)}</TableCell>
@@ -448,11 +537,17 @@ function OrdensDoMaterial({
               );
             })}
             {rows.length === 0 && (
-              <TableRow><TableCell colSpan={11} className="py-4 text-center text-xs text-muted-foreground">Sem OPs para este material.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={13} className="py-4 text-center text-xs text-muted-foreground">Sem OPs para este material.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
       </div>
+      {semCadastro && !carregando && (
+        <p className="text-[11px] text-muted-foreground">
+          Almoxarifado, status e quantidade planejada só aparecem para OPs cadastradas no PCP. Para as demais, os dados vêm do relatório de consumo importado e a quantidade produzida é estimada pela ficha técnica.
+        </p>
+      )}
     </div>
+
   );
 }
