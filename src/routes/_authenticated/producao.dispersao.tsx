@@ -253,8 +253,19 @@ function DispersaoPage() {
       return `${d}/${m}/${y}`;
     };
     return Array.from(map.values()).sort((a, b) => a.chave.localeCompare(b.chave))
-      .map((x) => ({ mes: label(x.chave), perda: +x.perda.toFixed(2), economia: +x.economia.toFixed(2) }));
+      .map((x) => ({ chave: x.chave, mes: label(x.chave), perda: +x.perda.toFixed(2), economia: +x.economia.toFixed(2) }));
   }, [filtradas, granul]);
+
+  const [periodoSel, setPeriodoSel] = useState<{ chave: string; label: string } | null>(null);
+  const linhasPeriodo = useMemo(() => {
+    if (!periodoSel) return [];
+    return filtradas.filter((r) => {
+      if (!r.data) return false;
+      const chave = granul === "dia" ? r.data : granul === "ano" ? r.ano : r.mes;
+      return chave === periodoSel.chave;
+    });
+  }, [filtradas, granul, periodoSel]);
+
 
 
   // Impacto por linha/origem (R$)
