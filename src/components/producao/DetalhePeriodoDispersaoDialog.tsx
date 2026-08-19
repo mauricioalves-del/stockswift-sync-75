@@ -471,6 +471,8 @@ function OrdensDoMaterial({
     return Array.from(map.values()).sort((a, b) => Math.abs(b.impacto) - Math.abs(a.impacto));
   }, [linhas]);
 
+  const semCadastro = rows.some((r) => !ops?.get(r.id_op)?.cadastrada);
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 text-xs font-medium">
@@ -487,8 +489,10 @@ function OrdensDoMaterial({
               <TableHead>Produto</TableHead>
               <TableHead>Almoxarifado</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Qtd. prevista (OP)</TableHead>
-              <TableHead className="text-right">Qtd. realizada (OP)</TableHead>
+              <TableHead className="text-right">Materiais (OP)</TableHead>
+              <TableHead className="text-right">Qtd. produzida (OP)</TableHead>
+              <TableHead className="text-right">Previsto total (OP)</TableHead>
+              <TableHead className="text-right">Consumo total (OP)</TableHead>
               <TableHead className="text-right">Previsto (mat.)</TableHead>
               <TableHead className="text-right">Consumo (mat.)</TableHead>
               <TableHead className="text-right">Dif.</TableHead>
@@ -498,6 +502,8 @@ function OrdensDoMaterial({
           <TableBody>
             {rows.map((r) => {
               const op = ops?.get(r.id_op);
+              const produzida = op?.qtd_realizada ?? op?.qtd_prevista ?? op?.qtd_estimada ?? null;
+              const estimada = op?.qtd_realizada == null && op?.qtd_prevista == null && op?.qtd_estimada != null;
               return (
                 <TableRow key={r.id_op}>
                   <TableCell className="text-xs font-medium">{r.id_op}</TableCell>
@@ -506,12 +512,21 @@ function OrdensDoMaterial({
                     <div>{op?.produto ?? r.produto ?? "—"}</div>
                     <div className="text-muted-foreground">{op?.desc_produto ?? r.desc_produto ?? ""}</div>
                   </TableCell>
-                  <TableCell className="text-xs">{op?.almoxarifado ?? "—"}</TableCell>
                   <TableCell className="text-xs">
-                    {op?.status ? <Badge variant="outline">{op.status}</Badge> : <span className="text-muted-foreground">—</span>}
+                    {op?.almoxarifado ?? <span className="text-muted-foreground">não informado</span>}
                   </TableCell>
-                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(op?.qtd_prevista)}</TableCell>
-                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(op?.qtd_realizada)}</TableCell>
+                  <TableCell className="text-xs">
+                    {op?.status
+                      ? <Badge variant="outline">{op.status}</Badge>
+                      : <Badge variant="secondary">CONSUMO IMPORTADO</Badge>}
+                  </TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{op?.materiais ?? "—"}</TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">
+                    {fmtQtd(produzida)}
+                    {estimada && <span className="ml-1 text-[10px] text-muted-foreground">est.</span>}
+                  </TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(op?.previsto_total)}</TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(op?.consumo_total)}</TableCell>
                   <TableCell className="text-right text-xs tabular-nums">{fmtQtd(r.qtd_previsto)}</TableCell>
                   <TableCell className="text-right text-xs tabular-nums">{fmtQtd(r.qtd_consumo)}</TableCell>
                   <TableCell className="text-right text-xs tabular-nums">{fmtQtd(r.qtd_dif)}</TableCell>
@@ -522,11 +537,17 @@ function OrdensDoMaterial({
               );
             })}
             {rows.length === 0 && (
-              <TableRow><TableCell colSpan={11} className="py-4 text-center text-xs text-muted-foreground">Sem OPs para este material.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={13} className="py-4 text-center text-xs text-muted-foreground">Sem OPs para este material.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
       </div>
+      {semCadastro && !carregando && (
+        <p className="text-[11px] text-muted-foreground">
+          Almoxarifado, status e quantidade planejada só aparecem para OPs cadastradas no PCP. Para as demais, os dados vêm do relatório de consumo importado e a quantidade produzida é estimada pela ficha técnica.
+        </p>
+      )}
     </div>
+
   );
 }
