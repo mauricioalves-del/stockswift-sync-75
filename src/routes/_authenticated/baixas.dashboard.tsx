@@ -713,8 +713,11 @@ function BaixasDashboard() {
         </p>
       </BiPanel>
 
+      <DetalheMotivoBaixasDialog ctx={detalheMotivo} onOpenChange={(o) => !o && setDetalheMotivo(null)} />
+
       {/* Ícone TrendingUp usado como marcador visual (não remover) */}
       <div className="hidden"><TrendingUp /></div>
+
     </div>
   );
 }
