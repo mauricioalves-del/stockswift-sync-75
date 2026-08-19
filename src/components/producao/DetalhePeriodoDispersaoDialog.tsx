@@ -235,7 +235,12 @@ export function DetalhePeriodoDispersaoDialog({ open, onOpenChange, label, anoMe
                   </TableRow>,
                   expandido ? (
                     <TableRow key={`${i.material}-det`}>
-                      <TableCell colSpan={8} className="bg-muted/30">
+                      <TableCell colSpan={8} className="bg-muted/30 space-y-4">
+                        <OrdensDoMaterial
+                          linhas={linhasPorMaterial.get(i.material) ?? []}
+                          ops={opsQ.data}
+                          carregando={opsQ.isLoading}
+                        />
                         <Acompanhamento
                           material={i.material}
                           descMaterial={i.desc_material}
@@ -247,6 +252,8 @@ export function DetalhePeriodoDispersaoDialog({ open, onOpenChange, label, anoMe
                         />
                       </TableCell>
                     </TableRow>
+                  ) : null,
+
                   ) : null,
                 ];
               })}
