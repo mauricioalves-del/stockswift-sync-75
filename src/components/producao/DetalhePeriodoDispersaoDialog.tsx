@@ -123,7 +123,7 @@ export function DetalhePeriodoDispersaoDialog({ open, onOpenChange, label, anoMe
     [linhas],
   );
 
-  /** Dados das ordens de produção do período (consumo importado + cadastro de OP). */
+  /** Dados das ordens de produção do período (consumo importado + ficha técnica + cadastro de OP). */
   const opsQ = useQuery({
     queryKey: ["dispersao", "ops-periodo", opsPeriodo.length, opsPeriodo[0] ?? "", opsPeriodo[opsPeriodo.length - 1] ?? ""],
     enabled: open && opsPeriodo.length > 0,
@@ -132,46 +132,109 @@ export function DetalhePeriodoDispersaoDialog({ open, onOpenChange, label, anoMe
       const chunks: string[][] = [];
       for (let i = 0; i < opsPeriodo.length; i += 200) chunks.push(opsPeriodo.slice(i, i + 200));
 
+      // 1) Consumo importado: todas as linhas de cada OP (base real dos dados)
+      const consumoPorOp = new Map<string, any[]>();
       for (const chunk of chunks) {
-        const { data } = await (supabase as any)
-          .from("producao_consumo")
-          .select("id_op, produto, desc_produto, qtd_produzida, data_producao, ano_mes")
-          .in("id_op", chunk);
-        for (const r of (data ?? []) as any[]) {
-          const cur = map.get(r.id_op);
-          map.set(r.id_op, {
-            numero_op: r.id_op,
-            data: r.data_producao ?? cur?.data ?? null,
-            produto: r.produto ?? cur?.produto ?? null,
-            desc_produto: r.desc_produto ?? cur?.desc_produto ?? null,
-            qtd_prevista: cur?.qtd_prevista ?? null,
-            qtd_realizada: r.qtd_produzida != null ? Number(r.qtd_produzida) : (cur?.qtd_realizada ?? null),
-            almoxarifado: cur?.almoxarifado ?? null,
-            status: cur?.status ?? null,
-          });
+        const linhasOp = await fetchAll<any>((f, t) =>
+          (supabase as any)
+            .from("producao_consumo")
+            .select("id_op, produto, desc_produto, material, qtd_previsto, qtd_consumo, qtd_produzida, data_producao")
+            .in("id_op", chunk)
+            .order("id_op")
+            .range(f, t),
+        );
+        for (const r of linhasOp) {
+          const arr = consumoPorOp.get(r.id_op) ?? [];
+          arr.push(r);
+          consumoPorOp.set(r.id_op, arr);
         }
+      }
 
+      // 2) Ficha técnica dos produtos envolvidos → estimativa de quantidade produzida
+      const produtos = Array.from(
+        new Set(
+          Array.from(consumoPorOp.values())
+            .map((rows) => rows.find((r) => r.produto)?.produto)
+            .filter(Boolean),
+        ),
+      ) as string[];
+      const bom = new Map<string, number>(); // `${produto}|${material}` -> qtd por unidade
+      for (let i = 0; i < produtos.length; i += 100) {
+        const parte = produtos.slice(i, i + 100);
+        const rows = await fetchAll<any>((f, t) =>
+          (supabase as any)
+            .from("ficha_tecnica_bom")
+            .select("id_produto, id_item, qtd")
+            .in("id_produto", parte)
+            .order("id_produto")
+            .range(f, t),
+        );
+        for (const b of rows) {
+          const k = `${b.id_produto}|${b.id_item}`;
+          bom.set(k, (bom.get(k) ?? 0) + Number(b.qtd ?? 0));
+        }
+      }
+
+      for (const [idOp, rows] of consumoPorOp) {
+        const base = rows.find((r) => r.produto) ?? rows[0];
+        const produto = base?.produto ?? null;
+        const estimativas: number[] = [];
+        if (produto) {
+          for (const r of rows) {
+            const porUnidade = bom.get(`${produto}|${r.material}`);
+            const previsto = Number(r.qtd_previsto ?? 0);
+            if (porUnidade && porUnidade > 0 && previsto > 0) estimativas.push(previsto / porUnidade);
+          }
+        }
+        estimativas.sort((a, b) => a - b);
+        const mediana = estimativas.length
+          ? estimativas[Math.floor(estimativas.length / 2)]
+          : null;
+        const realizadaImportada = rows.map((r) => r.qtd_produzida).find((v) => v != null);
+
+        map.set(idOp, {
+          numero_op: idOp,
+          data: rows.map((r) => r.data_producao).find(Boolean) ?? null,
+          produto,
+          desc_produto: base?.desc_produto ?? null,
+          qtd_prevista: null,
+          qtd_realizada: realizadaImportada != null ? Number(realizadaImportada) : null,
+          qtd_estimada: mediana != null ? Number(mediana.toFixed(2)) : null,
+          almoxarifado: null,
+          status: null,
+          materiais: new Set(rows.map((r) => r.material)).size,
+          previsto_total: rows.reduce((s, r) => s + Number(r.qtd_previsto ?? 0), 0),
+          consumo_total: rows.reduce((s, r) => s + Number(r.qtd_consumo ?? 0), 0),
+          cadastrada: false,
+        });
+      }
+
+      // 3) Enriquecimento opcional com o cadastro de OPs do PCP (quando existir)
+      for (const chunk of chunks) {
         const { data: ops } = await (supabase as any)
           .from("ordens_producao")
           .select("numero_op, produto, desc_produto, quantidade_planejada, quantidade_produzida_real, almoxarifado_producao, status, data_planejada, data_conclusao_real")
           .in("numero_op", chunk);
         for (const o of (ops ?? []) as any[]) {
           const cur = map.get(o.numero_op);
+          if (!cur) continue;
           map.set(o.numero_op, {
-            numero_op: o.numero_op,
-            data: cur?.data ?? (o.data_conclusao_real ?? o.data_planejada ?? null),
-            produto: cur?.produto ?? o.produto ?? null,
-            desc_produto: cur?.desc_produto ?? o.desc_produto ?? null,
-            qtd_prevista: o.quantidade_planejada != null ? Number(o.quantidade_planejada) : (cur?.qtd_prevista ?? null),
-            qtd_realizada: o.quantidade_produzida_real != null ? Number(o.quantidade_produzida_real) : (cur?.qtd_realizada ?? null),
-            almoxarifado: o.almoxarifado_producao ?? null,
-            status: o.status ?? null,
+            ...cur,
+            data: cur.data ?? o.data_conclusao_real ?? o.data_planejada ?? null,
+            produto: cur.produto ?? o.produto ?? null,
+            desc_produto: cur.desc_produto ?? o.desc_produto ?? null,
+            qtd_prevista: o.quantidade_planejada != null ? Number(o.quantidade_planejada) : null,
+            qtd_realizada: o.quantidade_produzida_real != null ? Number(o.quantidade_produzida_real) : cur.qtd_realizada,
+            almoxarifado: o.almoxarifado_producao || null,
+            status: o.status || null,
+            cadastrada: true,
           });
         }
       }
       return map;
     },
   });
+
 
   const linhasPorMaterial = useMemo(() => {
     const map = new Map<string, LinhaPeriodo[]>();
