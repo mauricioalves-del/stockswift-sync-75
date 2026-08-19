@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { fmtBRL, STATUS_ACAO } from "@/lib/dispersao";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Factory, Plus } from "lucide-react";
 
 export type LinhaPeriodo = {
   id_op: string;
@@ -24,7 +24,26 @@ export type LinhaPeriodo = {
   impacto: number;
   mes: string;
   data: string | null;
+  produto?: string | null;
+  desc_produto?: string | null;
 };
+
+type OpInfo = {
+  numero_op: string;
+  data: string | null;
+  produto: string | null;
+  desc_produto: string | null;
+  qtd_prevista: number | null;
+  qtd_realizada: number | null;
+  almoxarifado: string | null;
+  status: string | null;
+};
+
+const fmtQtd = (v: number | null | undefined) =>
+  v == null ? "—" : Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+const fmtData = (d: string | null) =>
+  d ? d.slice(0, 10).split("-").reverse().join("/") : "—";
+
 
 type Props = {
   open: boolean;
@@ -89,12 +108,79 @@ export function DetalhePeriodoDispersaoDialog({ open, onOpenChange, label, anoMe
     return map;
   }, [acoesQ.data]);
 
+  const opsPeriodo = useMemo(
+    () => Array.from(new Set(linhas.map((l) => l.id_op).filter(Boolean))),
+    [linhas],
+  );
+
+  /** Dados das ordens de produção do período (consumo importado + cadastro de OP). */
+  const opsQ = useQuery({
+    queryKey: ["dispersao", "ops-periodo", opsPeriodo.length, opsPeriodo[0] ?? "", opsPeriodo[opsPeriodo.length - 1] ?? ""],
+    enabled: open && opsPeriodo.length > 0,
+    queryFn: async (): Promise<Map<string, OpInfo>> => {
+      const map = new Map<string, OpInfo>();
+      const chunks: string[][] = [];
+      for (let i = 0; i < opsPeriodo.length; i += 200) chunks.push(opsPeriodo.slice(i, i + 200));
+
+      for (const chunk of chunks) {
+        const { data } = await (supabase as any)
+          .from("producao_consumo")
+          .select("id_op, produto, desc_produto, qtd_produzida, data_producao, ano_mes")
+          .in("id_op", chunk);
+        for (const r of (data ?? []) as any[]) {
+          const cur = map.get(r.id_op);
+          map.set(r.id_op, {
+            numero_op: r.id_op,
+            data: r.data_producao ?? cur?.data ?? null,
+            produto: r.produto ?? cur?.produto ?? null,
+            desc_produto: r.desc_produto ?? cur?.desc_produto ?? null,
+            qtd_prevista: cur?.qtd_prevista ?? null,
+            qtd_realizada: r.qtd_produzida != null ? Number(r.qtd_produzida) : (cur?.qtd_realizada ?? null),
+            almoxarifado: cur?.almoxarifado ?? null,
+            status: cur?.status ?? null,
+          });
+        }
+
+        const { data: ops } = await (supabase as any)
+          .from("ordens_producao")
+          .select("numero_op, produto, desc_produto, quantidade_planejada, quantidade_produzida_real, almoxarifado_producao, status, data_planejada, data_conclusao_real")
+          .in("numero_op", chunk);
+        for (const o of (ops ?? []) as any[]) {
+          const cur = map.get(o.numero_op);
+          map.set(o.numero_op, {
+            numero_op: o.numero_op,
+            data: cur?.data ?? (o.data_conclusao_real ?? o.data_planejada ?? null),
+            produto: cur?.produto ?? o.produto ?? null,
+            desc_produto: cur?.desc_produto ?? o.desc_produto ?? null,
+            qtd_prevista: o.quantidade_planejada != null ? Number(o.quantidade_planejada) : (cur?.qtd_prevista ?? null),
+            qtd_realizada: o.quantidade_produzida_real != null ? Number(o.quantidade_produzida_real) : (cur?.qtd_realizada ?? null),
+            almoxarifado: o.almoxarifado_producao ?? null,
+            status: o.status ?? null,
+          });
+        }
+      }
+      return map;
+    },
+  });
+
+  const linhasPorMaterial = useMemo(() => {
+    const map = new Map<string, LinhaPeriodo[]>();
+    for (const l of linhas) {
+      const arr = map.get(l.material) ?? [];
+      arr.push(l);
+      map.set(l.material, arr);
+    }
+    return map;
+  }, [linhas]);
+
+
+
   const totalPerda = itens.reduce((s, i) => s + (i.impacto > 0 ? i.impacto : 0), 0);
   const totalEconomia = itens.reduce((s, i) => s + (i.impacto < 0 ? -i.impacto : 0), 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[88vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Detalhe do período · {label}</DialogTitle>
         </DialogHeader>
@@ -149,7 +235,12 @@ export function DetalhePeriodoDispersaoDialog({ open, onOpenChange, label, anoMe
                   </TableRow>,
                   expandido ? (
                     <TableRow key={`${i.material}-det`}>
-                      <TableCell colSpan={8} className="bg-muted/30">
+                      <TableCell colSpan={8} className="bg-muted/30 space-y-4">
+                        <OrdensDoMaterial
+                          linhas={linhasPorMaterial.get(i.material) ?? []}
+                          ops={opsQ.data}
+                          carregando={opsQ.isLoading}
+                        />
                         <Acompanhamento
                           material={i.material}
                           descMaterial={i.desc_material}
@@ -281,6 +372,87 @@ function Acompanhamento({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Ordens de produção ligadas ao material no período, com dados da OP. */
+function OrdensDoMaterial({
+  linhas, ops, carregando,
+}: {
+  linhas: LinhaPeriodo[];
+  ops?: Map<string, OpInfo>;
+  carregando: boolean;
+}) {
+  const rows = useMemo(() => {
+    const map = new Map<string, LinhaPeriodo & { chaveData: string | null }>();
+    for (const l of linhas) {
+      const cur = map.get(l.id_op);
+      if (!cur) { map.set(l.id_op, { ...l, chaveData: l.data }); continue; }
+      cur.qtd_previsto += Number(l.qtd_previsto ?? 0);
+      cur.qtd_consumo += Number(l.qtd_consumo ?? 0);
+      cur.qtd_dif += Number(l.qtd_dif ?? 0);
+      cur.impacto += Number(l.impacto ?? 0);
+    }
+    return Array.from(map.values()).sort((a, b) => Math.abs(b.impacto) - Math.abs(a.impacto));
+  }, [linhas]);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-xs font-medium">
+        <Factory className="size-4" />
+        Ordens de produção ({rows.length})
+        {carregando && <span className="text-muted-foreground">carregando dados das OPs…</span>}
+      </div>
+      <div className="rounded-md border bg-background">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>OP</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead>Produto</TableHead>
+              <TableHead>Almoxarifado</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Qtd. prevista (OP)</TableHead>
+              <TableHead className="text-right">Qtd. realizada (OP)</TableHead>
+              <TableHead className="text-right">Previsto (mat.)</TableHead>
+              <TableHead className="text-right">Consumo (mat.)</TableHead>
+              <TableHead className="text-right">Dif.</TableHead>
+              <TableHead className="text-right">Impacto (R$)</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => {
+              const op = ops?.get(r.id_op);
+              return (
+                <TableRow key={r.id_op}>
+                  <TableCell className="text-xs font-medium">{r.id_op}</TableCell>
+                  <TableCell className="text-xs">{fmtData(op?.data ?? r.data)}</TableCell>
+                  <TableCell className="text-xs">
+                    <div>{op?.produto ?? r.produto ?? "—"}</div>
+                    <div className="text-muted-foreground">{op?.desc_produto ?? r.desc_produto ?? ""}</div>
+                  </TableCell>
+                  <TableCell className="text-xs">{op?.almoxarifado ?? "—"}</TableCell>
+                  <TableCell className="text-xs">
+                    {op?.status ? <Badge variant="outline">{op.status}</Badge> : <span className="text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(op?.qtd_prevista)}</TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(op?.qtd_realizada)}</TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(r.qtd_previsto)}</TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(r.qtd_consumo)}</TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{fmtQtd(r.qtd_dif)}</TableCell>
+                  <TableCell className={`text-right text-xs tabular-nums font-medium ${r.impacto > 0 ? "text-destructive" : "text-success"}`}>
+                    {fmtBRL(r.impacto)}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {rows.length === 0 && (
+              <TableRow><TableCell colSpan={11} className="py-4 text-center text-xs text-muted-foreground">Sem OPs para este material.</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
