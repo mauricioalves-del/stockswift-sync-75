@@ -48,6 +48,7 @@ function MapeamentoRisco() {
   const campanhas = useCampanhas();
   const [f, setF] = usePersistedState<FiltrosRisco>("shelf-life:risco:filtros", FILTROS_PADRAO);
   const [draft, setDraft] = useState<CampanhaDraft | null>(null);
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "valor", dir: "desc" });
 
   const set = <K extends keyof FiltrosRisco>(k: K, v: FiltrosRisco[K]) => setF((p) => ({ ...p, [k]: v }));
 
