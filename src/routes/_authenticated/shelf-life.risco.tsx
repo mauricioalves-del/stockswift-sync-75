@@ -84,6 +84,22 @@ function MapeamentoRisco() {
     });
   }, [rows, f, idx]);
 
+  const ordenadas = useMemo(() => {
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...filtradas].sort((a, b) => {
+      const va = a[sort.key], vb = b[sort.key];
+      if (sort.key === "dias" || sort.key === "valor" || sort.key === "quantidade") {
+        const na = va == null ? Number.NEGATIVE_INFINITY : Number(va);
+        const nb = vb == null ? Number.NEGATIVE_INFINITY : Number(vb);
+        if (Number.isNaN(na) && Number.isNaN(nb)) return 0;
+        if (Number.isNaN(na)) return 1 * dir;
+        if (Number.isNaN(nb)) return -1 * dir;
+        return (na - nb) * dir;
+      }
+      return String(va ?? "").localeCompare(String(vb ?? "")) * dir;
+    });
+  }, [filtradas, sort]);
+
   const kpis = useMemo(() => {
     const base = filtradas;
     const soma = (fn: (x: Faixa) => boolean) => base.filter((r) => fn(r.faixa)).reduce((s, r) => s + r.valor, 0);
