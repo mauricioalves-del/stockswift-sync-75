@@ -599,6 +599,7 @@ function FilaAprovacao() {
   const { data } = useBaixas(["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO", "AGUARDANDO_ADMIN"]);
   const [enviandoFiscal, setEnviandoFiscal] = useState(false);
   const [avisoFiscal, setAvisoFiscal] = useState<{ code?: string; message: string } | null>(null);
+  const [fCodigo, setFCodigo] = useState("");
   const [fAlmox, setFAlmox] = useState("__all__");
   const [fSolic, setFSolic] = useState("__all__");
   const [fMotivo, setFMotivo] = useState("__all__");
@@ -651,12 +652,18 @@ function FilaAprovacao() {
         if (fAlmox !== "__all__" && (b.id_local ?? "") !== fAlmox) return false;
         if (fSolic !== "__all__" && nomeSolicitante(b) !== fSolic) return false;
         if (fMotivo !== "__all__" && (b.motivo?.descricao ?? "") !== fMotivo) return false;
+        if (fCodigo.trim()) {
+          const termo = fCodigo.trim().toLowerCase();
+          const cod = String(b.codigo_produto ?? "").toLowerCase();
+          const desc = String(b.descricao ?? "").toLowerCase();
+          if (!cod.includes(termo) && !desc.includes(termo)) return false;
+        }
         return true;
       }),
-    [data, fAlmox, fSolic, fMotivo, perfilMap],
+    [data, fAlmox, fSolic, fMotivo, fCodigo, perfilMap],
   );
 
-  const temFiltro = fAlmox !== "__all__" || fSolic !== "__all__" || fMotivo !== "__all__";
+  const temFiltro = fAlmox !== "__all__" || fSolic !== "__all__" || fMotivo !== "__all__" || fCodigo.trim().length > 0;
 
   // ---- seleção em lote -------------------------------------------------
   const listaIds = useMemo(() => lista.map((b: any) => String(b.id)), [lista]);
@@ -952,7 +959,13 @@ function FilaAprovacao() {
         </>
       )}
       <Card>
-        <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+          <Input
+            placeholder="Buscar por código ou descrição..."
+            value={fCodigo}
+            onChange={(e) => setFCodigo(e.target.value)}
+            className="h-10"
+          />
           <Select value={fAlmox} onValueChange={setFAlmox}>
             <SelectTrigger><SelectValue placeholder="Almoxarifado" /></SelectTrigger>
             <SelectContent>
@@ -978,7 +991,7 @@ function FilaAprovacao() {
             <Button
               variant="outline"
               disabled={!temFiltro}
-              onClick={() => { setFAlmox("__all__"); setFSolic("__all__"); setFMotivo("__all__"); }}
+              onClick={() => { setFCodigo(""); setFAlmox("__all__"); setFSolic("__all__"); setFMotivo("__all__"); }}
             >
               Limpar filtros
             </Button>
