@@ -15,7 +15,7 @@ import { chaveLote } from "@/lib/shelf-life";
 import { ConfigFiltrosCard } from "@/components/shelf-life/ConfigFiltrosCard";
 import { usePersistedState, useShelfConfig } from "@/hooks/useFiltrosShelfLife";
 import { CampanhaDialog, type CampanhaDraft } from "@/components/shelf-life/CampanhaDialog";
-import { AlertTriangle, CalendarClock, Download, HelpCircle, Plus } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, CalendarClock, ChevronsUpDown, Download, HelpCircle, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/shelf-life/risco")({
   component: MapeamentoRisco,
