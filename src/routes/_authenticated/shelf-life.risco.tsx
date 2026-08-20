@@ -216,7 +216,7 @@ function MapeamentoRisco() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtradas.slice(0, 500).map((r, i) => {
+                {ordenadas.slice(0, 500).map((r, i) => {
                   const acoes = idx.get(chaveLote(r.sku, r.lote)) ?? [];
                   return (
                     <TableRow key={`${r.sku}-${r.lote}-${r.almoxarifado}-${i}`}>
