@@ -30,6 +30,8 @@ import {
 } from "@/lib/shelf-life-financeiro";
 import { RotateCcw } from "lucide-react";
 import { dataDaBaixa, formatarDataBR } from "@/lib/shelf-life-recalculo";
+import { useUsuariosSistema } from "@/hooks/useUsuariosSistema";
+import { notificarTarefaAtribuida } from "@/lib/tarefa-email.functions";
 
 
 export type CampanhaDraft = Partial<CampanhaRow> & {
@@ -52,6 +54,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
   const podeVincular = isAdmin || role === "COORDENADOR_CONTROLE";
   const podeRecalcular = podeVincular;
 
+  const usuarios = useUsuariosSistema();
   const precos = usePrecoVendaPorSku();
   const paramDesc = useParametroDesconto();
 
@@ -79,6 +82,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       saving_recuperado: (draft as any).saving_recuperado ?? 0,
       status_original: draft.status ?? "PLANEJADA",
       responsavel: draft.responsavel ?? "",
+      responsavel_id: "",
       data_acao: draft.data_acao ?? new Date().toISOString().slice(0, 10),
       status: draft.status ?? "PLANEJADA",
       observacao: draft.observacao ?? "",
@@ -224,12 +228,47 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
 
       const valorAnterior = Number(form.valor_recuperado) || 0;
 
+      let tarefaCriada: { ok: boolean; email?: string | null } | null = null;
+
       if (form.id) {
         const { error } = await (supabase as any).from("campanhas_lote").update(payload).eq("id", form.id);
         if (error) throw error;
       } else {
-        const { error } = await (supabase as any).from("campanhas_lote").insert({ ...payload, criado_por: uid });
+        const { data: nova, error } = await (supabase as any)
+          .from("campanhas_lote").insert({ ...payload, criado_por: uid }).select("id").single();
         if (error) throw error;
+
+        // Atribuição: gera pendência em Tarefas para o usuário responsável.
+        const respId = form.responsavel_id || null;
+        if (respId) {
+          const resp = (usuarios.data ?? []).find((u) => u.id === respId);
+          const { data: tarefa, error: errTarefa } = await (supabase as any)
+            .from("tarefas_operacionais")
+            .insert({
+              titulo: `Ação de lote: ${tipoSel?.nome ?? "Shelf Life"} — ${payload.sku}`,
+              descricao: `${payload.descricao ?? payload.sku} · Lote ${payload.lote || "—"} · ${payload.quantidade_enderecada} un` +
+                (payload.almoxarifado ? ` · ${payload.almoxarifado}` : ""),
+              prioridade: "Alta",
+              data_prevista: payload.data_acao,
+              recorrencia: "Unica",
+              responsavel_tipo: "Pessoa",
+              responsavel_id: respId,
+              responsavel_label: resp?.nome ?? null,
+              sku_ou_local: payload.sku,
+              status: "Pendente",
+              criado_por: uid,
+            })
+            .select("id")
+            .single();
+          if (errTarefa) throw errTarefa;
+
+          try {
+            const r: any = await notificarTarefaAtribuida({ data: { tarefaId: (tarefa as any).id } });
+            tarefaCriada = { ok: !!r?.ok, email: resp?.email ?? null };
+          } catch {
+            tarefaCriada = { ok: false, email: resp?.email ?? null };
+          }
+        }
       }
 
       if (forcarRecalculo && form.id) {
@@ -261,11 +300,18 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
         );
       }
 
+      return tarefaCriada;
     },
-    onSuccess: async () => {
+    onSuccess: async (tarefaCriada) => {
       toast.success(form.id ? "Ação atualizada." : "Ação criada.");
+      if (tarefaCriada) {
+        if (tarefaCriada.ok) toast.success(`Tarefa atribuída e e-mail enviado para ${tarefaCriada.email ?? "o responsável"}.`);
+        else toast.warning("Tarefa atribuída, mas o e-mail de notificação não pôde ser enviado.");
+      }
       qc.invalidateQueries({ queryKey: ["shelf-campanhas"] });
       qc.invalidateQueries({ queryKey: ["precos-venda"] });
+      qc.invalidateQueries({ queryKey: ["minhas-tarefas-pendentes"] });
+      qc.invalidateQueries({ queryKey: ["minhas_tarefas"] });
       onOpenChange(false);
     },
     onError: (e: any) => toast.error(e.message ?? "Falha ao salvar a ação."),
@@ -504,7 +550,27 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
 
           <div>
             <Label>Responsável</Label>
-            <Input value={form.responsavel ?? ""} onChange={(e) => set("responsavel", e.target.value)} />
+            <Select
+              value={form.responsavel_id || "__none__"}
+              onValueChange={(v) => {
+                if (v === "__none__") { set("responsavel_id", ""); return; }
+                const u = (usuarios.data ?? []).find((x) => x.id === v);
+                setForm((f: any) => ({ ...f, responsavel_id: v, responsavel: u?.nome ?? f.responsavel }));
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder={form.responsavel || "Selecione o usuário"} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Sem responsável</SelectItem>
+                {(usuarios.data ?? []).map((u) => (
+                  <SelectItem key={u.id} value={u.id}>{u.nome}{u.email ? ` · ${u.email}` : ""}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!form.id && form.responsavel_id && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Ao salvar, uma pendência será criada em Tarefas e o usuário receberá um e-mail.
+              </p>
+            )}
           </div>
           <div>
             <Label>Data da ação</Label>
