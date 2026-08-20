@@ -142,7 +142,7 @@ function BaixasDashboard() {
       const desde = isoDaysAgo(365);
       const { data } = await supabase
         .from("baixa_operacional")
-        .select("valor_total, data_solicitacao")
+        .select("valor_total, data_solicitacao, motivo_baixa_id")
         .gte("data_solicitacao", new Date(desde + "T00:00:00").toISOString())
         .limit(50000);
       return data ?? [];
@@ -331,19 +331,43 @@ function BaixasDashboard() {
 
   const mom = useMemo(() => {
     const rows = momQ.data ?? [];
-    const map = new Map<string, number>();
-    rows.forEach((r) => {
+    const nomeMotivo = new Map((motivosQ.data ?? []).map((m: any) => [m.id, m.descricao as string]));
+
+    // Total por mês e por motivo
+    const porMes = new Map<string, Map<string, number>>();
+    const totalMotivo = new Map<string, number>();
+    rows.forEach((r: any) => {
       const k = monthKey(String(r.data_solicitacao));
-      map.set(k, (map.get(k) ?? 0) + Number(r.valor_total || 0));
+      const nome = (r.motivo_baixa_id ? nomeMotivo.get(r.motivo_baixa_id) : null) ?? "Sem motivo";
+      const v = Number(r.valor_total || 0);
+      const m = porMes.get(k) ?? new Map<string, number>();
+      m.set(nome, (m.get(nome) ?? 0) + v);
+      porMes.set(k, m);
+      totalMotivo.set(nome, (totalMotivo.get(nome) ?? 0) + v);
     });
-    const arr = [...map.entries()].sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, v]) => ({ mes: fmtMonth(k), total: v }));
-    return arr.map((r, i) => {
+
+    const motivos = [...totalMotivo.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([nome], i) => ({ nome, cor: PALETTE[i % PALETTE.length] }));
+
+    const arr = [...porMes.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, m]) => {
+      const row: any = { mes: fmtMonth(k), total: 0 };
+      motivos.forEach(({ nome }) => {
+        const v = m.get(nome) ?? 0;
+        row[nome] = v;
+        row.total += v;
+      });
+      return row;
+    });
+
+    const data = arr.map((r, i) => {
       const prev = i > 0 ? arr[i - 1].total : 0;
       const variacaoPct = i === 0 ? null : prev === 0 ? (r.total > 0 ? 100 : 0) : ((r.total - prev) / prev) * 100;
       return { ...r, variacaoPct };
     });
-  }, [momQ.data]);
+
+    return { data, motivos };
+  }, [momQ.data, motivosQ.data]);
 
 
   const loading = baixasQ.isLoading || motivosQ.isLoading;
@@ -668,7 +692,7 @@ function BaixasDashboard() {
       {/* MoM — colunas de total + linha de variação % vs mês anterior */}
       <BiPanel title="MoM — Mês vs Mês Anterior">
         <ResponsiveContainer width="100%" height={360}>
-          <ComposedChart data={mom} margin={{ top: 26, left: 30, right: 40, bottom: 10 }}>
+          <ComposedChart data={mom.data} margin={{ top: 26, left: 30, right: 40, bottom: 10 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
             <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Mês", position: "insideBottom", offset: -4, fill: "#94a3b8", fontSize: 11 }} />
             <YAxis yAxisId="left" tickFormatter={(v) => fmtMil(Number(v))} tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Total Baixas (R$ Mil)", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }} />
@@ -677,13 +701,26 @@ function BaixasDashboard() {
               contentStyle={{ background: "#0f172a", border: "1px solid #334155" }}
               formatter={(v: number, name: string) => {
                 if (name === "Variação %") return v == null ? ["—", name] : [`${v.toFixed(1)}%`, name];
+                if (!v) return [null as any, null as any];
                 return [formatBRL(v), name];
               }}
             />
             <Legend wrapperStyle={{ fontSize: 11, color: "#cbd5e1" }} />
-            <Bar yAxisId="left" dataKey="total" name="Total Baixas" fill="#4FC3F7" radius={[3, 3, 0, 0]}>
-              <LabelList dataKey="total" position="top" formatter={(v: number) => fmtMil(v)} style={{ fontSize: 10, fill: "#e2e8f0" }} />
-            </Bar>
+            {mom.motivos.map((m, i) => (
+              <Bar
+                key={m.nome}
+                yAxisId="left"
+                dataKey={m.nome}
+                name={m.nome}
+                stackId="motivos"
+                fill={m.cor}
+                radius={i === mom.motivos.length - 1 ? [3, 3, 0, 0] : undefined}
+              >
+                {i === mom.motivos.length - 1 && (
+                  <LabelList dataKey="total" position="top" formatter={(v: number) => fmtMil(v)} style={{ fontSize: 10, fill: "#e2e8f0" }} />
+                )}
+              </Bar>
+            ))}
             <Line
               yAxisId="right"
               type="monotone"
@@ -709,7 +746,7 @@ function BaixasDashboard() {
           </ComposedChart>
         </ResponsiveContainer>
         <p className="text-xs text-slate-400 mt-2">
-          Linha indica evolução (▲ vermelho = aumento de baixas / involução) ou involução (▼ verde = redução / evolução positiva) em pontos percentuais vs mês anterior.
+          Barras empilhadas por motivo de baixa. Linha indica evolução (▲ vermelho = aumento de baixas / involução) ou involução (▼ verde = redução / evolução positiva) em pontos percentuais vs mês anterior.
         </p>
       </BiPanel>
 
