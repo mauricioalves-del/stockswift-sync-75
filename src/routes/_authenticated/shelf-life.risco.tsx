@@ -262,9 +262,38 @@ function MapeamentoRisco() {
   );
 }
 
-function SortHeader({ k, label, align }: { k: SortKey; label: string; align?: "right" }) {
-  const sort = { key: "valor", dir: "desc" } as { key: SortKey; dir: "asc" | "desc" }; // placeholder — real state comes via closure? No, must lift.
-  return null;
+function SortHeader({
+  k,
+  label,
+  align,
+  sort,
+  setSort,
+}: {
+  k: SortKey;
+  label: string;
+  align?: "right";
+  sort: { key: SortKey; dir: "asc" | "desc" };
+  setSort: (s: { key: SortKey; dir: "asc" | "desc" }) => void;
+}) {
+  const Icon = sort.key !== k ? (
+    <ChevronsUpDown className="size-3 opacity-40" />
+  ) : sort.dir === "asc" ? (
+    <ArrowUp className="size-3" />
+  ) : (
+    <ArrowDown className="size-3" />
+  );
+  return (
+    <TableHead className={align === "right" ? "text-right" : undefined}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className={`h-7 px-1 gap-1 text-xs ${align === "right" ? "ml-auto" : ""}`}
+        onClick={() => setSort({ key: k, dir: sort.key === k && sort.dir === "asc" ? "desc" : "asc" })}
+      >
+        {label} {Icon}
+      </Button>
+    </TableHead>
+  );
 }
 
 function FiltroMulti({ label, value, onChange, options }: { label: string; value: string[]; onChange: (v: string[]) => void; options: string[] }) {
