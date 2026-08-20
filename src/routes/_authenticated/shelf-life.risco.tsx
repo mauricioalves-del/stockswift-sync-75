@@ -40,6 +40,8 @@ type FiltrosRisco = {
 
 const FILTROS_PADRAO: FiltrosRisco = { almox: [], grupos: [], familias: [], faixas: [], acao: [], busca: "" };
 
+type SortKey = "dias" | "valor" | "quantidade" | "sku" | "descricao" | "lote" | "almoxarifado" | "data_validade";
+
 function MapeamentoRisco() {
   const { almoxAtivos, somenteComSaldo } = useShelfConfig();
   const lotes = useLotesRisco({ almoxAtivos, somenteComSaldo });
