@@ -599,6 +599,7 @@ function FilaAprovacao() {
   const { data } = useBaixas(["PENDENTE", "ANALISE", "AJUSTE_SOLICITADO", "AGUARDANDO_ADMIN"]);
   const [enviandoFiscal, setEnviandoFiscal] = useState(false);
   const [avisoFiscal, setAvisoFiscal] = useState<{ code?: string; message: string } | null>(null);
+  const [fCodigo, setFCodigo] = useState("");
   const [fAlmox, setFAlmox] = useState("__all__");
   const [fSolic, setFSolic] = useState("__all__");
   const [fMotivo, setFMotivo] = useState("__all__");
