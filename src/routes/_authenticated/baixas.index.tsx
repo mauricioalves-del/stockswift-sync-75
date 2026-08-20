@@ -959,7 +959,13 @@ function FilaAprovacao() {
         </>
       )}
       <Card>
-        <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+          <Input
+            placeholder="Buscar por código ou descrição..."
+            value={fCodigo}
+            onChange={(e) => setFCodigo(e.target.value)}
+            className="h-10"
+          />
           <Select value={fAlmox} onValueChange={setFAlmox}>
             <SelectTrigger><SelectValue placeholder="Almoxarifado" /></SelectTrigger>
             <SelectContent>
@@ -985,7 +991,7 @@ function FilaAprovacao() {
             <Button
               variant="outline"
               disabled={!temFiltro}
-              onClick={() => { setFAlmox("__all__"); setFSolic("__all__"); setFMotivo("__all__"); }}
+              onClick={() => { setFCodigo(""); setFAlmox("__all__"); setFSolic("__all__"); setFMotivo("__all__"); }}
             >
               Limpar filtros
             </Button>
