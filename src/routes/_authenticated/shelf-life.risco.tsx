@@ -262,6 +262,11 @@ function MapeamentoRisco() {
   );
 }
 
+function SortHeader({ k, label, align }: { k: SortKey; label: string; align?: "right" }) {
+  const sort = { key: "valor", dir: "desc" } as { key: SortKey; dir: "asc" | "desc" }; // placeholder — real state comes via closure? No, must lift.
+  return null;
+}
+
 function FiltroMulti({ label, value, onChange, options }: { label: string; value: string[]; onChange: (v: string[]) => void; options: string[] }) {
   return (
     <div>
