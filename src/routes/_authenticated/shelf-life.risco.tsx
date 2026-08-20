@@ -202,14 +202,14 @@ function MapeamentoRisco() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <SortHeader k="sku" label="SKU" />
-                  <SortHeader k="descricao" label="Produto" />
-                  <SortHeader k="lote" label="Lote" />
-                  <SortHeader k="almoxarifado" label="Almox" />
-                  <SortHeader k="data_validade" label="Validade" />
-                  <SortHeader k="dias" label="Dias" align="right" />
-                  <SortHeader k="quantidade" label="Qtd" align="right" />
-                  <SortHeader k="valor" label="Valor" align="right" />
+                  <SortHeader k="sku" label="SKU" sort={sort} setSort={setSort} />
+                  <SortHeader k="descricao" label="Produto" sort={sort} setSort={setSort} />
+                  <SortHeader k="lote" label="Lote" sort={sort} setSort={setSort} />
+                  <SortHeader k="almoxarifado" label="Almox" sort={sort} setSort={setSort} />
+                  <SortHeader k="data_validade" label="Validade" sort={sort} setSort={setSort} />
+                  <SortHeader k="dias" label="Dias" align="right" sort={sort} setSort={setSort} />
+                  <SortHeader k="quantidade" label="Qtd" align="right" sort={sort} setSort={setSort} />
+                  <SortHeader k="valor" label="Valor" align="right" sort={sort} setSort={setSort} />
                   <TableHead>Faixa</TableHead>
                   <TableHead>Ação Vinculada</TableHead>
                   <TableHead />
