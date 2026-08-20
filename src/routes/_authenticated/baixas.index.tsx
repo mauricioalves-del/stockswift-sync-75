@@ -652,12 +652,18 @@ function FilaAprovacao() {
         if (fAlmox !== "__all__" && (b.id_local ?? "") !== fAlmox) return false;
         if (fSolic !== "__all__" && nomeSolicitante(b) !== fSolic) return false;
         if (fMotivo !== "__all__" && (b.motivo?.descricao ?? "") !== fMotivo) return false;
+        if (fCodigo.trim()) {
+          const termo = fCodigo.trim().toLowerCase();
+          const cod = String(b.codigo_produto ?? "").toLowerCase();
+          const desc = String(b.descricao ?? "").toLowerCase();
+          if (!cod.includes(termo) && !desc.includes(termo)) return false;
+        }
         return true;
       }),
-    [data, fAlmox, fSolic, fMotivo, perfilMap],
+    [data, fAlmox, fSolic, fMotivo, fCodigo, perfilMap],
   );
 
-  const temFiltro = fAlmox !== "__all__" || fSolic !== "__all__" || fMotivo !== "__all__";
+  const temFiltro = fAlmox !== "__all__" || fSolic !== "__all__" || fMotivo !== "__all__" || fCodigo.trim().length > 0;
 
   // ---- seleção em lote -------------------------------------------------
   const listaIds = useMemo(() => lista.map((b: any) => String(b.id)), [lista]);
