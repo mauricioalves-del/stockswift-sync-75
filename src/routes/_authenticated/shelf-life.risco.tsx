@@ -15,7 +15,7 @@ import { chaveLote } from "@/lib/shelf-life";
 import { ConfigFiltrosCard } from "@/components/shelf-life/ConfigFiltrosCard";
 import { usePersistedState, useShelfConfig } from "@/hooks/useFiltrosShelfLife";
 import { CampanhaDialog, type CampanhaDraft } from "@/components/shelf-life/CampanhaDialog";
-import { AlertTriangle, CalendarClock, Download, HelpCircle, Plus } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, CalendarClock, ChevronsUpDown, Download, HelpCircle, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/shelf-life/risco")({
   component: MapeamentoRisco,
@@ -40,12 +40,15 @@ type FiltrosRisco = {
 
 const FILTROS_PADRAO: FiltrosRisco = { almox: [], grupos: [], familias: [], faixas: [], acao: [], busca: "" };
 
+type SortKey = "dias" | "valor" | "quantidade" | "sku" | "descricao" | "lote" | "almoxarifado" | "data_validade";
+
 function MapeamentoRisco() {
   const { almoxAtivos, somenteComSaldo } = useShelfConfig();
   const lotes = useLotesRisco({ almoxAtivos, somenteComSaldo });
   const campanhas = useCampanhas();
   const [f, setF] = usePersistedState<FiltrosRisco>("shelf-life:risco:filtros", FILTROS_PADRAO);
   const [draft, setDraft] = useState<CampanhaDraft | null>(null);
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "valor", dir: "desc" });
 
   const set = <K extends keyof FiltrosRisco>(k: K, v: FiltrosRisco[K]) => setF((p) => ({ ...p, [k]: v }));
 
@@ -80,6 +83,22 @@ function MapeamentoRisco() {
       return true;
     });
   }, [rows, f, idx]);
+
+  const ordenadas = useMemo(() => {
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...filtradas].sort((a, b) => {
+      const va = a[sort.key], vb = b[sort.key];
+      if (sort.key === "dias" || sort.key === "valor" || sort.key === "quantidade") {
+        const na = va == null ? Number.NEGATIVE_INFINITY : Number(va);
+        const nb = vb == null ? Number.NEGATIVE_INFINITY : Number(vb);
+        if (Number.isNaN(na) && Number.isNaN(nb)) return 0;
+        if (Number.isNaN(na)) return 1 * dir;
+        if (Number.isNaN(nb)) return -1 * dir;
+        return (na - nb) * dir;
+      }
+      return String(va ?? "").localeCompare(String(vb ?? "")) * dir;
+    });
+  }, [filtradas, sort]);
 
   const kpis = useMemo(() => {
     const base = filtradas;
@@ -183,21 +202,21 @@ function MapeamentoRisco() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>Lote</TableHead>
-                  <TableHead>Almox</TableHead>
-                  <TableHead>Validade</TableHead>
-                  <TableHead className="text-right">Dias</TableHead>
-                  <TableHead className="text-right">Qtd</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+                  <SortHeader k="sku" label="SKU" sort={sort} setSort={setSort} />
+                  <SortHeader k="descricao" label="Produto" sort={sort} setSort={setSort} />
+                  <SortHeader k="lote" label="Lote" sort={sort} setSort={setSort} />
+                  <SortHeader k="almoxarifado" label="Almox" sort={sort} setSort={setSort} />
+                  <SortHeader k="data_validade" label="Validade" sort={sort} setSort={setSort} />
+                  <SortHeader k="dias" label="Dias" align="right" sort={sort} setSort={setSort} />
+                  <SortHeader k="quantidade" label="Qtd" align="right" sort={sort} setSort={setSort} />
+                  <SortHeader k="valor" label="Valor" align="right" sort={sort} setSort={setSort} />
                   <TableHead>Faixa</TableHead>
                   <TableHead>Ação Vinculada</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtradas.slice(0, 500).map((r, i) => {
+                {ordenadas.slice(0, 500).map((r, i) => {
                   const acoes = idx.get(chaveLote(r.sku, r.lote)) ?? [];
                   return (
                     <TableRow key={`${r.sku}-${r.lote}-${r.almoxarifado}-${i}`}>
@@ -240,6 +259,40 @@ function MapeamentoRisco() {
 
       <CampanhaDialog open={!!draft} onOpenChange={(v) => !v && setDraft(null)} draft={draft} />
     </div>
+  );
+}
+
+function SortHeader({
+  k,
+  label,
+  align,
+  sort,
+  setSort,
+}: {
+  k: SortKey;
+  label: string;
+  align?: "right";
+  sort: { key: SortKey; dir: "asc" | "desc" };
+  setSort: (s: { key: SortKey; dir: "asc" | "desc" }) => void;
+}) {
+  const Icon = sort.key !== k ? (
+    <ChevronsUpDown className="size-3 opacity-40" />
+  ) : sort.dir === "asc" ? (
+    <ArrowUp className="size-3" />
+  ) : (
+    <ArrowDown className="size-3" />
+  );
+  return (
+    <TableHead className={align === "right" ? "text-right" : undefined}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className={`h-7 px-1 gap-1 text-xs ${align === "right" ? "ml-auto" : ""}`}
+        onClick={() => setSort({ key: k, dir: sort.key === k && sort.dir === "asc" ? "desc" : "asc" })}
+      >
+        {label} {Icon}
+      </Button>
+    </TableHead>
   );
 }
 
