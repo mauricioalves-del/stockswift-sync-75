@@ -6,7 +6,7 @@ import {
   Sun, Moon, Wifi, WifiOff, RefreshCw, Layers, FolderTree, Package, BarChart3,
   Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp, Warehouse, Mail,
   Compass, Sparkles, Settings2, Boxes, Truck, AlertTriangle, PanelLeftClose, PanelLeftOpen,
-  Factory, GitCompareArrows, CalendarClock,
+  Factory, GitCompareArrows, CalendarClock, Bell,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -138,6 +138,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const qc = useQueryClient();
 
+  const tarefasQ = useQuery({
+    queryKey: ["minhas-tarefas-pendentes"],
+    queryFn: async () => {
+      const uid = (await supabase.auth.getUser()).data.user?.id;
+      if (!uid) return 0;
+      const { count } = await (supabase as any)
+        .from("tarefas_operacionais")
+        .select("id", { count: "exact", head: true })
+        .eq("responsavel_id", uid)
+        .in("status", ["Pendente", "EmAndamento", "Atrasada"]);
+      return count ?? 0;
+    },
+    refetchInterval: 60000,
+  });
+
   const pendingQ = useQuery({
     queryKey: ["pending-counts"],
     queryFn: async () => (await listPendingCounts()).length,
@@ -250,6 +265,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
 
             <div className="ml-auto flex items-center gap-2">
+              <Link to="/gestao/minhas-tarefas" title="Minhas tarefas pendentes">
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="size-5" />
+                  {(tarefasQ.data ?? 0) > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                      {(tarefasQ.data ?? 0) > 99 ? "99+" : tarefasQ.data}
+                    </span>
+                  )}
+                </Button>
+              </Link>
               {(pendingQ.data ?? 0) > 0 && (
                 <Button size="sm" variant="outline" onClick={async () => { await syncPendingCounts(); qc.invalidateQueries(); }} disabled={!online} className="gap-1.5">
                   <RefreshCw className="size-3.5" /> Sincronizar
