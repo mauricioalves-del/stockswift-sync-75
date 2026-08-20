@@ -202,14 +202,14 @@ function MapeamentoRisco() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>Lote</TableHead>
-                  <TableHead>Almox</TableHead>
-                  <TableHead>Validade</TableHead>
-                  <TableHead className="text-right">Dias</TableHead>
-                  <TableHead className="text-right">Qtd</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+                  <SortHeader k="sku" label="SKU" />
+                  <SortHeader k="descricao" label="Produto" />
+                  <SortHeader k="lote" label="Lote" />
+                  <SortHeader k="almoxarifado" label="Almox" />
+                  <SortHeader k="data_validade" label="Validade" />
+                  <SortHeader k="dias" label="Dias" align="right" />
+                  <SortHeader k="quantidade" label="Qtd" align="right" />
+                  <SortHeader k="valor" label="Valor" align="right" />
                   <TableHead>Faixa</TableHead>
                   <TableHead>Ação Vinculada</TableHead>
                   <TableHead />
