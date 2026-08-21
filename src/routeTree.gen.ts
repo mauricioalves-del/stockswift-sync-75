@@ -60,6 +60,7 @@ import { Route as AuthenticatedAbastecimentoParametrosRouteImport } from './rout
 import { Route as AuthenticatedAbastecimentoDemandasRouteImport } from './routes/_authenticated/abastecimento.demandas'
 import { Route as AuthenticatedAbastecimentoConsumoRouteImport } from './routes/_authenticated/abastecimento.consumo'
 import { Route as AuthenticatedSuprimentosRequisicoesIndexRouteImport } from './routes/_authenticated/suprimentos.requisicoes.index'
+import { Route as ApiPublicHooksResumoTarefasRouteImport } from './routes/api/public/hooks/resumo-tarefas'
 import { Route as AuthenticatedSuprimentosRequisicoesIdRouteImport } from './routes/_authenticated/suprimentos.requisicoes.$id'
 import { Route as AuthenticatedProducaoMaterialMaterialRouteImport } from './routes/_authenticated/producao.material.$material'
 import { Route as AuthenticatedSuprimentosRequisicoesIdFichaRouteImport } from './routes/_authenticated/suprimentos.requisicoes.$id.ficha'
@@ -351,6 +352,12 @@ const AuthenticatedSuprimentosRequisicoesIndexRoute =
     path: '/suprimentos/requisicoes/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicHooksResumoTarefasRoute =
+  ApiPublicHooksResumoTarefasRouteImport.update({
+    id: '/api/public/hooks/resumo-tarefas',
+    path: '/api/public/hooks/resumo-tarefas',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedSuprimentosRequisicoesIdRoute =
   AuthenticatedSuprimentosRequisicoesIdRouteImport.update({
     id: '/suprimentos/requisicoes/$id',
@@ -422,6 +429,7 @@ export interface FileRoutesByFullPath {
   '/missoes/': typeof AuthenticatedMissoesIndexRoute
   '/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
   '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
+  '/api/public/hooks/resumo-tarefas': typeof ApiPublicHooksResumoTarefasRoute
   '/suprimentos/requisicoes/': typeof AuthenticatedSuprimentosRequisicoesIndexRoute
   '/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
 }
@@ -477,6 +485,7 @@ export interface FileRoutesByTo {
   '/missoes': typeof AuthenticatedMissoesIndexRoute
   '/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
   '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
+  '/api/public/hooks/resumo-tarefas': typeof ApiPublicHooksResumoTarefasRoute
   '/suprimentos/requisicoes': typeof AuthenticatedSuprimentosRequisicoesIndexRoute
   '/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
 }
@@ -534,6 +543,7 @@ export interface FileRoutesById {
   '/_authenticated/missoes/': typeof AuthenticatedMissoesIndexRoute
   '/_authenticated/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
   '/_authenticated/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
+  '/api/public/hooks/resumo-tarefas': typeof ApiPublicHooksResumoTarefasRoute
   '/_authenticated/suprimentos/requisicoes/': typeof AuthenticatedSuprimentosRequisicoesIndexRoute
   '/_authenticated/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
 }
@@ -591,6 +601,7 @@ export interface FileRouteTypes {
     | '/missoes/'
     | '/producao/material/$material'
     | '/suprimentos/requisicoes/$id'
+    | '/api/public/hooks/resumo-tarefas'
     | '/suprimentos/requisicoes/'
     | '/suprimentos/requisicoes/$id/ficha'
   fileRoutesByTo: FileRoutesByTo
@@ -646,6 +657,7 @@ export interface FileRouteTypes {
     | '/missoes'
     | '/producao/material/$material'
     | '/suprimentos/requisicoes/$id'
+    | '/api/public/hooks/resumo-tarefas'
     | '/suprimentos/requisicoes'
     | '/suprimentos/requisicoes/$id/ficha'
   id:
@@ -702,6 +714,7 @@ export interface FileRouteTypes {
     | '/_authenticated/missoes/'
     | '/_authenticated/producao/material/$material'
     | '/_authenticated/suprimentos/requisicoes/$id'
+    | '/api/public/hooks/resumo-tarefas'
     | '/_authenticated/suprimentos/requisicoes/'
     | '/_authenticated/suprimentos/requisicoes/$id/ficha'
   fileRoutesById: FileRoutesById
@@ -712,6 +725,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicAtlasExportarBaixasRoute: typeof ApiPublicAtlasExportarBaixasRoute
+  ApiPublicHooksResumoTarefasRoute: typeof ApiPublicHooksResumoTarefasRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1073,6 +1087,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSuprimentosRequisicoesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/hooks/resumo-tarefas': {
+      id: '/api/public/hooks/resumo-tarefas'
+      path: '/api/public/hooks/resumo-tarefas'
+      fullPath: '/api/public/hooks/resumo-tarefas'
+      preLoaderRoute: typeof ApiPublicHooksResumoTarefasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/suprimentos/requisicoes/$id': {
       id: '/_authenticated/suprimentos/requisicoes/$id'
       path: '/suprimentos/requisicoes/$id'
@@ -1233,6 +1254,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicAtlasExportarBaixasRoute: ApiPublicAtlasExportarBaixasRoute,
+  ApiPublicHooksResumoTarefasRoute: ApiPublicHooksResumoTarefasRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
