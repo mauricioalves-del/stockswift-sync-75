@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.criar_tarefas_aprovacao_baixa() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.concluir_tarefas_aprovacao_baixa() FROM PUBLIC, anon, authenticated;
