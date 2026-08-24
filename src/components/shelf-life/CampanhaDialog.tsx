@@ -168,12 +168,32 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
     [baixas.data, form.baixa_operacional_id],
   );
 
+  // Motivos de baixa (para identificar quando a baixa é a execução da ação).
+  const motivos = useQuery({
+    queryKey: ["motivos-baixa-lista"],
+    staleTime: 300_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("motivo_baixa").select("id, descricao");
+      if (error) throw error;
+      return (data ?? []) as { id: string; descricao: string }[];
+    },
+  });
+  const motivoDaBaixa = useMemo(
+    () => (motivos.data ?? []).find((m) => m.id === baixaSel?.motivo_baixa_id)?.descricao ?? null,
+    [motivos.data, baixaSel],
+  );
+  // Baixa cujo motivo corresponde ao tipo da ação = execução da ação, não perda.
+  const baixaExecucao = !!form.baixa_operacional_id
+    && baixaEhExecucaoDaAcao(tipoSel?.nome, motivoDaBaixa, {
+      motivoIdDoTipo: (tipoSel as any)?.motivo_baixa_id ?? null,
+      motivoIdDaBaixa: baixaSel?.motivo_baixa_id ?? null,
+    });
 
   // ——— Metodologia financeira ———
   const qtdEnderecada = Number(form.quantidade_enderecada) || 0;
   const custoUnit = Number(form.custo_unitario) || 0;
   const qtdBaixa = form.baixa_operacional_id ? Number(baixaSel?.quantidade ?? 0) : null;
-  const qtdRecuperada = calcQtdRecuperada(qtdEnderecada, qtdBaixa);
+  const qtdRecuperada = calcQtdRecuperada(qtdEnderecada, qtdBaixa, baixaExecucao);
   const custoAcao = custoAcaoCalculado(qtdEnderecada, custoUnit);
   const valorPrevisto = valorRecuperadoCalculado({
     categoria,
