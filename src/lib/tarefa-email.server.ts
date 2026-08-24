@@ -43,6 +43,7 @@ export async function enviarEmailTarefaAtribuida(
       <tr><td style="padding:8px;font-size:12px;background:#f9fafb">Prioridade</td><td style="padding:8px;font-size:13px">${esc((tarefa as any).prioridade || "—")}</td></tr>
       <tr><td style="padding:8px;font-size:12px;background:#f9fafb">Prazo</td><td style="padding:8px;font-size:13px">${prazo}</td></tr>
       <tr><td style="padding:8px;font-size:12px;background:#f9fafb">Referência</td><td style="padding:8px;font-size:13px">${esc((tarefa as any).sku_ou_local || "—")}</td></tr>
+      <tr><td style="padding:8px;font-size:12px;background:#f9fafb">Observação</td><td style="padding:8px;font-size:13px;white-space:pre-wrap">${esc((tarefa as any).observacao || "—")}</td></tr>
     </table>
     <p style="font-size:12px;color:#6b7280;margin:12px 0 0">Acesse "Minhas Tarefas" no sistema para concluir esta pendência.</p>
   </body></html>`;
