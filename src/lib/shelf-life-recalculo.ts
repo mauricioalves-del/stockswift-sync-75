@@ -35,6 +35,8 @@ export type ContextoCalculo = {
   precoVendaCadastro?: number | null;
   /** % de desconto padrão vigente (parâmetro do sistema). */
   percentualPadrao?: number | null;
+  /** A baixa vinculada é a execução da ação (ex.: Degustação)? Então não é perda. */
+  baixaEhExecucao?: boolean;
 };
 
 export type ResultadoCalculo = {
