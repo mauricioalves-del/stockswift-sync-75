@@ -93,10 +93,20 @@ export function RecalcularValoresDialog({ open, onOpenChange, campanhas }: Props
         await Promise.all(
           bloco.map(async (c) => {
             try {
+              const tipo = (c as any).tipo_acao_id ? tipoInfo.get((c as any).tipo_acao_id) : null;
+              const motivoIdDaBaixa = c.baixa_operacional_id
+                ? baixaMotivo.get(c.baixa_operacional_id) ?? null
+                : null;
               const calc = calculateActionFinancials(c as any, {
                 quantidadeBaixa: c.baixa_operacional_id ? baixasQtd.get(c.baixa_operacional_id) : null,
                 precoVendaCadastro: precoPorSku.get(chaveSku(c.sku)) ?? null,
                 percentualPadrao,
+                baixaEhExecucao: !!c.baixa_operacional_id
+                  && baixaEhExecucaoDaAcao(
+                    tipo?.nome ?? (c as any).tipo_nome ?? null,
+                    motivoIdDaBaixa ? motivoDesc.get(motivoIdDaBaixa) ?? null : null,
+                    { motivoIdDoTipo: tipo?.motivo_baixa_id ?? null, motivoIdDaBaixa },
+                  ),
               });
               const concluida = c.status === "CONCLUIDA";
               const valor = concluida ? calc.valor_recuperado : 0;
