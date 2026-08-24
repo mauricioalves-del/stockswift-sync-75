@@ -105,6 +105,15 @@ function TarefaCard({ tarefa, atrasada, onDone }: { tarefa: any; atrasada?: bool
       }).eq("id", tarefa.id);
       if (error) throw error;
 
+      // Ação de lote vinculada: sai de "Planejada" para "Em Andamento".
+      if (tarefa.campanha_lote_id) {
+        await (supabase as any)
+          .from("campanhas_lote")
+          .update({ status: "EM_ANDAMENTO" })
+          .eq("id", tarefa.campanha_lote_id)
+          .eq("status", "PLANEJADA");
+      }
+
       // recorrência: cria próxima instância
       if (tarefa.recorrencia && tarefa.recorrencia !== "Unica") {
         const dias: Record<string, number> = { Diaria: 1, Semanal: 7, Quinzenal: 15, Mensal: 30 };
