@@ -72,6 +72,18 @@ function AcoesLote() {
       .catch(() => {});
   }, [qc]);
 
+  // Abre automaticamente a ação indicada na URL (?acao=<id>), vinda do link da tarefa.
+  const abriuParam = useRef(false);
+  useEffect(() => {
+    if (abriuParam.current || !acaoParam) return;
+    const alvo = (campanhas.data ?? []).find((c) => c.id === acaoParam);
+    if (alvo) {
+      abriuParam.current = true;
+      setDraft(alvo as CampanhaDraft);
+    }
+  }, [acaoParam, campanhas.data]);
+
+
   const excluir = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await (supabase as any).from("campanhas_lote").delete().eq("id", id);
