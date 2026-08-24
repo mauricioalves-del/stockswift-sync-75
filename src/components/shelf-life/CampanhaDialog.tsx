@@ -20,6 +20,7 @@ import { WhatsAppFallbackDialog } from "@/components/shelf-life/WhatsAppFallback
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MessageCircle } from "lucide-react";
 import {
+  baixaEhExecucaoDaAcao,
   categoriaFinanceira,
   custoAcaoCalculado,
   ehCategoriaVendas,
