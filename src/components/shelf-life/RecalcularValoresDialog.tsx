@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { fetchAll } from "@/lib/fetch-all";
 import { chaveSku } from "@/lib/precos-venda";
+import { baixaEhExecucaoDaAcao } from "@/lib/shelf-life-financeiro";
 import { calculateActionFinancials } from "@/lib/shelf-life-recalculo";
 import type { CampanhaRow } from "@/hooks/useShelfLife";
 
@@ -50,13 +51,25 @@ export function RecalcularValoresDialog({ open, onOpenChange, campanhas }: Props
         new Set(campanhas.map((c) => c.baixa_operacional_id).filter(Boolean) as string[]),
       );
       const baixasQtd = new Map<string, number>();
+      const baixaMotivo = new Map<string, string | null>();
       for (let i = 0; i < baixaIds.length; i += 200) {
         const { data } = await (supabase as any)
           .from("baixa_operacional")
-          .select("id, quantidade")
+          .select("id, quantidade, motivo_baixa_id")
           .in("id", baixaIds.slice(i, i + 200));
-        for (const b of data ?? []) baixasQtd.set(b.id, Number(b.quantidade) || 0);
+        for (const b of data ?? []) {
+          baixasQtd.set(b.id, Number(b.quantidade) || 0);
+          baixaMotivo.set(b.id, b.motivo_baixa_id ?? null);
+        }
       }
+      const { data: motivosData } = await (supabase as any).from("motivo_baixa").select("id, descricao");
+      const motivoDesc = new Map<string, string>(
+        ((motivosData ?? []) as any[]).map((m) => [m.id, String(m.descricao ?? "")]),
+      );
+      const { data: tiposData } = await (supabase as any)
+        .from("tipos_acao_shelf_life")
+        .select("id, nome, motivo_baixa_id");
+      const tipoInfo = new Map<string, any>(((tiposData ?? []) as any[]).map((t) => [t.id, t]));
 
       const precos = await fetchAll<any>((from, to) =>
         (supabase as any).from("precos_venda").select("sku, pr_venda").range(from, to),
@@ -81,10 +94,20 @@ export function RecalcularValoresDialog({ open, onOpenChange, campanhas }: Props
         await Promise.all(
           bloco.map(async (c) => {
             try {
+              const tipo = (c as any).tipo_acao_id ? tipoInfo.get((c as any).tipo_acao_id) : null;
+              const motivoIdDaBaixa = c.baixa_operacional_id
+                ? baixaMotivo.get(c.baixa_operacional_id) ?? null
+                : null;
               const calc = calculateActionFinancials(c as any, {
                 quantidadeBaixa: c.baixa_operacional_id ? baixasQtd.get(c.baixa_operacional_id) : null,
                 precoVendaCadastro: precoPorSku.get(chaveSku(c.sku)) ?? null,
                 percentualPadrao,
+                baixaEhExecucao: !!c.baixa_operacional_id
+                  && baixaEhExecucaoDaAcao(
+                    tipo?.nome ?? (c as any).tipo_nome ?? null,
+                    motivoIdDaBaixa ? motivoDesc.get(motivoIdDaBaixa) ?? null : null,
+                    { motivoIdDoTipo: tipo?.motivo_baixa_id ?? null, motivoIdDaBaixa },
+                  ),
               });
               const concluida = c.status === "CONCLUIDA";
               const valor = concluida ? calc.valor_recuperado : 0;

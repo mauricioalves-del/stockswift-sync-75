@@ -50,13 +50,41 @@ export function sufixoTipoAcao(nomeTipo: string | null | undefined): string {
 
 const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 
-/** §2 — Quantidade recuperada: endereçada menos a quantidade da baixa vinculada. */
+/** Motivos de baixa que representam perda efetiva do produto. */
+const MOTIVOS_PERDA = ["avaria", "vencimento", "descarte", "perda", "furto", "quebra", "qualidade"];
+
+export function motivoEhPerda(motivoDescricao: string | null | undefined): boolean {
+  const s = norm(motivoDescricao);
+  if (!s) return true; // sem motivo conhecido, mantém o comportamento conservador (perda)
+  return MOTIVOS_PERDA.some((k) => s.includes(k));
+}
+
+/**
+ * A baixa vinculada é a própria execução da ação (ex.: ação de Degustação
+ * baixada com motivo Degustação)? Nesse caso a quantidade não é perda e
+ * portanto não deve ser descontada da quantidade recuperada.
+ */
+export function baixaEhExecucaoDaAcao(
+  nomeTipo: string | null | undefined,
+  motivoDescricao: string | null | undefined,
+  ids?: { motivoIdDoTipo?: string | null; motivoIdDaBaixa?: string | null },
+): boolean {
+  if (ids?.motivoIdDoTipo && ids?.motivoIdDaBaixa && ids.motivoIdDoTipo === ids.motivoIdDaBaixa) return true;
+  const tipo = norm(nomeTipo);
+  const motivo = norm(motivoDescricao);
+  if (!motivo) return false;
+  if (tipo && motivo && (tipo === motivo || tipo.includes(motivo) || motivo.includes(tipo))) return true;
+  return !motivoEhPerda(motivo);
+}
+
+/** §2 — Quantidade recuperada: endereçada menos a quantidade perdida na baixa vinculada. */
 export function quantidadeRecuperada(
   quantidadeEnderecada: number,
   quantidadeBaixaVinculada?: number | null,
+  baixaEhExecucao = false,
 ): number {
   const qe = Number(quantidadeEnderecada) || 0;
-  if (quantidadeBaixaVinculada == null) return Math.max(0, qe);
+  if (quantidadeBaixaVinculada == null || baixaEhExecucao) return Math.max(0, qe);
   return Math.max(0, qe - (Number(quantidadeBaixaVinculada) || 0));
 }
 
@@ -81,7 +109,8 @@ export function valorRecuperadoCalculado(p: ParametrosValor): number {
     case "Vendas":
       return round2(q * (Number(p.precoPraticado) || 0));
     case "Degustação":
-      return round2(0.5 * q * custo);
+      // Degustação é recuperação de custo integral — não é perda.
+      return round2(q * custo);
     case "Recuperação de Custo (Produção)":
       return round2(q * custo);
     case "Descarte":

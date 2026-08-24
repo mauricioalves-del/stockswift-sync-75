@@ -5,6 +5,7 @@ import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
 import { almoxEfetivos } from "@/hooks/useFiltrosShelfLife";
 import { faixaDeRisco, type Faixa, type CampanhaCalc, type CategoriaAcao, chaveLote } from "@/lib/shelf-life";
 import { calculateActionFinancials } from "@/lib/shelf-life-recalculo";
+import { baixaEhExecucaoDaAcao } from "@/lib/shelf-life-financeiro";
 
 
 
@@ -252,12 +253,20 @@ export async function autoVincularBaixas(): Promise<number> {
       (motivoId ? candidatas.find((b) => b.motivo_baixa_id === motivoId) : undefined) ?? candidatas[0];
     if (!escolhida) continue;
 
+    const nomeTipo = c.tipo_acao_id ? nomeDoTipo.get(c.tipo_acao_id) ?? null : null;
+    const descMotivoBaixa = escolhida.motivo_baixa_id
+      ? motivos.find((m) => m.id === escolhida.motivo_baixa_id)?.descricao ?? null
+      : null;
     const calc = calculateActionFinancials(
-      { ...c, baixa_operacional_id: escolhida.id, tipo_nome: c.tipo_acao_id ? nomeDoTipo.get(c.tipo_acao_id) : null },
+      { ...c, baixa_operacional_id: escolhida.id, tipo_nome: nomeTipo },
       {
         quantidadeBaixa: Number(escolhida.quantidade) || 0,
         precoVendaCadastro: precoPorSku.get(normSku(c.sku)) ?? null,
         percentualPadrao,
+        baixaEhExecucao: baixaEhExecucaoDaAcao(nomeTipo, descMotivoBaixa, {
+          motivoIdDoTipo: motivoId ?? null,
+          motivoIdDaBaixa: escolhida.motivo_baixa_id ?? null,
+        }),
       },
     );
     const concluida = c.status === "CONCLUIDA";
