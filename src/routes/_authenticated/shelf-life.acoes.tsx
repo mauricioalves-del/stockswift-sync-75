@@ -39,6 +39,7 @@ export const Route = createFileRoute("/_authenticated/shelf-life/acoes")({
 const TODAS = "__todas__";
 
 function AcoesLote() {
+  const { acao: acaoParam } = Route.useSearch();
   const qc = useQueryClient();
   const campanhas = useCampanhas();
   const tipos = useTiposAcao();
