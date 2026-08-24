@@ -276,6 +276,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
               responsavel_id: respId,
               responsavel_label: resp?.nome ?? null,
               sku_ou_local: payload.sku,
+              observacao: payload.observacao ?? null,
               status: "Pendente",
               criado_por: uid,
             })
