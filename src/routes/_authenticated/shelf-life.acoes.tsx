@@ -25,6 +25,7 @@ import { RecalcularValoresDialog } from "@/components/shelf-life/RecalcularValor
 
 export const Route = createFileRoute("/_authenticated/shelf-life/acoes")({
   component: AcoesLote,
+  validateSearch: (s: Record<string, unknown>) => ({ acao: typeof s.acao === "string" ? s.acao : undefined }),
   head: () => ({
     meta: [
       { title: "Shelf Life — Ações de Lote" },
