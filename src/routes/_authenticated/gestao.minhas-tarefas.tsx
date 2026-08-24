@@ -174,10 +174,21 @@ function TarefaCard({ tarefa, atrasada, onDone }: { tarefa: any; atrasada?: bool
             ))}
           </div>
         )}
+        {tarefa.campanha_lote_id && (
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <Link to="/shelf-life/acoes" search={{ acao: tarefa.campanha_lote_id }}>
+              <ExternalLink className="size-4" /> Abrir Ação de Lote
+            </Link>
+          </Button>
+        )}
         <Textarea placeholder="Observação (opcional)" value={obs} onChange={(e) => setObs(e.target.value)} rows={2} />
-        <Button onClick={concluir} disabled={busy} className="w-full gap-2">
+        <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
+          <Checkbox checked={confirmado} onCheckedChange={(v) => setConfirmado(!!v)} />
+          <span>Confirmo que executei esta demanda e assumo a responsabilidade pela conclusão.</span>
+        </label>
+        <Button onClick={concluir} disabled={busy || !confirmado} className="w-full gap-2">
           {busy ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-          Concluir
+          Confirmar Tarefa
         </Button>
       </CardContent>
     </Card>
