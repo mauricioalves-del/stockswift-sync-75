@@ -5,6 +5,7 @@ import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
 import { almoxEfetivos } from "@/hooks/useFiltrosShelfLife";
 import { faixaDeRisco, type Faixa, type CampanhaCalc, type CategoriaAcao, chaveLote } from "@/lib/shelf-life";
 import { calculateActionFinancials } from "@/lib/shelf-life-recalculo";
+import { baixaEhExecucaoDaAcao } from "@/lib/shelf-life-financeiro";
 
 
 
