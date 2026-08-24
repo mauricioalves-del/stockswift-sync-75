@@ -2474,6 +2474,7 @@ export type Database = {
       }
       tarefas_operacionais: {
         Row: {
+          campanha_lote_id: string | null
           checklist_modelo_id: string | null
           concluido_em: string | null
           concluido_por: string | null
@@ -2501,6 +2502,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          campanha_lote_id?: string | null
           checklist_modelo_id?: string | null
           concluido_em?: string | null
           concluido_por?: string | null
@@ -2528,6 +2530,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          campanha_lote_id?: string | null
           checklist_modelo_id?: string | null
           concluido_em?: string | null
           concluido_por?: string | null
@@ -2555,6 +2558,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tarefas_operacionais_campanha_lote_id_fkey"
+            columns: ["campanha_lote_id"]
+            isOneToOne: false
+            referencedRelation: "campanhas_lote"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tarefas_operacionais_checklist_modelo_id_fkey"
             columns: ["checklist_modelo_id"]
