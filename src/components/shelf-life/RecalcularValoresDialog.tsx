@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { fetchAll } from "@/lib/fetch-all";
 import { chaveSku } from "@/lib/precos-venda";
+import { baixaEhExecucaoDaAcao } from "@/lib/shelf-life-financeiro";
 import { calculateActionFinancials } from "@/lib/shelf-life-recalculo";
 import type { CampanhaRow } from "@/hooks/useShelfLife";
 
