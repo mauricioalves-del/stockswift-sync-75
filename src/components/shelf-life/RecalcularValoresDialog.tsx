@@ -50,13 +50,25 @@ export function RecalcularValoresDialog({ open, onOpenChange, campanhas }: Props
         new Set(campanhas.map((c) => c.baixa_operacional_id).filter(Boolean) as string[]),
       );
       const baixasQtd = new Map<string, number>();
+      const baixaMotivo = new Map<string, string | null>();
       for (let i = 0; i < baixaIds.length; i += 200) {
         const { data } = await (supabase as any)
           .from("baixa_operacional")
-          .select("id, quantidade")
+          .select("id, quantidade, motivo_baixa_id")
           .in("id", baixaIds.slice(i, i + 200));
-        for (const b of data ?? []) baixasQtd.set(b.id, Number(b.quantidade) || 0);
+        for (const b of data ?? []) {
+          baixasQtd.set(b.id, Number(b.quantidade) || 0);
+          baixaMotivo.set(b.id, b.motivo_baixa_id ?? null);
+        }
       }
+      const { data: motivosData } = await (supabase as any).from("motivo_baixa").select("id, descricao");
+      const motivoDesc = new Map<string, string>(
+        ((motivosData ?? []) as any[]).map((m) => [m.id, String(m.descricao ?? "")]),
+      );
+      const { data: tiposData } = await (supabase as any)
+        .from("tipos_acao_shelf_life")
+        .select("id, nome, motivo_baixa_id");
+      const tipoInfo = new Map<string, any>(((tiposData ?? []) as any[]).map((t) => [t.id, t]));
 
       const precos = await fetchAll<any>((from, to) =>
         (supabase as any).from("precos_venda").select("sku, pr_venda").range(from, to),
