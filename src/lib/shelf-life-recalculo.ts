@@ -72,7 +72,7 @@ export function calculateActionFinancials(acao: AcaoBase, ctx: ContextoCalculo =
   // Quando ausente (registros legados/importados), deriva de endereçada − baixa vinculada.
   let qtdRecuperada = num(acao.quantidade_recuperada);
   if (qtdRecuperada <= 0) {
-    const qtdBaixa = acao.baixa_operacional_id ? num(ctx.quantidadeBaixa) : 0;
+    const qtdBaixa = acao.baixa_operacional_id && !ctx.baixaEhExecucao ? num(ctx.quantidadeBaixa) : 0;
     qtdRecuperada = Math.max(0, qtdEnderecada - qtdBaixa);
   }
 
