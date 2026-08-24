@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, Loader2, AlertTriangle, ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/gestao/minhas-tarefas")({
   component: MinhasTarefasPage,
