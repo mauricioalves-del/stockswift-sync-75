@@ -109,7 +109,8 @@ export function valorRecuperadoCalculado(p: ParametrosValor): number {
     case "Vendas":
       return round2(q * (Number(p.precoPraticado) || 0));
     case "Degustação":
-      return round2(0.5 * q * custo);
+      // Degustação é recuperação de custo integral — não é perda.
+      return round2(q * custo);
     case "Recuperação de Custo (Produção)":
       return round2(q * custo);
     case "Descarte":
