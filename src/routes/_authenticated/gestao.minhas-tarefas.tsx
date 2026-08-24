@@ -72,6 +72,7 @@ function MinhasTarefasPage() {
 function TarefaCard({ tarefa, atrasada, onDone }: { tarefa: any; atrasada?: boolean; onDone: () => void }) {
   const [obs, setObs] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirmado, setConfirmado] = useState(false);
 
   const itensQ = useQuery({
     queryKey: ["checklist_exec", tarefa.id],
