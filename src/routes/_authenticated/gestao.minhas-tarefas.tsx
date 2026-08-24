@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, Loader2, AlertTriangle, ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/gestao/minhas-tarefas")({
   component: MinhasTarefasPage,
@@ -72,6 +72,7 @@ function MinhasTarefasPage() {
 function TarefaCard({ tarefa, atrasada, onDone }: { tarefa: any; atrasada?: boolean; onDone: () => void }) {
   const [obs, setObs] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirmado, setConfirmado] = useState(false);
 
   const itensQ = useQuery({
     queryKey: ["checklist_exec", tarefa.id],
@@ -103,6 +104,15 @@ function TarefaCard({ tarefa, atrasada, onDone }: { tarefa: any; atrasada?: bool
         observacao: obs || null,
       }).eq("id", tarefa.id);
       if (error) throw error;
+
+      // Ação de lote vinculada: sai de "Planejada" para "Em Andamento".
+      if (tarefa.campanha_lote_id) {
+        await (supabase as any)
+          .from("campanhas_lote")
+          .update({ status: "EM_ANDAMENTO" })
+          .eq("id", tarefa.campanha_lote_id)
+          .eq("status", "PLANEJADA");
+      }
 
       // recorrência: cria próxima instância
       if (tarefa.recorrencia && tarefa.recorrencia !== "Unica") {
@@ -164,10 +174,21 @@ function TarefaCard({ tarefa, atrasada, onDone }: { tarefa: any; atrasada?: bool
             ))}
           </div>
         )}
+        {tarefa.campanha_lote_id && (
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <Link to="/shelf-life/acoes" search={{ acao: tarefa.campanha_lote_id }}>
+              <ExternalLink className="size-4" /> Abrir Ação de Lote
+            </Link>
+          </Button>
+        )}
         <Textarea placeholder="Observação (opcional)" value={obs} onChange={(e) => setObs(e.target.value)} rows={2} />
-        <Button onClick={concluir} disabled={busy} className="w-full gap-2">
+        <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
+          <Checkbox checked={confirmado} onCheckedChange={(v) => setConfirmado(!!v)} />
+          <span>Confirmo que executei esta demanda e assumo a responsabilidade pela conclusão.</span>
+        </label>
+        <Button onClick={concluir} disabled={busy || !confirmado} className="w-full gap-2">
           {busy ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-          Concluir
+          Confirmar Tarefa
         </Button>
       </CardContent>
     </Card>

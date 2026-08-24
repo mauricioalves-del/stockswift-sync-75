@@ -25,6 +25,7 @@ import { RecalcularValoresDialog } from "@/components/shelf-life/RecalcularValor
 
 export const Route = createFileRoute("/_authenticated/shelf-life/acoes")({
   component: AcoesLote,
+  validateSearch: (s: Record<string, unknown>) => ({ acao: typeof s.acao === "string" ? s.acao : undefined }),
   head: () => ({
     meta: [
       { title: "Shelf Life — Ações de Lote" },
@@ -38,6 +39,7 @@ export const Route = createFileRoute("/_authenticated/shelf-life/acoes")({
 const TODAS = "__todas__";
 
 function AcoesLote() {
+  const { acao: acaoParam } = Route.useSearch();
   const qc = useQueryClient();
   const campanhas = useCampanhas();
   const tipos = useTiposAcao();
@@ -69,6 +71,18 @@ function AcoesLote() {
       })
       .catch(() => {});
   }, [qc]);
+
+  // Abre automaticamente a ação indicada na URL (?acao=<id>), vinda do link da tarefa.
+  const abriuParam = useRef(false);
+  useEffect(() => {
+    if (abriuParam.current || !acaoParam) return;
+    const alvo = (campanhas.data ?? []).find((c) => c.id === acaoParam);
+    if (alvo) {
+      abriuParam.current = true;
+      setDraft(alvo as CampanhaDraft);
+    }
+  }, [acaoParam, campanhas.data]);
+
 
   const excluir = useMutation({
     mutationFn: async (id: string) => {
