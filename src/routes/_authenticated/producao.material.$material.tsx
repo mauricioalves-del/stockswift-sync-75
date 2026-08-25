@@ -135,7 +135,7 @@ function MaterialDrilldown() {
             </TableHeader>
             <TableBody>
               {rows.map((r) => (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} className={pc === String(r.id) ? "bg-primary/10 ring-1 ring-primary/40" : ""}>
                   <TableCell>{r.ano_mes}</TableCell>
                   <TableCell>{r.id_op}</TableCell>
                   <TableCell>{r.produto || "—"}</TableCell>
