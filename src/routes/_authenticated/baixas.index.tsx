@@ -1025,12 +1025,26 @@ function FilaAprovacao() {
               <TableHead className="w-8">
                 <Checkbox checked={todosMarcados} onCheckedChange={toggleTodos} aria-label="Selecionar todos" />
               </TableHead>
-              <TableHead>Req.</TableHead>
+              <TableHead>
+                <button type="button" onClick={() => ordenarPor("req")} className="inline-flex items-center gap-1 hover:text-foreground">
+                  Req.
+                  {ordCampo === "req"
+                    ? (ordDir === "desc" ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />)
+                    : <ArrowUpDown className="size-3 opacity-40" />}
+                </button>
+              </TableHead>
               <TableHead>Código</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Lote</TableHead>
               <TableHead className="text-right">Qtd</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
+              <TableHead className="text-right">
+                <button type="button" onClick={() => ordenarPor("valor")} className="inline-flex items-center gap-1 hover:text-foreground">
+                  Valor
+                  {ordCampo === "valor"
+                    ? (ordDir === "desc" ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />)
+                    : <ArrowUpDown className="size-3 opacity-40" />}
+                </button>
+              </TableHead>
               <TableHead>Motivo</TableHead>
               <TableHead>Almox.</TableHead>
               <TableHead>Solicitante</TableHead>
