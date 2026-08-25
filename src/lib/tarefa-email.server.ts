@@ -14,7 +14,7 @@ export async function enviarEmailTarefaAtribuida(
 ) {
   const { data: tarefa } = await admin
     .from("tarefas_operacionais")
-    .select("id, titulo, descricao, prioridade, data_prevista, responsavel_id, sku_ou_local, observacao")
+    .select("id, titulo, descricao, prioridade, data_prevista, responsavel_id, sku_ou_local, observacao, link_rota")
     .eq("id", args.tarefaId)
     .maybeSingle();
 
