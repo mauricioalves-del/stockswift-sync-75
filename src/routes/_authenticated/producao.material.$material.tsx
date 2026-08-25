@@ -32,6 +32,7 @@ export const Route = createFileRoute("/_authenticated/producao/material/$materia
 
 function MaterialDrilldown() {
   const { material } = Route.useParams();
+  const { pc } = Route.useSearch();
   const qc = useQueryClient();
   const { role, isAdmin } = useRole();
   const canClassificar = isAdmin || role === "COORDENADOR_CONTROLE" || role === "GERENTE";
