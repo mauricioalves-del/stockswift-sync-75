@@ -646,7 +646,7 @@ function FilaAprovacao() {
     [data],
   );
 
-  const lista = useMemo(
+  const listaFiltrada = useMemo(
     () =>
       (data ?? []).filter((b: any) => {
         if (fAlmox !== "__all__" && (b.id_local ?? "") !== fAlmox) return false;
