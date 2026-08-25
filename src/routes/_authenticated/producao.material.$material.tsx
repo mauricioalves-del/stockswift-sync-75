@@ -213,22 +213,48 @@ function CausaDialog({ row, onClose, onSaved }: { row: any | null; onClose: () =
 
 function AcaoDialog({ row, material, onClose, onSaved }: { row: any | null; material: string; onClose: () => void; onSaved: () => void }) {
   const [descricao, setDescricao] = useState("");
-  const [responsavel, setResponsavel] = useState("");
+  const [responsavelId, setResponsavelId] = useState("");
   const [busy, setBusy] = useState(false);
+  const usuarios = useUsuariosSistema();
+  const notificar = useServerFn(notificarTarefaAtribuida);
   if (!row) return null;
 
   async function salvar() {
     if (!descricao.trim()) { toast.error("Descreva a ação"); return; }
+    if (!responsavelId) { toast.error("Selecione o responsável"); return; }
     setBusy(true);
     try {
       const { data: u } = await supabase.auth.getUser();
-      const { error } = await (supabase as any).from("dispersao_acoes_corretivas").insert({
+      const resp = (usuarios.data ?? []).find((x) => x.id === responsavelId);
+      const { data: acao, error } = await (supabase as any).from("dispersao_acoes_corretivas").insert({
         producao_consumo_id: row.id, material, ano_mes: row.ano_mes,
-        descricao_acao: descricao, responsavel: responsavel || null,
+        descricao_acao: descricao, responsavel: resp?.nome ?? null,
         status: "IDENTIFICADA", aberto_por: u.user?.id ?? null,
-      });
+      }).select("id").single();
       if (error) throw error;
-      toast.success("Ação corretiva aberta"); onSaved();
+
+      const link = `/producao/material/${encodeURIComponent(material)}?pc=${row.id}`;
+      const { data: tarefa, error: errT } = await (supabase as any).from("tarefas_operacionais").insert({
+        titulo: `Ação corretiva — Material ${material} · OP ${row.id_op}`,
+        descricao: `${descricao}\n\nPeríodo ${row.ano_mes} · Consumo ${Number(row.qtd_consumo).toFixed(2)} vs Previsto ${Number(row.qtd_previsto).toFixed(2)}`,
+        prioridade: "Alta",
+        data_prevista: new Date().toISOString().slice(0, 10),
+        recorrencia: "Unica",
+        responsavel_tipo: "Pessoa",
+        responsavel_id: responsavelId,
+        responsavel_label: resp?.nome ?? null,
+        sku_ou_local: material,
+        link_rota: link,
+        status: "Pendente",
+        criado_por: u.user?.id ?? null,
+        observacao: `Ação corretiva #${(acao as any)?.id ?? ""}`,
+      }).select("id").single();
+      if (errT) throw errT;
+
+      try { await notificar({ data: { tarefaId: (tarefa as any).id } }); }
+      catch { toast.warning("Tarefa criada, mas o e-mail não pôde ser enviado."); }
+
+      toast.success("Ação corretiva aberta e tarefa atribuída"); onSaved();
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   }
 
