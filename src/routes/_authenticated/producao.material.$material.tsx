@@ -56,15 +56,31 @@ function MaterialDrilldown() {
       const bomItem = bom.data?.[0] ?? null;
       const causasMap = new Map<string, any>();
       for (const c of (causas.data ?? [])) causasMap.set(c.producao_consumo_id, c);
+
+      // Descrição do produto produzido: usa desc_produto quando existir,
+      // senão resolve pelo cadastro de ficha técnica.
+      const codigos = [...new Set((pc.data ?? []).map((r: any) => r.produto).filter(Boolean))] as string[];
+      const descMap = new Map<string, string>();
+      if (codigos.length) {
+        const { data: prods } = await (supabase as any)
+          .from("ficha_tecnica_bom").select("id_produto, produto").in("id_produto", codigos);
+        for (const p of (prods ?? [])) if (p.produto && !descMap.has(p.id_produto)) descMap.set(p.id_produto, p.produto);
+      }
+
       return {
         rows: (pc.data ?? []).map((r: any) => {
           const pct = percentualDispersao(r.qtd_dif, r.qtd_previsto, r.qtd_consumo);
           const cls = classificar(pct, faixas);
           const cd = custoDesvio(r.qtd_dif, custo);
-          return { ...r, pct, cls, custoLiq: cd.perda - cd.sobra, causa: causasMap.get(r.id) };
+          return {
+            ...r,
+            desc_resolvida: r.desc_produto || descMap.get(r.produto) || null,
+            pct, cls, custoLiq: cd.perda - cd.sobra, causa: causasMap.get(r.id),
+          };
         }),
         custo, bomItem, acoes: acoes.data ?? [],
       };
+
     },
   });
 
@@ -102,6 +118,7 @@ function MaterialDrilldown() {
                 <TableHead>Período</TableHead>
                 <TableHead>OP</TableHead>
                 <TableHead>Produto</TableHead>
+                <TableHead>Descrição do produto</TableHead>
                 <TableHead className="text-right">Consumo</TableHead>
                 <TableHead className="text-right">Previsto</TableHead>
                 <TableHead className="text-right">Dif</TableHead>
@@ -117,7 +134,8 @@ function MaterialDrilldown() {
                 <TableRow key={r.id}>
                   <TableCell>{r.ano_mes}</TableCell>
                   <TableCell>{r.id_op}</TableCell>
-                  <TableCell className="max-w-[220px] truncate">{r.desc_produto || r.produto}</TableCell>
+                  <TableCell>{r.produto || "—"}</TableCell>
+                  <TableCell className="max-w-[280px] truncate" title={r.desc_resolvida ?? ""}>{r.desc_resolvida || "—"}</TableCell>
                   <TableCell className="text-right">{Number(r.qtd_consumo).toFixed(2)}</TableCell>
                   <TableCell className="text-right">{Number(r.qtd_previsto).toFixed(2)}</TableCell>
                   <TableCell className={"text-right " + (Number(r.qtd_dif) > 0 ? "text-destructive" : Number(r.qtd_dif) < 0 ? "text-success" : "")}>{Number(r.qtd_dif).toFixed(2)}</TableCell>
