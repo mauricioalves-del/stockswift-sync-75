@@ -663,6 +663,16 @@ function FilaAprovacao() {
     [data, fAlmox, fSolic, fMotivo, fCodigo, perfilMap],
   );
 
+  const lista = useMemo(() => {
+    if (!ordCampo) return listaFiltrada;
+    const dir = ordDir === "asc" ? 1 : -1;
+    return [...listaFiltrada].sort((a: any, b: any) => {
+      const va = ordCampo === "valor" ? Number(a.valor_total ?? 0) : Number(a.solicitacao_id ?? 0);
+      const vb = ordCampo === "valor" ? Number(b.valor_total ?? 0) : Number(b.solicitacao_id ?? 0);
+      return (va - vb) * dir;
+    });
+  }, [listaFiltrada, ordCampo, ordDir]);
+
   const temFiltro = fAlmox !== "__all__" || fSolic !== "__all__" || fMotivo !== "__all__" || fCodigo.trim().length > 0;
 
   // ---- seleção em lote -------------------------------------------------
