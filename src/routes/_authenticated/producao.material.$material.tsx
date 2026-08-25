@@ -118,6 +118,7 @@ function MaterialDrilldown() {
                 <TableHead>Período</TableHead>
                 <TableHead>OP</TableHead>
                 <TableHead>Produto</TableHead>
+                <TableHead>Descrição do produto</TableHead>
                 <TableHead className="text-right">Consumo</TableHead>
                 <TableHead className="text-right">Previsto</TableHead>
                 <TableHead className="text-right">Dif</TableHead>
@@ -133,7 +134,8 @@ function MaterialDrilldown() {
                 <TableRow key={r.id}>
                   <TableCell>{r.ano_mes}</TableCell>
                   <TableCell>{r.id_op}</TableCell>
-                  <TableCell className="max-w-[220px] truncate">{r.desc_produto || r.produto}</TableCell>
+                  <TableCell>{r.produto || "—"}</TableCell>
+                  <TableCell className="max-w-[280px] truncate" title={r.desc_resolvida ?? ""}>{r.desc_resolvida || "—"}</TableCell>
                   <TableCell className="text-right">{Number(r.qtd_consumo).toFixed(2)}</TableCell>
                   <TableCell className="text-right">{Number(r.qtd_previsto).toFixed(2)}</TableCell>
                   <TableCell className={"text-right " + (Number(r.qtd_dif) > 0 ? "text-destructive" : Number(r.qtd_dif) < 0 ? "text-success" : "")}>{Number(r.qtd_dif).toFixed(2)}</TableCell>
