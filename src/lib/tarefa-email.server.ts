@@ -30,6 +30,8 @@ export async function enviarEmailTarefaAtribuida(
     .from("app_config").select("valor").eq("chave", "resend_from").maybeSingle();
   const from = (cfgFrom as any)?.valor ? String((cfgFrom as any).valor).replace(/^"|"$/g, "") : null;
 
+  const baseUrl = process.env["APP_BASE_URL"] || "https://stockswift-sync-75.lovable.app";
+
   const prazo = (tarefa as any).data_prevista
     ? new Date(`${String((tarefa as any).data_prevista).slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR")
     : "—";
