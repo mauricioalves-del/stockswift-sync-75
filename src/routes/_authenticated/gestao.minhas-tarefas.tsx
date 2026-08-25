@@ -174,6 +174,13 @@ function TarefaCard({ tarefa, atrasada, onDone }: { tarefa: any; atrasada?: bool
             ))}
           </div>
         )}
+        {tarefa.link_rota && (
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <a href={tarefa.link_rota}>
+              <ExternalLink className="size-4" /> Abrir item vinculado
+            </a>
+          </Button>
+        )}
         {tarefa.campanha_lote_id && (
           <Button asChild variant="outline" size="sm" className="gap-2">
             <Link to="/shelf-life/acoes" search={{ acao: tarefa.campanha_lote_id }}>
