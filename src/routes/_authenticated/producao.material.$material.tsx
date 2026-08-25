@@ -23,6 +23,7 @@ import {
 import { ArrowLeft, ClipboardList, Tag } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/producao/material/$material")({
+  validateSearch: (s: Record<string, unknown>) => ({ pc: s['pc'] ? String(s['pc']) : undefined }),
   component: MaterialDrilldown,
   head: ({ params }) => ({ meta: [{ title: `Material ${params.material} — Dispersão` }] }),
   errorComponent: ({ error }) => <div className="p-6 text-sm text-destructive">Erro: {error.message}</div>,
