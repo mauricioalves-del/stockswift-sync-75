@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatBRL, formatNum } from "@/lib/inventory";
-import { CheckCircle2, XCircle, MessageSquareWarning, PackageMinus, Loader2, ScanBarcode, Check, ChevronsUpDown, List, Plus, Trash2, Mail, Download, Pencil } from "lucide-react";
+import { CheckCircle2, XCircle, MessageSquareWarning, PackageMinus, Loader2, ScanBarcode, Check, ChevronsUpDown, List, Plus, Trash2, Mail, Download, Pencil, ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { BarcodeScanner } from "@/components/app/BarcodeScanner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -600,6 +600,13 @@ function FilaAprovacao() {
   const [enviandoFiscal, setEnviandoFiscal] = useState(false);
   const [avisoFiscal, setAvisoFiscal] = useState<{ code?: string; message: string } | null>(null);
   const [fCodigo, setFCodigo] = useState("");
+  const [ordCampo, setOrdCampo] = useState<"req" | "valor" | null>(null);
+  const [ordDir, setOrdDir] = useState<"asc" | "desc">("desc");
+
+  function ordenarPor(campo: "req" | "valor") {
+    if (ordCampo === campo) setOrdDir((d) => (d === "desc" ? "asc" : "desc"));
+    else { setOrdCampo(campo); setOrdDir("desc"); }
+  }
   const [fAlmox, setFAlmox] = useState("__all__");
   const [fSolic, setFSolic] = useState("__all__");
   const [fMotivo, setFMotivo] = useState("__all__");
@@ -646,7 +653,7 @@ function FilaAprovacao() {
     [data],
   );
 
-  const lista = useMemo(
+  const listaFiltrada = useMemo(
     () =>
       (data ?? []).filter((b: any) => {
         if (fAlmox !== "__all__" && (b.id_local ?? "") !== fAlmox) return false;
@@ -662,6 +669,16 @@ function FilaAprovacao() {
       }),
     [data, fAlmox, fSolic, fMotivo, fCodigo, perfilMap],
   );
+
+  const lista = useMemo(() => {
+    if (!ordCampo) return listaFiltrada;
+    const dir = ordDir === "asc" ? 1 : -1;
+    return [...listaFiltrada].sort((a: any, b: any) => {
+      const va = ordCampo === "valor" ? Number(a.valor_total ?? 0) : Number(a.solicitacao_id ?? 0);
+      const vb = ordCampo === "valor" ? Number(b.valor_total ?? 0) : Number(b.solicitacao_id ?? 0);
+      return (va - vb) * dir;
+    });
+  }, [listaFiltrada, ordCampo, ordDir]);
 
   const temFiltro = fAlmox !== "__all__" || fSolic !== "__all__" || fMotivo !== "__all__" || fCodigo.trim().length > 0;
 
@@ -1008,12 +1025,26 @@ function FilaAprovacao() {
               <TableHead className="w-8">
                 <Checkbox checked={todosMarcados} onCheckedChange={toggleTodos} aria-label="Selecionar todos" />
               </TableHead>
-              <TableHead>Req.</TableHead>
+              <TableHead>
+                <button type="button" onClick={() => ordenarPor("req")} className="inline-flex items-center gap-1 hover:text-foreground">
+                  Req.
+                  {ordCampo === "req"
+                    ? (ordDir === "desc" ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />)
+                    : <ArrowUpDown className="size-3 opacity-40" />}
+                </button>
+              </TableHead>
               <TableHead>Código</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Lote</TableHead>
               <TableHead className="text-right">Qtd</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
+              <TableHead className="text-right">
+                <button type="button" onClick={() => ordenarPor("valor")} className="inline-flex items-center gap-1 hover:text-foreground">
+                  Valor
+                  {ordCampo === "valor"
+                    ? (ordDir === "desc" ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />)
+                    : <ArrowUpDown className="size-3 opacity-40" />}
+                </button>
+              </TableHead>
               <TableHead>Motivo</TableHead>
               <TableHead>Almox.</TableHead>
               <TableHead>Solicitante</TableHead>
