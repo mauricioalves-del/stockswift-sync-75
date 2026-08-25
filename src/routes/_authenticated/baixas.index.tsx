@@ -600,6 +600,13 @@ function FilaAprovacao() {
   const [enviandoFiscal, setEnviandoFiscal] = useState(false);
   const [avisoFiscal, setAvisoFiscal] = useState<{ code?: string; message: string } | null>(null);
   const [fCodigo, setFCodigo] = useState("");
+  const [ordCampo, setOrdCampo] = useState<"req" | "valor" | null>(null);
+  const [ordDir, setOrdDir] = useState<"asc" | "desc">("desc");
+
+  function ordenarPor(campo: "req" | "valor") {
+    if (ordCampo === campo) setOrdDir((d) => (d === "desc" ? "asc" : "desc"));
+    else { setOrdCampo(campo); setOrdDir("desc"); }
+  }
   const [fAlmox, setFAlmox] = useState("__all__");
   const [fSolic, setFSolic] = useState("__all__");
   const [fMotivo, setFMotivo] = useState("__all__");
