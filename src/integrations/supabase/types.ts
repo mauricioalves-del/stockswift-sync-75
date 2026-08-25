@@ -2486,6 +2486,7 @@ export type Database = {
           familia: string | null
           grupo_produto: string | null
           id: string
+          link_rota: string | null
           loja_setor: string | null
           missao_id: string | null
           observacao: string | null
@@ -2514,6 +2515,7 @@ export type Database = {
           familia?: string | null
           grupo_produto?: string | null
           id?: string
+          link_rota?: string | null
           loja_setor?: string | null
           missao_id?: string | null
           observacao?: string | null
@@ -2542,6 +2544,7 @@ export type Database = {
           familia?: string | null
           grupo_produto?: string | null
           id?: string
+          link_rota?: string | null
           loja_setor?: string | null
           missao_id?: string | null
           observacao?: string | null

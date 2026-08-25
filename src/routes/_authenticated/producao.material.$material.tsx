@@ -7,7 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useServerFn } from "@tanstack/react-start";
+import { useUsuariosSistema } from "@/hooks/useUsuariosSistema";
+import { notificarTarefaAtribuida } from "@/lib/tarefa-email.functions";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -21,6 +23,8 @@ import {
 import { ArrowLeft, ClipboardList, Tag } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/producao/material/$material")({
+  validateSearch: (s: Record<string, unknown>): { pc?: string } =>
+    s['pc'] ? { pc: String(s['pc']) } : {},
   component: MaterialDrilldown,
   head: ({ params }) => ({ meta: [{ title: `Material ${params.material} — Dispersão` }] }),
   errorComponent: ({ error }) => <div className="p-6 text-sm text-destructive">Erro: {error.message}</div>,
@@ -29,6 +33,7 @@ export const Route = createFileRoute("/_authenticated/producao/material/$materia
 
 function MaterialDrilldown() {
   const { material } = Route.useParams();
+  const { pc } = Route.useSearch();
   const qc = useQueryClient();
   const { role, isAdmin } = useRole();
   const canClassificar = isAdmin || role === "COORDENADOR_CONTROLE" || role === "GERENTE";
@@ -131,7 +136,7 @@ function MaterialDrilldown() {
             </TableHeader>
             <TableBody>
               {rows.map((r) => (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} className={pc === String(r.id) ? "bg-primary/10 ring-1 ring-primary/40" : ""}>
                   <TableCell>{r.ano_mes}</TableCell>
                   <TableCell>{r.id_op}</TableCell>
                   <TableCell>{r.produto || "—"}</TableCell>
@@ -213,22 +218,48 @@ function CausaDialog({ row, onClose, onSaved }: { row: any | null; onClose: () =
 
 function AcaoDialog({ row, material, onClose, onSaved }: { row: any | null; material: string; onClose: () => void; onSaved: () => void }) {
   const [descricao, setDescricao] = useState("");
-  const [responsavel, setResponsavel] = useState("");
+  const [responsavelId, setResponsavelId] = useState("");
   const [busy, setBusy] = useState(false);
+  const usuarios = useUsuariosSistema();
+  const notificar = useServerFn(notificarTarefaAtribuida);
   if (!row) return null;
 
   async function salvar() {
     if (!descricao.trim()) { toast.error("Descreva a ação"); return; }
+    if (!responsavelId) { toast.error("Selecione o responsável"); return; }
     setBusy(true);
     try {
       const { data: u } = await supabase.auth.getUser();
-      const { error } = await (supabase as any).from("dispersao_acoes_corretivas").insert({
+      const resp = (usuarios.data ?? []).find((x) => x.id === responsavelId);
+      const { data: acao, error } = await (supabase as any).from("dispersao_acoes_corretivas").insert({
         producao_consumo_id: row.id, material, ano_mes: row.ano_mes,
-        descricao_acao: descricao, responsavel: responsavel || null,
+        descricao_acao: descricao, responsavel: resp?.nome ?? null,
         status: "IDENTIFICADA", aberto_por: u.user?.id ?? null,
-      });
+      }).select("id").single();
       if (error) throw error;
-      toast.success("Ação corretiva aberta"); onSaved();
+
+      const link = `/producao/material/${encodeURIComponent(material)}?pc=${row.id}`;
+      const { data: tarefa, error: errT } = await (supabase as any).from("tarefas_operacionais").insert({
+        titulo: `Ação corretiva — Material ${material} · OP ${row.id_op}`,
+        descricao: `${descricao}\n\nPeríodo ${row.ano_mes} · Consumo ${Number(row.qtd_consumo).toFixed(2)} vs Previsto ${Number(row.qtd_previsto).toFixed(2)}`,
+        prioridade: "Alta",
+        data_prevista: new Date().toISOString().slice(0, 10),
+        recorrencia: "Unica",
+        responsavel_tipo: "Pessoa",
+        responsavel_id: responsavelId,
+        responsavel_label: resp?.nome ?? null,
+        sku_ou_local: material,
+        link_rota: link,
+        status: "Pendente",
+        criado_por: u.user?.id ?? null,
+        observacao: `Ação corretiva #${(acao as any)?.id ?? ""}`,
+      }).select("id").single();
+      if (errT) throw errT;
+
+      try { await notificar({ data: { tarefaId: (tarefa as any).id } }); }
+      catch { toast.warning("Tarefa criada, mas o e-mail não pôde ser enviado."); }
+
+      toast.success("Ação corretiva aberta e tarefa atribuída"); onSaved();
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   }
 
@@ -244,7 +275,17 @@ function AcaoDialog({ row, material, onClose, onSaved }: { row: any | null; mate
           </div>
           <div>
             <label className="text-xs">Responsável</label>
-            <Input value={responsavel} onChange={(e) => setResponsavel(e.target.value)} />
+            <Select value={responsavelId} onValueChange={setResponsavelId}>
+              <SelectTrigger><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
+              <SelectContent>
+                {(usuarios.data ?? []).map((u) => (
+                  <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Uma tarefa será criada para o responsável, com link direto para esta linha, e um e-mail será enviado.
+            </p>
           </div>
         </div>
         <DialogFooter>
