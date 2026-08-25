@@ -1,0 +1,1 @@
+ALTER TABLE public.tarefas_operacionais ADD COLUMN IF NOT EXISTS link_rota text;
