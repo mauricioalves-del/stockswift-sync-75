@@ -270,7 +270,17 @@ function AcaoDialog({ row, material, onClose, onSaved }: { row: any | null; mate
           </div>
           <div>
             <label className="text-xs">Responsável</label>
-            <Input value={responsavel} onChange={(e) => setResponsavel(e.target.value)} />
+            <Select value={responsavelId} onValueChange={setResponsavelId}>
+              <SelectTrigger><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
+              <SelectContent>
+                {(usuarios.data ?? []).map((u) => (
+                  <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Uma tarefa será criada para o responsável, com link direto para esta linha, e um e-mail será enviado.
+            </p>
           </div>
         </div>
         <DialogFooter>
