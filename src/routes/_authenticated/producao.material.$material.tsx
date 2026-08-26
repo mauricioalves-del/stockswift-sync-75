@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useServerFn } from "@tanstack/react-start";
 import { useUsuariosSistema } from "@/hooks/useUsuariosSistema";
 import { notificarTarefaAtribuida } from "@/lib/tarefa-email.functions";
+import { fetchAll } from "@/lib/fetch-all";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -73,14 +74,29 @@ function MaterialDrilldown() {
         if (key && val && !descMap.has(key)) descMap.set(key, val);
       };
       if (codigos.length) {
-        const [p1, p2, p3] = await Promise.all([
-          (supabase as any).from("ficha_tecnica_bom").select("id_produto, produto").in("id_produto", codigos),
-          (supabase as any).from("ficha_tecnica_bom").select("id_subconjunto, subconjunto").in("id_subconjunto", codigos),
-          (supabase as any).from("ficha_tecnica_bom").select("id_item, item").in("id_item", codigos),
+        // Cada código pode aparecer em milhares de linhas da BOM. Paginar é
+        // indispensável para não perder descrições após o limite de 1.000 registros.
+        const [porProduto, porSubconjunto, porItem] = await Promise.all([
+          fetchAll<any>((from, to) => (supabase as any)
+            .from("ficha_tecnica_bom")
+            .select("id_produto,produto")
+            .in("id_produto", codigos)
+            .range(from, to)),
+          fetchAll<any>((from, to) => (supabase as any)
+            .from("ficha_tecnica_bom")
+            .select("id_subconjunto,subconjunto")
+            .in("id_subconjunto", codigos)
+            .range(from, to)),
+          fetchAll<any>((from, to) => (supabase as any)
+            .from("ficha_tecnica_bom")
+            .select("id_item,item")
+            .in("id_item", codigos)
+            .range(from, to)),
         ]);
-        for (const p of (p1?.data ?? [])) setIfEmpty(p.id_produto, p.produto);
-        for (const p of (p2?.data ?? [])) setIfEmpty(p.id_subconjunto, p.subconjunto);
-        for (const p of (p3?.data ?? [])) setIfEmpty(p.id_item, p.item);
+        // A ordem é intencional: Produto → Subconjunto → Item.
+        for (const p of porProduto) setIfEmpty(p.id_produto, p.produto);
+        for (const p of porSubconjunto) setIfEmpty(p.id_subconjunto, p.subconjunto);
+        for (const p of porItem) setIfEmpty(p.id_item, p.item);
       }
 
 
