@@ -2904,6 +2904,10 @@ export type Database = {
         Returns: boolean
       }
       is_gestor: { Args: { _user_id: string }; Returns: boolean }
+      pode_contar_item_missao: {
+        Args: { _item_missao_id: string; _uid: string }
+        Returns: boolean
+      }
       pode_ver_documento_baixa: {
         Args: { _path: string; _uid: string }
         Returns: boolean
