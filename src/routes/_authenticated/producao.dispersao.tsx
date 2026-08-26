@@ -28,6 +28,8 @@ import { ImportarDispersaoDialog } from "@/components/producao/ImportarDispersao
 import { DetalhePeriodoDispersaoDialog } from "@/components/producao/DetalhePeriodoDispersaoDialog";
 import { exportarDispersaoBI } from "@/lib/export-bi-dispersao";
 import { fetchAll } from "@/lib/fetch-all";
+import { causaProvavel, type ImpactoLinha } from "@/lib/ft-arvore";
+import { RevisoesFichaTecnica } from "@/components/producao/RevisoesFichaTecnica";
 import { AlertCircle, Plus, Search, Settings2 } from "lucide-react";
 
 /** Rótulo compacto em R$ para exibição dentro dos gráficos. */
@@ -42,6 +44,12 @@ function fmtCompacto(v: number) {
 
 export const Route = createFileRoute("/_authenticated/producao/dispersao")({
   component: DispersaoPage,
+  validateSearch: (search: Record<string, unknown>): { produto?: string; material?: string } => {
+    const out: { produto?: string; material?: string } = {};
+    if (search.produto) out.produto = String(search.produto);
+    if (search.material) out.material = String(search.material);
+    return out;
+  },
   head: () => ({ meta: [
     { title: "Dispersão de Lote — Produção" },
     { name: "description", content: "Análise de dispersão de consumo real vs. Ficha Técnica por Ordem de Produção." },
@@ -81,8 +89,9 @@ function DispersaoPage() {
   const [dtDe, setDtDe] = useState<string>("");
   const [dtAte, setDtAte] = useState<string>("");
   const [granul, setGranul] = useState<"dia" | "mes" | "ano">("mes");
-  const [material, setMaterial] = useState<string>("");
-  const [produto, setProduto] = useState<string>("");
+  const sp = Route.useSearch();
+  const [material, setMaterial] = useState<string>(sp.material ?? "");
+  const [produto, setProduto] = useState<string>(sp.produto ?? "");
   const [linha, setLinha] = useState<string>("todas");
   const [classFilter, setClassFilter] = useState<string>("todas");
 
@@ -185,12 +194,13 @@ function DispersaoPage() {
 
   // Matriz de criticidade (mesma regra da view v_matriz_criticidade, com limiares configuráveis)
   const matriz = useMemo(() => {
-    const map = new Map<string, { material: string; desc_material: string; ops: Set<string>; liq: number; abs: number }>();
+    const map = new Map<string, { material: string; desc_material: string; ops: Set<string>; liq: number; abs: number; linhas: ImpactoLinha[] }>();
     for (const r of filtradas) {
       if (!r.tem_furo) continue;
       const key = r.material;
-      const cur = map.get(key) ?? { material: r.material, desc_material: r.desc_material || r.material, ops: new Set<string>(), liq: 0, abs: 0 };
+      const cur = map.get(key) ?? { material: r.material, desc_material: r.desc_material || r.material, ops: new Set<string>(), liq: 0, abs: 0, linhas: [] as ImpactoLinha[] };
       cur.ops.add(r.id_op); cur.liq += r.impacto; cur.abs += Math.abs(r.impacto);
+      cur.linhas.push(r as unknown as ImpactoLinha);
       map.set(key, cur);
     }
     return Array.from(map.values()).map((m) => {
@@ -199,9 +209,13 @@ function DispersaoPage() {
         freq >= limFreq && m.abs >= limImpacto ? "critico_recorrente"
         : freq < limFreq && m.abs >= limImpacto ? "pontual"
         : freq >= limFreq ? "cronico" : "controle";
-      return { material: m.material, desc_material: m.desc_material, freq_ops: freq, impacto_liquido: m.liq, impacto_abs: m.abs, quadrante };
+      return {
+        material: m.material, desc_material: m.desc_material, freq_ops: freq,
+        impacto_liquido: m.liq, impacto_abs: m.abs, quadrante,
+        causa: causaProvavel(m.linhas, faixas),
+      };
     }).sort((a, b) => b.impacto_abs - a.impacto_abs);
-  }, [filtradas, limFreq, limImpacto]);
+  }, [filtradas, limFreq, limImpacto, faixas]);
 
   // KPIs executivos
   const kpis = useMemo(() => {
@@ -411,6 +425,7 @@ function DispersaoPage() {
           <TabsTrigger value="visao">Visão Geral</TabsTrigger>
           <TabsTrigger value="lista">Lista Detalhada</TabsTrigger>
           <TabsTrigger value="acoes">Ações Corretivas</TabsTrigger>
+          <TabsTrigger value="revisoes">Revisões de Ficha Técnica</TabsTrigger>
         </TabsList>
 
         {/* ============ VISÃO GERAL ============ */}
@@ -631,6 +646,8 @@ function DispersaoPage() {
         </TabsContent>
 
         {/* ============ AÇÕES ============ */}
+        <TabsContent value="revisoes"><RevisoesFichaTecnica /></TabsContent>
+
         <TabsContent value="acoes">
           <AcoesCorretivas />
         </TabsContent>
@@ -655,6 +672,7 @@ function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: 
 type MatrizRow = {
   material: string; desc_material: string; freq_ops: number;
   impacto_liquido: number; impacto_abs: number; quadrante: Quadrante;
+  causa?: "Estrutural" | "Apontamento" | null;
 };
 
 function TopMateriais({ rows }: { rows: MatrizRow[] }) {
@@ -667,6 +685,7 @@ function TopMateriais({ rows }: { rows: MatrizRow[] }) {
             <TableHead className="text-right">OPs</TableHead>
             <TableHead className="text-right">Impacto</TableHead>
             <TableHead>Classif.</TableHead>
+            <TableHead>Causa provável</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -684,10 +703,15 @@ function TopMateriais({ rows }: { rows: MatrizRow[] }) {
               <TableCell>
                 <Badge variant="outline" className={QUADRANTES[r.quadrante].badge}>{QUADRANTES[r.quadrante].label}</Badge>
               </TableCell>
+              <TableCell className="text-xs">
+                {r.causa
+                  ? <Badge variant="outline" className={r.causa === "Estrutural" ? "bg-destructive/10 text-destructive border-destructive/30" : "bg-warning/10 text-warning border-warning/30"}>{r.causa}</Badge>
+                  : <span className="text-muted-foreground">—</span>}
+              </TableCell>
             </TableRow>
           ))}
           {rows.length === 0 && (
-            <TableRow><TableCell colSpan={4} className="text-center text-xs text-muted-foreground">Sem dados</TableCell></TableRow>
+            <TableRow><TableCell colSpan={5} className="text-center text-xs text-muted-foreground">Sem dados</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
