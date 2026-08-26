@@ -145,7 +145,7 @@ export async function registrarApontamento(params: {
     material: params.material,
     ano_mes: params.anoMes ?? null,
     descricao_acao: params.descricao ?? `Revisão de processo de apontamento — material ${params.material}.`,
-    status: "ABERTA",
+    status: "IDENTIFICADA",
     aberto_por: params.userId ?? null,
   });
   if (error) throw error;
