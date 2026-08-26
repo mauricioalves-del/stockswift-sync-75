@@ -91,7 +91,7 @@ function MaterialDrilldown() {
           const cd = custoDesvio(r.qtd_dif, custo);
           return {
             ...r,
-            desc_resolvida: r.desc_produto || descMap.get(r.produto) || null,
+            desc_resolvida: r.desc_produto || descMap.get(String(r.produto ?? "").trim()) || null,
             pct, cls, custoLiq: cd.perda - cd.sobra, causa: causasMap.get(r.id),
           };
         }),
