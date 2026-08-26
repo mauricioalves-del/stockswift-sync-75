@@ -33,18 +33,12 @@ export type ImpactoLinha = {
 
 const norm = (s: unknown) => String(s ?? "").trim();
 
-/** Carrega (com deduplicação) todas as linhas da árvore de um produto raiz. */
-export async function carregarBomProduto(idProduto: string): Promise<BomNo[]> {
-  const rows = await fetchAll<any>((from, to) =>
-    (supabase as any)
-      .from("ficha_tecnica_bom")
-      .select("id_produto,produto,id_subconjunto,subconjunto,id_item,item,qtd,tem_filho,gera_oc,item_unidade")
-      .eq("id_produto", idProduto)
-      .range(from, to),
-  );
+const COLS = "id_produto,produto,id_subconjunto,subconjunto,id_item,item,qtd,tem_filho,gera_oc,item_unidade";
+
+function dedup(rows: any[]): BomNo[] {
   const map = new Map<string, BomNo>();
   for (const r of rows) {
-    const key = `${norm(r.id_subconjunto)}|${norm(r.id_item)}`;
+    const key = norm(r.id_item);
     const atual = map.get(key);
     const no: BomNo = {
       id_produto: norm(r.id_produto),
@@ -61,16 +55,48 @@ export async function carregarBomProduto(idProduto: string): Promise<BomNo[]> {
     // Linhas duplicadas na importação: mantém a de maior quantidade (versão mais recente da FT).
     if (!atual || no.qtd > atual.qtd) map.set(key, no);
   }
-  return Array.from(map.values());
+  return Array.from(map.values()).sort((a, b) => (a.item ?? a.id_item).localeCompare(b.item ?? b.id_item));
 }
 
-/** Filhos diretos de um nó. Para o produto acabado raiz, id_subconjunto = id_produto. */
-export function filhosDe(rows: BomNo[], idProdutoRaiz: string, idNo: string): BomNo[] {
-  const alvo = norm(idNo) || norm(idProdutoRaiz);
-  return rows
-    .filter((r) => norm(r.id_subconjunto) === alvo)
-    .sort((a, b) => (a.item ?? a.id_item).localeCompare(b.item ?? b.id_item));
+/**
+ * Filhos diretos de um nó da árvore. Na base importada, a composição de qualquer
+ * nó (produto acabado ou subconjunto) está nas linhas onde id_subconjunto = código do nó.
+ * Fallback por id_produto para bases antigas.
+ */
+export async function carregarFilhos(idNo: string): Promise<BomNo[]> {
+  const alvo = norm(idNo);
+  if (!alvo) return [];
+  const porSub = await fetchAll<any>((from, to) =>
+    (supabase as any).from("ficha_tecnica_bom").select(COLS).eq("id_subconjunto", alvo).range(from, to),
+  );
+  if (porSub.length) return dedup(porSub);
+  const porProduto = await fetchAll<any>((from, to) =>
+    (supabase as any).from("ficha_tecnica_bom").select(COLS).eq("id_produto", alvo).range(from, to),
+  );
+  return dedup(porProduto);
 }
+
+/** Descrição de um código, buscando em produto → subconjunto → item. */
+export async function descricaoDeCodigo(codigo: string): Promise<string | null> {
+  const alvo = norm(codigo);
+  if (!alvo) return null;
+  const { data } = await (supabase as any)
+    .from("ficha_tecnica_bom")
+    .select("produto,subconjunto,item,id_produto,id_subconjunto,id_item")
+    .or(`id_produto.eq.${alvo},id_subconjunto.eq.${alvo},id_item.eq.${alvo}`)
+    .limit(50);
+  for (const r of (data ?? []) as any[]) {
+    if (norm(r.id_produto) === alvo && r.produto) return r.produto;
+  }
+  for (const r of (data ?? []) as any[]) {
+    if (norm(r.id_subconjunto) === alvo && r.subconjunto) return r.subconjunto;
+  }
+  for (const r of (data ?? []) as any[]) {
+    if (norm(r.id_item) === alvo && r.item) return r.item;
+  }
+  return null;
+}
+
 
 export type AgregadoItem = {
   linhas: ImpactoLinha[];
