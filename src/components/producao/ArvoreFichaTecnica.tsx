@@ -1,6 +1,6 @@
 // Parte B — Árvore expansível de composição (Produto Acabado → Subconjuntos → Matérias-primas)
 // com leitura cruzada de v_impacto_consumo. 100% leitura.
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useState, type ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, ChevronRight, ExternalLink, Wrench } from "lucide-react";
@@ -41,8 +41,8 @@ export function ArvoreFichaTecnica({
     });
   }
 
-  function renderNos(nos: BomNo[], nivel: number, prefixo: string): JSX.Element[] {
-    const out: JSX.Element[] = [];
+  function renderNos(nos: BomNo[], nivel: number, prefixo: string): ReactElement[] {
+    const out: ReactElement[] = [];
     for (const no of nos) {
       const path = `${prefixo}/${no.id_item}`;
       const aberto = abertos.has(path);

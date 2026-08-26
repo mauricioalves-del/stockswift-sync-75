@@ -44,10 +44,12 @@ function fmtCompacto(v: number) {
 
 export const Route = createFileRoute("/_authenticated/producao/dispersao")({
   component: DispersaoPage,
-  validateSearch: (search: Record<string, unknown>) => ({
-    produto: search.produto ? String(search.produto) : undefined,
-    material: search.material ? String(search.material) : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { produto?: string; material?: string } => {
+    const out: { produto?: string; material?: string } = {};
+    if (search.produto) out.produto = String(search.produto);
+    if (search.material) out.material = String(search.material);
+    return out;
+  },
   head: () => ({ meta: [
     { title: "Dispersão de Lote — Produção" },
     { name: "description", content: "Análise de dispersão de consumo real vs. Ficha Técnica por Ordem de Produção." },
