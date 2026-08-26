@@ -2,7 +2,7 @@
 // (A) completude de cadastro, (B) ranking de dispersão por ficha técnica com
 // árvore expansível de composição e (C) atalho para sugestão de revisão.
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
@@ -200,8 +200,8 @@ function RankingFT() {
               </TableHeader>
               <TableBody>
                 {filtradas.slice(0, 300).map((r) => (
-                  <>
-                    <TableRow key={r.produto} className="cursor-pointer" onClick={() => setAberto(aberto === r.produto ? null : r.produto)}>
+                  <Fragment key={r.produto}>
+                    <TableRow className="cursor-pointer" onClick={() => setAberto(aberto === r.produto ? null : r.produto)}>
                       <TableCell>
                         {aberto === r.produto ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
                       </TableCell>
@@ -224,13 +224,13 @@ function RankingFT() {
                       </TableCell>
                     </TableRow>
                     {aberto === r.produto && (
-                      <TableRow key={`${r.produto}-arvore`}>
+                      <TableRow>
                         <TableCell colSpan={10} className="p-2 bg-muted/30">
                           <ArvoreFichaTecnica idProduto={r.produto} descProduto={r.desc} impacto={impacto} faixas={faixas} />
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 ))}
                 {filtradas.length === 0 && (
                   <TableRow><TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-6">
