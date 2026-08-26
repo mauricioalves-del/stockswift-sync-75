@@ -127,11 +127,50 @@ function RankingFT() {
     })).sort((a, b) => b.dispersao - a.dispersao);
   }, [impacto, faixas]);
 
+  // Descrições ausentes em v_impacto_consumo: resolve na Ficha Técnica em cascata
+  // (id_produto/produto → id_subconjunto/subconjunto → id_item/item), igual à tela de dispersão.
+  const codigosSemDesc = useMemo(
+    () => ranking.filter((r) => !r.desc).map((r) => r.produto).sort(),
+    [ranking],
+  );
+  const descQ = useQuery({
+    queryKey: ["auditoria-ft", "descricoes", codigosSemDesc.join(",")],
+    enabled: codigosSemDesc.length > 0,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const map = new Map<string, string>();
+      const setIfEmpty = (k: unknown, v: unknown) => {
+        const key = k == null ? "" : String(k).trim();
+        const val = v == null ? "" : String(v).trim();
+        if (key && val && !map.has(key)) map.set(key, val);
+      };
+      const [porProduto, porSubconjunto, porItem] = await Promise.all([
+        fetchAll<any>((from, to) => (supabase as any).from("ficha_tecnica_bom")
+          .select("id_produto,produto").in("id_produto", codigosSemDesc).range(from, to)),
+        fetchAll<any>((from, to) => (supabase as any).from("ficha_tecnica_bom")
+          .select("id_subconjunto,subconjunto").in("id_subconjunto", codigosSemDesc).range(from, to)),
+        fetchAll<any>((from, to) => (supabase as any).from("ficha_tecnica_bom")
+          .select("id_item,item").in("id_item", codigosSemDesc).range(from, to)),
+      ]);
+      for (const p of porProduto) setIfEmpty(p.id_produto, p.produto);
+      for (const p of porSubconjunto) setIfEmpty(p.id_subconjunto, p.subconjunto);
+      for (const p of porItem) setIfEmpty(p.id_item, p.item);
+      return map;
+    },
+  });
+
+  const rankingComDesc = useMemo<RankRow[]>(() => {
+    const m = descQ.data;
+    if (!m || m.size === 0) return ranking;
+    return ranking.map((r) => (r.desc ? r : { ...r, desc: m.get(r.produto) ?? "" }));
+  }, [ranking, descQ.data]);
+
   const filtradas = useMemo(() => {
     const t = busca.trim().toLowerCase();
-    if (!t) return ranking;
-    return ranking.filter((r) => r.produto.toLowerCase().includes(t) || r.desc.toLowerCase().includes(t));
-  }, [ranking, busca]);
+    if (!t) return rankingComDesc;
+    return rankingComDesc.filter((r) => r.produto.toLowerCase().includes(t) || r.desc.toLowerCase().includes(t));
+  }, [rankingComDesc, busca]);
+
 
   function exportar() {
     const ws = XLSX.utils.json_to_sheet(filtradas.map((r) => ({
