@@ -337,10 +337,10 @@ function Completude() {
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<Map<string, number>> => {
       const { data, error } = await (supabase as any)
-        .from("v_consumo_relevancia_sku").select("sku, valor_consumo");
+        .from("v_consumo_relevancia_sku").select("sku, qtd_total");
       if (error) return new Map();
       const m = new Map<string, number>();
-      for (const r of (data ?? []) as any[]) m.set(String(r.sku ?? "").trim(), Number(r.valor_consumo ?? 0));
+      for (const r of (data ?? []) as any[]) m.set(String(r.sku ?? "").trim(), Number(r.qtd_total ?? 0));
       return m;
     },
   });
@@ -374,7 +374,7 @@ function Completude() {
       "Código": r.codigo, "Produto": r.descricao, "Família": r.familia ?? "",
       "Grupo": r.grupo, "É Produto Local": r.local ? "Sim" : "Não",
       "Tem Ficha Técnica": r.temFt ? "Sim" : "Não",
-      "Consumo (R$)": +(relevanciaQ.data?.get(r.codigo) ?? 0).toFixed(2),
+      "Consumo (qtd)": +(relevanciaQ.data?.get(r.codigo) ?? 0).toFixed(2),
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
@@ -437,7 +437,7 @@ function Completude() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
-            {filtradas.length} produto(s) {filtro === "sem" ? "sem ficha técnica (ordenados por consumo)" : filtro === "com" ? "com ficha técnica" : ""}
+            {filtradas.length} produto(s) {filtro === "sem" ? "sem ficha técnica (ordenados por volume de consumo)" : filtro === "com" ? "com ficha técnica" : ""}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -448,7 +448,7 @@ function Completude() {
                   <TableHead>Código</TableHead>
                   <TableHead>Produto</TableHead>
                   <TableHead>Família</TableHead>
-                  <TableHead className="text-right">Consumo (R$)</TableHead>
+                  <TableHead className="text-right">Consumo (qtd)</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -459,7 +459,7 @@ function Completude() {
                     <TableCell className="text-sm">{r.descricao || <span className="text-muted-foreground italic">sem descrição</span>}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{r.familia ?? "—"}</TableCell>
                     <TableCell className="text-right tabular-nums text-xs">
-                      {relevanciaQ.data?.get(r.codigo) ? fmtBRL(relevanciaQ.data.get(r.codigo)!) : "—"}
+                      {relevanciaQ.data?.get(r.codigo) ? relevanciaQ.data.get(r.codigo)!.toLocaleString("pt-BR") : "—"}
                     </TableCell>
                     <TableCell>
                       {r.temFt
