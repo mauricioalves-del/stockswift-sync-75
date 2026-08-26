@@ -761,6 +761,78 @@ export type Database = {
         }
         Relationships: []
       }
+      ficha_tecnica_revisoes: {
+        Row: {
+          aplicada_em: string | null
+          aplicada_por: string | null
+          aprovador_producao_em: string | null
+          aprovador_producao_id: string | null
+          aprovador_suprimentos_em: string | null
+          aprovador_suprimentos_id: string | null
+          criado_em: string
+          criado_por: string | null
+          ficha_tecnica_bom_versao_anterior: Json | null
+          id: string
+          justificativa: string | null
+          material_desc: string | null
+          material_id: string
+          metodo_calculo: string | null
+          motivo_rejeicao: string | null
+          produto_desc: string | null
+          produto_id: string
+          qtd_atual: number
+          qtd_sugerida: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          aplicada_em?: string | null
+          aplicada_por?: string | null
+          aprovador_producao_em?: string | null
+          aprovador_producao_id?: string | null
+          aprovador_suprimentos_em?: string | null
+          aprovador_suprimentos_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          ficha_tecnica_bom_versao_anterior?: Json | null
+          id?: string
+          justificativa?: string | null
+          material_desc?: string | null
+          material_id: string
+          metodo_calculo?: string | null
+          motivo_rejeicao?: string | null
+          produto_desc?: string | null
+          produto_id: string
+          qtd_atual?: number
+          qtd_sugerida?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          aplicada_em?: string | null
+          aplicada_por?: string | null
+          aprovador_producao_em?: string | null
+          aprovador_producao_id?: string | null
+          aprovador_suprimentos_em?: string | null
+          aprovador_suprimentos_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          ficha_tecnica_bom_versao_anterior?: Json | null
+          id?: string
+          justificativa?: string | null
+          material_desc?: string | null
+          material_id?: string
+          metodo_calculo?: string | null
+          motivo_rejeicao?: string | null
+          produto_desc?: string | null
+          produto_id?: string
+          qtd_atual?: number
+          qtd_sugerida?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       grupo_produtos: {
         Row: {
           codigo_produto: string
@@ -2733,6 +2805,14 @@ export type Database = {
           fonte_custo: string | null
           id_item: string | null
           qtd_custos_distintos: number | null
+        }
+        Relationships: []
+      }
+      v_consumo_relevancia_sku: {
+        Row: {
+          qtd_total: number | null
+          sku: string | null
+          ultimo_movimento: string | null
         }
         Relationships: []
       }
