@@ -63,14 +63,26 @@ function MaterialDrilldown() {
       for (const c of (causas.data ?? [])) causasMap.set(c.producao_consumo_id, c);
 
       // Descrição do produto produzido: usa desc_produto quando existir,
-      // senão resolve pelo cadastro de ficha técnica.
+      // senão resolve na ficha técnica em cascata:
+      // 1) id_produto/produto  2) id_subconjunto/subconjunto  3) id_item/item
       const codigos = [...new Set((pc.data ?? []).map((r: any) => r.produto).filter(Boolean))] as string[];
       const descMap = new Map<string, string>();
+      const setIfEmpty = (k: unknown, v: unknown) => {
+        const key = k == null ? "" : String(k).trim();
+        const val = v == null ? "" : String(v).trim();
+        if (key && val && !descMap.has(key)) descMap.set(key, val);
+      };
       if (codigos.length) {
-        const { data: prods } = await (supabase as any)
-          .from("ficha_tecnica_bom").select("id_produto, produto").in("id_produto", codigos);
-        for (const p of (prods ?? [])) if (p.produto && !descMap.has(p.id_produto)) descMap.set(p.id_produto, p.produto);
+        const [p1, p2, p3] = await Promise.all([
+          (supabase as any).from("ficha_tecnica_bom").select("id_produto, produto").in("id_produto", codigos),
+          (supabase as any).from("ficha_tecnica_bom").select("id_subconjunto, subconjunto").in("id_subconjunto", codigos),
+          (supabase as any).from("ficha_tecnica_bom").select("id_item, item").in("id_item", codigos),
+        ]);
+        for (const p of (p1?.data ?? [])) setIfEmpty(p.id_produto, p.produto);
+        for (const p of (p2?.data ?? [])) setIfEmpty(p.id_subconjunto, p.subconjunto);
+        for (const p of (p3?.data ?? [])) setIfEmpty(p.id_item, p.item);
       }
+
 
       return {
         rows: (pc.data ?? []).map((r: any) => {
@@ -79,7 +91,7 @@ function MaterialDrilldown() {
           const cd = custoDesvio(r.qtd_dif, custo);
           return {
             ...r,
-            desc_resolvida: r.desc_produto || descMap.get(r.produto) || null,
+            desc_resolvida: r.desc_produto || descMap.get(String(r.produto ?? "").trim()) || null,
             pct, cls, custoLiq: cd.perda - cd.sobra, causa: causasMap.get(r.id),
           };
         }),
