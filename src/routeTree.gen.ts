@@ -34,6 +34,7 @@ import { Route as AuthenticatedConfigIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedBaixasIndexRouteImport } from './routes/_authenticated/baixas.index'
 import { Route as ApiPublicImportFichaTecnicaBomRouteImport } from './routes/api/public/import-ficha-tecnica-bom'
 import { Route as ApiPublicImportEstoqueSistemicoRouteImport } from './routes/api/public/import-estoque-sistemico'
+import { Route as ApiPublicImportConsumoOpRouteImport } from './routes/api/public/import-consumo-op'
 import { Route as ApiPublicImportConsumoCmdRouteImport } from './routes/api/public/import-consumo-cmd'
 import { Route as ApiPublicAtlasExportarBaixasRouteImport } from './routes/api/public/atlas-exportar-baixas'
 import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_authenticated/suprimentos.estoque'
@@ -198,6 +199,12 @@ const ApiPublicImportEstoqueSistemicoRoute =
   ApiPublicImportEstoqueSistemicoRouteImport.update({
     id: '/api/public/import-estoque-sistemico',
     path: '/api/public/import-estoque-sistemico',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicImportConsumoOpRoute =
+  ApiPublicImportConsumoOpRouteImport.update({
+    id: '/api/public/import-consumo-op',
+    path: '/api/public/import-consumo-op',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicImportConsumoCmdRoute =
@@ -446,6 +453,7 @@ export interface FileRoutesByFullPath {
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/api/public/atlas-exportar-baixas': typeof ApiPublicAtlasExportarBaixasRoute
   '/api/public/import-consumo-cmd': typeof ApiPublicImportConsumoCmdRoute
+  '/api/public/import-consumo-op': typeof ApiPublicImportConsumoOpRoute
   '/api/public/import-estoque-sistemico': typeof ApiPublicImportEstoqueSistemicoRoute
   '/api/public/import-ficha-tecnica-bom': typeof ApiPublicImportFichaTecnicaBomRoute
   '/baixas/': typeof AuthenticatedBaixasIndexRoute
@@ -505,6 +513,7 @@ export interface FileRoutesByTo {
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/api/public/atlas-exportar-baixas': typeof ApiPublicAtlasExportarBaixasRoute
   '/api/public/import-consumo-cmd': typeof ApiPublicImportConsumoCmdRoute
+  '/api/public/import-consumo-op': typeof ApiPublicImportConsumoOpRoute
   '/api/public/import-estoque-sistemico': typeof ApiPublicImportEstoqueSistemicoRoute
   '/api/public/import-ficha-tecnica-bom': typeof ApiPublicImportFichaTecnicaBomRoute
   '/baixas': typeof AuthenticatedBaixasIndexRoute
@@ -566,6 +575,7 @@ export interface FileRoutesById {
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
   '/api/public/atlas-exportar-baixas': typeof ApiPublicAtlasExportarBaixasRoute
   '/api/public/import-consumo-cmd': typeof ApiPublicImportConsumoCmdRoute
+  '/api/public/import-consumo-op': typeof ApiPublicImportConsumoOpRoute
   '/api/public/import-estoque-sistemico': typeof ApiPublicImportEstoqueSistemicoRoute
   '/api/public/import-ficha-tecnica-bom': typeof ApiPublicImportFichaTecnicaBomRoute
   '/_authenticated/baixas/': typeof AuthenticatedBaixasIndexRoute
@@ -627,6 +637,7 @@ export interface FileRouteTypes {
     | '/suprimentos/estoque'
     | '/api/public/atlas-exportar-baixas'
     | '/api/public/import-consumo-cmd'
+    | '/api/public/import-consumo-op'
     | '/api/public/import-estoque-sistemico'
     | '/api/public/import-ficha-tecnica-bom'
     | '/baixas/'
@@ -686,6 +697,7 @@ export interface FileRouteTypes {
     | '/suprimentos/estoque'
     | '/api/public/atlas-exportar-baixas'
     | '/api/public/import-consumo-cmd'
+    | '/api/public/import-consumo-op'
     | '/api/public/import-estoque-sistemico'
     | '/api/public/import-ficha-tecnica-bom'
     | '/baixas'
@@ -746,6 +758,7 @@ export interface FileRouteTypes {
     | '/_authenticated/suprimentos/estoque'
     | '/api/public/atlas-exportar-baixas'
     | '/api/public/import-consumo-cmd'
+    | '/api/public/import-consumo-op'
     | '/api/public/import-estoque-sistemico'
     | '/api/public/import-ficha-tecnica-bom'
     | '/_authenticated/baixas/'
@@ -765,6 +778,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicAtlasExportarBaixasRoute: typeof ApiPublicAtlasExportarBaixasRoute
   ApiPublicImportConsumoCmdRoute: typeof ApiPublicImportConsumoCmdRoute
+  ApiPublicImportConsumoOpRoute: typeof ApiPublicImportConsumoOpRoute
   ApiPublicImportEstoqueSistemicoRoute: typeof ApiPublicImportEstoqueSistemicoRoute
   ApiPublicImportFichaTecnicaBomRoute: typeof ApiPublicImportFichaTecnicaBomRoute
   ApiPublicHooksResumoTarefasRoute: typeof ApiPublicHooksResumoTarefasRoute
@@ -945,6 +959,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/import-estoque-sistemico'
       fullPath: '/api/public/import-estoque-sistemico'
       preLoaderRoute: typeof ApiPublicImportEstoqueSistemicoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/import-consumo-op': {
+      id: '/api/public/import-consumo-op'
+      path: '/api/public/import-consumo-op'
+      fullPath: '/api/public/import-consumo-op'
+      preLoaderRoute: typeof ApiPublicImportConsumoOpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/import-consumo-cmd': {
@@ -1318,6 +1339,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicAtlasExportarBaixasRoute: ApiPublicAtlasExportarBaixasRoute,
   ApiPublicImportConsumoCmdRoute: ApiPublicImportConsumoCmdRoute,
+  ApiPublicImportConsumoOpRoute: ApiPublicImportConsumoOpRoute,
   ApiPublicImportEstoqueSistemicoRoute: ApiPublicImportEstoqueSistemicoRoute,
   ApiPublicImportFichaTecnicaBomRoute: ApiPublicImportFichaTecnicaBomRoute,
   ApiPublicHooksResumoTarefasRoute: ApiPublicHooksResumoTarefasRoute,
