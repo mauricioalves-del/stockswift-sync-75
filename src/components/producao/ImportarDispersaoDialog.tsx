@@ -199,7 +199,7 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
 
         {!isBom && total > 0 && (
           <p className="text-xs text-muted-foreground">
-            Ao confirmar, este relatório completo substituirá a base de consumo atual para evitar duplicidades.
+            O histórico é acumulativo: linhas já existentes (mesma OP, material e data) são atualizadas e nenhum registro antigo é apagado.
           </p>
         )}
 
