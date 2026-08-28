@@ -63,19 +63,58 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
       const { data: userData } = await supabase.auth.getUser();
       const uid = userData?.user?.id ?? null;
       if (isBom) {
-        const payload = okRowsBom.map((r) => ({
-          id_produto: r.id_produto, produto: r.produto || null,
-          id_subconjunto: r.id_subconjunto || null, subconjunto: r.subconjunto || null,
-          id_item: r.id_item, item: r.item || null,
-          qtd: r.qtd, tem_filho: !!r.tem_filho, gera_oc: !!r.gera_oc,
-          linha_origem: r.linha_origem || null, custo: r.custo ?? 0,
-          item_unidade: r.item_unidade || null, criado_por: uid,
-        }));
-        // sobrescreve BOM em blocos
+        // Dedup por (id_produto, id_subconjunto, id_item) — chave única do banco.
+        // id_subconjunto vazio é gravado como string vazia (nunca null).
+        const agg = new Map<string, any>();
+        for (const r of okRowsBom) {
+          const id_subconjunto = (r.id_subconjunto || "").trim();
+          agg.set(`${r.id_produto}|${id_subconjunto}|${r.id_item}`, {
+            id_produto: r.id_produto, produto: r.produto || null,
+            id_subconjunto, subconjunto: r.subconjunto || null,
+            id_item: r.id_item, item: r.item || null,
+            qtd: r.qtd, tem_filho: !!r.tem_filho, gera_oc: !!r.gera_oc,
+            linha_origem: r.linha_origem || null, custo: r.custo ?? 0,
+            item_unidade: r.item_unidade || null, criado_por: uid,
+          });
+        }
+        const payload = Array.from(agg.values());
+        const chaves = new Set(agg.keys());
+        const produtos = Array.from(new Set(payload.map((p) => p.id_produto)));
+
         const CHUNK = 500;
         for (let i = 0; i < payload.length; i += CHUNK) {
           const slice = payload.slice(i, i + CHUNK);
-          const { error } = await (supabase as any).from("ficha_tecnica_bom").insert(slice);
+          const { error } = await (supabase as any)
+            .from("ficha_tecnica_bom")
+            .upsert(slice, { onConflict: "id_produto,id_subconjunto,id_item" });
+          if (error) throw error;
+        }
+
+        // Remove itens dos produtos importados que não vieram mais no arquivo
+        const existentes: any[] = [];
+        for (let i = 0; i < produtos.length; i += CHUNK) {
+          const bloco = produtos.slice(i, i + CHUNK);
+          for (let from = 0; ; from += 1000) {
+            const { data, error } = await (supabase as any)
+              .from("ficha_tecnica_bom")
+              .select("id, id_produto, id_subconjunto, id_item")
+              .in("id_produto", bloco)
+              .order("id", { ascending: true })
+              .range(from, from + 999);
+            if (error) throw error;
+            const rowsDb = data ?? [];
+            existentes.push(...rowsDb);
+            if (rowsDb.length < 1000) break;
+          }
+        }
+        const obsoletos = existentes
+          .filter((e) => !chaves.has(`${e.id_produto}|${e.id_subconjunto ?? ""}|${e.id_item}`))
+          .map((e) => e.id);
+        for (let i = 0; i < obsoletos.length; i += CHUNK) {
+          const { error } = await (supabase as any)
+            .from("ficha_tecnica_bom")
+            .delete()
+            .in("id", obsoletos.slice(i, i + CHUNK));
           if (error) throw error;
         }
       } else {
