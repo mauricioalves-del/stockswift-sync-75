@@ -118,26 +118,37 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
           if (error) throw error;
         }
       } else {
-        const payload = okRowsCon.map((r) => ({
-          ano_mes: r.ano_mes, id_op: r.id_op,
-          produto: r.produto || null, desc_produto: r.desc_produto || null,
-          material: r.material, desc_material: r.desc_material || null,
-          um: r.um || null, qtd_consumo: r.qtd_consumo, qtd_previsto: r.qtd_previsto,
-          qtd_produzida: r.qtd_produzida ?? null, data_producao: r.data_producao ?? null, criado_por: uid,
-        }));
-        // O relatório de consumo é uma fotografia completa da movimentação.
-        // Substituir a base evita duplicidades e registros antigos sem a Data
-        // de produção, que distorcem todos os indicadores do dashboard.
-        const { error: deleteError } = await (supabase as any)
-          .from("producao_consumo")
-          .delete()
-          .not("id", "is", null);
-        if (deleteError) throw deleteError;
+        // O arquivo de origem traz apenas uma janela móvel (~3 meses).
+        // Por isso o histórico é acumulativo: dedup/soma por
+        // (id_op, material, data_producao) e upsert — nada é apagado.
+        const agg = new Map<string, any>();
+        for (const r of okRowsCon) {
+          const chave = `${r.id_op}|${r.material}|${r.data_producao ?? ""}`;
+          const anterior = agg.get(chave);
+          if (anterior) {
+            anterior.qtd_consumo += r.qtd_consumo;
+            anterior.qtd_previsto += r.qtd_previsto;
+            if (r.qtd_produzida != null) {
+              anterior.qtd_produzida = (anterior.qtd_produzida ?? 0) + r.qtd_produzida;
+            }
+            continue;
+          }
+          agg.set(chave, {
+            ano_mes: r.ano_mes, id_op: r.id_op,
+            produto: r.produto || null, desc_produto: r.desc_produto || null,
+            material: r.material, desc_material: r.desc_material || null,
+            um: r.um || null, qtd_consumo: r.qtd_consumo, qtd_previsto: r.qtd_previsto,
+            qtd_produzida: r.qtd_produzida ?? null, data_producao: r.data_producao ?? null, criado_por: uid,
+          });
+        }
+        const payload = Array.from(agg.values());
 
         const CHUNK = 500;
         for (let i = 0; i < payload.length; i += CHUNK) {
           const slice = payload.slice(i, i + CHUNK);
-          const { error } = await (supabase as any).from("producao_consumo").insert(slice);
+          const { error } = await (supabase as any)
+            .from("producao_consumo")
+            .upsert(slice, { onConflict: "id_op,material,data_producao" });
           if (error) throw error;
         }
       }
@@ -188,7 +199,7 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
 
         {!isBom && total > 0 && (
           <p className="text-xs text-muted-foreground">
-            Ao confirmar, este relatório completo substituirá a base de consumo atual para evitar duplicidades.
+            O histórico é acumulativo: linhas já existentes (mesma OP, material e data) são atualizadas e nenhum registro antigo é apagado.
           </p>
         )}
 

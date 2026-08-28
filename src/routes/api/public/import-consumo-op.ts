@@ -75,7 +75,7 @@ export const Route = createFileRoute('/api/public/import-consumo-op')({
         if (!linhas) return json({ error: 'campo "linhas" (array) é obrigatório' }, 400)
 
         const erros: { linha: number; erro: string }[] = []
-        const validas: Record<string, unknown>[] = []
+        const agg = new Map<string, Record<string, unknown>>()
 
         linhas.forEach((r, i) => {
           const id_op = txt(r.id_op)
@@ -88,8 +88,22 @@ export const Route = createFileRoute('/api/public/import-consumo-op')({
           if (!data_producao) return erros.push({ linha: i + 1, erro: 'data_producao inválida' })
           if (Number.isNaN(qtd_consumo)) return erros.push({ linha: i + 1, erro: 'qtd_consumo inválida' })
           if (Number.isNaN(qtd_previsto)) return erros.push({ linha: i + 1, erro: 'qtd_previsto inválida' })
-          const qp = txt(r.qtd_produzida) === '' ? null : num(r.qtd_produzida)
-          validas.push({
+          const qpRaw = txt(r.qtd_produzida) === '' ? null : num(r.qtd_produzida)
+          const qtd_produzida = qpRaw !== null && Number.isNaN(qpRaw) ? null : qpRaw
+
+          const chave = `${id_op}|${material}|${data_producao}`
+          const anterior = agg.get(chave) as
+            | { qtd_consumo: number; qtd_previsto: number; qtd_produzida: number | null }
+            | undefined
+          if (anterior) {
+            anterior.qtd_consumo += qtd_consumo
+            anterior.qtd_previsto += qtd_previsto
+            if (qtd_produzida !== null) {
+              anterior.qtd_produzida = (anterior.qtd_produzida ?? 0) + qtd_produzida
+            }
+            return
+          }
+          agg.set(chave, {
             ano_mes: data_producao.slice(0, 7),
             data_producao,
             id_op,
@@ -100,44 +114,62 @@ export const Route = createFileRoute('/api/public/import-consumo-op')({
             um: txt(r.um) || null,
             qtd_consumo,
             qtd_previsto,
-            qtd_produzida: qp !== null && Number.isNaN(qp) ? null : qp,
+            qtd_produzida,
             criado_por: null,
           })
         })
 
+        const validas = Array.from(agg.values())
+
         if (validas.length === 0) {
-          return json({ recebidas: linhas.length, processadas: 0, removidos: 0, falhas: 0, erros }, 400)
+          return json({ recebidas: linhas.length, processadas: 0, novos: 0, atualizados: 0, falhas: 0, erros }, 400)
         }
 
         try {
           const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
 
-          const { count: anteriores } = await supabaseAdmin
-            .from('producao_consumo')
-            .select('id', { count: 'exact', head: true })
-
-          // Snapshot completo: substitui toda a base (mesmo comportamento da tela)
-          const { error: deleteError } = await supabaseAdmin
-            .from('producao_consumo')
-            .delete()
-            .not('id', 'is', null)
-          if (deleteError) throw deleteError
+          // Histórico acumulativo: o arquivo de origem traz apenas uma janela
+          // móvel (~3 meses), então nada é removido — apenas upsert por chave.
+          const chaves = Array.from(agg.keys())
+          const opsUnicas = Array.from(new Set(validas.map((v) => v.id_op as string)))
+          const existentes = new Set<string>()
+          const BLOCO = 200
+          for (let i = 0; i < opsUnicas.length; i += BLOCO) {
+            const bloco = opsUnicas.slice(i, i + BLOCO)
+            for (let from = 0; ; from += 1000) {
+              const { data, error } = await supabaseAdmin
+                .from('producao_consumo')
+                .select('id_op, material, data_producao')
+                .in('id_op', bloco)
+                .range(from, from + 999)
+              if (error) throw error
+              const rows = data ?? []
+              for (const row of rows) {
+                existentes.add(`${row.id_op}|${row.material}|${row.data_producao ?? ''}`)
+              }
+              if (rows.length < 1000) break
+            }
+          }
+          const atualizados = chaves.filter((c) => existentes.has(c)).length
 
           let ok = 0
           let falhas = 0
           for (let i = 0; i < validas.length; i += CHUNK) {
             const slice = validas.slice(i, i + CHUNK)
-            const { error } = await supabaseAdmin.from('producao_consumo').insert(slice as never)
+            const { error } = await supabaseAdmin
+              .from('producao_consumo')
+              .upsert(slice as never, { onConflict: 'id_op,material,data_producao' })
             if (error) {
               falhas += slice.length
-              console.error('[import-consumo-op] insert', error)
+              console.error('[import-consumo-op] upsert', error)
             } else ok += slice.length
           }
 
           return json({
             recebidas: linhas.length,
             processadas: ok,
-            removidos: anteriores ?? 0,
+            novos: Math.max(ok - atualizados, 0),
+            atualizados: Math.min(atualizados, ok),
             falhas,
             erros,
           })
