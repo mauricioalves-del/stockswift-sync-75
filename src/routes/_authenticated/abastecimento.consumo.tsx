@@ -107,12 +107,25 @@ function ConsumoPage() {
     if (rows.length === 0) return;
     setImporting(true);
     const userId = (await supabase.auth.getUser()).data.user?.id;
-    const payload = rows.map((r) => ({ ...r, importado_por: userId }));
+    // Dedup/soma por (origem, sku, data_movimento) — mesma chave única do banco,
+    // evitando duplicidade ao reimportar o mesmo período.
+    const agg = new Map<string, Row>();
+    for (const r of rows) {
+      const key = `${r.origem}|${r.sku}|${r.data_movimento}`;
+      const prev = agg.get(key);
+      if (prev) {
+        prev.quantidade += r.quantidade;
+        if (!prev.descricao && r.descricao) prev.descricao = r.descricao;
+      } else agg.set(key, { ...r });
+    }
+    const payload = Array.from(agg.values()).map((r) => ({ ...r, importado_por: userId }));
     let ok = 0, fail = 0;
     const CHUNK = 500;
     for (let i = 0; i < payload.length; i += CHUNK) {
       const slice = payload.slice(i, i + CHUNK);
-      const { error } = await supabase.from("historico_consumo" as never).insert(slice as never);
+      const { error } = await supabase
+        .from("historico_consumo" as never)
+        .upsert(slice as never, { onConflict: "origem,sku,data_movimento" });
       if (error) { fail += slice.length; console.error(error); }
       else ok += slice.length;
     }
