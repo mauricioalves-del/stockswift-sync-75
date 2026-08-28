@@ -713,7 +713,7 @@ export type Database = {
           id: string
           id_item: string
           id_produto: string
-          id_subconjunto: string | null
+          id_subconjunto: string
           item: string | null
           item_unidade: string | null
           linha_origem: string | null
@@ -731,7 +731,7 @@ export type Database = {
           id?: string
           id_item: string
           id_produto: string
-          id_subconjunto?: string | null
+          id_subconjunto?: string
           item?: string | null
           item_unidade?: string | null
           linha_origem?: string | null
@@ -749,7 +749,7 @@ export type Database = {
           id?: string
           id_item?: string
           id_produto?: string
-          id_subconjunto?: string | null
+          id_subconjunto?: string
           item?: string | null
           item_unidade?: string | null
           linha_origem?: string | null
