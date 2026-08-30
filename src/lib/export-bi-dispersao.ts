@@ -44,6 +44,7 @@ export type ExportarBIParams = {
     linha?: string;
     classificacao?: string;
     granularidade?: string;
+    estrutura?: string;
   };
 };
 
