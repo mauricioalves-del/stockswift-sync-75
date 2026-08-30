@@ -183,18 +183,20 @@ function DispersaoPage() {
     if (produto && !(r.produto ?? "").toLowerCase().includes(produto.toLowerCase()) && !(r.desc_produto ?? "").toLowerCase().includes(produto.toLowerCase())) return false;
     if (linha !== "todas" && r.linha_origem !== linha) return false;
     if (classFilter !== "todas" && r.cls !== classFilter) return false;
+    if (estruturaFilter !== "todas" && r.estrutura !== estruturaFilter) return false;
     return true;
-  }), [linhas, anoMes, dtDe, dtAte, material, produto, linha, classFilter]);
+  }), [linhas, anoMes, dtDe, dtAte, material, produto, linha, classFilter, estruturaFilter]);
 
 
   // Matriz de criticidade (mesma regra da view v_matriz_criticidade, com limiares configuráveis)
   const matriz = useMemo(() => {
-    const map = new Map<string, { material: string; desc_material: string; ops: Set<string>; liq: number; abs: number; linhas: ImpactoLinha[] }>();
+    const map = new Map<string, { material: string; desc_material: string; ops: Set<string>; liq: number; abs: number; fora: boolean; linhas: ImpactoLinha[] }>();
     for (const r of filtradas) {
-      if (!r.tem_furo) continue;
+      if (!r.tem_furo && r.estrutura !== "FORA_FT") continue;
       const key = r.material;
-      const cur = map.get(key) ?? { material: r.material, desc_material: r.desc_material || r.material, ops: new Set<string>(), liq: 0, abs: 0, linhas: [] as ImpactoLinha[] };
+      const cur = map.get(key) ?? { material: r.material, desc_material: r.desc_material || r.material, ops: new Set<string>(), liq: 0, abs: 0, fora: false, linhas: [] as ImpactoLinha[] };
       cur.ops.add(r.id_op); cur.liq += r.impacto; cur.abs += Math.abs(r.impacto);
+      if (r.estrutura === "FORA_FT") cur.fora = true;
       cur.linhas.push(r as unknown as ImpactoLinha);
       map.set(key, cur);
     }
@@ -207,22 +209,44 @@ function DispersaoPage() {
       return {
         material: m.material, desc_material: m.desc_material, freq_ops: freq,
         impacto_liquido: m.liq, impacto_abs: m.abs, quadrante,
-        causa: causaProvavel(m.linhas, faixas),
+        fora_estrutura: m.fora,
+        causa: causaProvavel(m.linhas, faixas, m.fora),
       };
     }).sort((a, b) => b.impacto_abs - a.impacto_abs);
   }, [filtradas, limFreq, limImpacto, faixas]);
+
+  // Ranking dos materiais consumidos fora da composição oficial
+  const foraEstrutura = useMemo(() => {
+    const map = new Map<string, { material: string; desc_material: string; ops: Set<string>; produtos: Set<string>; impacto: number; qtd: number }>();
+    for (const r of filtradas) {
+      if (r.estrutura !== "FORA_FT") continue;
+      const cur = map.get(r.material) ?? { material: r.material, desc_material: r.desc_material || r.material, ops: new Set<string>(), produtos: new Set<string>(), impacto: 0, qtd: 0 };
+      cur.ops.add(r.id_op);
+      if (r.produto) cur.produtos.add(r.produto);
+      cur.impacto += Math.abs(r.impacto);
+      cur.qtd += Number(r.qtd_consumo ?? 0);
+      map.set(r.material, cur);
+    }
+    return Array.from(map.values())
+      .map((m) => ({ material: m.material, desc_material: m.desc_material, ops: m.ops.size, produtos: Array.from(m.produtos), impacto: m.impacto, qtd: m.qtd }))
+      .sort((a, b) => b.impacto - a.impacto);
+  }, [filtradas]);
 
   // KPIs executivos
   const kpis = useMemo(() => {
     const ops = new Set<string>();
     const opsFuro = new Set<string>();
     const opsCriticas = new Set<string>();
-    let perda = 0, economia = 0;
+    const opsFora = new Set<string>();
+    const opsSemFT = new Set<string>();
+    let perda = 0, economia = 0, impactoFora = 0;
     for (const r of filtradas) {
       ops.add(r.id_op);
       if (r.tem_furo) opsFuro.add(r.id_op);
       if (r.impacto > 0) perda += r.impacto; else economia += -r.impacto;
       if (r.cls === "CRITICO") opsCriticas.add(r.id_op);
+      if (r.estrutura === "FORA_FT") { opsFora.add(r.id_op); impactoFora += Math.abs(r.impacto); }
+      if (r.estrutura === "SEM_FT") opsSemFT.add(r.id_op);
     }
     const cronicos = matriz.filter((m) => m.freq_ops >= limFreq).length;
     const totalAbs = matriz.reduce((s, m) => s + m.impacto_abs, 0);
@@ -233,6 +257,7 @@ function DispersaoPage() {
       perda, economia, liquido: perda - economia,
       cronicos, opsCriticas: opsCriticas.size,
       pctTop20: totalAbs ? (100 * top20) / totalAbs : 0,
+      opsFora: opsFora.size, impactoFora, opsSemFT: opsSemFT.size,
     };
   }, [filtradas, matriz, limFreq]);
 
