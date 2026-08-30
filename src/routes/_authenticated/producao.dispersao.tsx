@@ -162,10 +162,11 @@ function DispersaoPage() {
         cls,
         custoPerda: impacto > 0 ? impacto : 0,
         custoSobra: impacto < 0 ? -impacto : 0,
-        linha_origem: origemQ.data?.get(r.material) ?? null,
+        linha_origem: estruturaQ.data?.origemPorItem.get(String(r.material).trim().toUpperCase()) ?? null,
+        estrutura: situacaoEstrutura(estruturaQ.data, r.sku_produto_final, r.material),
       };
     });
-  }, [impactoQ.data, origemQ.data, faixas]);
+  }, [impactoQ.data, estruturaQ.data, faixas]);
 
   const meses = useMemo(
     () => Array.from(new Set(linhas.map((r) => r.mes))).filter((m) => m !== SEM_DATA).sort().reverse(),
