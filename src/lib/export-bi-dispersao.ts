@@ -26,6 +26,7 @@ export type LinhaBI = {
   cls: string;
   tem_furo: boolean;
   linha_origem: string | null;
+  estrutura?: "NA_FT" | "FORA_FT" | "SEM_FT";
 };
 
 export type ExportarBIParams = {
@@ -43,6 +44,7 @@ export type ExportarBIParams = {
     linha?: string;
     classificacao?: string;
     granularidade?: string;
+    estrutura?: string;
   };
 };
 
@@ -437,7 +439,8 @@ var COLS=[
   {c:'pct',l:'% Disp.',f:function(r){ if(r.pct==null) return '—'; var n=Number(r.pct); return isNaN(n)? String(r.pct) : n.toFixed(1)+'%'; },n:1},
   {c:'custo',l:'Custo unit.',f:function(r){return brl(r.custo);},n:1},
   {c:'impacto',l:'Impacto',f:function(r){return brl(r.impacto);},n:1},
-  {c:'cls',l:'Classificação'},{c:'linha_origem',l:'Linha/Origem'}
+  {c:'cls',l:'Classificação'},{c:'linha_origem',l:'Linha/Origem'},
+  {c:'estrutura',l:'Ficha Técnica',f:function(r){return r.estrutura==='FORA_FT'?'Fora da estrutura':r.estrutura==='SEM_FT'?'Sem Ficha Técnica':'Na estrutura';}}
 ];
 var POR_PAGINA=100;
 

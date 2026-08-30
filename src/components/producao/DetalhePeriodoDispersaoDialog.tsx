@@ -27,6 +27,7 @@ export type LinhaPeriodo = {
   data: string | null;
   produto?: string | null;
   desc_produto?: string | null;
+  estrutura?: "NA_FT" | "FORA_FT" | "SEM_FT";
 };
 
 type OpInfo = {
@@ -282,6 +283,7 @@ export function DetalhePeriodoDispersaoDialog({ open, onOpenChange, label, anoMe
             <TableBody>
               {itens.map((i) => {
                 const acoes = acoesPorMaterial.get(i.material) ?? [];
+                const foraFT = (linhasPorMaterial.get(i.material) ?? []).some((l) => l.estrutura === "FORA_FT");
                 const expandido = aberto === i.material;
                 return [
                   <TableRow
@@ -293,6 +295,7 @@ export function DetalhePeriodoDispersaoDialog({ open, onOpenChange, label, anoMe
                     <TableCell className="text-xs">
                       <div className="font-medium">{i.material}</div>
                       <div className="text-muted-foreground">{i.desc_material}</div>
+                      {foraFT && <Badge variant="outline" className="mt-1 border-destructive text-destructive">Fora da FT</Badge>}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{i.ops}</TableCell>
                     <TableCell className="text-right tabular-nums">{i.previsto.toLocaleString("pt-BR", { maximumFractionDigits: 3 })}</TableCell>

@@ -28,7 +28,7 @@ import { ImportarDispersaoDialog } from "@/components/producao/ImportarDispersao
 import { DetalhePeriodoDispersaoDialog } from "@/components/producao/DetalhePeriodoDispersaoDialog";
 import { exportarDispersaoBI } from "@/lib/export-bi-dispersao";
 import { fetchAll } from "@/lib/fetch-all";
-import { causaProvavel, type ImpactoLinha } from "@/lib/ft-arvore";
+import { causaProvavel, carregarEstruturaBOM, situacaoEstrutura, type ImpactoLinha } from "@/lib/ft-arvore";
 import { RevisoesFichaTecnica } from "@/components/producao/RevisoesFichaTecnica";
 import { AlertCircle, Plus, Search, Settings2 } from "lucide-react";
 
@@ -94,6 +94,7 @@ function DispersaoPage() {
   const [produto, setProduto] = useState<string>(sp.produto ?? "");
   const [linha, setLinha] = useState<string>("todas");
   const [classFilter, setClassFilter] = useState<string>("todas");
+  const [estruturaFilter, setEstruturaFilter] = useState<string>("todas");
 
 
   const paramsQ = useQuery({
@@ -123,17 +124,13 @@ function DispersaoPage() {
     },
   });
 
-  const origemQ = useQuery({
-    queryKey: ["dispersao", "origem-item"],
-    queryFn: async (): Promise<Map<string, string>> => {
-      const { data, error } = await (supabase as any).from("ficha_tecnica_bom").select("id_item, linha_origem");
-      if (error) throw error;
-      const map = new Map<string, string>();
-      for (const r of (data ?? []) as any[]) {
-        if (r.linha_origem && !map.has(r.id_item)) map.set(r.id_item, r.linha_origem);
-      }
-      return map;
-    },
+  // Ficha Técnica completa (paginada): alimenta a regra de "fora da estrutura" e o mapa de Linha/Origem.
+  const estruturaQ = useQuery({
+    queryKey: ["dispersao", "bom-estrutura"],
+    queryFn: carregarEstruturaBOM,
+    staleTime: 5 * 60_000,
+    // Importações pela API não invalidam o cache do navegador: revalida ao voltar para a aba.
+    refetchOnWindowFocus: true,
   });
 
   const acoesQ = useQuery({
@@ -168,10 +165,11 @@ function DispersaoPage() {
         cls,
         custoPerda: impacto > 0 ? impacto : 0,
         custoSobra: impacto < 0 ? -impacto : 0,
-        linha_origem: origemQ.data?.get(r.material) ?? null,
+        linha_origem: estruturaQ.data?.origemPorItem.get(String(r.material).trim().toUpperCase()) ?? null,
+        estrutura: situacaoEstrutura(estruturaQ.data, r.sku_produto_final, r.material),
       };
     });
-  }, [impactoQ.data, origemQ.data, faixas]);
+  }, [impactoQ.data, estruturaQ.data, faixas]);
 
   const meses = useMemo(
     () => Array.from(new Set(linhas.map((r) => r.mes))).filter((m) => m !== SEM_DATA).sort().reverse(),
@@ -188,18 +186,20 @@ function DispersaoPage() {
     if (produto && !(r.produto ?? "").toLowerCase().includes(produto.toLowerCase()) && !(r.desc_produto ?? "").toLowerCase().includes(produto.toLowerCase())) return false;
     if (linha !== "todas" && r.linha_origem !== linha) return false;
     if (classFilter !== "todas" && r.cls !== classFilter) return false;
+    if (estruturaFilter !== "todas" && r.estrutura !== estruturaFilter) return false;
     return true;
-  }), [linhas, anoMes, dtDe, dtAte, material, produto, linha, classFilter]);
+  }), [linhas, anoMes, dtDe, dtAte, material, produto, linha, classFilter, estruturaFilter]);
 
 
   // Matriz de criticidade (mesma regra da view v_matriz_criticidade, com limiares configuráveis)
   const matriz = useMemo(() => {
-    const map = new Map<string, { material: string; desc_material: string; ops: Set<string>; liq: number; abs: number; linhas: ImpactoLinha[] }>();
+    const map = new Map<string, { material: string; desc_material: string; ops: Set<string>; liq: number; abs: number; fora: boolean; linhas: ImpactoLinha[] }>();
     for (const r of filtradas) {
-      if (!r.tem_furo) continue;
+      if (!r.tem_furo && r.estrutura !== "FORA_FT") continue;
       const key = r.material;
-      const cur = map.get(key) ?? { material: r.material, desc_material: r.desc_material || r.material, ops: new Set<string>(), liq: 0, abs: 0, linhas: [] as ImpactoLinha[] };
+      const cur = map.get(key) ?? { material: r.material, desc_material: r.desc_material || r.material, ops: new Set<string>(), liq: 0, abs: 0, fora: false, linhas: [] as ImpactoLinha[] };
       cur.ops.add(r.id_op); cur.liq += r.impacto; cur.abs += Math.abs(r.impacto);
+      if (r.estrutura === "FORA_FT") cur.fora = true;
       cur.linhas.push(r as unknown as ImpactoLinha);
       map.set(key, cur);
     }
@@ -212,22 +212,44 @@ function DispersaoPage() {
       return {
         material: m.material, desc_material: m.desc_material, freq_ops: freq,
         impacto_liquido: m.liq, impacto_abs: m.abs, quadrante,
-        causa: causaProvavel(m.linhas, faixas),
+        fora_estrutura: m.fora,
+        causa: causaProvavel(m.linhas, faixas, m.fora),
       };
     }).sort((a, b) => b.impacto_abs - a.impacto_abs);
   }, [filtradas, limFreq, limImpacto, faixas]);
+
+  // Ranking dos materiais consumidos fora da composição oficial
+  const foraEstrutura = useMemo(() => {
+    const map = new Map<string, { material: string; desc_material: string; ops: Set<string>; produtos: Set<string>; impacto: number; qtd: number }>();
+    for (const r of filtradas) {
+      if (r.estrutura !== "FORA_FT") continue;
+      const cur = map.get(r.material) ?? { material: r.material, desc_material: r.desc_material || r.material, ops: new Set<string>(), produtos: new Set<string>(), impacto: 0, qtd: 0 };
+      cur.ops.add(r.id_op);
+      if (r.produto) cur.produtos.add(r.produto);
+      cur.impacto += Math.abs(r.impacto);
+      cur.qtd += Number(r.qtd_consumo ?? 0);
+      map.set(r.material, cur);
+    }
+    return Array.from(map.values())
+      .map((m) => ({ material: m.material, desc_material: m.desc_material, ops: m.ops.size, produtos: Array.from(m.produtos), impacto: m.impacto, qtd: m.qtd }))
+      .sort((a, b) => b.impacto - a.impacto);
+  }, [filtradas]);
 
   // KPIs executivos
   const kpis = useMemo(() => {
     const ops = new Set<string>();
     const opsFuro = new Set<string>();
     const opsCriticas = new Set<string>();
-    let perda = 0, economia = 0;
+    const opsFora = new Set<string>();
+    const opsSemFT = new Set<string>();
+    let perda = 0, economia = 0, impactoFora = 0;
     for (const r of filtradas) {
       ops.add(r.id_op);
       if (r.tem_furo) opsFuro.add(r.id_op);
       if (r.impacto > 0) perda += r.impacto; else economia += -r.impacto;
       if (r.cls === "CRITICO") opsCriticas.add(r.id_op);
+      if (r.estrutura === "FORA_FT") { opsFora.add(r.id_op); impactoFora += Math.abs(r.impacto); }
+      if (r.estrutura === "SEM_FT") opsSemFT.add(r.id_op);
     }
     const cronicos = matriz.filter((m) => m.freq_ops >= limFreq).length;
     const totalAbs = matriz.reduce((s, m) => s + m.impacto_abs, 0);
@@ -238,6 +260,7 @@ function DispersaoPage() {
       perda, economia, liquido: perda - economia,
       cronicos, opsCriticas: opsCriticas.size,
       pctTop20: totalAbs ? (100 * top20) / totalAbs : 0,
+      opsFora: opsFora.size, impactoFora, opsSemFT: opsSemFT.size,
     };
   }, [filtradas, matriz, limFreq]);
 
@@ -340,12 +363,13 @@ function DispersaoPage() {
                   cls: r.cls,
                   tem_furo: !!r.tem_furo,
                   linha_origem: r.linha_origem,
+                  estrutura: r.estrutura,
                 })),
                 limFreq,
                 limImpacto,
                 filtrosIniciais: {
                   dtDe, dtAte, produto, material,
-                  linha, classificacao: classFilter, granularidade: granul,
+                  linha, classificacao: classFilter, granularidade: granul, estrutura: estruturaFilter,
                 },
               })
             }
@@ -417,6 +441,18 @@ function DispersaoPage() {
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Ficha Técnica</label>
+            <Select value={estruturaFilter} onValueChange={setEstruturaFilter}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas</SelectItem>
+                <SelectItem value="FORA_FT">Somente fora da estrutura</SelectItem>
+                <SelectItem value="SEM_FT">Somente sem Ficha Técnica</SelectItem>
+                <SelectItem value="NA_FT">Somente na estrutura</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 
@@ -444,6 +480,12 @@ function DispersaoPage() {
             <Kpi label="OPs Críticas" value={kpis.opsCriticas.toString()} tone="danger" />
             <Kpi label="Ações Abertas" value={acoesAbertas.toString()} />
             <Kpi label="Ações Concluídas (período)" value={acoesConcluidas.toString()} tone="success" />
+            <Kpi
+              label="OPs com consumo fora da estrutura"
+              value={kpis.opsFora.toString()}
+              sub={`Impacto ${fmtBRL(kpis.impactoFora)} · ${kpis.opsSemFT} OP(s) sem Ficha Técnica`}
+              tone={kpis.opsFora > 0 ? "danger" : undefined}
+            />
           </div>
 
           <Card>
@@ -503,6 +545,49 @@ function DispersaoPage() {
               <CardContent><TopMateriais rows={topEconomia} /></CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Materiais consumidos fora da estrutura da Ficha Técnica</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Material apontado em OPs cujo produto tem Ficha Técnica cadastrada, mas que não aparece em nenhum nível da composição.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {foraEstrutura.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum consumo fora da estrutura no período filtrado.</p>
+              ) : (
+                <div className="max-h-[360px] overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Material</TableHead>
+                        <TableHead className="text-right">Qtd consumida</TableHead>
+                        <TableHead className="text-right">OPs</TableHead>
+                        <TableHead className="text-right">Impacto</TableHead>
+                        <TableHead>Produtos afetados</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {foraEstrutura.slice(0, 50).map((m) => (
+                        <TableRow key={m.material}>
+                          <TableCell className="max-w-[260px] truncate">
+                            <Link to="/producao/material/$material" params={{ material: m.material }} className="hover:underline">
+                              {m.material} — {m.desc_material}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-right">{m.qtd.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{m.ops}</TableCell>
+                          <TableCell className="text-right text-destructive">{fmtBRL(m.impacto)}</TableCell>
+                          <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">{m.produtos.join(", ")}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <div className="grid gap-3 lg:grid-cols-3">
             <Card className="lg:col-span-2">
@@ -611,6 +696,7 @@ function DispersaoPage() {
                   <TableHead className="text-right">% Disp.</TableHead>
                   <TableHead className="text-right">Custo Desvio</TableHead>
                   <TableHead>Classif.</TableHead>
+                  <TableHead>Ficha Técnica</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -635,10 +721,11 @@ function DispersaoPage() {
                     <TableCell className="text-right">{r.pct === "NAO_PREVISTO" ? "—" : `${r.pct.toFixed(1)}%`}</TableCell>
                     <TableCell className="text-right">{fmtBRL(r.custoPerda - r.custoSobra)}</TableCell>
                     <TableCell><Badge variant="outline" className={badgeCor(r.cls)}>{labelClass(r.cls)}</Badge></TableCell>
+                    <TableCell><EstruturaBadge situacao={r.estrutura} /></TableCell>
                   </TableRow>
                 ))}
                 {filtradas.length > 500 && (
-                  <TableRow><TableCell colSpan={11} className="text-center text-xs text-muted-foreground">Exibindo 500 de {filtradas.length}. Refine os filtros.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center text-xs text-muted-foreground">Exibindo 500 de {filtradas.length}. Refine os filtros.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -654,6 +741,12 @@ function DispersaoPage() {
       </Tabs>
     </div>
   );
+}
+
+function EstruturaBadge({ situacao }: { situacao: "NA_FT" | "FORA_FT" | "SEM_FT" }) {
+  if (situacao === "FORA_FT") return <Badge variant="outline" className="border-destructive text-destructive">Fora da FT</Badge>;
+  if (situacao === "SEM_FT") return <Badge variant="outline" className="text-muted-foreground">Sem FT</Badge>;
+  return <Badge variant="outline" className="text-success">Na estrutura</Badge>;
 }
 
 function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "danger" | "success" }) {
