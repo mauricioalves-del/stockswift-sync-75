@@ -257,3 +257,76 @@ export async function calcularSugestaoFT(params: {
     ops_analisadas: ratios.length,
   };
 }
+
+// ===================== Estrutura completa da BOM (para "fora da estrutura") =====================
+
+const up = (s: unknown) => String(s ?? "").trim().toUpperCase();
+
+export type EstruturaBOM = {
+  /** Código de pai (produto ou subconjunto) → todos os descendentes (todos os níveis). */
+  descendentes: Map<string, Set<string>>;
+  /** id_item → linha de origem cadastrada na FT. */
+  origemPorItem: Map<string, string>;
+};
+
+export type SituacaoEstrutura = "NA_FT" | "FORA_FT" | "SEM_FT";
+
+/**
+ * Carrega a ficha_tecnica_bom inteira (paginada) e monta o conjunto recursivo de
+ * descendentes por código de pai — considerando tanto id_produto quanto id_subconjunto,
+ * já que boa parte do consumo casa pelo subconjunto.
+ */
+export async function carregarEstruturaBOM(): Promise<EstruturaBOM> {
+  const rows = await fetchAll<any>((from, to) =>
+    (supabase as any).from("ficha_tecnica_bom")
+      .select("id_produto,id_subconjunto,id_item,linha_origem")
+      .order("id_produto", { ascending: true })
+      .range(from, to));
+
+  const filhos = new Map<string, Set<string>>();
+  const origemPorItem = new Map<string, string>();
+
+  for (const r of rows) {
+    const item = up(r.id_item);
+    if (!item) continue;
+    if (r.linha_origem && !origemPorItem.has(up(r.id_item))) origemPorItem.set(item, String(r.linha_origem));
+    for (const pai of [up(r.id_produto), up(r.id_subconjunto)]) {
+      if (!pai || pai === item) continue;
+      const set = filhos.get(pai) ?? new Set<string>();
+      set.add(item);
+      filhos.set(pai, set);
+    }
+  }
+
+  // Expansão recursiva com proteção contra ciclo.
+  const descendentes = new Map<string, Set<string>>();
+  for (const raiz of filhos.keys()) {
+    const acc = new Set<string>();
+    const fila = [raiz];
+    const visitados = new Set<string>([raiz]);
+    while (fila.length) {
+      const atual = fila.shift()!;
+      for (const filho of filhos.get(atual) ?? []) {
+        acc.add(filho);
+        if (!visitados.has(filho)) { visitados.add(filho); fila.push(filho); }
+      }
+    }
+    descendentes.set(raiz, acc);
+  }
+
+  return { descendentes, origemPorItem };
+}
+
+/** Classifica uma linha de consumo frente à composição oficial do produto. */
+export function situacaoEstrutura(
+  estrutura: EstruturaBOM | undefined,
+  produto: string | null | undefined,
+  material: string,
+): SituacaoEstrutura {
+  if (!estrutura) return "SEM_FT";
+  const raiz = up(produto);
+  const item = up(material);
+  const set = raiz ? estrutura.descendentes.get(raiz) : undefined;
+  if (!set || set.size === 0) return "SEM_FT";
+  return set.has(item) ? "NA_FT" : "FORA_FT";
+}
