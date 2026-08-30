@@ -129,6 +129,8 @@ function DispersaoPage() {
     queryKey: ["dispersao", "bom-estrutura"],
     queryFn: carregarEstruturaBOM,
     staleTime: 5 * 60_000,
+    // Importações pela API não invalidam o cache do navegador: revalida ao voltar para a aba.
+    refetchOnWindowFocus: true,
   });
 
   const acoesQ = useQuery({
@@ -544,6 +546,49 @@ function DispersaoPage() {
             </Card>
           </div>
 
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Materiais consumidos fora da estrutura da Ficha Técnica</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Material apontado em OPs cujo produto tem Ficha Técnica cadastrada, mas que não aparece em nenhum nível da composição.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {foraEstrutura.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum consumo fora da estrutura no período filtrado.</p>
+              ) : (
+                <div className="max-h-[360px] overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Material</TableHead>
+                        <TableHead className="text-right">Qtd consumida</TableHead>
+                        <TableHead className="text-right">OPs</TableHead>
+                        <TableHead className="text-right">Impacto</TableHead>
+                        <TableHead>Produtos afetados</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {foraEstrutura.slice(0, 50).map((m) => (
+                        <TableRow key={m.material}>
+                          <TableCell className="max-w-[260px] truncate">
+                            <Link to="/producao/material/$material" params={{ material: m.material }} className="hover:underline">
+                              {m.material} — {m.desc_material}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-right">{m.qtd.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{m.ops}</TableCell>
+                          <TableCell className="text-right text-destructive">{fmtBRL(m.impacto)}</TableCell>
+                          <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">{m.produtos.join(", ")}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <div className="grid gap-3 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-2">
@@ -651,6 +696,7 @@ function DispersaoPage() {
                   <TableHead className="text-right">% Disp.</TableHead>
                   <TableHead className="text-right">Custo Desvio</TableHead>
                   <TableHead>Classif.</TableHead>
+                  <TableHead>Ficha Técnica</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -675,10 +721,11 @@ function DispersaoPage() {
                     <TableCell className="text-right">{r.pct === "NAO_PREVISTO" ? "—" : `${r.pct.toFixed(1)}%`}</TableCell>
                     <TableCell className="text-right">{fmtBRL(r.custoPerda - r.custoSobra)}</TableCell>
                     <TableCell><Badge variant="outline" className={badgeCor(r.cls)}>{labelClass(r.cls)}</Badge></TableCell>
+                    <TableCell><EstruturaBadge situacao={r.estrutura} /></TableCell>
                   </TableRow>
                 ))}
                 {filtradas.length > 500 && (
-                  <TableRow><TableCell colSpan={11} className="text-center text-xs text-muted-foreground">Exibindo 500 de {filtradas.length}. Refine os filtros.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center text-xs text-muted-foreground">Exibindo 500 de {filtradas.length}. Refine os filtros.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -694,6 +741,12 @@ function DispersaoPage() {
       </Tabs>
     </div>
   );
+}
+
+function EstruturaBadge({ situacao }: { situacao: "NA_FT" | "FORA_FT" | "SEM_FT" }) {
+  if (situacao === "FORA_FT") return <Badge variant="outline" className="border-destructive text-destructive">Fora da FT</Badge>;
+  if (situacao === "SEM_FT") return <Badge variant="outline" className="text-muted-foreground">Sem FT</Badge>;
+  return <Badge variant="outline" className="text-success">Na estrutura</Badge>;
 }
 
 function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "danger" | "success" }) {
