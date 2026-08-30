@@ -28,7 +28,7 @@ import { ImportarDispersaoDialog } from "@/components/producao/ImportarDispersao
 import { DetalhePeriodoDispersaoDialog } from "@/components/producao/DetalhePeriodoDispersaoDialog";
 import { exportarDispersaoBI } from "@/lib/export-bi-dispersao";
 import { fetchAll } from "@/lib/fetch-all";
-import { causaProvavel, type ImpactoLinha } from "@/lib/ft-arvore";
+import { causaProvavel, carregarEstruturaBOM, situacaoEstrutura, type ImpactoLinha } from "@/lib/ft-arvore";
 import { RevisoesFichaTecnica } from "@/components/producao/RevisoesFichaTecnica";
 import { AlertCircle, Plus, Search, Settings2 } from "lucide-react";
 
@@ -94,6 +94,7 @@ function DispersaoPage() {
   const [produto, setProduto] = useState<string>(sp.produto ?? "");
   const [linha, setLinha] = useState<string>("todas");
   const [classFilter, setClassFilter] = useState<string>("todas");
+  const [estruturaFilter, setEstruturaFilter] = useState<string>("todas");
 
 
   const paramsQ = useQuery({
@@ -360,12 +361,13 @@ function DispersaoPage() {
                   cls: r.cls,
                   tem_furo: !!r.tem_furo,
                   linha_origem: r.linha_origem,
+                  estrutura: r.estrutura,
                 })),
                 limFreq,
                 limImpacto,
                 filtrosIniciais: {
                   dtDe, dtAte, produto, material,
-                  linha, classificacao: classFilter, granularidade: granul,
+                  linha, classificacao: classFilter, granularidade: granul, estrutura: estruturaFilter,
                 },
               })
             }
@@ -437,6 +439,18 @@ function DispersaoPage() {
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Ficha Técnica</label>
+            <Select value={estruturaFilter} onValueChange={setEstruturaFilter}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas</SelectItem>
+                <SelectItem value="FORA_FT">Somente fora da estrutura</SelectItem>
+                <SelectItem value="SEM_FT">Somente sem Ficha Técnica</SelectItem>
+                <SelectItem value="NA_FT">Somente na estrutura</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 
@@ -464,6 +478,12 @@ function DispersaoPage() {
             <Kpi label="OPs Críticas" value={kpis.opsCriticas.toString()} tone="danger" />
             <Kpi label="Ações Abertas" value={acoesAbertas.toString()} />
             <Kpi label="Ações Concluídas (período)" value={acoesConcluidas.toString()} tone="success" />
+            <Kpi
+              label="OPs com consumo fora da estrutura"
+              value={kpis.opsFora.toString()}
+              sub={`Impacto ${fmtBRL(kpis.impactoFora)} · ${kpis.opsSemFT} OP(s) sem Ficha Técnica`}
+              tone={kpis.opsFora > 0 ? "danger" : undefined}
+            />
           </div>
 
           <Card>
