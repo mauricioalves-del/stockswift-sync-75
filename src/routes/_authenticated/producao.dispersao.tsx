@@ -123,17 +123,11 @@ function DispersaoPage() {
     },
   });
 
-  const origemQ = useQuery({
-    queryKey: ["dispersao", "origem-item"],
-    queryFn: async (): Promise<Map<string, string>> => {
-      const { data, error } = await (supabase as any).from("ficha_tecnica_bom").select("id_item, linha_origem");
-      if (error) throw error;
-      const map = new Map<string, string>();
-      for (const r of (data ?? []) as any[]) {
-        if (r.linha_origem && !map.has(r.id_item)) map.set(r.id_item, r.linha_origem);
-      }
-      return map;
-    },
+  // Ficha Técnica completa (paginada): alimenta a regra de "fora da estrutura" e o mapa de Linha/Origem.
+  const estruturaQ = useQuery({
+    queryKey: ["dispersao", "bom-estrutura"],
+    queryFn: carregarEstruturaBOM,
+    staleTime: 5 * 60_000,
   });
 
   const acoesQ = useQuery({
