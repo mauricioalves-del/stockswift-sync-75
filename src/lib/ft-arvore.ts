@@ -160,7 +160,12 @@ export function agregarItem(
  * Causa provável a partir do histórico de OPs:
  * >= 3 OPs com desvio e >= 70% delas na mesma direção → "Estrutural"; caso contrário "Apontamento".
  */
-export function causaProvavel(linhas: ImpactoLinha[], faixas: Faixas): "Estrutural" | "Apontamento" | null {
+export function causaProvavel(
+  linhas: ImpactoLinha[],
+  faixas: Faixas,
+  forcarEstrutural = false,
+): "Estrutural" | "Apontamento" | null {
+  if (forcarEstrutural) return "Estrutural";
   const comDesvio = linhas.filter((r) => {
     const pct = percentualDispersao(Number(r.qtd_dif ?? 0), Number(r.qtd_previsto ?? 0), Number(r.qtd_consumo ?? 0));
     return classificar(pct, faixas) !== "NORMAL" && Number(r.qtd_dif ?? 0) !== 0;
