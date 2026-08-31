@@ -133,6 +133,47 @@ function DispersaoPage() {
     refetchOnWindowFocus: true,
   });
 
+  // Descrição dos produtos sem desc_prod na view: resolve na ficha técnica em cascata:
+  // 1) id_produto/produto  2) id_subconjunto/subconjunto  3) id_item/item
+  // (mesma regra da tela de Material). Paginado via fetchAll para não perder
+  // descrições após o limite de 1.000 registros.
+  const codigosSemDesc = useMemo(
+    () => [...new Set((impactoQ.data ?? [])
+      .filter((r) => r.sku_produto_final && !r.desc_prod)
+      .map((r) => String(r.sku_produto_final).trim()))],
+    [impactoQ.data],
+  );
+  const descProdQ = useQuery({
+    queryKey: ["dispersao", "desc-produtos", codigosSemDesc],
+    enabled: codigosSemDesc.length > 0,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<Map<string, string>> => {
+      const descMap = new Map<string, string>();
+      const setIfEmpty = (k: unknown, v: unknown) => {
+        const key = k == null ? "" : String(k).trim();
+        const val = v == null ? "" : String(v).trim();
+        if (key && val && !descMap.has(key)) descMap.set(key, val);
+      };
+      const CHUNK = 200;
+      for (let i = 0; i < codigosSemDesc.length; i += CHUNK) {
+        const bloco = codigosSemDesc.slice(i, i + CHUNK);
+        const [porProduto, porSubconjunto, porItem] = await Promise.all([
+          fetchAll<any>((from, to) => (supabase as any)
+            .from("ficha_tecnica_bom").select("id_produto,produto").in("id_produto", bloco).range(from, to)),
+          fetchAll<any>((from, to) => (supabase as any)
+            .from("ficha_tecnica_bom").select("id_subconjunto,subconjunto").in("id_subconjunto", bloco).range(from, to)),
+          fetchAll<any>((from, to) => (supabase as any)
+            .from("ficha_tecnica_bom").select("id_item,item").in("id_item", bloco).range(from, to)),
+        ]);
+        // A ordem é intencional: Produto → Subconjunto → Item.
+        for (const p of porProduto) setIfEmpty(p.id_produto, p.produto);
+        for (const p of porSubconjunto) setIfEmpty(p.id_subconjunto, p.subconjunto);
+        for (const p of porItem) setIfEmpty(p.id_item, p.item);
+      }
+      return descMap;
+    },
+  });
+
   const acoesQ = useQuery({
     queryKey: ["dispersao", "acoes"],
     queryFn: async () => {
@@ -155,7 +196,7 @@ function DispersaoPage() {
         ...r,
         id_op: r.numero_op,
         produto: r.sku_produto_final,
-        desc_produto: r.desc_prod,
+        desc_produto: r.desc_prod || descProdQ.data?.get(String(r.sku_produto_final ?? "").trim()) || null,
         data,
         mes: data ? data.slice(0, 7) : SEM_DATA, // yyyy-mm
         ano: data ? data.slice(0, 4) : SEM_DATA,
