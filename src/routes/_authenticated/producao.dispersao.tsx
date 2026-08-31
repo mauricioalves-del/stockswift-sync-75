@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -133,6 +134,47 @@ function DispersaoPage() {
     refetchOnWindowFocus: true,
   });
 
+  // Descrição dos produtos sem desc_prod na view: resolve na ficha técnica em cascata:
+  // 1) id_produto/produto  2) id_subconjunto/subconjunto  3) id_item/item
+  // (mesma regra da tela de Material). Paginado via fetchAll para não perder
+  // descrições após o limite de 1.000 registros.
+  const codigosSemDesc = useMemo(
+    () => [...new Set((impactoQ.data ?? [])
+      .filter((r) => r.sku_produto_final && !r.desc_prod)
+      .map((r) => String(r.sku_produto_final).trim()))],
+    [impactoQ.data],
+  );
+  const descProdQ = useQuery({
+    queryKey: ["dispersao", "desc-produtos", codigosSemDesc],
+    enabled: codigosSemDesc.length > 0,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<Map<string, string>> => {
+      const descMap = new Map<string, string>();
+      const setIfEmpty = (k: unknown, v: unknown) => {
+        const key = k == null ? "" : String(k).trim();
+        const val = v == null ? "" : String(v).trim();
+        if (key && val && !descMap.has(key)) descMap.set(key, val);
+      };
+      const CHUNK = 200;
+      for (let i = 0; i < codigosSemDesc.length; i += CHUNK) {
+        const bloco = codigosSemDesc.slice(i, i + CHUNK);
+        const [porProduto, porSubconjunto, porItem] = await Promise.all([
+          fetchAll<any>((from, to) => (supabase as any)
+            .from("ficha_tecnica_bom").select("id_produto,produto").in("id_produto", bloco).range(from, to)),
+          fetchAll<any>((from, to) => (supabase as any)
+            .from("ficha_tecnica_bom").select("id_subconjunto,subconjunto").in("id_subconjunto", bloco).range(from, to)),
+          fetchAll<any>((from, to) => (supabase as any)
+            .from("ficha_tecnica_bom").select("id_item,item").in("id_item", bloco).range(from, to)),
+        ]);
+        // A ordem é intencional: Produto → Subconjunto → Item.
+        for (const p of porProduto) setIfEmpty(p.id_produto, p.produto);
+        for (const p of porSubconjunto) setIfEmpty(p.id_subconjunto, p.subconjunto);
+        for (const p of porItem) setIfEmpty(p.id_item, p.item);
+      }
+      return descMap;
+    },
+  });
+
   const acoesQ = useQuery({
     queryKey: ["dispersao", "acoes"],
     queryFn: async () => {
@@ -155,7 +197,7 @@ function DispersaoPage() {
         ...r,
         id_op: r.numero_op,
         produto: r.sku_produto_final,
-        desc_produto: r.desc_prod,
+        desc_produto: r.desc_prod || descProdQ.data?.get(String(r.sku_produto_final ?? "").trim()) || null,
         data,
         mes: data ? data.slice(0, 7) : SEM_DATA, // yyyy-mm
         ano: data ? data.slice(0, 4) : SEM_DATA,
@@ -169,7 +211,7 @@ function DispersaoPage() {
         estrutura: situacaoEstrutura(estruturaQ.data, r.sku_produto_final, r.material),
       };
     });
-  }, [impactoQ.data, estruturaQ.data, faixas]);
+  }, [impactoQ.data, estruturaQ.data, descProdQ.data, faixas]);
 
   const meses = useMemo(
     () => Array.from(new Set(linhas.map((r) => r.mes))).filter((m) => m !== SEM_DATA).sort().reverse(),
@@ -704,9 +746,9 @@ function DispersaoPage() {
                   <TableRow key={r.id}>
                     <TableCell className="whitespace-nowrap">{r.data ? r.data.split("-").reverse().join("/") : "—"}</TableCell>
                     <TableCell>{r.id_op}</TableCell>
-                    <TableCell className="max-w-[240px] truncate">
-                      <Link to="/producao/material/$material" params={{ material: r.material }} className="hover:underline">
-                        {r.produto || r.desc_produto || "—"}
+                    <TableCell className="max-w-[280px] truncate">
+                      <Link to="/producao/material/$material" params={{ material: r.material }} className="hover:underline" title={[r.produto, r.desc_produto].filter(Boolean).join(" — ")}>
+                        {r.produto ? `${r.produto}${r.desc_produto ? ` — ${r.desc_produto}` : ""}` : (r.desc_produto || "—")}
                       </Link>
                     </TableCell>
                     <TableCell>
