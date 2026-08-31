@@ -746,9 +746,9 @@ function DispersaoPage() {
                   <TableRow key={r.id}>
                     <TableCell className="whitespace-nowrap">{r.data ? r.data.split("-").reverse().join("/") : "—"}</TableCell>
                     <TableCell>{r.id_op}</TableCell>
-                    <TableCell className="max-w-[240px] truncate">
-                      <Link to="/producao/material/$material" params={{ material: r.material }} className="hover:underline">
-                        {r.produto || r.desc_produto || "—"}
+                    <TableCell className="max-w-[280px] truncate">
+                      <Link to="/producao/material/$material" params={{ material: r.material }} className="hover:underline" title={[r.produto, r.desc_produto].filter(Boolean).join(" — ")}>
+                        {r.produto ? `${r.produto}${r.desc_produto ? ` — ${r.desc_produto}` : ""}` : (r.desc_produto || "—")}
                       </Link>
                     </TableCell>
                     <TableCell>
