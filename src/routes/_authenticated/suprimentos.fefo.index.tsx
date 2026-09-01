@@ -64,7 +64,7 @@ function iso(d: Date) { return d.toISOString().slice(0, 10); }
 function addDays(d: string, n: number) { const x = new Date(d + "T00:00:00"); x.setDate(x.getDate() + n); return iso(x); }
 
 function ControleFefoPage() {
-  const [ini, setIni] = useState<string>(addDays(iso(new Date()), -29));
+  const [ini, setIni] = useState<string>(addDays(iso(new Date()), -6));
   const [fim, setFim] = useState<string>(iso(new Date()));
   const [tudo, setTudo] = useState(false);
   const [produto, setProduto] = useState("");
@@ -167,11 +167,11 @@ function ControleFefoPage() {
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><ArrowRightLeft className="size-5" /> Controle FEFO</h1>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><ArrowRightLeft className="size-6" /> Controle FEFO</h1>
           <p className="text-sm text-muted-foreground">
-            Checagem automática diária das transferências saindo da Fábrica. Processamento roda todo dia às 08:00.
+            Checagem das transferências saindo da Fábrica. O motor roda automaticamente a cada atualização da movimentação — sem horário fixo.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -226,8 +226,10 @@ function ControleFefoPage() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi title="Transferências auditadas" value={formatNum(kpis.total)} icon={<ArrowRightLeft className="size-4" />} accent="border-l-primary" />
         <Kpi title="Quebras de FEFO" value={formatNum(kpis.quebras)} icon={<AlertTriangle className="size-4" />} accent="border-l-destructive"
+          danger={kpis.quebras > 0}
           hint={`${kpis.deltaQuebras >= 0 ? "+" : ""}${kpis.deltaQuebras} vs. semana anterior`} />
-        <Kpi title="Taxa de quebra" value={`${kpis.taxa.toFixed(1)}%`} icon={<AlertTriangle className="size-4" />} accent="border-l-amber-500"
+        <Kpi title="Taxa de quebra" value={`${kpis.taxa.toFixed(1)}%`} icon={<AlertTriangle className="size-4" />} accent="border-l-destructive"
+          danger={kpis.quebras > 0}
           hint={`${kpis.deltaTaxa >= 0 ? "+" : ""}${kpis.deltaTaxa.toFixed(1)} p.p. vs. semana anterior`} />
         <Kpi title="OK / Inconclusivo" value={`${formatNum(kpis.oks)} / ${formatNum(kpis.inconclusivos)}`}
           icon={<CheckCircle2 className="size-4" />} accent="border-l-emerald-500"
@@ -330,8 +332,8 @@ function ControleFefoPage() {
                 </TableCell></TableRow>
               )}
               {filtradas.slice(0, 500).map((r) => (
-                <TableRow key={r.id} className={r.quebra ? "bg-destructive/5" : undefined}>
-                  <TableCell className="text-xs whitespace-nowrap">{r.data}</TableCell>
+                <TableRow key={r.id} className={r.quebra ? "bg-destructive/10 border-l-4 border-l-destructive" : undefined}>
+                  <TableCell className={`text-xs whitespace-nowrap ${r.quebra ? "font-semibold text-destructive" : ""}`}>{r.data}</TableCell>
                   <TableCell className="text-xs max-w-64 truncate" title={`${r.id_produto} — ${r.descricao}`}>
                     <span className="font-mono">{r.id_produto}</span>{r.descricao ? ` — ${r.descricao}` : ""}
                   </TableCell>
@@ -358,14 +360,14 @@ function ControleFefoPage() {
   );
 }
 
-function Kpi({ title, value, hint, icon, accent }: { title: string; value: string; hint?: string; icon: React.ReactNode; accent: string }) {
+function Kpi({ title, value, hint, icon, accent, danger }: { title: string; value: string; hint?: string; icon: React.ReactNode; accent: string; danger?: boolean }) {
   return (
-    <Card className={`border-l-4 ${accent}`}>
+    <Card className={`border-l-4 ${accent} ${danger ? "bg-destructive/5" : ""}`}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>{title}</span>{icon}
         </div>
-        <div className="text-2xl font-bold tabular-nums mt-1">{value}</div>
+        <div className={`text-2xl font-bold tabular-nums mt-1 ${danger ? "text-destructive" : ""}`}>{value}</div>
         {hint && <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1"><HelpCircle className="size-3" />{hint}</div>}
       </CardContent>
     </Card>
