@@ -150,7 +150,7 @@ function ControleFefoPage() {
     // Variação vs. semana anterior (independe do filtro de período)
     const hoje = iso(new Date());
     const ini7 = addDays(hoje, -6), ini14 = addDays(hoje, -13), fim14 = addDays(hoje, -7);
-    const base = todas.filter((r) => AUDITADO(r.status));
+    const base = todas.filter((r) => AUDITADO(r.status) && !(semEmbalagem && EH_EMBALAGEM(r.grupo)));
     const sem1 = base.filter((r) => r.data >= ini7 && r.data <= hoje);
     const sem0 = base.filter((r) => r.data >= ini14 && r.data <= fim14);
     const qb1 = sem1.filter((r) => r.quebra).length, qb0 = sem0.filter((r) => r.quebra).length;
