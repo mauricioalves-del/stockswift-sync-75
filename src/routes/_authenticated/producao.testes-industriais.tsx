@@ -312,6 +312,10 @@ function TestesIndustriaisPage() {
           </p>
         </div>
         <Badge variant="outline">SKU {SKU_TESTE_INDUSTRIAL}</Badge>
+        <Button variant="outline" size="sm" onClick={exportarHtmlAtivo} disabled={!base.length}>
+          <Download className="size-4" /> HTML interativo
+        </Button>
+
         <Tabs value={gran} onValueChange={(v) => { setGran(v as Gran); setPeriodo("todos"); }}>
           <TabsList>
             <TabsTrigger value="ano">Ano</TabsTrigger>
