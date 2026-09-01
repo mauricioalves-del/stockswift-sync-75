@@ -383,18 +383,38 @@ function ControleFefoPage() {
       </Card>
 
       {/* KPIs */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi title="Transferências auditadas" value={formatNum(kpis.total)} icon={<ArrowRightLeft className="size-4" />} accent="border-l-primary" />
-        <Kpi title="Quebras de FEFO" value={formatNum(kpis.quebras)} icon={<AlertTriangle className="size-4" />} accent="border-l-destructive"
-          danger={kpis.quebras > 0}
-          hint={`${kpis.deltaQuebras >= 0 ? "+" : ""}${kpis.deltaQuebras} vs. semana anterior`} />
-        <Kpi title="Taxa de quebra" value={`${kpis.taxa.toFixed(1)}%`} icon={<AlertTriangle className="size-4" />} accent="border-l-destructive"
-          danger={kpis.quebras > 0}
-          hint={`${kpis.deltaTaxa >= 0 ? "+" : ""}${kpis.deltaTaxa.toFixed(1)} p.p. vs. semana anterior`} />
-        <Kpi title="OK / Inconclusivo" value={`${formatNum(kpis.oks)} / ${formatNum(kpis.inconclusivos)}`}
-          icon={<CheckCircle2 className="size-4" />} accent="border-l-emerald-500"
-          hint={`${kpis.inconclusivos} sem validade ou almox não mapeado`} />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi titulo="Transferências auditadas" valor={formatNum(kpis.total)} hint={`${filtradas.length} linha(s) no filtro`} />
+        <Kpi
+          titulo="Quebras de FEFO"
+          valor={formatNum(kpis.quebras)}
+          tom={kpis.quebras > 0 ? "danger" : undefined}
+          hint={
+            <span className="flex items-center gap-1">
+              {kpis.quebras > 0 && <AlertTriangle className="size-3 text-destructive" />}
+              {kpis.deltaQuebras >= 0 ? "+" : ""}{kpis.deltaQuebras} vs. semana anterior
+            </span>
+          }
+        />
+        <Kpi
+          titulo="Taxa de quebra"
+          valor={`${kpis.taxa.toFixed(1)}%`}
+          tom={kpis.quebras > 0 ? "danger" : undefined}
+          hint={`${kpis.deltaTaxa >= 0 ? "+" : ""}${kpis.deltaTaxa.toFixed(1)} p.p. vs. semana anterior`}
+        />
+        <Kpi
+          titulo="OK / Inconclusivo"
+          valor={`${formatNum(kpis.oks)} / ${formatNum(kpis.inconclusivos)}`}
+          tom={kpis.inconclusivos > 0 ? "warning" : undefined}
+          hint={
+            <span className="flex items-center gap-1">
+              <CheckCircle2 className="size-3" />
+              {kpis.inconclusivos} sem validade ou almox não mapeado
+            </span>
+          }
+        />
       </div>
+
 
       <div className="grid gap-3 lg:grid-cols-2">
         <Card>
