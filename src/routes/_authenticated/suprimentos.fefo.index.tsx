@@ -13,8 +13,11 @@ import { toast } from "sonner";
 import { formatNum } from "@/lib/inventory";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid,
+  PieChart, Pie, Cell,
 } from "recharts";
-import { AlertTriangle, CheckCircle2, HelpCircle, RefreshCw, Upload, Settings2, Loader2, ArrowRightLeft } from "lucide-react";
+import { AlertTriangle, CheckCircle2, RefreshCw, Upload, Settings2, Loader2, ArrowRightLeft, Download } from "lucide-react";
+import { exportarBIInterativo } from "@/lib/export-bi-interativo";
+
 
 export const Route = createFileRoute("/_authenticated/suprimentos/fefo/")({
   component: ControleFefoPage,
