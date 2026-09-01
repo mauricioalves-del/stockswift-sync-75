@@ -93,23 +93,47 @@ function ControleFefoPage() {
       const rows = await fetchAll<{ codigo_produto: string; grupo: string }>((from, to) =>
         (supabase as any).from("grupo_produtos").select("codigo_produto,grupo").range(from, to),
       );
-      const map = new Map<string, string>();
+      const exato = new Map<string, string>();
+      // O cadastro usa códigos mais longos (ex.: 0190213118) do que a movimentação
+      // (01902131). Indexamos também pelo prefixo de 8 dígitos, escolhendo o grupo
+      // mais frequente quando há mais de um.
+      const contagem = new Map<string, Map<string, number>>();
       for (const r of rows) {
         const g = String(r.grupo ?? "").trim();
         if (!g) continue;
-        map.set(normCod(r.codigo_produto), g);
+        const cod = normCod(r.codigo_produto);
+        exato.set(cod, g);
+        const pre = cod.slice(0, 8);
+        const m = contagem.get(pre) ?? new Map<string, number>();
+        m.set(g, (m.get(g) ?? 0) + 1);
+        contagem.set(pre, m);
       }
-      return map;
+      const prefixo = new Map<string, string>();
+      for (const [pre, m] of contagem) {
+        let melhor = "", n = -1;
+        for (const [g, c] of m) if (c > n) { melhor = g; n = c; }
+        prefixo.set(pre, melhor);
+      }
+      return { exato, prefixo };
     },
     staleTime: 5 * 60_000,
   });
 
   const mapaGrupos = gruposQ.data;
 
+  const resolveGrupo = useMemo(() => {
+    return (codRaw: string) => {
+      if (!mapaGrupos) return "Sem grupo";
+      const cod = normCod(codRaw);
+      return mapaGrupos.exato.get(cod) ?? mapaGrupos.prefixo.get(cod.slice(0, 8)) ?? "Sem grupo";
+    };
+  }, [mapaGrupos]);
+
   const todas = useMemo(
-    () => (q.data ?? []).map((r) => ({ ...r, grupo: mapaGrupos?.get(normCod(r.id_produto)) ?? "Sem grupo" })),
-    [q.data, mapaGrupos],
+    () => (q.data ?? []).map((r) => ({ ...r, grupo: resolveGrupo(r.id_produto) })),
+    [q.data, resolveGrupo],
   );
+
 
   const destinos = useMemo(
     () => Array.from(new Set(todas.filter((r) => AUDITADO(r.status)).map((r) => r.destino).filter(Boolean))).sort(),
