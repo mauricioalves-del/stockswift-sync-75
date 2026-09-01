@@ -63,12 +63,20 @@ function statusTone(s: string) {
 function iso(d: Date) { return d.toISOString().slice(0, 10); }
 function addDays(d: string, n: number) { const x = new Date(d + "T00:00:00"); x.setDate(x.getDate() + n); return iso(x); }
 
+function normCod(v: string) {
+  const s = String(v ?? "").trim().toUpperCase();
+  return /^\d+$/.test(s) ? s.padStart(8, "0") : s;
+}
+const EH_EMBALAGEM = (g: string) => g.toLowerCase().startsWith("embalagem");
+
 function ControleFefoPage() {
   const [ini, setIni] = useState<string>(addDays(iso(new Date()), -6));
   const [fim, setFim] = useState<string>(iso(new Date()));
   const [tudo, setTudo] = useState(false);
   const [produto, setProduto] = useState("");
   const [destino, setDestino] = useState("__all__");
+  const [grupo, setGrupo] = useState("__all__");
+  const [semEmbalagem, setSemEmbalagem] = useState(true);
   const [rodando, setRodando] = useState(false);
 
   const q = useQuery({
@@ -79,24 +87,59 @@ function ControleFefoPage() {
       ),
   });
 
-  const todas = q.data ?? [];
+  const gruposQ = useQuery({
+    queryKey: ["grupos-catalogo-fefo"],
+    queryFn: async () => {
+      const rows = await fetchAll<{ codigo_produto: string; grupo: string }>((from, to) =>
+        (supabase as any).from("grupo_produtos").select("codigo_produto,grupo").range(from, to),
+      );
+      const map = new Map<string, string>();
+      for (const r of rows) {
+        const g = String(r.grupo ?? "").trim();
+        if (!g) continue;
+        map.set(normCod(r.codigo_produto), g);
+      }
+      return map;
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const mapaGrupos = gruposQ.data;
+
+  const todas = useMemo(
+    () => (q.data ?? []).map((r) => ({ ...r, grupo: mapaGrupos?.get(normCod(r.id_produto)) ?? "Sem grupo" })),
+    [q.data, mapaGrupos],
+  );
 
   const destinos = useMemo(
     () => Array.from(new Set(todas.filter((r) => AUDITADO(r.status)).map((r) => r.destino).filter(Boolean))).sort(),
     [todas],
   );
 
+  const gruposDisponiveis = useMemo(
+    () => Array.from(new Set(todas.map((r) => r.grupo))).sort(),
+    [todas],
+  );
+
+  const embalagensOcultas = useMemo(
+    () => (semEmbalagem ? todas.filter((r) => EH_EMBALAGEM(r.grupo)).length : 0),
+    [todas, semEmbalagem],
+  );
+
   const filtradas = useMemo(() => {
     const p = produto.trim().toLowerCase();
     return todas.filter((r) => {
+      if (semEmbalagem && EH_EMBALAGEM(r.grupo)) return false;
+      if (grupo !== "__all__" && r.grupo !== grupo) return false;
       if (!tudo && (r.data < ini || r.data > fim)) return false;
       if (destino !== "__all__" && r.destino !== destino) return false;
       if (p && !(`${r.id_produto} ${r.descricao}`.toLowerCase().includes(p))) return false;
       return true;
     });
-  }, [todas, ini, fim, tudo, produto, destino]);
+  }, [todas, ini, fim, tudo, produto, destino, grupo, semEmbalagem]);
 
   const auditadas = useMemo(() => filtradas.filter((r) => AUDITADO(r.status)), [filtradas]);
+
 
   const kpis = useMemo(() => {
     const total = auditadas.length;
@@ -107,7 +150,7 @@ function ControleFefoPage() {
     // Variação vs. semana anterior (independe do filtro de período)
     const hoje = iso(new Date());
     const ini7 = addDays(hoje, -6), ini14 = addDays(hoje, -13), fim14 = addDays(hoje, -7);
-    const base = todas.filter((r) => AUDITADO(r.status));
+    const base = todas.filter((r) => AUDITADO(r.status) && !(semEmbalagem && EH_EMBALAGEM(r.grupo)));
     const sem1 = base.filter((r) => r.data >= ini7 && r.data <= hoje);
     const sem0 = base.filter((r) => r.data >= ini14 && r.data <= fim14);
     const qb1 = sem1.filter((r) => r.quebra).length, qb0 = sem0.filter((r) => r.quebra).length;
@@ -120,7 +163,20 @@ function ControleFefoPage() {
       deltaQuebras: qb1 - qb0,
       deltaTaxa: tx1 - tx0,
     };
-  }, [auditadas, todas]);
+  }, [auditadas, todas, semEmbalagem]);
+
+  const porGrupo = useMemo(() => {
+    const map = new Map<string, { grupo: string; total: number; quebras: number }>();
+    for (const r of auditadas) {
+      const e = map.get(r.grupo) ?? { grupo: r.grupo, total: 0, quebras: 0 };
+      e.total++; if (r.quebra) e.quebras++;
+      map.set(r.grupo, e);
+    }
+    return Array.from(map.values())
+      .map((e) => ({ ...e, taxa: e.total ? (e.quebras / e.total) * 100 : 0 }))
+      .sort((a, b) => b.quebras - a.quebras || b.total - a.total);
+  }, [auditadas]);
+
 
   const porDia = useMemo(() => {
     const map = new Map<string, { dia: string; total: number; quebras: number }>();
@@ -219,6 +275,25 @@ function ControleFefoPage() {
               </SelectContent>
             </Select>
           </div>
+          <div className="min-w-52">
+            <label className="text-xs text-muted-foreground">Grupo</label>
+            <Select value={grupo} onValueChange={setGrupo}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todos os grupos</SelectItem>
+                {gruposDisponiveis.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <label className="flex items-center gap-2 text-xs h-9 cursor-pointer select-none">
+            <input type="checkbox" className="size-4 accent-primary" checked={semEmbalagem}
+              onChange={(e) => setSemEmbalagem(e.target.checked)} />
+            <span>
+              Desconsiderar embalagens
+              {embalagensOcultas > 0 && <span className="text-muted-foreground"> ({embalagensOcultas} ocultas)</span>}
+            </span>
+          </label>
+
         </CardContent>
       </Card>
 
@@ -304,6 +379,36 @@ function ControleFefoPage() {
       </Card>
 
       <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-base">Transferências e quebras por grupo de produto</CardTitle></CardHeader>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Grupo</TableHead>
+                <TableHead className="text-right">Transferências</TableHead>
+                <TableHead className="text-right">Quebras</TableHead>
+                <TableHead className="text-right">Taxa</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {porGrupo.length === 0 && (
+                <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Sem dados no período</TableCell></TableRow>
+              )}
+              {porGrupo.map((g) => (
+                <TableRow key={g.grupo}>
+                  <TableCell>{g.grupo}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatNum(g.total)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatNum(g.quebras)}</TableCell>
+                  <TableCell className={`text-right tabular-nums ${g.taxa > 0 ? "text-destructive font-semibold" : ""}`}>{g.taxa.toFixed(1)}%</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+
+      <Card>
         <CardHeader className="pb-2 flex-row items-center justify-between">
           <CardTitle className="text-base">Detalhamento</CardTitle>
           <span className="text-xs text-muted-foreground">{filtradas.length} linhas</span>
@@ -314,6 +419,7 @@ function ControleFefoPage() {
               <TableRow>
                 <TableHead>Data</TableHead>
                 <TableHead>Produto</TableHead>
+                <TableHead>Grupo</TableHead>
                 <TableHead>Movimento</TableHead>
                 <TableHead>Destino</TableHead>
                 <TableHead>Lote mov.</TableHead>
@@ -324,10 +430,10 @@ function ControleFefoPage() {
             </TableHeader>
             <TableBody>
               {q.isLoading && (
-                <TableRow><TableCell colSpan={8} className="text-center py-10"><Loader2 className="size-5 animate-spin mx-auto" /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center py-10"><Loader2 className="size-5 animate-spin mx-auto" /></TableCell></TableRow>
               )}
               {!q.isLoading && filtradas.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
                   Nenhuma checagem — importe a planilha de movimentação para começar.
                 </TableCell></TableRow>
               )}
@@ -337,6 +443,10 @@ function ControleFefoPage() {
                   <TableCell className="text-xs max-w-64 truncate" title={`${r.id_produto} — ${r.descricao}`}>
                     <span className="font-mono">{r.id_produto}</span>{r.descricao ? ` — ${r.descricao}` : ""}
                   </TableCell>
+                  <TableCell className="text-xs whitespace-nowrap">
+                    <Badge variant="outline" className="text-[10px]">{r.grupo}</Badge>
+                  </TableCell>
+
                   <TableCell className="text-xs max-w-64 truncate" title={r.desc_movimento}>{r.desc_movimento}</TableCell>
                   <TableCell className="text-xs">{r.destino}</TableCell>
                   <TableCell className="font-mono text-xs">{r.lote_movimentado}</TableCell>
