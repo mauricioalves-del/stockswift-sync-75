@@ -252,16 +252,16 @@ function kpiHtml(t,v,h){ return '<div class="kpi"><div class="t">'+esc(t)+'</div
 function barras(rows, dim, alvo, maxN){
   var dados = agregar(rows, dim).slice(0, maxN||10);
   var max = Math.max.apply(null, dados.map(function(d){return d.v;}).concat([1]));
-  var h = 26, alt = dados.length*h + 10, larg = 100;
+  var h = 30, alt = dados.length*h + 8, W = 620;
   var sel = filtros[dim.chave]||[];
-  var s = '<svg viewBox="0 0 '+larg+' '+alt+'" preserveAspectRatio="none" height="'+alt+'">';
+  var s = '<svg viewBox="0 0 '+W+' '+alt+'" height="'+alt+'">';
   dados.forEach(function(d,i){
-    var w = Math.max(0.5, d.v/max*62);
+    var w = Math.max(3, d.v/max*(W*0.62));
     var op = sel.length && sel.indexOf(d.k)<0 ? ' dim' : '';
-    s += '<g class="bar'+op+'" onclick="__toggle(\''+dim.chave+'\',\''+String(d.k).replace(/'/g,"\\'")+'\')">'
-      + '<rect x="0" y="'+(i*h+4)+'" width="'+w+'" height="16" rx="2" fill="'+CORES[i%CORES.length]+'"></rect>'
-      + '<text x="0.6" y="'+(i*h+15.5)+'" font-size="8" fill="#0b1220" style="font-weight:600">'+esc(trunc(d.nome,42))+'</text>'
-      + '<text x="'+(w+1)+'" y="'+(i*h+15.5)+'" font-size="8" fill="#e6edf7">'+esc(fmt(d.v,C.medida.formato||'brl'))+'</text>'
+    s += '<g class="bar'+op+'" onclick="__toggle(\'' + dim.chave + '\',\'' + String(d.k).replace(/'/g,"\\'") + '\')">'
+      + '<rect x="0" y="'+(i*h+4)+'" width="'+w.toFixed(1)+'" height="20" rx="3" fill="'+CORES[i%CORES.length]+'"></rect>'
+      + '<text x="6" y="'+(i*h+18)+'" font-size="11" fill="#0b1220" style="font-weight:600">'+esc(trunc(d.nome,46))+'</text>'
+      + '<text x="'+(w+6).toFixed(1)+'" y="'+(i*h+18)+'" font-size="11" fill="#e6edf7">'+esc(fmt(d.v,C.medida.formato||'brl'))+'</text>'
       + '<title>'+esc(d.nome)+' — '+esc(fmt(d.v,C.medida.formato||'brl'))+'</title></g>';
   });
   s += '</svg>';
@@ -280,9 +280,12 @@ function pizza(rows, dim, alvo){
     var a2 = ang + (d.v/total)*Math.PI*2;
     var x1=cx+r*Math.cos(ang), y1=cy+r*Math.sin(ang), x2=cx+r*Math.cos(a2), y2=cy+r*Math.sin(a2);
     var big = (a2-ang)>Math.PI?1:0;
+    var cheio = (d.v/total) > 0.9999;
     var op = sel.length && sel.indexOf(d.k)<0 ? ' dim' : '';
     var clic = d.k==='__outros' ? '' : ' onclick="__toggle(\''+dim.chave+'\',\''+String(d.k).replace(/'/g,"\\'")+'\')"';
-    s += '<path class="bar'+op+'"'+clic+' d="M'+cx+','+cy+' L'+x1.toFixed(2)+','+y1.toFixed(2)+' A'+r+','+r+' 0 '+big+',1 '+x2.toFixed(2)+','+y2.toFixed(2)+' Z" fill="'+CORES[i%CORES.length]+'" stroke="#111c30"><title>'+esc(d.nome)+' — '+esc(fmt(d.v,C.medida.formato||'brl'))+' ('+(d.v/total*100).toFixed(1)+'%)</title></path>';
+    s += cheio
+      ? '<circle class="bar'+op+'"'+clic+' cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+CORES[i%CORES.length]+'"><title>'+esc(d.nome)+' — '+esc(fmt(d.v,C.medida.formato||'brl'))+' (100%)</title></circle>'
+      : '<path class="bar'+op+'"'+clic+' d="M'+cx+','+cy+' L'+x1.toFixed(2)+','+y1.toFixed(2)+' A'+r+','+r+' 0 '+big+',1 '+x2.toFixed(2)+','+y2.toFixed(2)+' Z" fill="'+CORES[i%CORES.length]+'" stroke="#111c30"><title>'+esc(d.nome)+' — '+esc(fmt(d.v,C.medida.formato||'brl'))+' ('+(d.v/total*100).toFixed(1)+'%)</title></path>';
     s += '<g transform="translate(180,'+(18+i*22)+')"><rect width="10" height="10" rx="2" fill="'+CORES[i%CORES.length]+'"></rect><text x="15" y="9" font-size="10" fill="#e6edf7">'+esc(trunc(d.nome,20))+' · '+(d.v/total*100).toFixed(0)+'%</text></g>';
     ang = a2;
   });
