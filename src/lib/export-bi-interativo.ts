@@ -307,7 +307,7 @@ function serieChart(rows){
   [0,.25,.5,.75,1].forEach(function(f){ var y=base-f*140; s+='<line x1="0" y1="'+y+'" x2="'+W+'" y2="'+y+'" stroke="#1e2c47"></line><text x="2" y="'+(y-3)+'" font-size="9" fill="#8ea3c2">'+compact(max*f)+'</text>'; });
   var pontos=[];
   keys.forEach(function(k,i){
-    var v=m[k], hgt=v/max*140, x=i*(W/keys.length)+8, w=Math.max(10,(W/keys.length)-16);
+    var v=m[k], hgt=v/max*140, x=i*(W/keys.length)+8, w=Math.min(90,Math.max(10,(W/keys.length)-16));
     var ant = i>0 ? m[keys[i-1]] : null;
     var varp = ant && ant>0 ? ((v-ant)/ant*100) : null;
     var op = sel.length && sel.indexOf(k)<0 ? ' dim' : '';
