@@ -64,7 +64,7 @@ function iso(d: Date) { return d.toISOString().slice(0, 10); }
 function addDays(d: string, n: number) { const x = new Date(d + "T00:00:00"); x.setDate(x.getDate() + n); return iso(x); }
 
 function ControleFefoPage() {
-  const [ini, setIni] = useState<string>(addDays(iso(new Date()), -29));
+  const [ini, setIni] = useState<string>(addDays(iso(new Date()), -6));
   const [fim, setFim] = useState<string>(iso(new Date()));
   const [tudo, setTudo] = useState(false);
   const [produto, setProduto] = useState("");
