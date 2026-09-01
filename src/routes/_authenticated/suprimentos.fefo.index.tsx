@@ -332,8 +332,8 @@ function ControleFefoPage() {
                 </TableCell></TableRow>
               )}
               {filtradas.slice(0, 500).map((r) => (
-                <TableRow key={r.id} className={r.quebra ? "bg-destructive/5" : undefined}>
-                  <TableCell className="text-xs whitespace-nowrap">{r.data}</TableCell>
+                <TableRow key={r.id} className={r.quebra ? "bg-destructive/10 border-l-4 border-l-destructive" : undefined}>
+                  <TableCell className={`text-xs whitespace-nowrap ${r.quebra ? "font-semibold text-destructive" : ""}`}>{r.data}</TableCell>
                   <TableCell className="text-xs max-w-64 truncate" title={`${r.id_produto} — ${r.descricao}`}>
                     <span className="font-mono">{r.id_produto}</span>{r.descricao ? ` — ${r.descricao}` : ""}
                   </TableCell>
@@ -360,14 +360,14 @@ function ControleFefoPage() {
   );
 }
 
-function Kpi({ title, value, hint, icon, accent }: { title: string; value: string; hint?: string; icon: React.ReactNode; accent: string }) {
+function Kpi({ title, value, hint, icon, accent, danger }: { title: string; value: string; hint?: string; icon: React.ReactNode; accent: string; danger?: boolean }) {
   return (
-    <Card className={`border-l-4 ${accent}`}>
+    <Card className={`border-l-4 ${accent} ${danger ? "bg-destructive/5" : ""}`}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>{title}</span>{icon}
         </div>
-        <div className="text-2xl font-bold tabular-nums mt-1">{value}</div>
+        <div className={`text-2xl font-bold tabular-nums mt-1 ${danger ? "text-destructive" : ""}`}>{value}</div>
         {hint && <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1"><HelpCircle className="size-3" />{hint}</div>}
       </CardContent>
     </Card>
