@@ -65,8 +65,11 @@ import { Route as AuthenticatedAbastecimentoParametrosRouteImport } from './rout
 import { Route as AuthenticatedAbastecimentoDemandasRouteImport } from './routes/_authenticated/abastecimento.demandas'
 import { Route as AuthenticatedAbastecimentoConsumoRouteImport } from './routes/_authenticated/abastecimento.consumo'
 import { Route as AuthenticatedSuprimentosRequisicoesIndexRouteImport } from './routes/_authenticated/suprimentos.requisicoes.index'
+import { Route as AuthenticatedSuprimentosFefoIndexRouteImport } from './routes/_authenticated/suprimentos.fefo.index'
 import { Route as ApiPublicHooksResumoTarefasRouteImport } from './routes/api/public/hooks/resumo-tarefas'
 import { Route as AuthenticatedSuprimentosRequisicoesIdRouteImport } from './routes/_authenticated/suprimentos.requisicoes.$id'
+import { Route as AuthenticatedSuprimentosFefoMovimentacoesRouteImport } from './routes/_authenticated/suprimentos.fefo.movimentacoes'
+import { Route as AuthenticatedSuprimentosFefoConfigRouteImport } from './routes/_authenticated/suprimentos.fefo.config'
 import { Route as AuthenticatedProducaoMaterialMaterialRouteImport } from './routes/_authenticated/producao.material.$material'
 import { Route as AuthenticatedSuprimentosRequisicoesIdFichaRouteImport } from './routes/_authenticated/suprimentos.requisicoes.$id.ficha'
 
@@ -387,6 +390,12 @@ const AuthenticatedSuprimentosRequisicoesIndexRoute =
     path: '/suprimentos/requisicoes/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSuprimentosFefoIndexRoute =
+  AuthenticatedSuprimentosFefoIndexRouteImport.update({
+    id: '/suprimentos/fefo/',
+    path: '/suprimentos/fefo/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicHooksResumoTarefasRoute =
   ApiPublicHooksResumoTarefasRouteImport.update({
     id: '/api/public/hooks/resumo-tarefas',
@@ -397,6 +406,18 @@ const AuthenticatedSuprimentosRequisicoesIdRoute =
   AuthenticatedSuprimentosRequisicoesIdRouteImport.update({
     id: '/suprimentos/requisicoes/$id',
     path: '/suprimentos/requisicoes/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSuprimentosFefoMovimentacoesRoute =
+  AuthenticatedSuprimentosFefoMovimentacoesRouteImport.update({
+    id: '/suprimentos/fefo/movimentacoes',
+    path: '/suprimentos/fefo/movimentacoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSuprimentosFefoConfigRoute =
+  AuthenticatedSuprimentosFefoConfigRouteImport.update({
+    id: '/suprimentos/fefo/config',
+    path: '/suprimentos/fefo/config',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedProducaoMaterialMaterialRoute =
@@ -468,8 +489,11 @@ export interface FileRoutesByFullPath {
   '/config/': typeof AuthenticatedConfigIndexRoute
   '/missoes/': typeof AuthenticatedMissoesIndexRoute
   '/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
+  '/suprimentos/fefo/config': typeof AuthenticatedSuprimentosFefoConfigRoute
+  '/suprimentos/fefo/movimentacoes': typeof AuthenticatedSuprimentosFefoMovimentacoesRoute
   '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
   '/api/public/hooks/resumo-tarefas': typeof ApiPublicHooksResumoTarefasRoute
+  '/suprimentos/fefo/': typeof AuthenticatedSuprimentosFefoIndexRoute
   '/suprimentos/requisicoes/': typeof AuthenticatedSuprimentosRequisicoesIndexRoute
   '/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
 }
@@ -529,8 +553,11 @@ export interface FileRoutesByTo {
   '/config': typeof AuthenticatedConfigIndexRoute
   '/missoes': typeof AuthenticatedMissoesIndexRoute
   '/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
+  '/suprimentos/fefo/config': typeof AuthenticatedSuprimentosFefoConfigRoute
+  '/suprimentos/fefo/movimentacoes': typeof AuthenticatedSuprimentosFefoMovimentacoesRoute
   '/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
   '/api/public/hooks/resumo-tarefas': typeof ApiPublicHooksResumoTarefasRoute
+  '/suprimentos/fefo': typeof AuthenticatedSuprimentosFefoIndexRoute
   '/suprimentos/requisicoes': typeof AuthenticatedSuprimentosRequisicoesIndexRoute
   '/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
 }
@@ -592,8 +619,11 @@ export interface FileRoutesById {
   '/_authenticated/config/': typeof AuthenticatedConfigIndexRoute
   '/_authenticated/missoes/': typeof AuthenticatedMissoesIndexRoute
   '/_authenticated/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
+  '/_authenticated/suprimentos/fefo/config': typeof AuthenticatedSuprimentosFefoConfigRoute
+  '/_authenticated/suprimentos/fefo/movimentacoes': typeof AuthenticatedSuprimentosFefoMovimentacoesRoute
   '/_authenticated/suprimentos/requisicoes/$id': typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
   '/api/public/hooks/resumo-tarefas': typeof ApiPublicHooksResumoTarefasRoute
+  '/_authenticated/suprimentos/fefo/': typeof AuthenticatedSuprimentosFefoIndexRoute
   '/_authenticated/suprimentos/requisicoes/': typeof AuthenticatedSuprimentosRequisicoesIndexRoute
   '/_authenticated/suprimentos/requisicoes/$id/ficha': typeof AuthenticatedSuprimentosRequisicoesIdFichaRoute
 }
@@ -655,8 +685,11 @@ export interface FileRouteTypes {
     | '/config/'
     | '/missoes/'
     | '/producao/material/$material'
+    | '/suprimentos/fefo/config'
+    | '/suprimentos/fefo/movimentacoes'
     | '/suprimentos/requisicoes/$id'
     | '/api/public/hooks/resumo-tarefas'
+    | '/suprimentos/fefo/'
     | '/suprimentos/requisicoes/'
     | '/suprimentos/requisicoes/$id/ficha'
   fileRoutesByTo: FileRoutesByTo
@@ -716,8 +749,11 @@ export interface FileRouteTypes {
     | '/config'
     | '/missoes'
     | '/producao/material/$material'
+    | '/suprimentos/fefo/config'
+    | '/suprimentos/fefo/movimentacoes'
     | '/suprimentos/requisicoes/$id'
     | '/api/public/hooks/resumo-tarefas'
+    | '/suprimentos/fefo'
     | '/suprimentos/requisicoes'
     | '/suprimentos/requisicoes/$id/ficha'
   id:
@@ -778,8 +814,11 @@ export interface FileRouteTypes {
     | '/_authenticated/config/'
     | '/_authenticated/missoes/'
     | '/_authenticated/producao/material/$material'
+    | '/_authenticated/suprimentos/fefo/config'
+    | '/_authenticated/suprimentos/fefo/movimentacoes'
     | '/_authenticated/suprimentos/requisicoes/$id'
     | '/api/public/hooks/resumo-tarefas'
+    | '/_authenticated/suprimentos/fefo/'
     | '/_authenticated/suprimentos/requisicoes/'
     | '/_authenticated/suprimentos/requisicoes/$id/ficha'
   fileRoutesById: FileRoutesById
@@ -1191,6 +1230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSuprimentosRequisicoesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/suprimentos/fefo/': {
+      id: '/_authenticated/suprimentos/fefo/'
+      path: '/suprimentos/fefo'
+      fullPath: '/suprimentos/fefo/'
+      preLoaderRoute: typeof AuthenticatedSuprimentosFefoIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/hooks/resumo-tarefas': {
       id: '/api/public/hooks/resumo-tarefas'
       path: '/api/public/hooks/resumo-tarefas'
@@ -1203,6 +1249,20 @@ declare module '@tanstack/react-router' {
       path: '/suprimentos/requisicoes/$id'
       fullPath: '/suprimentos/requisicoes/$id'
       preLoaderRoute: typeof AuthenticatedSuprimentosRequisicoesIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/suprimentos/fefo/movimentacoes': {
+      id: '/_authenticated/suprimentos/fefo/movimentacoes'
+      path: '/suprimentos/fefo/movimentacoes'
+      fullPath: '/suprimentos/fefo/movimentacoes'
+      preLoaderRoute: typeof AuthenticatedSuprimentosFefoMovimentacoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/suprimentos/fefo/config': {
+      id: '/_authenticated/suprimentos/fefo/config'
+      path: '/suprimentos/fefo/config'
+      fullPath: '/suprimentos/fefo/config'
+      preLoaderRoute: typeof AuthenticatedSuprimentosFefoConfigRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/producao/material/$material': {
@@ -1285,7 +1345,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedConfigIndexRoute: typeof AuthenticatedConfigIndexRoute
   AuthenticatedMissoesIndexRoute: typeof AuthenticatedMissoesIndexRoute
   AuthenticatedProducaoMaterialMaterialRoute: typeof AuthenticatedProducaoMaterialMaterialRoute
+  AuthenticatedSuprimentosFefoConfigRoute: typeof AuthenticatedSuprimentosFefoConfigRoute
+  AuthenticatedSuprimentosFefoMovimentacoesRoute: typeof AuthenticatedSuprimentosFefoMovimentacoesRoute
   AuthenticatedSuprimentosRequisicoesIdRoute: typeof AuthenticatedSuprimentosRequisicoesIdRouteWithChildren
+  AuthenticatedSuprimentosFefoIndexRoute: typeof AuthenticatedSuprimentosFefoIndexRoute
   AuthenticatedSuprimentosRequisicoesIndexRoute: typeof AuthenticatedSuprimentosRequisicoesIndexRoute
 }
 
@@ -1346,8 +1409,14 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMissoesIndexRoute: AuthenticatedMissoesIndexRoute,
   AuthenticatedProducaoMaterialMaterialRoute:
     AuthenticatedProducaoMaterialMaterialRoute,
+  AuthenticatedSuprimentosFefoConfigRoute:
+    AuthenticatedSuprimentosFefoConfigRoute,
+  AuthenticatedSuprimentosFefoMovimentacoesRoute:
+    AuthenticatedSuprimentosFefoMovimentacoesRoute,
   AuthenticatedSuprimentosRequisicoesIdRoute:
     AuthenticatedSuprimentosRequisicoesIdRouteWithChildren,
+  AuthenticatedSuprimentosFefoIndexRoute:
+    AuthenticatedSuprimentosFefoIndexRoute,
   AuthenticatedSuprimentosRequisicoesIndexRoute:
     AuthenticatedSuprimentosRequisicoesIndexRoute,
 }
