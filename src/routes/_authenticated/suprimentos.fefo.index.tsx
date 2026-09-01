@@ -419,6 +419,7 @@ function ControleFefoPage() {
               <TableRow>
                 <TableHead>Data</TableHead>
                 <TableHead>Produto</TableHead>
+                <TableHead>Grupo</TableHead>
                 <TableHead>Movimento</TableHead>
                 <TableHead>Destino</TableHead>
                 <TableHead>Lote mov.</TableHead>
@@ -429,10 +430,10 @@ function ControleFefoPage() {
             </TableHeader>
             <TableBody>
               {q.isLoading && (
-                <TableRow><TableCell colSpan={8} className="text-center py-10"><Loader2 className="size-5 animate-spin mx-auto" /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center py-10"><Loader2 className="size-5 animate-spin mx-auto" /></TableCell></TableRow>
               )}
               {!q.isLoading && filtradas.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
                   Nenhuma checagem — importe a planilha de movimentação para começar.
                 </TableCell></TableRow>
               )}
@@ -442,6 +443,10 @@ function ControleFefoPage() {
                   <TableCell className="text-xs max-w-64 truncate" title={`${r.id_produto} — ${r.descricao}`}>
                     <span className="font-mono">{r.id_produto}</span>{r.descricao ? ` — ${r.descricao}` : ""}
                   </TableCell>
+                  <TableCell className="text-xs whitespace-nowrap">
+                    <Badge variant="outline" className="text-[10px]">{r.grupo}</Badge>
+                  </TableCell>
+
                   <TableCell className="text-xs max-w-64 truncate" title={r.desc_movimento}>{r.desc_movimento}</TableCell>
                   <TableCell className="text-xs">{r.destino}</TableCell>
                   <TableCell className="font-mono text-xs">{r.lote_movimentado}</TableCell>
