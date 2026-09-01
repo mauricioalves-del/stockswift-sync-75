@@ -248,16 +248,73 @@ function ControleFefoPage() {
     q.refetch();
   }
 
+  function exportarHtmlAtivo() {
+    if (!auditadas.length) return;
+    exportarBIInterativo({
+      titulo: "Controle FEFO — Transferências",
+      subtitulo: "Banco embarcado e filtro cruzado entre todos os visuais",
+      linhas: auditadas.map((r) => ({
+        data: r.data,
+        id_produto: r.id_produto,
+        descricao: r.descricao ?? "",
+        grupo: r.grupo,
+        destino: r.destino || "—",
+        desc_movimento: r.desc_movimento ?? "",
+        lote_movimentado: r.lote_movimentado ?? "",
+        lote_mais_antigo: r.lote_mais_antigo ?? "",
+        status: r.status,
+        situacao: r.quebra ? "Quebra de FEFO" : r.status.startsWith("OK") ? "OK" : "Inconclusivo",
+        qtd: Number(r.qtd_movimentado) || 0,
+        quebra: r.quebra ? 1 : 0,
+      })),
+      dimensoes: [
+        { chave: "destino", rotulo: "Destino", pizza: true },
+        { chave: "grupo", rotulo: "Grupo" },
+        { chave: "id_produto", rotulo: "Produto", chaveRotulo: "descricao" },
+        { chave: "situacao", rotulo: "Situação" },
+      ],
+      medida: { chave: "quebra", rotulo: "Quebras de FEFO", formato: "num" },
+      medidaSecundaria: { chave: "qtd", rotulo: "Quantidade movimentada", formato: "num" },
+      serie: { chave: "data", rotulo: "Dia" },
+      colunas: [
+        { chave: "data", rotulo: "Data" },
+        { chave: "id_produto", rotulo: "Código" },
+        { chave: "descricao", rotulo: "Produto" },
+        { chave: "grupo", rotulo: "Grupo" },
+        { chave: "desc_movimento", rotulo: "Movimento" },
+        { chave: "destino", rotulo: "Destino" },
+        { chave: "lote_movimentado", rotulo: "Lote mov." },
+        { chave: "lote_mais_antigo", rotulo: "Lote mais antigo" },
+        { chave: "qtd", rotulo: "Qtd", formato: "num" },
+        { chave: "status", rotulo: "Status" },
+      ],
+      filtrosAtivos: [
+        { label: "Período", valor: tudo ? "Todo o histórico" : `${ini} a ${fim}` },
+        ...(destino !== "__all__" ? [{ label: "Destino", valor: destino }] : []),
+        ...(grupo !== "__all__" ? [{ label: "Grupo", valor: grupo }] : []),
+        ...(produto.trim() ? [{ label: "Produto", valor: produto.trim() }] : []),
+        ...(semEmbalagem ? [{ label: "Filtro", valor: "Sem embalagens" }] : []),
+      ],
+    });
+    toast.success("HTML interativo gerado");
+  }
+
   return (
     <div className="w-full space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-3">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><ArrowRightLeft className="size-6" /> Controle FEFO</h1>
-          <p className="text-sm text-muted-foreground">
+      <div className="rounded-xl border bg-card p-4 flex flex-wrap items-center gap-3">
+        <div className="rounded-lg p-2" style={{ background: "color-mix(in oklab, var(--primary) 12%, transparent)" }}>
+          <ArrowRightLeft className="size-5 text-primary" />
+        </div>
+        <div className="flex-1 min-w-64">
+          <h1 className="text-xl font-bold leading-tight">Controle FEFO</h1>
+          <p className="text-xs text-muted-foreground">
             Checagem das transferências saindo da Fábrica. O motor roda automaticamente a cada atualização da movimentação — sem horário fixo.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" data-export-hide>
+          <Button variant="outline" size="sm" onClick={exportarHtmlAtivo} disabled={!auditadas.length}>
+            <Download className="size-4" /> HTML interativo
+          </Button>
           <Button variant="outline" size="sm" asChild>
             <Link to="/suprimentos/fefo/movimentacoes"><Upload className="size-4 mr-1" /> Importar movimentação</Link>
           </Button>
@@ -269,6 +326,7 @@ function ControleFefoPage() {
           </Button>
         </div>
       </div>
+
 
       {/* Filtros */}
       <Card>
