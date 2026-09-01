@@ -53,6 +53,7 @@ const NAV: (NavItem | NavGroup)[] = [
     items: [
       { to: "/suprimentos/dashboard", label: "Dashboard Suprimentos", icon: LayoutDashboard, role: "any" },
       { to: "/suprimentos/estoque", label: "Posição de Estoque", icon: Boxes, role: "any" },
+      { to: "/suprimentos/fefo", label: "Controle FEFO", icon: ArrowRightLeft, role: "any" },
       { to: "/suprimentos/requisicoes", label: "Requisições", icon: ClipboardList, role: "write" },
       { to: "/abastecimento/planejamento", label: "Abastecimento", icon: Compass, role: "write" },
       { to: "/abastecimento/demandas", label: "Demandas Extras", icon: Sparkles, role: "write" },
