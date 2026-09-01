@@ -570,16 +570,32 @@ function ControleFefoPage() {
   );
 }
 
-function Kpi({ title, value, hint, icon, accent, danger }: { title: string; value: string; hint?: string; icon: React.ReactNode; accent: string; danger?: boolean }) {
+const PALETA = [
+  "hsl(var(--primary))",
+  "hsl(var(--chart-2, 173 58% 39%))",
+  "hsl(var(--chart-3, 197 37% 44%))",
+  "hsl(var(--chart-4, 43 74% 56%))",
+  "hsl(var(--chart-5, 27 87% 57%))",
+  "hsl(var(--muted-foreground))",
+];
+
+function Kpi({
+  titulo, valor, hint, tom,
+}: { titulo: string; valor: string; hint?: React.ReactNode; tom?: "danger" | "warning" }) {
   return (
-    <Card className={`border-l-4 ${accent} ${danger ? "bg-destructive/5" : ""}`}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{title}</span>{icon}
-        </div>
-        <div className={`text-2xl font-bold tabular-nums mt-1 ${danger ? "text-destructive" : ""}`}>{value}</div>
-        {hint && <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1"><HelpCircle className="size-3" />{hint}</div>}
+    <Card className={`relative overflow-hidden ${tom === "danger" ? "border-destructive/60" : tom === "warning" ? "border-amber-500/60" : ""}`}>
+      <span
+        className="absolute inset-y-0 left-0 w-1"
+        style={{ background: tom === "danger" ? "var(--destructive)" : tom === "warning" ? "var(--warning, #f59e0b)" : "var(--primary)" }}
+      />
+      <CardHeader className="pb-1 pl-5">
+        <CardTitle className="text-[11px] uppercase tracking-wide text-muted-foreground">{titulo}</CardTitle>
+      </CardHeader>
+      <CardContent className="pl-5">
+        <div className={`text-2xl font-bold tabular-nums ${tom === "danger" ? "text-destructive" : ""}`}>{valor}</div>
+        {hint && <div className="text-xs text-muted-foreground mt-0.5">{hint}</div>}
       </CardContent>
     </Card>
   );
 }
+
