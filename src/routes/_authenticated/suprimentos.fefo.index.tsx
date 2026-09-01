@@ -275,6 +275,25 @@ function ControleFefoPage() {
               </SelectContent>
             </Select>
           </div>
+          <div className="min-w-52">
+            <label className="text-xs text-muted-foreground">Grupo</label>
+            <Select value={grupo} onValueChange={setGrupo}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todos os grupos</SelectItem>
+                {gruposDisponiveis.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <label className="flex items-center gap-2 text-xs h-9 cursor-pointer select-none">
+            <input type="checkbox" className="size-4 accent-primary" checked={semEmbalagem}
+              onChange={(e) => setSemEmbalagem(e.target.checked)} />
+            <span>
+              Desconsiderar embalagens
+              {embalagensOcultas > 0 && <span className="text-muted-foreground"> ({embalagensOcultas} ocultas)</span>}
+            </span>
+          </label>
+
         </CardContent>
       </Card>
 
