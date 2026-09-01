@@ -226,8 +226,10 @@ function ControleFefoPage() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi title="Transferências auditadas" value={formatNum(kpis.total)} icon={<ArrowRightLeft className="size-4" />} accent="border-l-primary" />
         <Kpi title="Quebras de FEFO" value={formatNum(kpis.quebras)} icon={<AlertTriangle className="size-4" />} accent="border-l-destructive"
+          danger={kpis.quebras > 0}
           hint={`${kpis.deltaQuebras >= 0 ? "+" : ""}${kpis.deltaQuebras} vs. semana anterior`} />
-        <Kpi title="Taxa de quebra" value={`${kpis.taxa.toFixed(1)}%`} icon={<AlertTriangle className="size-4" />} accent="border-l-amber-500"
+        <Kpi title="Taxa de quebra" value={`${kpis.taxa.toFixed(1)}%`} icon={<AlertTriangle className="size-4" />} accent="border-l-destructive"
+          danger={kpis.quebras > 0}
           hint={`${kpis.deltaTaxa >= 0 ? "+" : ""}${kpis.deltaTaxa.toFixed(1)} p.p. vs. semana anterior`} />
         <Kpi title="OK / Inconclusivo" value={`${formatNum(kpis.oks)} / ${formatNum(kpis.inconclusivos)}`}
           icon={<CheckCircle2 className="size-4" />} accent="border-l-emerald-500"
