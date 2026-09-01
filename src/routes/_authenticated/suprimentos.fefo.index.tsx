@@ -454,63 +454,58 @@ function ControleFefoPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Transferências e quebras por destino</CardTitle></CardHeader>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Destino</TableHead>
-                <TableHead className="text-right">Transferências</TableHead>
-                <TableHead className="text-right">Quebras</TableHead>
-                <TableHead className="text-right">Taxa</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {porDestino.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Sem dados no período</TableCell></TableRow>
-              )}
-              {porDestino.map((d) => (
-                <TableRow key={d.destino}>
-                  <TableCell>{d.destino}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatNum(d.total)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatNum(d.quebras)}</TableCell>
-                  <TableCell className={`text-right tabular-nums ${d.taxa > 0 ? "text-destructive font-semibold" : ""}`}>{d.taxa.toFixed(1)}%</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Transferências por destino</CardTitle>
+            <p className="text-xs text-muted-foreground">Fatias em vermelho indicam destinos com quebra de FEFO.</p>
+          </CardHeader>
+          <CardContent className="h-80">
+            {porDestino.length === 0 ? (
+              <div className="h-full grid place-items-center text-sm text-muted-foreground">Sem dados no período</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={porDestino} dataKey="total" nameKey="destino" outerRadius="75%" label={(e: any) => e.destino}>
+                    {porDestino.map((d, i) => (
+                      <Cell key={d.destino} fill={d.quebras > 0 ? "hsl(var(--destructive))" : PALETA[i % PALETA.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: any, _n: any, p: any) =>
+                    [`${formatNum(Number(v))} transferências · ${formatNum(p.payload.quebras)} quebras (${p.payload.taxa.toFixed(1)}%)`, p.payload.destino]} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Transferências e quebras por grupo de produto</CardTitle></CardHeader>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Grupo</TableHead>
-                <TableHead className="text-right">Transferências</TableHead>
-                <TableHead className="text-right">Quebras</TableHead>
-                <TableHead className="text-right">Taxa</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {porGrupo.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Sem dados no período</TableCell></TableRow>
-              )}
-              {porGrupo.map((g) => (
-                <TableRow key={g.grupo}>
-                  <TableCell>{g.grupo}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatNum(g.total)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatNum(g.quebras)}</TableCell>
-                  <TableCell className={`text-right tabular-nums ${g.taxa > 0 ? "text-destructive font-semibold" : ""}`}>{g.taxa.toFixed(1)}%</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Transferências por grupo de produto</CardTitle>
+            <p className="text-xs text-muted-foreground">Grupos com quebra aparecem em vermelho.</p>
+          </CardHeader>
+          <CardContent className="h-80">
+            {porGrupo.length === 0 ? (
+              <div className="h-full grid place-items-center text-sm text-muted-foreground">Sem dados no período</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={porGrupo} dataKey="total" nameKey="grupo" innerRadius="45%" outerRadius="75%" paddingAngle={2} label={(e: any) => e.grupo}>
+                    {porGrupo.map((g, i) => (
+                      <Cell key={g.grupo} fill={g.quebras > 0 ? "hsl(var(--destructive))" : PALETA[i % PALETA.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: any, _n: any, p: any) =>
+                    [`${formatNum(Number(v))} transferências · ${formatNum(p.payload.quebras)} quebras (${p.payload.taxa.toFixed(1)}%)`, p.payload.grupo]} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
 
 
       <Card>
