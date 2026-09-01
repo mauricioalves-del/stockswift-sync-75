@@ -32,6 +32,7 @@ import { Route as AuthenticatedAbcRouteImport } from './routes/_authenticated/ab
 import { Route as AuthenticatedMissoesIndexRouteImport } from './routes/_authenticated/missoes.index'
 import { Route as AuthenticatedConfigIndexRouteImport } from './routes/_authenticated/config.index'
 import { Route as AuthenticatedBaixasIndexRouteImport } from './routes/_authenticated/baixas.index'
+import { Route as ApiPublicImportMovimentacaoFefoRouteImport } from './routes/api/public/import-movimentacao-fefo'
 import { Route as ApiPublicImportFichaTecnicaBomRouteImport } from './routes/api/public/import-ficha-tecnica-bom'
 import { Route as ApiPublicImportEstoqueSistemicoRouteImport } from './routes/api/public/import-estoque-sistemico'
 import { Route as ApiPublicImportConsumoOpRouteImport } from './routes/api/public/import-consumo-op'
@@ -192,6 +193,12 @@ const AuthenticatedBaixasIndexRoute =
     id: '/baixas/',
     path: '/baixas/',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const ApiPublicImportMovimentacaoFefoRoute =
+  ApiPublicImportMovimentacaoFefoRouteImport.update({
+    id: '/api/public/import-movimentacao-fefo',
+    path: '/api/public/import-movimentacao-fefo',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicImportFichaTecnicaBomRoute =
   ApiPublicImportFichaTecnicaBomRouteImport.update({
@@ -485,6 +492,7 @@ export interface FileRoutesByFullPath {
   '/api/public/import-consumo-op': typeof ApiPublicImportConsumoOpRoute
   '/api/public/import-estoque-sistemico': typeof ApiPublicImportEstoqueSistemicoRoute
   '/api/public/import-ficha-tecnica-bom': typeof ApiPublicImportFichaTecnicaBomRoute
+  '/api/public/import-movimentacao-fefo': typeof ApiPublicImportMovimentacaoFefoRoute
   '/baixas/': typeof AuthenticatedBaixasIndexRoute
   '/config/': typeof AuthenticatedConfigIndexRoute
   '/missoes/': typeof AuthenticatedMissoesIndexRoute
@@ -549,6 +557,7 @@ export interface FileRoutesByTo {
   '/api/public/import-consumo-op': typeof ApiPublicImportConsumoOpRoute
   '/api/public/import-estoque-sistemico': typeof ApiPublicImportEstoqueSistemicoRoute
   '/api/public/import-ficha-tecnica-bom': typeof ApiPublicImportFichaTecnicaBomRoute
+  '/api/public/import-movimentacao-fefo': typeof ApiPublicImportMovimentacaoFefoRoute
   '/baixas': typeof AuthenticatedBaixasIndexRoute
   '/config': typeof AuthenticatedConfigIndexRoute
   '/missoes': typeof AuthenticatedMissoesIndexRoute
@@ -615,6 +624,7 @@ export interface FileRoutesById {
   '/api/public/import-consumo-op': typeof ApiPublicImportConsumoOpRoute
   '/api/public/import-estoque-sistemico': typeof ApiPublicImportEstoqueSistemicoRoute
   '/api/public/import-ficha-tecnica-bom': typeof ApiPublicImportFichaTecnicaBomRoute
+  '/api/public/import-movimentacao-fefo': typeof ApiPublicImportMovimentacaoFefoRoute
   '/_authenticated/baixas/': typeof AuthenticatedBaixasIndexRoute
   '/_authenticated/config/': typeof AuthenticatedConfigIndexRoute
   '/_authenticated/missoes/': typeof AuthenticatedMissoesIndexRoute
@@ -681,6 +691,7 @@ export interface FileRouteTypes {
     | '/api/public/import-consumo-op'
     | '/api/public/import-estoque-sistemico'
     | '/api/public/import-ficha-tecnica-bom'
+    | '/api/public/import-movimentacao-fefo'
     | '/baixas/'
     | '/config/'
     | '/missoes/'
@@ -745,6 +756,7 @@ export interface FileRouteTypes {
     | '/api/public/import-consumo-op'
     | '/api/public/import-estoque-sistemico'
     | '/api/public/import-ficha-tecnica-bom'
+    | '/api/public/import-movimentacao-fefo'
     | '/baixas'
     | '/config'
     | '/missoes'
@@ -810,6 +822,7 @@ export interface FileRouteTypes {
     | '/api/public/import-consumo-op'
     | '/api/public/import-estoque-sistemico'
     | '/api/public/import-ficha-tecnica-bom'
+    | '/api/public/import-movimentacao-fefo'
     | '/_authenticated/baixas/'
     | '/_authenticated/config/'
     | '/_authenticated/missoes/'
@@ -833,6 +846,7 @@ export interface RootRouteChildren {
   ApiPublicImportConsumoOpRoute: typeof ApiPublicImportConsumoOpRoute
   ApiPublicImportEstoqueSistemicoRoute: typeof ApiPublicImportEstoqueSistemicoRoute
   ApiPublicImportFichaTecnicaBomRoute: typeof ApiPublicImportFichaTecnicaBomRoute
+  ApiPublicImportMovimentacaoFefoRoute: typeof ApiPublicImportMovimentacaoFefoRoute
   ApiPublicHooksResumoTarefasRoute: typeof ApiPublicHooksResumoTarefasRoute
 }
 
@@ -998,6 +1012,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/baixas/'
       preLoaderRoute: typeof AuthenticatedBaixasIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/import-movimentacao-fefo': {
+      id: '/api/public/import-movimentacao-fefo'
+      path: '/api/public/import-movimentacao-fefo'
+      fullPath: '/api/public/import-movimentacao-fefo'
+      preLoaderRoute: typeof ApiPublicImportMovimentacaoFefoRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/import-ficha-tecnica-bom': {
       id: '/api/public/import-ficha-tecnica-bom'
@@ -1434,6 +1455,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicImportConsumoOpRoute: ApiPublicImportConsumoOpRoute,
   ApiPublicImportEstoqueSistemicoRoute: ApiPublicImportEstoqueSistemicoRoute,
   ApiPublicImportFichaTecnicaBomRoute: ApiPublicImportFichaTecnicaBomRoute,
+  ApiPublicImportMovimentacaoFefoRoute: ApiPublicImportMovimentacaoFefoRoute,
   ApiPublicHooksResumoTarefasRoute: ApiPublicHooksResumoTarefasRoute,
 }
 export const routeTree = rootRouteImport
