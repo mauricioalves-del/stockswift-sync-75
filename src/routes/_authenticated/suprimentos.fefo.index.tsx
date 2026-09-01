@@ -427,8 +427,8 @@ function ControleFefoPage() {
                 <YAxis fontSize={11} allowDecimals={false} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="total" name="Transferências" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="quebras" name="Quebras" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="total" name="Transferências" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="quebras" name="Quebras" fill="var(--destructive)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -446,7 +446,7 @@ function ControleFefoPage() {
                   <XAxis type="number" fontSize={11} allowDecimals={false} />
                   <YAxis type="category" dataKey="nome" width={200} fontSize={10} />
                   <Tooltip />
-                  <Bar dataKey="quebras" name="Quebras" fill="hsl(var(--destructive))" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="quebras" name="Quebras" fill="var(--destructive)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -468,7 +468,7 @@ function ControleFefoPage() {
                 <PieChart>
                   <Pie data={porDestino} dataKey="total" nameKey="destino" outerRadius="75%" label={(e: any) => e.destino}>
                     {porDestino.map((d, i) => (
-                      <Cell key={d.destino} fill={d.quebras > 0 ? "hsl(var(--destructive))" : PALETA[i % PALETA.length]} />
+                      <Cell key={d.destino} fill={d.quebras > 0 ? "var(--destructive)" : PALETA[i % PALETA.length]} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(v: any, _n: any, p: any) =>
@@ -493,7 +493,7 @@ function ControleFefoPage() {
                 <PieChart>
                   <Pie data={porGrupo} dataKey="total" nameKey="grupo" innerRadius="45%" outerRadius="75%" paddingAngle={2} label={(e: any) => e.grupo}>
                     {porGrupo.map((g, i) => (
-                      <Cell key={g.grupo} fill={g.quebras > 0 ? "hsl(var(--destructive))" : PALETA[i % PALETA.length]} />
+                      <Cell key={g.grupo} fill={g.quebras > 0 ? "var(--destructive)" : PALETA[i % PALETA.length]} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(v: any, _n: any, p: any) =>
@@ -571,12 +571,12 @@ function ControleFefoPage() {
 }
 
 const PALETA = [
-  "hsl(var(--primary))",
-  "hsl(var(--chart-2, 173 58% 39%))",
-  "hsl(var(--chart-3, 197 37% 44%))",
-  "hsl(var(--chart-4, 43 74% 56%))",
-  "hsl(var(--chart-5, 27 87% 57%))",
-  "hsl(var(--muted-foreground))",
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+  "var(--muted-foreground)",
 ];
 
 function Kpi({
