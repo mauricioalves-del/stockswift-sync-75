@@ -379,6 +379,36 @@ function ControleFefoPage() {
       </Card>
 
       <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-base">Transferências e quebras por grupo de produto</CardTitle></CardHeader>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Grupo</TableHead>
+                <TableHead className="text-right">Transferências</TableHead>
+                <TableHead className="text-right">Quebras</TableHead>
+                <TableHead className="text-right">Taxa</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {porGrupo.length === 0 && (
+                <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Sem dados no período</TableCell></TableRow>
+              )}
+              {porGrupo.map((g) => (
+                <TableRow key={g.grupo}>
+                  <TableCell>{g.grupo}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatNum(g.total)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatNum(g.quebras)}</TableCell>
+                  <TableCell className={`text-right tabular-nums ${g.taxa > 0 ? "text-destructive font-semibold" : ""}`}>{g.taxa.toFixed(1)}%</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+
+      <Card>
         <CardHeader className="pb-2 flex-row items-center justify-between">
           <CardTitle className="text-base">Detalhamento</CardTitle>
           <span className="text-xs text-muted-foreground">{filtradas.length} linhas</span>
