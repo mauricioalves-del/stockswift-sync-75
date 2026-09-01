@@ -750,7 +750,13 @@ function DispersaoPage() {
                       <Link to="/producao/material/$material" params={{ material: r.material }} className="hover:underline" title={[r.produto, r.desc_produto].filter(Boolean).join(" — ")}>
                         {r.produto ? `${r.produto}${r.desc_produto ? ` — ${r.desc_produto}` : ""}` : (r.desc_produto || "—")}
                       </Link>
+                      {String(r.produto ?? "").trim() === "05104122" && (
+                        <Link to="/producao/testes-industriais" className="ml-1.5 inline-flex align-middle" title="Gasto de inovação — não é furo de produção padrão">
+                          <Badge variant="outline" className="text-[10px]">Teste Industrial</Badge>
+                        </Link>
+                      )}
                     </TableCell>
+
                     <TableCell>
                       <Link to="/producao/material/$material" params={{ material: r.material }} className="hover:underline">
                         {r.material} {r.desc_material ? `— ${r.desc_material}` : ""}

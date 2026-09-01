@@ -245,7 +245,15 @@ function RankingFT() {
                         {aberto === r.produto ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
                       </TableCell>
                       <TableCell className="font-mono text-xs">{r.produto}</TableCell>
-                      <TableCell className="text-sm max-w-[280px] truncate" title={r.desc}>{r.desc || "—"}</TableCell>
+                      <TableCell className="text-sm max-w-[280px] truncate" title={r.desc}>
+                        {r.desc || "—"}
+                        {r.produto.trim() === "05104122" && (
+                          <Link to="/producao/testes-industriais" onClick={(e) => e.stopPropagation()} className="ml-1.5 inline-flex align-middle" title="Gasto de inovação — não é furo de produção padrão">
+                            <Badge variant="outline" className="text-[10px]">Teste Industrial</Badge>
+                          </Link>
+                        )}
+                      </TableCell>
+
                       <TableCell className="text-right tabular-nums text-xs">{r.ops}</TableCell>
                       <TableCell className="text-right tabular-nums text-xs">{r.linhas}</TableCell>
                       <TableCell className="text-right tabular-nums text-xs">
