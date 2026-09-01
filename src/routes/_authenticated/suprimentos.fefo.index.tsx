@@ -13,8 +13,11 @@ import { toast } from "sonner";
 import { formatNum } from "@/lib/inventory";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid,
+  PieChart, Pie, Cell,
 } from "recharts";
-import { AlertTriangle, CheckCircle2, HelpCircle, RefreshCw, Upload, Settings2, Loader2, ArrowRightLeft } from "lucide-react";
+import { AlertTriangle, CheckCircle2, RefreshCw, Upload, Settings2, Loader2, ArrowRightLeft, Download } from "lucide-react";
+import { exportarBIInterativo } from "@/lib/export-bi-interativo";
+
 
 export const Route = createFileRoute("/_authenticated/suprimentos/fefo/")({
   component: ControleFefoPage,
@@ -245,16 +248,73 @@ function ControleFefoPage() {
     q.refetch();
   }
 
+  function exportarHtmlAtivo() {
+    if (!auditadas.length) return;
+    exportarBIInterativo({
+      titulo: "Controle FEFO — Transferências",
+      subtitulo: "Banco embarcado e filtro cruzado entre todos os visuais",
+      linhas: auditadas.map((r) => ({
+        data: r.data,
+        id_produto: r.id_produto,
+        descricao: r.descricao ?? "",
+        grupo: r.grupo,
+        destino: r.destino || "—",
+        desc_movimento: r.desc_movimento ?? "",
+        lote_movimentado: r.lote_movimentado ?? "",
+        lote_mais_antigo: r.lote_mais_antigo ?? "",
+        status: r.status,
+        situacao: r.quebra ? "Quebra de FEFO" : r.status.startsWith("OK") ? "OK" : "Inconclusivo",
+        qtd: Number(r.qtd_movimentado) || 0,
+        quebra: r.quebra ? 1 : 0,
+      })),
+      dimensoes: [
+        { chave: "destino", rotulo: "Destino", pizza: true },
+        { chave: "grupo", rotulo: "Grupo" },
+        { chave: "id_produto", rotulo: "Produto", chaveRotulo: "descricao" },
+        { chave: "situacao", rotulo: "Situação" },
+      ],
+      medida: { chave: "quebra", rotulo: "Quebras de FEFO", formato: "num" },
+      medidaSecundaria: { chave: "qtd", rotulo: "Quantidade movimentada", formato: "num" },
+      serie: { chave: "data", rotulo: "Dia" },
+      colunas: [
+        { chave: "data", rotulo: "Data" },
+        { chave: "id_produto", rotulo: "Código" },
+        { chave: "descricao", rotulo: "Produto" },
+        { chave: "grupo", rotulo: "Grupo" },
+        { chave: "desc_movimento", rotulo: "Movimento" },
+        { chave: "destino", rotulo: "Destino" },
+        { chave: "lote_movimentado", rotulo: "Lote mov." },
+        { chave: "lote_mais_antigo", rotulo: "Lote mais antigo" },
+        { chave: "qtd", rotulo: "Qtd", formato: "num" },
+        { chave: "status", rotulo: "Status" },
+      ],
+      filtrosAtivos: [
+        { label: "Período", valor: tudo ? "Todo o histórico" : `${ini} a ${fim}` },
+        ...(destino !== "__all__" ? [{ label: "Destino", valor: destino }] : []),
+        ...(grupo !== "__all__" ? [{ label: "Grupo", valor: grupo }] : []),
+        ...(produto.trim() ? [{ label: "Produto", valor: produto.trim() }] : []),
+        ...(semEmbalagem ? [{ label: "Filtro", valor: "Sem embalagens" }] : []),
+      ],
+    });
+    toast.success("HTML interativo gerado");
+  }
+
   return (
     <div className="w-full space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-3">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><ArrowRightLeft className="size-6" /> Controle FEFO</h1>
-          <p className="text-sm text-muted-foreground">
+      <div className="rounded-xl border bg-card p-4 flex flex-wrap items-center gap-3">
+        <div className="rounded-lg p-2" style={{ background: "color-mix(in oklab, var(--primary) 12%, transparent)" }}>
+          <ArrowRightLeft className="size-5 text-primary" />
+        </div>
+        <div className="flex-1 min-w-64">
+          <h1 className="text-xl font-bold leading-tight">Controle FEFO</h1>
+          <p className="text-xs text-muted-foreground">
             Checagem das transferências saindo da Fábrica. O motor roda automaticamente a cada atualização da movimentação — sem horário fixo.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" data-export-hide>
+          <Button variant="outline" size="sm" onClick={exportarHtmlAtivo} disabled={!auditadas.length}>
+            <Download className="size-4" /> HTML interativo
+          </Button>
           <Button variant="outline" size="sm" asChild>
             <Link to="/suprimentos/fefo/movimentacoes"><Upload className="size-4 mr-1" /> Importar movimentação</Link>
           </Button>
@@ -266,6 +326,7 @@ function ControleFefoPage() {
           </Button>
         </div>
       </div>
+
 
       {/* Filtros */}
       <Card>
@@ -322,18 +383,38 @@ function ControleFefoPage() {
       </Card>
 
       {/* KPIs */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi title="Transferências auditadas" value={formatNum(kpis.total)} icon={<ArrowRightLeft className="size-4" />} accent="border-l-primary" />
-        <Kpi title="Quebras de FEFO" value={formatNum(kpis.quebras)} icon={<AlertTriangle className="size-4" />} accent="border-l-destructive"
-          danger={kpis.quebras > 0}
-          hint={`${kpis.deltaQuebras >= 0 ? "+" : ""}${kpis.deltaQuebras} vs. semana anterior`} />
-        <Kpi title="Taxa de quebra" value={`${kpis.taxa.toFixed(1)}%`} icon={<AlertTriangle className="size-4" />} accent="border-l-destructive"
-          danger={kpis.quebras > 0}
-          hint={`${kpis.deltaTaxa >= 0 ? "+" : ""}${kpis.deltaTaxa.toFixed(1)} p.p. vs. semana anterior`} />
-        <Kpi title="OK / Inconclusivo" value={`${formatNum(kpis.oks)} / ${formatNum(kpis.inconclusivos)}`}
-          icon={<CheckCircle2 className="size-4" />} accent="border-l-emerald-500"
-          hint={`${kpis.inconclusivos} sem validade ou almox não mapeado`} />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi titulo="Transferências auditadas" valor={formatNum(kpis.total)} hint={`${filtradas.length} linha(s) no filtro`} />
+        <Kpi
+          titulo="Quebras de FEFO"
+          valor={formatNum(kpis.quebras)}
+          tom={kpis.quebras > 0 ? "danger" : undefined}
+          hint={
+            <span className="flex items-center gap-1">
+              {kpis.quebras > 0 && <AlertTriangle className="size-3 text-destructive" />}
+              {kpis.deltaQuebras >= 0 ? "+" : ""}{kpis.deltaQuebras} vs. semana anterior
+            </span>
+          }
+        />
+        <Kpi
+          titulo="Taxa de quebra"
+          valor={`${kpis.taxa.toFixed(1)}%`}
+          tom={kpis.quebras > 0 ? "danger" : undefined}
+          hint={`${kpis.deltaTaxa >= 0 ? "+" : ""}${kpis.deltaTaxa.toFixed(1)} p.p. vs. semana anterior`}
+        />
+        <Kpi
+          titulo="OK / Inconclusivo"
+          valor={`${formatNum(kpis.oks)} / ${formatNum(kpis.inconclusivos)}`}
+          tom={kpis.inconclusivos > 0 ? "warning" : undefined}
+          hint={
+            <span className="flex items-center gap-1">
+              <CheckCircle2 className="size-3" />
+              {kpis.inconclusivos} sem validade ou almox não mapeado
+            </span>
+          }
+        />
       </div>
+
 
       <div className="grid gap-3 lg:grid-cols-2">
         <Card>
@@ -373,63 +454,58 @@ function ControleFefoPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Transferências e quebras por destino</CardTitle></CardHeader>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Destino</TableHead>
-                <TableHead className="text-right">Transferências</TableHead>
-                <TableHead className="text-right">Quebras</TableHead>
-                <TableHead className="text-right">Taxa</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {porDestino.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Sem dados no período</TableCell></TableRow>
-              )}
-              {porDestino.map((d) => (
-                <TableRow key={d.destino}>
-                  <TableCell>{d.destino}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatNum(d.total)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatNum(d.quebras)}</TableCell>
-                  <TableCell className={`text-right tabular-nums ${d.taxa > 0 ? "text-destructive font-semibold" : ""}`}>{d.taxa.toFixed(1)}%</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Transferências por destino</CardTitle>
+            <p className="text-xs text-muted-foreground">Fatias em vermelho indicam destinos com quebra de FEFO.</p>
+          </CardHeader>
+          <CardContent className="h-80">
+            {porDestino.length === 0 ? (
+              <div className="h-full grid place-items-center text-sm text-muted-foreground">Sem dados no período</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={porDestino} dataKey="total" nameKey="destino" outerRadius="75%" label={(e: any) => e.destino}>
+                    {porDestino.map((d, i) => (
+                      <Cell key={d.destino} fill={d.quebras > 0 ? "hsl(var(--destructive))" : PALETA[i % PALETA.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: any, _n: any, p: any) =>
+                    [`${formatNum(Number(v))} transferências · ${formatNum(p.payload.quebras)} quebras (${p.payload.taxa.toFixed(1)}%)`, p.payload.destino]} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Transferências e quebras por grupo de produto</CardTitle></CardHeader>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Grupo</TableHead>
-                <TableHead className="text-right">Transferências</TableHead>
-                <TableHead className="text-right">Quebras</TableHead>
-                <TableHead className="text-right">Taxa</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {porGrupo.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Sem dados no período</TableCell></TableRow>
-              )}
-              {porGrupo.map((g) => (
-                <TableRow key={g.grupo}>
-                  <TableCell>{g.grupo}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatNum(g.total)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatNum(g.quebras)}</TableCell>
-                  <TableCell className={`text-right tabular-nums ${g.taxa > 0 ? "text-destructive font-semibold" : ""}`}>{g.taxa.toFixed(1)}%</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Transferências por grupo de produto</CardTitle>
+            <p className="text-xs text-muted-foreground">Grupos com quebra aparecem em vermelho.</p>
+          </CardHeader>
+          <CardContent className="h-80">
+            {porGrupo.length === 0 ? (
+              <div className="h-full grid place-items-center text-sm text-muted-foreground">Sem dados no período</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={porGrupo} dataKey="total" nameKey="grupo" innerRadius="45%" outerRadius="75%" paddingAngle={2} label={(e: any) => e.grupo}>
+                    {porGrupo.map((g, i) => (
+                      <Cell key={g.grupo} fill={g.quebras > 0 ? "hsl(var(--destructive))" : PALETA[i % PALETA.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: any, _n: any, p: any) =>
+                    [`${formatNum(Number(v))} transferências · ${formatNum(p.payload.quebras)} quebras (${p.payload.taxa.toFixed(1)}%)`, p.payload.grupo]} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
 
 
       <Card>
@@ -494,16 +570,32 @@ function ControleFefoPage() {
   );
 }
 
-function Kpi({ title, value, hint, icon, accent, danger }: { title: string; value: string; hint?: string; icon: React.ReactNode; accent: string; danger?: boolean }) {
+const PALETA = [
+  "hsl(var(--primary))",
+  "hsl(var(--chart-2, 173 58% 39%))",
+  "hsl(var(--chart-3, 197 37% 44%))",
+  "hsl(var(--chart-4, 43 74% 56%))",
+  "hsl(var(--chart-5, 27 87% 57%))",
+  "hsl(var(--muted-foreground))",
+];
+
+function Kpi({
+  titulo, valor, hint, tom,
+}: { titulo: string; valor: string; hint?: React.ReactNode; tom?: "danger" | "warning" }) {
   return (
-    <Card className={`border-l-4 ${accent} ${danger ? "bg-destructive/5" : ""}`}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{title}</span>{icon}
-        </div>
-        <div className={`text-2xl font-bold tabular-nums mt-1 ${danger ? "text-destructive" : ""}`}>{value}</div>
-        {hint && <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1"><HelpCircle className="size-3" />{hint}</div>}
+    <Card className={`relative overflow-hidden ${tom === "danger" ? "border-destructive/60" : tom === "warning" ? "border-amber-500/60" : ""}`}>
+      <span
+        className="absolute inset-y-0 left-0 w-1"
+        style={{ background: tom === "danger" ? "var(--destructive)" : tom === "warning" ? "var(--warning, #f59e0b)" : "var(--primary)" }}
+      />
+      <CardHeader className="pb-1 pl-5">
+        <CardTitle className="text-[11px] uppercase tracking-wide text-muted-foreground">{titulo}</CardTitle>
+      </CardHeader>
+      <CardContent className="pl-5">
+        <div className={`text-2xl font-bold tabular-nums ${tom === "danger" ? "text-destructive" : ""}`}>{valor}</div>
+        {hint && <div className="text-xs text-muted-foreground mt-0.5">{hint}</div>}
       </CardContent>
     </Card>
   );
 }
+
