@@ -450,7 +450,9 @@ function ControleFefoPage() {
                   <XAxis type="number" fontSize={11} allowDecimals={false} />
                   <YAxis type="category" dataKey="nome" width={200} fontSize={10} />
                   <Tooltip />
-                  <Bar dataKey="quebras" name="Quebras" fill="var(--destructive)" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="quebras" name="Quebras" fill="var(--destructive)" radius={[0, 4, 4, 0]}>
+                    <LabelList dataKey="quebras" position="right" fontSize={10} fill="var(--foreground)" />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}
