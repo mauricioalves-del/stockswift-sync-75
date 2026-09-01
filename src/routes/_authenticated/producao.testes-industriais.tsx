@@ -14,7 +14,9 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, LabelList,
   PieChart, Pie, Cell, Legend, ComposedChart, Line,
 } from "recharts";
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, FlaskConical, Layers, Minus } from "lucide-react";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Download, FlaskConical, Layers, Minus } from "lucide-react";
+import { exportarBIInterativo } from "@/lib/export-bi-interativo";
+import { toast } from "sonner";
 
 /**
  * FONTE DE DADOS: view `v_impacto_consumo`, filtrada por sku_produto_final = '05104122'
@@ -295,6 +297,57 @@ function TestesIndustriaisPage() {
   }, [base]);
 
   const detalhe = useMemo(() => [...filtradas].sort((a, b) => b.custo - a.custo), [filtradas]);
+
+  function exportarHtmlAtivo() {
+    if (!base.length) return;
+    exportarBIInterativo({
+      titulo: "Testes Industriais — Custo de Inovação",
+      subtitulo: `SKU ${SKU_TESTE_INDUSTRIAL} · banco embarcado e filtro cruzado entre todos os visuais`,
+      linhas: base.map((r) => ({
+        ano: r.ano,
+        ano_mes: r.ano_mes,
+        dia: r.dia,
+        numero_op: `OP ${r.numero_op}`,
+        material: r.material,
+        desc_material: r.desc_material ?? "",
+        grupo: r.grupo,
+        um: r.um ?? "",
+        qtd: r.qtd,
+        custo_unit: r.unit,
+        custo: r.custo,
+        sem_custo: r.semCusto ? "Sem custo" : "OK",
+      })),
+      dimensoes: [
+        { chave: "material", rotulo: "Matéria-prima", chaveRotulo: "desc_material" },
+        { chave: "numero_op", rotulo: "Ordem de Produção" },
+        { chave: "grupo", rotulo: "Grupo", pizza: true },
+        { chave: "ano_mes", rotulo: "Mês" },
+      ],
+      medida: { chave: "custo", rotulo: "Gasto Total", formato: "brl" },
+      medidaSecundaria: { chave: "qtd", rotulo: "Quantidade consumida", formato: "num" },
+      serie: { chave: gran === "ano" ? "ano" : gran === "mes" ? "ano_mes" : "dia", rotulo: nomeGran },
+      colunas: [
+        { chave: "dia", rotulo: "Data" },
+        { chave: "ano_mes", rotulo: "Mês" },
+        { chave: "numero_op", rotulo: "OP" },
+        { chave: "material", rotulo: "Código" },
+        { chave: "desc_material", rotulo: "Matéria-prima" },
+        { chave: "grupo", rotulo: "Grupo" },
+        { chave: "um", rotulo: "UM" },
+        { chave: "qtd", rotulo: "Qtd", formato: "num" },
+        { chave: "custo_unit", rotulo: "Custo unit.", formato: "brl" },
+        { chave: "custo", rotulo: "Custo total", formato: "brl" },
+        { chave: "sem_custo", rotulo: "Status custo" },
+      ],
+      filtrosAtivos: [
+        ...(periodo !== "todos" ? [{ label: nomeGran, valor: labelPeriodo(periodo, gran) }] : []),
+        ...(op !== "todas" ? [{ label: "OP", valor: op }] : []),
+        ...(material.trim() ? [{ label: "Matéria-prima", valor: material.trim() }] : []),
+        ...(soSemCusto ? [{ label: "Filtro", valor: "Somente itens sem custo" }] : []),
+      ],
+    });
+    toast.success("HTML interativo gerado");
+  }
   const rotuloPeriodoAtual = periodoAtualChave ? labelPeriodo(periodoAtualChave, gran) : "—";
   const nomeGran = gran === "ano" ? "Ano" : gran === "mes" ? "Mês" : "Dia";
 
