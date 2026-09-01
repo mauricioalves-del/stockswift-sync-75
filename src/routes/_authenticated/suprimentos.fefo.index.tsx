@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { formatNum } from "@/lib/inventory";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid,
-  PieChart, Pie, Cell,
+  PieChart, Pie, Cell, LabelList,
 } from "recharts";
 import { AlertTriangle, CheckCircle2, RefreshCw, Upload, Settings2, Loader2, ArrowRightLeft, Download } from "lucide-react";
 import { exportarBIInterativo } from "@/lib/export-bi-interativo";
@@ -427,8 +427,12 @@ function ControleFefoPage() {
                 <YAxis fontSize={11} allowDecimals={false} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="total" name="Transferências" fill="var(--primary)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="quebras" name="Quebras" fill="var(--destructive)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="total" name="Transferências" fill="var(--primary)" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="total" position="top" fontSize={10} fill="var(--foreground)" />
+                </Bar>
+                <Bar dataKey="quebras" name="Quebras" fill="var(--destructive)" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="quebras" position="top" fontSize={10} fill="var(--foreground)" />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -446,7 +450,9 @@ function ControleFefoPage() {
                   <XAxis type="number" fontSize={11} allowDecimals={false} />
                   <YAxis type="category" dataKey="nome" width={200} fontSize={10} />
                   <Tooltip />
-                  <Bar dataKey="quebras" name="Quebras" fill="var(--destructive)" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="quebras" name="Quebras" fill="var(--destructive)" radius={[0, 4, 4, 0]}>
+                    <LabelList dataKey="quebras" position="right" fontSize={10} fill="var(--foreground)" />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -458,7 +464,7 @@ function ControleFefoPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Transferências por destino</CardTitle>
-            <p className="text-xs text-muted-foreground">Fatias em vermelho indicam destinos com quebra de FEFO.</p>
+            <p className="text-xs text-muted-foreground">Distribuição das transferências auditadas por destino.</p>
           </CardHeader>
           <CardContent className="h-80">
             {porDestino.length === 0 ? (
@@ -466,9 +472,16 @@ function ControleFefoPage() {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={porDestino} dataKey="total" nameKey="destino" outerRadius="75%" label={(e: any) => e.destino}>
+                  <Pie
+                    data={porDestino}
+                    dataKey="total"
+                    nameKey="destino"
+                    outerRadius="75%"
+                    labelLine
+                    label={(e: any) => `${e.destino}\n${formatNum(Number(e.value))} (${((e.percent || 0) * 100).toFixed(0)}%)`}
+                  >
                     {porDestino.map((d, i) => (
-                      <Cell key={d.destino} fill={d.quebras > 0 ? "var(--destructive)" : PALETA[i % PALETA.length]} />
+                      <Cell key={d.destino} fill={PALETA[i % PALETA.length]} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(v: any, _n: any, p: any) =>
@@ -483,7 +496,7 @@ function ControleFefoPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Transferências por grupo de produto</CardTitle>
-            <p className="text-xs text-muted-foreground">Grupos com quebra aparecem em vermelho.</p>
+            <p className="text-xs text-muted-foreground">Distribuição das transferências auditadas por grupo.</p>
           </CardHeader>
           <CardContent className="h-80">
             {porGrupo.length === 0 ? (
@@ -491,9 +504,18 @@ function ControleFefoPage() {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={porGrupo} dataKey="total" nameKey="grupo" innerRadius="45%" outerRadius="75%" paddingAngle={2} label={(e: any) => e.grupo}>
+                  <Pie
+                    data={porGrupo}
+                    dataKey="total"
+                    nameKey="grupo"
+                    innerRadius="45%"
+                    outerRadius="75%"
+                    paddingAngle={2}
+                    labelLine
+                    label={(e: any) => `${e.grupo}\n${formatNum(Number(e.value))} (${((e.percent || 0) * 100).toFixed(0)}%)`}
+                  >
                     {porGrupo.map((g, i) => (
-                      <Cell key={g.grupo} fill={g.quebras > 0 ? "var(--destructive)" : PALETA[i % PALETA.length]} />
+                      <Cell key={g.grupo} fill={PALETA[i % PALETA.length]} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(v: any, _n: any, p: any) =>
