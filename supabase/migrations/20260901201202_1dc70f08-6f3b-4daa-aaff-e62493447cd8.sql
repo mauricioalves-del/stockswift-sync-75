@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.reprocessar_fefo_dias_afetados() FROM PUBLIC, anon, authenticated;
