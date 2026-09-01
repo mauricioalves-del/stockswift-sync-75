@@ -368,6 +368,66 @@ export type Database = {
           },
         ]
       }
+      checagens_fefo: {
+        Row: {
+          created_at: string
+          data: string
+          desc_almox: string
+          desc_movimento: string
+          descricao: string
+          destino: string
+          doc: string
+          id: string
+          id_produto: string
+          lote_mais_antigo: string | null
+          lote_movimentado: string
+          qtd_lote_mais_antigo: number | null
+          qtd_movimentado: number
+          quebra: boolean
+          status: string
+          validade_mais_antiga: string | null
+          validade_movimentado: string | null
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          desc_almox?: string
+          desc_movimento?: string
+          descricao?: string
+          destino?: string
+          doc?: string
+          id?: string
+          id_produto: string
+          lote_mais_antigo?: string | null
+          lote_movimentado?: string
+          qtd_lote_mais_antigo?: number | null
+          qtd_movimentado?: number
+          quebra?: boolean
+          status: string
+          validade_mais_antiga?: string | null
+          validade_movimentado?: string | null
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          desc_almox?: string
+          desc_movimento?: string
+          descricao?: string
+          destino?: string
+          doc?: string
+          id?: string
+          id_produto?: string
+          lote_mais_antigo?: string | null
+          lote_movimentado?: string
+          qtd_lote_mais_antigo?: number | null
+          qtd_movimentado?: number
+          quebra?: boolean
+          status?: string
+          validade_mais_antiga?: string | null
+          validade_movimentado?: string | null
+        }
+        Relationships: []
+      }
       checklist_execucao: {
         Row: {
           created_at: string
@@ -674,6 +734,36 @@ export type Database = {
           origem?: string
           quantidade?: number
           unidade?: string
+        }
+        Relationships: []
+      }
+      excecoes_fefo: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          id: string
+          id_produto: string
+          lote_mais_antigo: string
+          motivo: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          id_produto: string
+          lote_mais_antigo: string
+          motivo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          id_produto?: string
+          lote_mais_antigo?: string
+          motivo?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1174,6 +1264,33 @@ export type Database = {
         }
         Relationships: []
       }
+      mapa_almoxarifados: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       missoes: {
         Row: {
           created_at: string
@@ -1445,6 +1562,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      movimentacoes_diarias: {
+        Row: {
+          created_at: string
+          data: string
+          desc_almox: string
+          desc_movimento: string
+          descricao: string
+          doc: string
+          id: string
+          id_lote: string
+          id_produto: string
+          importado_por: string | null
+          qtd: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          desc_almox?: string
+          desc_movimento?: string
+          descricao?: string
+          doc?: string
+          id?: string
+          id_lote?: string
+          id_produto: string
+          importado_por?: string | null
+          qtd?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          desc_almox?: string
+          desc_movimento?: string
+          descricao?: string
+          doc?: string
+          id?: string
+          id_lote?: string
+          id_produto?: string
+          importado_por?: string | null
+          qtd?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       necessidade_materiais_op: {
         Row: {
@@ -2892,6 +3054,7 @@ export type Database = {
     }
     Functions: {
       almoxarifados_permitidos: { Args: { _uid: string }; Returns: string[] }
+      fefo_norm_sku: { Args: { _v: string }; Returns: string }
       get_my_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
@@ -2911,6 +3074,14 @@ export type Database = {
       pode_ver_documento_baixa: {
         Args: { _path: string; _uid: string }
         Returns: boolean
+      }
+      processar_fefo: {
+        Args: { _data?: string }
+        Returns: {
+          dia: string
+          processados: number
+          quebras: number
+        }[]
       }
       proximo_numero_req_op: { Args: never; Returns: string }
     }
