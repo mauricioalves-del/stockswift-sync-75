@@ -427,8 +427,12 @@ function ControleFefoPage() {
                 <YAxis fontSize={11} allowDecimals={false} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="total" name="Transferências" fill="var(--primary)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="quebras" name="Quebras" fill="var(--destructive)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="total" name="Transferências" fill="var(--primary)" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="total" position="top" fontSize={10} fill="var(--foreground)" />
+                </Bar>
+                <Bar dataKey="quebras" name="Quebras" fill="var(--destructive)" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="quebras" position="top" fontSize={10} fill="var(--foreground)" />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
