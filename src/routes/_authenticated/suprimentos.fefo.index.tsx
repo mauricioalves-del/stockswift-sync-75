@@ -167,11 +167,11 @@ function ControleFefoPage() {
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><ArrowRightLeft className="size-5" /> Controle FEFO</h1>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><ArrowRightLeft className="size-6" /> Controle FEFO</h1>
           <p className="text-sm text-muted-foreground">
-            Checagem automática diária das transferências saindo da Fábrica. Processamento roda todo dia às 08:00.
+            Checagem das transferências saindo da Fábrica. O motor roda automaticamente a cada atualização da movimentação — sem horário fixo.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
