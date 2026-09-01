@@ -163,7 +163,20 @@ function ControleFefoPage() {
       deltaQuebras: qb1 - qb0,
       deltaTaxa: tx1 - tx0,
     };
-  }, [auditadas, todas]);
+  }, [auditadas, todas, semEmbalagem]);
+
+  const porGrupo = useMemo(() => {
+    const map = new Map<string, { grupo: string; total: number; quebras: number }>();
+    for (const r of auditadas) {
+      const e = map.get(r.grupo) ?? { grupo: r.grupo, total: 0, quebras: 0 };
+      e.total++; if (r.quebra) e.quebras++;
+      map.set(r.grupo, e);
+    }
+    return Array.from(map.values())
+      .map((e) => ({ ...e, taxa: e.total ? (e.quebras / e.total) * 100 : 0 }))
+      .sort((a, b) => b.quebras - a.quebras || b.total - a.total);
+  }, [auditadas]);
+
 
   const porDia = useMemo(() => {
     const map = new Map<string, { dia: string; total: number; quebras: number }>();
