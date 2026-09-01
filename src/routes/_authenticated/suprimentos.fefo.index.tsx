@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { formatNum } from "@/lib/inventory";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid,
-  PieChart, Pie, Cell,
+  PieChart, Pie, Cell, LabelList,
 } from "recharts";
 import { AlertTriangle, CheckCircle2, RefreshCw, Upload, Settings2, Loader2, ArrowRightLeft, Download } from "lucide-react";
 import { exportarBIInterativo } from "@/lib/export-bi-interativo";
