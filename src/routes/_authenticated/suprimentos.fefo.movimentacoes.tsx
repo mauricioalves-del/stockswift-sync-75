@@ -44,21 +44,21 @@ function toIsoDateTime(v: unknown): string {
   if (typeof v === "number") {
     const d = XLSX.SSF.parse_date_code(v);
     if (!d) return "";
-    return new Date(Date.UTC(d.y, d.m - 1, d.d, d.H ?? 0, d.M ?? 0, Math.floor(d.S ?? 0))).toISOString();
+    return new Date(Date.UTC(d.y, d.m - 1, d.d, 12, d.M ?? 0, Math.floor(d.S ?? 0))).toISOString();
   }
   const s = String(v).trim();
   const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2}))?/);
-  if (br) return new Date(Date.UTC(+br[3], +br[2] - 1, +br[1], +(br[4] ?? 0), +(br[5] ?? 0))).toISOString();
+  if (br) return new Date(Date.UTC(+br[3], +br[2] - 1, +br[1], br[4] ? +br[4] : 12, +(br[5] ?? 0))).toISOString();
   const isoM = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
-  if (isoM) return new Date(Date.UTC(+isoM[1], +isoM[2] - 1, +isoM[3], +(isoM[4] ?? 0), +(isoM[5] ?? 0))).toISOString();
+  if (isoM) return new Date(Date.UTC(+isoM[1], +isoM[2] - 1, +isoM[3], isoM[4] ? +isoM[4] : 12, +(isoM[5] ?? 0))).toISOString();
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? "" : d.toISOString();
 }
 
 function diaSP(isoStr: string) {
-  // Dia de referência em America/Sao_Paulo (mesma regra do motor no banco)
-  const d = new Date(isoStr);
-  return new Date(d.getTime() - 3 * 3600_000).toISOString().slice(0, 10);
+  // Datas da planilha representam um dia civil; o horário ao meio-dia evita
+  // que a conversão de fuso desloque 01/09 para 31/08.
+  return isoStr.slice(0, 10);
 }
 
 function ImportarMovimentacoesPage() {
