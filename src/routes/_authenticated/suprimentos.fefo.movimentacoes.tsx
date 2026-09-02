@@ -137,8 +137,9 @@ function ImportarMovimentacoesPage() {
       }
 
       let quebras = 0;
-      for (const dia of dias) {
-        const { data, error } = await (supabase as any).rpc("processar_fefo", { _data: dia });
+      const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+      for (const dia of dias.filter((d) => d === hoje)) {
+        const { data, error } = await (supabase as any).rpc("processar_fefo", { _data: hoje });
         if (error) throw error;
         const r = Array.isArray(data) ? data[0] : data;
         quebras += Number(r?.quebras ?? 0);
