@@ -18,7 +18,8 @@ export const reprocessarFefoHoje = createServerFn({ method: "POST" })
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin.rpc("processar_fefo", { _data: null });
+    const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+    const { data, error } = await supabaseAdmin.rpc("processar_fefo", { _data: hoje });
     if (error) throw new Error(error.message);
 
     const resultado = Array.isArray(data) ? data[0] : data;
