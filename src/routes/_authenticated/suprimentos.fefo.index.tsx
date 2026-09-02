@@ -17,6 +17,7 @@ import {
 } from "recharts";
 import { AlertTriangle, CheckCircle2, RefreshCw, Upload, Settings2, Loader2, ArrowRightLeft, Download } from "lucide-react";
 import { exportarBIInterativo } from "@/lib/export-bi-interativo";
+import { reprocessarFefoHoje } from "@/lib/fefo.functions";
 
 
 export const Route = createFileRoute("/_authenticated/suprimentos/fefo/")({
@@ -240,12 +241,15 @@ function ControleFefoPage() {
 
   async function rodarAgora() {
     setRodando(true);
-    const { data, error } = await (supabase as any).rpc("processar_fefo", { _data: null });
-    setRodando(false);
-    if (error) return toast.error(error.message);
-    const r = Array.isArray(data) ? data[0] : data;
-    toast.success(r?.dia ? `Dia ${r.dia}: ${r.processados} linhas, ${r.quebras} quebras` : "Nenhuma movimentação importada");
-    q.refetch();
+    try {
+      const r = await reprocessarFefoHoje();
+      toast.success(r.dia ? `Dia ${r.dia}: ${r.processados} linhas, ${r.quebras} quebras` : "Nenhuma movimentação importada");
+      await q.refetch();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível reprocessar o FEFO.");
+    } finally {
+      setRodando(false);
+    }
   }
 
   function exportarHtmlAtivo() {
@@ -573,8 +577,15 @@ function ControleFefoPage() {
                   <TableCell className="text-xs">{r.destino}</TableCell>
                   <TableCell className="font-mono text-xs">{r.lote_movimentado}</TableCell>
                   <TableCell className="text-right tabular-nums text-xs">{formatNum(Number(r.qtd_movimentado))}</TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {r.lote_mais_antigo ? `${r.lote_mais_antigo} (${r.validade_mais_antiga ?? "—"})` : "—"}
+                  <TableCell className="text-xs whitespace-nowrap">
+                    {r.lote_mais_antigo ? (
+                      <div>
+                        <div className="font-mono">{r.lote_mais_antigo}</div>
+                        <div className="text-muted-foreground">
+                          {formatNum(Number(r.qtd_lote_mais_antigo ?? 0))} em saldo · validade {r.validade_mais_antiga ?? "—"}
+                        </div>
+                      </div>
+                    ) : "—"}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`text-[10px] ${statusTone(r.status)}`}>{r.status}</Badge>
