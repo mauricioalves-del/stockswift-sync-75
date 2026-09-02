@@ -123,6 +123,14 @@ export const Route = createFileRoute('/api/public/import-movimentacao-fefo')({
         try {
           const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
           const dias = Array.from(new Set(validas.map((r) => r.dia))).sort()
+          const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
+          const diasEncerrados = dias.filter((dia) => dia !== hoje)
+          if (diasEncerrados.length) {
+            return json({
+              error: `O histórico FEFO está encerrado. Envie somente movimentações de hoje (${hoje}).`,
+              dias_rejeitados: diasEncerrados,
+            }, 409)
+          }
 
           // 2. Escopo por dia: reimportar um dia substitui somente aquele dia
           let removidos = 0
@@ -163,13 +171,10 @@ export const Route = createFileRoute('/api/public/import-movimentacao-fefo')({
 
           // 4. Reprocessa o motor FEFO para cada dia afetado (igual à tela)
           let quebras = 0
-          const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
-          for (const dia of dias.filter((d) => d === hoje)) {
-            const { data, error } = await supabaseAdmin.rpc('processar_fefo', { _data: hoje })
-            if (error) throw error
-            const r = Array.isArray(data) ? data[0] : data
-            quebras += Number(r?.quebras ?? 0)
-          }
+          const { data, error } = await supabaseAdmin.rpc('processar_fefo', { _data: hoje })
+          if (error) throw error
+          const r = Array.isArray(data) ? data[0] : data
+          quebras = Number(r?.quebras ?? 0)
 
           return json({
             recebidas: linhas.length,
