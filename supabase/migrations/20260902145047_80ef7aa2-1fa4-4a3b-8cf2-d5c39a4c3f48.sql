@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.processar_fefo(date) FROM authenticated;

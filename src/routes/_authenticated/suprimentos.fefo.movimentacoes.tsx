@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Upload, FileSpreadsheet, Loader2, AlertCircle, CheckCircle2, ArrowLeft } from "lucide-react";
+import { reprocessarFefoHoje } from "@/lib/fefo.functions";
 
 export const Route = createFileRoute("/_authenticated/suprimentos/fefo/movimentacoes")({
   component: ImportarMovimentacoesPage,
@@ -116,6 +117,11 @@ function ImportarMovimentacoesPage() {
     try {
       const uid = (await supabase.auth.getUser()).data.user?.id ?? null;
       const dias = Array.from(new Set(rows.map((r) => r.dia))).sort();
+      const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+      const diasEncerrados = dias.filter((dia) => dia !== hoje);
+      if (diasEncerrados.length) {
+        throw new Error(`O histórico FEFO está encerrado. Importe somente movimentações de hoje (${hoje}).`);
+      }
 
       // Escopo por dia: reimportar um dia substitui somente aquele dia
       for (const dia of dias) {
@@ -136,13 +142,8 @@ function ImportarMovimentacoesPage() {
         if (error) throw error;
       }
 
-      let quebras = 0;
-      for (const dia of dias) {
-        const { data, error } = await (supabase as any).rpc("processar_fefo", { _data: dia });
-        if (error) throw error;
-        const r = Array.isArray(data) ? data[0] : data;
-        quebras += Number(r?.quebras ?? 0);
-      }
+      const processamento = await reprocessarFefoHoje();
+      const quebras = processamento.quebras;
 
       setResult({ dias, linhas: payload.length, quebras });
       toast.success(`${payload.length} movimentações importadas · ${quebras} quebras detectadas`);

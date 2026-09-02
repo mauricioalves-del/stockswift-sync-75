@@ -428,6 +428,53 @@ export type Database = {
         }
         Relationships: []
       }
+      checagens_fefo_lotes_snapshot: {
+        Row: {
+          checagem_id: string
+          created_at: string
+          data_importacao: string
+          data_validade: string | null
+          estoque_sistemico_id: string | null
+          id: string
+          id_produto: string
+          lote: string
+          origem: string
+          quantidade: number
+        }
+        Insert: {
+          checagem_id: string
+          created_at?: string
+          data_importacao: string
+          data_validade?: string | null
+          estoque_sistemico_id?: string | null
+          id?: string
+          id_produto: string
+          lote: string
+          origem: string
+          quantidade: number
+        }
+        Update: {
+          checagem_id?: string
+          created_at?: string
+          data_importacao?: string
+          data_validade?: string | null
+          estoque_sistemico_id?: string | null
+          id?: string
+          id_produto?: string
+          lote?: string
+          origem?: string
+          quantidade?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checagens_fefo_lotes_snapshot_checagem_id_fkey"
+            columns: ["checagem_id"]
+            isOneToOne: false
+            referencedRelation: "checagens_fefo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_execucao: {
         Row: {
           created_at: string
