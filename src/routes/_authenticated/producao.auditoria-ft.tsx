@@ -254,7 +254,7 @@ function RankingFT() {
                       </TableCell>
                       <TableCell className="font-mono text-xs">{r.produto}</TableCell>
                       <TableCell className="text-sm max-w-[280px] truncate" title={r.desc}>
-                        {r.desc || "—"}
+                        {r.desc || <span className="text-muted-foreground italic">descrição não cadastrada</span>}
                         {r.produto.trim() === "05104122" && (
                           <Link to="/producao/testes-industriais" onClick={(e) => e.stopPropagation()} className="ml-1.5 inline-flex align-middle" title="Gasto de inovação — não é furo de produção padrão">
                             <Badge variant="outline" className="text-[10px]">Teste Industrial</Badge>
