@@ -913,9 +913,10 @@ function AcoesCorretivas() {
     queryKey: ["dispersao", "acoes-full"],
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("dispersao_acoes_corretivas")
-        .select("*, dispersao_causa_raiz:producao_consumo_id(causa)")
+        .select("*")
         .order("data_abertura", { ascending: false });
       if (error) throw error;
+
       return data ?? [];
     },
   });
