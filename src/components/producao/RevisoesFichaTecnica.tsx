@@ -42,6 +42,7 @@ export function RevisoesFichaTecnica() {
   const usuariosQ = useUsuariosSistema();
   const [filtro, setFiltro] = useState("abertas");
   const [rejeitando, setRejeitando] = useState<Revisao | null>(null);
+  const [aplicando, setAplicando] = useState<Revisao | null>(null);
   const [motivo, setMotivo] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -125,6 +126,7 @@ export function RevisoesFichaTecnica() {
         ficha_tecnica_bom_versao_anterior: antes ?? [],
       });
       qc.invalidateQueries({ queryKey: ["ft-arvore"] });
+      setAplicando(null);
       toast.success(`Ficha Técnica atualizada (${(antes ?? []).length} linha(s)).`);
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   }
@@ -195,7 +197,7 @@ export function RevisoesFichaTecnica() {
                         </Button>
                       )}
                       {r.status === "Aprovada" && isAdmin && (
-                        <Button size="sm" className="h-7" disabled={busy} onClick={() => aplicar(r)}>
+                        <Button size="sm" className="h-7" disabled={busy} onClick={() => setAplicando(r)}>
                           <CheckCircle2 className="size-3.5 mr-1" /> Aplicar à FT
                         </Button>
                       )}
@@ -217,6 +219,35 @@ export function RevisoesFichaTecnica() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={!!aplicando} onOpenChange={(v) => !v && setAplicando(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Aplicar revisão à Ficha Técnica</DialogTitle></DialogHeader>
+          {aplicando && (
+            <div className="space-y-2 text-sm">
+              <p>
+                <strong>{aplicando.produto_id}</strong>{aplicando.produto_desc ? ` — ${aplicando.produto_desc}` : ""}
+                <br />Item <strong>{aplicando.material_id}</strong>{aplicando.material_desc ? ` — ${aplicando.material_desc}` : ""}
+              </p>
+              <div className="rounded-md border bg-muted/40 p-3 text-xs">
+                Simulação: se esta Ficha Técnica for atualizada, a próxima Solicitação de Materiais para este produto
+                passará a requisitar{" "}
+                <strong>{(Number(aplicando.qtd_sugerida) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 4 })}</strong>{" "}
+                ao invés de{" "}
+                <strong>{(Number(aplicando.qtd_atual) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 4 })}</strong>{" "}
+                (produção hipotética de 100 unidades).
+              </div>
+              <p className="text-xs text-muted-foreground">
+                O valor atual da ficha é guardado como versão anterior, permitindo reversão.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAplicando(null)}>Cancelar</Button>
+            <Button disabled={busy} onClick={() => aplicando && aplicar(aplicando)}>Confirmar e aplicar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!rejeitando} onOpenChange={(v) => !v && setRejeitando(null)}>
         <DialogContent>
