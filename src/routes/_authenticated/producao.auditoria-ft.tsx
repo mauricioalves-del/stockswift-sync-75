@@ -434,14 +434,15 @@ function Completude() {
     const total = list.length;
     const com = list.filter((r) => r.temFt).length;
     const sem = total - com;
-    const semNaoLocais = list.filter((r) => !r.temFt && !r.local).length;
-    return { total, com, sem, semNaoLocais };
-  }, [dataQ.data]);
+    const desvio = list.filter((r) => situacao(r) === "FT_DESVIO").length;
+    return { total, com, sem, desvio };
+  }, [dataQ.data, dispersaoPorProduto, limiar]);
 
   const filtradas = useMemo(() => {
     let l = dataQ.data ?? [];
     if (filtro === "sem") l = l.filter((r) => !r.temFt);
     else if (filtro === "com") l = l.filter((r) => r.temFt);
+    else if (filtro === "desvio") l = l.filter((r) => situacao(r) === "FT_DESVIO");
     if (busca.trim()) {
       const t = busca.toLowerCase();
       l = l.filter((r) => r.codigo.toLowerCase().includes(t) || r.descricao.toLowerCase().includes(t));
@@ -450,14 +451,18 @@ function Completude() {
     if (filtro === "sem" && rel) {
       return [...l].sort((a, b) => (rel.get(b.codigo) ?? 0) - (rel.get(a.codigo) ?? 0));
     }
+    if (filtro === "desvio") {
+      return [...l].sort((a, b) => (dispersaoPorProduto.get(b.codigo) ?? 0) - (dispersaoPorProduto.get(a.codigo) ?? 0));
+    }
     return l;
-  }, [dataQ.data, filtro, busca, relevanciaQ.data]);
+  }, [dataQ.data, filtro, busca, relevanciaQ.data, dispersaoPorProduto, limiar]);
 
   function exportar() {
     const rows = filtradas.map((r) => ({
       "Código": r.codigo, "Produto": r.descricao, "Família": r.familia ?? "",
       "Grupo": r.grupo, "É Produto Local": r.local ? "Sim" : "Não",
-      "Tem Ficha Técnica": r.temFt ? "Sim" : "Não",
+      "Status FT": situacao(r) === "SEM_FT" ? "Sem FT" : situacao(r) === "FT_DESVIO" ? "FT com desvio relevante" : "FT OK",
+      "Dispersão Total (R$)": +(dispersaoPorProduto.get(r.codigo) ?? 0).toFixed(2),
       "Consumo (qtd)": +(relevanciaQ.data?.get(r.codigo) ?? 0).toFixed(2),
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -465,6 +470,7 @@ function Completude() {
     XLSX.utils.book_append_sheet(wb, ws, "Auditoria FT");
     XLSX.writeFile(wb, `auditoria-ficha-tecnica-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
+
 
   return (
     <>
