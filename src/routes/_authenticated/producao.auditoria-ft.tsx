@@ -65,11 +65,7 @@ type RankRow = {
   aderencia: number; perda: number; economia: number; dispersao: number;
 };
 
-function RankingFT() {
-  const [anoMes, setAnoMes] = useState("todos");
-  const [busca, setBusca] = useState("");
-  const [aberto, setAberto] = useState<string | null>(null);
-
+function useFaixas() {
   const paramsQ = useQuery({
     queryKey: ["dispersao", "faixas"],
     queryFn: async (): Promise<Faixas> => {
@@ -79,9 +75,11 @@ function RankingFT() {
     },
     staleTime: 5 * 60_000,
   });
-  const faixas = paramsQ.data ?? FAIXAS_DEFAULT;
+  return paramsQ.data ?? FAIXAS_DEFAULT;
+}
 
-  const impactoQ = useQuery({
+function useImpactoFT() {
+  return useQuery({
     queryKey: ["auditoria-ft", "impacto"],
     staleTime: 5 * 60_000,
     queryFn: async () =>
@@ -90,6 +88,16 @@ function RankingFT() {
           .select("ano_mes, numero_op, sku_produto_final, desc_prod, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, impacto_rs, tipo_desvio")
           .range(from, to)),
   });
+}
+
+function RankingFT() {
+  const [anoMes, setAnoMes] = useState("todos");
+  const [busca, setBusca] = useState("");
+  const [aberto, setAberto] = useState<string | null>(null);
+
+  const faixas = useFaixas();
+  const impactoQ = useImpactoFT();
+
 
   const todas = impactoQ.data ?? [];
   const meses = useMemo(
