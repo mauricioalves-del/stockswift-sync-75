@@ -305,10 +305,39 @@ function RankingFT() {
 // Completude de cadastro (comportamento original)
 // ===========================================================================
 
+const LIMIAR_KEY = "auditoria-ft:limiar-desvio";
+
 function Completude() {
   const [grupoSel, setGrupoSel] = useState("Produto Acabado");
-  const [filtro, setFiltro] = useState<"todos" | "sem" | "com">("sem");
+  const [filtro, setFiltro] = useState<"todos" | "sem" | "com" | "desvio">("sem");
   const [busca, setBusca] = useState("");
+  const [aberto, setAberto] = useState<string | null>(null);
+  const [limiar, setLimiar] = useState<number>(() => {
+    if (typeof window === "undefined") return 150;
+    const v = Number(window.localStorage.getItem(LIMIAR_KEY));
+    return Number.isFinite(v) && v > 0 ? v : 150;
+  });
+
+  const faixas = useFaixas();
+  const impactoQ = useImpactoFT();
+  const impacto = impactoQ.data ?? [];
+
+  // Dispersão Total (soma de |impacto_rs|) por produto — define "FT com desvio relevante".
+  const dispersaoPorProduto = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of impacto) {
+      const p = String(r.sku_produto_final ?? "").trim();
+      if (!p) continue;
+      m.set(p, (m.get(p) ?? 0) + Math.abs(Number(r.impacto_rs ?? 0)));
+    }
+    return m;
+  }, [impacto]);
+
+  const situacao = (r: Row): "SEM_FT" | "FT_OK" | "FT_DESVIO" => {
+    if (!r.temFt) return "SEM_FT";
+    return (dispersaoPorProduto.get(r.codigo) ?? 0) > limiar ? "FT_DESVIO" : "FT_OK";
+  };
+
 
   const gruposQ = useQuery({
     queryKey: ["audit-ft", "grupos"],
