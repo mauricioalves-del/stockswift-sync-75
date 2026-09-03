@@ -65,11 +65,7 @@ type RankRow = {
   aderencia: number; perda: number; economia: number; dispersao: number;
 };
 
-function RankingFT() {
-  const [anoMes, setAnoMes] = useState("todos");
-  const [busca, setBusca] = useState("");
-  const [aberto, setAberto] = useState<string | null>(null);
-
+function useFaixas() {
   const paramsQ = useQuery({
     queryKey: ["dispersao", "faixas"],
     queryFn: async (): Promise<Faixas> => {
@@ -79,9 +75,11 @@ function RankingFT() {
     },
     staleTime: 5 * 60_000,
   });
-  const faixas = paramsQ.data ?? FAIXAS_DEFAULT;
+  return paramsQ.data ?? FAIXAS_DEFAULT;
+}
 
-  const impactoQ = useQuery({
+function useImpactoFT() {
+  return useQuery({
     queryKey: ["auditoria-ft", "impacto"],
     staleTime: 5 * 60_000,
     queryFn: async () =>
@@ -90,6 +88,16 @@ function RankingFT() {
           .select("ano_mes, numero_op, sku_produto_final, desc_prod, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, impacto_rs, tipo_desvio")
           .range(from, to)),
   });
+}
+
+function RankingFT() {
+  const [anoMes, setAnoMes] = useState("todos");
+  const [busca, setBusca] = useState("");
+  const [aberto, setAberto] = useState<string | null>(null);
+
+  const faixas = useFaixas();
+  const impactoQ = useImpactoFT();
+
 
   const todas = impactoQ.data ?? [];
   const meses = useMemo(
@@ -246,7 +254,7 @@ function RankingFT() {
                       </TableCell>
                       <TableCell className="font-mono text-xs">{r.produto}</TableCell>
                       <TableCell className="text-sm max-w-[280px] truncate" title={r.desc}>
-                        {r.desc || "—"}
+                        {r.desc || <span className="text-muted-foreground italic">descrição não cadastrada</span>}
                         {r.produto.trim() === "05104122" && (
                           <Link to="/producao/testes-industriais" onClick={(e) => e.stopPropagation()} className="ml-1.5 inline-flex align-middle" title="Gasto de inovação — não é furo de produção padrão">
                             <Badge variant="outline" className="text-[10px]">Teste Industrial</Badge>
@@ -297,10 +305,39 @@ function RankingFT() {
 // Completude de cadastro (comportamento original)
 // ===========================================================================
 
+const LIMIAR_KEY = "auditoria-ft:limiar-desvio";
+
 function Completude() {
   const [grupoSel, setGrupoSel] = useState("Produto Acabado");
-  const [filtro, setFiltro] = useState<"todos" | "sem" | "com">("sem");
+  const [filtro, setFiltro] = useState<"todos" | "sem" | "com" | "desvio">("sem");
   const [busca, setBusca] = useState("");
+  const [aberto, setAberto] = useState<string | null>(null);
+  const [limiar, setLimiar] = useState<number>(() => {
+    if (typeof window === "undefined") return 150;
+    const v = Number(window.localStorage.getItem(LIMIAR_KEY));
+    return Number.isFinite(v) && v > 0 ? v : 150;
+  });
+
+  const faixas = useFaixas();
+  const impactoQ = useImpactoFT();
+  const impacto = impactoQ.data ?? [];
+
+  // Dispersão Total (soma de |impacto_rs|) por produto — define "FT com desvio relevante".
+  const dispersaoPorProduto = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of impacto) {
+      const p = String(r.sku_produto_final ?? "").trim();
+      if (!p) continue;
+      m.set(p, (m.get(p) ?? 0) + Math.abs(Number(r.impacto_rs ?? 0)));
+    }
+    return m;
+  }, [impacto]);
+
+  const situacao = (r: Row): "SEM_FT" | "FT_OK" | "FT_DESVIO" => {
+    if (!r.temFt) return "SEM_FT";
+    return (dispersaoPorProduto.get(r.codigo) ?? 0) > limiar ? "FT_DESVIO" : "FT_OK";
+  };
+
 
   const gruposQ = useQuery({
     queryKey: ["audit-ft", "grupos"],
@@ -397,14 +434,15 @@ function Completude() {
     const total = list.length;
     const com = list.filter((r) => r.temFt).length;
     const sem = total - com;
-    const semNaoLocais = list.filter((r) => !r.temFt && !r.local).length;
-    return { total, com, sem, semNaoLocais };
-  }, [dataQ.data]);
+    const desvio = list.filter((r) => situacao(r) === "FT_DESVIO").length;
+    return { total, com, sem, desvio };
+  }, [dataQ.data, dispersaoPorProduto, limiar]);
 
   const filtradas = useMemo(() => {
     let l = dataQ.data ?? [];
     if (filtro === "sem") l = l.filter((r) => !r.temFt);
     else if (filtro === "com") l = l.filter((r) => r.temFt);
+    else if (filtro === "desvio") l = l.filter((r) => situacao(r) === "FT_DESVIO");
     if (busca.trim()) {
       const t = busca.toLowerCase();
       l = l.filter((r) => r.codigo.toLowerCase().includes(t) || r.descricao.toLowerCase().includes(t));
@@ -413,14 +451,18 @@ function Completude() {
     if (filtro === "sem" && rel) {
       return [...l].sort((a, b) => (rel.get(b.codigo) ?? 0) - (rel.get(a.codigo) ?? 0));
     }
+    if (filtro === "desvio") {
+      return [...l].sort((a, b) => (dispersaoPorProduto.get(b.codigo) ?? 0) - (dispersaoPorProduto.get(a.codigo) ?? 0));
+    }
     return l;
-  }, [dataQ.data, filtro, busca, relevanciaQ.data]);
+  }, [dataQ.data, filtro, busca, relevanciaQ.data, dispersaoPorProduto, limiar]);
 
   function exportar() {
     const rows = filtradas.map((r) => ({
       "Código": r.codigo, "Produto": r.descricao, "Família": r.familia ?? "",
       "Grupo": r.grupo, "É Produto Local": r.local ? "Sim" : "Não",
-      "Tem Ficha Técnica": r.temFt ? "Sim" : "Não",
+      "Status FT": situacao(r) === "SEM_FT" ? "Sem FT" : situacao(r) === "FT_DESVIO" ? "FT com desvio relevante" : "FT OK",
+      "Dispersão Total (R$)": +(dispersaoPorProduto.get(r.codigo) ?? 0).toFixed(2),
       "Consumo (qtd)": +(relevanciaQ.data?.get(r.codigo) ?? 0).toFixed(2),
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -428,6 +470,7 @@ function Completude() {
     XLSX.utils.book_append_sheet(wb, ws, "Auditoria FT");
     XLSX.writeFile(wb, `auditoria-ficha-tecnica-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
+
 
   return (
     <>
@@ -439,10 +482,10 @@ function Completude() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Kpi label="Produtos do grupo" value={kpis.total} />
-        <Kpi label="Com Ficha Técnica" value={kpis.com} tone="success" />
+        <Kpi label="FT OK" value={kpis.com - kpis.desvio} tone="success" />
+        <Kpi label="FT com desvio relevante" value={kpis.desvio} tone="warning"
+             hint={`Dispersão Total acima de ${fmtBRL(limiar)} no cruzamento com o consumo real.`} />
         <Kpi label="Sem Ficha Técnica" value={kpis.sem} tone="danger" />
-        <Kpi label="Sem FT (não-locais)" value={kpis.semNaoLocais} tone="warning"
-             hint="Excluindo Produtos Locais — esses são os gaps reais de cadastro." />
       </div>
 
       <Card>
@@ -450,7 +493,7 @@ function Completude() {
           <CardTitle className="text-base">Filtros</CardTitle>
           <CardDescription>Selecione o grupo e o recorte desejado</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div>
             <label className="text-xs text-muted-foreground">Grupo</label>
             <Select value={grupoSel} onValueChange={setGrupoSel}>
@@ -467,9 +510,21 @@ function Completude() {
               <SelectContent>
                 <SelectItem value="sem">Sem Ficha Técnica</SelectItem>
                 <SelectItem value="com">Com Ficha Técnica</SelectItem>
+                <SelectItem value="desvio">FT com desvio relevante</SelectItem>
                 <SelectItem value="todos">Todos</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Limiar de desvio (R$)</label>
+            <Input
+              type="number" min={0} value={limiar}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setLimiar(v);
+                if (typeof window !== "undefined") window.localStorage.setItem(LIMIAR_KEY, String(v));
+              }}
+            />
           </div>
           <div>
             <label className="text-xs text-muted-foreground">Buscar</label>
@@ -484,7 +539,7 @@ function Completude() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
-            {filtradas.length} produto(s) {filtro === "sem" ? "sem ficha técnica (ordenados por volume de consumo)" : filtro === "com" ? "com ficha técnica" : ""}
+            {filtradas.length} produto(s) {filtro === "sem" ? "sem ficha técnica (ordenados por volume de consumo)" : filtro === "com" ? "com ficha técnica" : filtro === "desvio" ? "com desvio relevante (ordenados por dispersão)" : ""}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -492,33 +547,54 @@ function Completude() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8" />
                   <TableHead>Código</TableHead>
                   <TableHead>Produto</TableHead>
                   <TableHead>Família</TableHead>
                   <TableHead className="text-right">Consumo (qtd)</TableHead>
+                  <TableHead className="text-right">Dispersão Total</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtradas.slice(0, 1000).map((r) => (
-                  <TableRow key={r.codigo}>
-                    <TableCell className="font-mono text-xs">{r.codigo}</TableCell>
-                    <TableCell className="text-sm">{r.descricao || <span className="text-muted-foreground italic">sem descrição</span>}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{r.familia ?? "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums text-xs">
-                      {relevanciaQ.data?.get(r.codigo) ? relevanciaQ.data.get(r.codigo)!.toLocaleString("pt-BR") : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {r.temFt
-                        ? <Badge className="bg-success/15 text-success border-success/30"><CheckCircle2 className="size-3 mr-1" /> Com FT</Badge>
-                        : r.local
-                          ? <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400">Produto Local</Badge>
-                          : <Badge className="bg-destructive/15 text-destructive border-destructive/30"><AlertTriangle className="size-3 mr-1" /> Sem FT</Badge>}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filtradas.slice(0, 1000).map((r) => {
+                  const st = situacao(r);
+                  const disp = dispersaoPorProduto.get(r.codigo) ?? 0;
+                  return (
+                    <Fragment key={r.codigo}>
+                      <TableRow className={r.temFt ? "cursor-pointer" : ""} onClick={() => r.temFt && setAberto(aberto === r.codigo ? null : r.codigo)}>
+                        <TableCell>
+                          {r.temFt && (aberto === r.codigo ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />)}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">{r.codigo}</TableCell>
+                        <TableCell className="text-sm">{r.descricao || <span className="text-muted-foreground italic">descrição não cadastrada</span>}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{r.familia ?? "—"}</TableCell>
+                        <TableCell className="text-right tabular-nums text-xs">
+                          {relevanciaQ.data?.get(r.codigo) ? relevanciaQ.data.get(r.codigo)!.toLocaleString("pt-BR") : "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-xs">{disp > 0 ? fmtBRL(disp) : "—"}</TableCell>
+                        <TableCell>
+                          {st === "SEM_FT"
+                            ? (r.local
+                                ? <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400">Produto Local</Badge>
+                                : <Badge className="bg-destructive/15 text-destructive border-destructive/30"><AlertTriangle className="size-3 mr-1" /> Sem FT</Badge>)
+                            : st === "FT_DESVIO"
+                              ? <Badge className="bg-warning/15 text-warning border-warning/30"><AlertTriangle className="size-3 mr-1" /> FT com desvio relevante</Badge>
+                              : <Badge className="bg-success/15 text-success border-success/30"><CheckCircle2 className="size-3 mr-1" /> FT OK</Badge>}
+                        </TableCell>
+                      </TableRow>
+                      {aberto === r.codigo && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="p-2 bg-muted/30">
+                            <ArvoreFichaTecnica idProduto={r.codigo} descProduto={r.descricao} impacto={impacto} faixas={faixas} />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  );
+                })}
                 {filtradas.length === 0 && (
-                  <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">
+                  <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-6">
                     {dataQ.isLoading ? "Carregando..." : "Nenhum resultado."}
                   </TableCell></TableRow>
                 )}
@@ -530,6 +606,7 @@ function Completude() {
               </div>
             )}
           </div>
+
         </CardContent>
       </Card>
     </>
