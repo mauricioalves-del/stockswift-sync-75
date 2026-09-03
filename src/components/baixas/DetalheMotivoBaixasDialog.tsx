@@ -73,6 +73,7 @@ export function DetalheMotivoBaixasDialog({
             "id, codigo_produto, descricao, lote, unidade, id_local, origem, quantidade, custo_unitario, valor_total, data_ocorrencia, data_solicitacao, status_fluxo, origem_lancamento, solicitante_id, responsavel_nome, observacao, categoria",
           )
           .eq("motivo_baixa_id", c.motivoId)
+          .eq("status_fluxo", "APROVADA")
           .gte("data_solicitacao", c.fromISO)
           .lte("data_solicitacao", c.toISO)
           .range(from, to);

@@ -102,6 +102,7 @@ function BaixasDashboard() {
       const { data, error } = await supabase
         .from("baixa_operacional")
         .select("id, codigo_produto, descricao, id_local, motivo_baixa_id, valor_total, quantidade, data_solicitacao, solicitante_id, categoria")
+        .eq("status_fluxo", "APROVADA")
         .gte("data_solicitacao", fromTs)
         .lte("data_solicitacao", toTs)
         .limit(20000);
@@ -143,6 +144,7 @@ function BaixasDashboard() {
       const { data } = await supabase
         .from("baixa_operacional")
         .select("valor_total, data_solicitacao, motivo_baixa_id")
+        .eq("status_fluxo", "APROVADA")
         .gte("data_solicitacao", new Date(desde + "T00:00:00").toISOString())
         .limit(50000);
       return data ?? [];
