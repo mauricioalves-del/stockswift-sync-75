@@ -969,13 +969,17 @@ function AcoesCorretivas() {
           </TableHeader>
           <TableBody>
             {filtered.map((a: any) => (
-              <TableRow key={a.id}>
+              <TableRow
+                key={a.id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => setAcaoSel(a as AcaoCorretiva)}
+              >
                 <TableCell className="text-xs">{new Date(a.data_abertura).toLocaleDateString()}</TableCell>
                 <TableCell className="text-xs">{a.material || "—"} · {a.ano_mes || "—"}</TableCell>
                 <TableCell className="max-w-[380px]">{a.descricao_acao}</TableCell>
                 <TableCell>{a.responsavel || "—"}</TableCell>
                 <TableCell><Badge variant="outline">{STATUS_ACAO.find((s) => s.v === a.status)?.l ?? a.status}</Badge></TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                   {(isAdmin || isCoord || isGerente) && (
                     <Select value={a.status} onValueChange={(v) => alterarStatus(a.id, v)}>
                       <SelectTrigger className="w-[160px] h-8"><SelectValue /></SelectTrigger>
@@ -988,6 +992,7 @@ function AcoesCorretivas() {
                   )}
                 </TableCell>
               </TableRow>
+
             ))}
             {filtered.length === 0 && (
               <TableRow><TableCell colSpan={6} className="text-center text-xs text-muted-foreground py-8">Nenhuma ação nesse filtro.</TableCell></TableRow>
