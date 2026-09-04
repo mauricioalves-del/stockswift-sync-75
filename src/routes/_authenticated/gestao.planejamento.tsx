@@ -212,11 +212,13 @@ function ListaTarefas() {
         podeAlterarStatus={isAdmin || isCoord || isGerente}
         podeConcluir={isAdmin || isCoord}
       />
-      <CampanhaDialog
+      <DetalheAcaoLoteDialog
         open={!!campanhaSel}
         onOpenChange={(open) => !open && setCampanhaSel(null)}
-        draft={campanhaSel}
+        acao={campanhaSel}
+        onStatusChange={alterarStatusCampanha}
       />
+
       <Dialog open={!!tarefaSel} onOpenChange={(open) => !open && setTarefaSel(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>{tarefaSel?.titulo ?? "Detalhes da tarefa"}</DialogTitle></DialogHeader>
