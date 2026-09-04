@@ -257,6 +257,44 @@ export type Database = {
         }
         Relationships: []
       }
+      campanha_lote_comentarios: {
+        Row: {
+          autor_id: string
+          autor_nome: string | null
+          campanha_id: string
+          created_at: string
+          id: string
+          texto: string
+          updated_at: string
+        }
+        Insert: {
+          autor_id?: string
+          autor_nome?: string | null
+          campanha_id: string
+          created_at?: string
+          id?: string
+          texto: string
+          updated_at?: string
+        }
+        Update: {
+          autor_id?: string
+          autor_nome?: string | null
+          campanha_id?: string
+          created_at?: string
+          id?: string
+          texto?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campanha_lote_comentarios_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "campanhas_lote"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campanhas_lote: {
         Row: {
           almoxarifado: string | null
