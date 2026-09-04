@@ -16,7 +16,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { DetalheAcaoCorretivaDialog, type AcaoCorretiva } from "@/components/producao/DetalheAcaoCorretivaDialog";
 import { CampanhaDialog, type CampanhaDraft } from "@/components/shelf-life/CampanhaDialog";
 import { useRole } from "@/hooks/useRole";
-import { STATUS_ACAO } from "@/lib/dispersao";
 import { toast } from "sonner";
 import { Plus, Loader2, Trash2 } from "lucide-react";
 
