@@ -1000,6 +1000,17 @@ function AcoesCorretivas() {
           </TableBody>
         </Table>
       </div>
+      <DetalheAcaoCorretivaDialog
+        acao={acaoSel}
+        open={!!acaoSel}
+        onOpenChange={(v) => !v && setAcaoSel(null)}
+        onAlterarStatus={(id, novo) => {
+          alterarStatus(id, novo);
+          setAcaoSel((cur) => (cur && cur.id === id ? { ...cur, status: novo } : cur));
+        }}
+        podeAlterarStatus={isAdmin || isCoord || isGerente}
+        podeConcluir={canConcluir}
+      />
     </div>
   );
 }
