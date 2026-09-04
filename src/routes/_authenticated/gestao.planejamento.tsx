@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DetalheAcaoCorretivaDialog, type AcaoCorretiva } from "@/components/producao/DetalheAcaoCorretivaDialog";
-import { CampanhaDialog, type CampanhaDraft } from "@/components/shelf-life/CampanhaDialog";
+import { DetalheAcaoLoteDialog, type AcaoLote } from "@/components/shelf-life/DetalheAcaoLoteDialog";
 import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
 import { Plus, Loader2, Trash2 } from "lucide-react";
@@ -58,7 +58,7 @@ function ListaTarefas() {
   const [filtroStatus, setFiltroStatus] = useState<string>("__all__");
   const [filtroTipo, setFiltroTipo] = useState<string>("__all__");
   const [acaoSel, setAcaoSel] = useState<AcaoCorretiva | null>(null);
-  const [campanhaSel, setCampanhaSel] = useState<CampanhaDraft | null>(null);
+  const [campanhaSel, setCampanhaSel] = useState<AcaoLote | null>(null);
   const [tarefaSel, setTarefaSel] = useState<any | null>(null);
 
   const tiposQ = useQuery({
@@ -102,7 +102,35 @@ function ListaTarefas() {
         .eq("id", tarefa.campanha_lote_id)
         .maybeSingle();
       if (error) { toast.error(error.message); return; }
-      if (data) { setCampanhaSel(data as CampanhaDraft); return; }
+      if (data) { setCampanhaSel(data as AcaoLote); return; }
+    }
+
+    // Tarefas antigas: tenta recuperar a ação de lote por SKU + tipo + data (match único).
+    const tipoNoTitulo = /^Ação de lote:\s*(.+?)\s*—/.exec(String(tarefa.titulo ?? ""))?.[1];
+    if (tipoNoTitulo && tarefa.sku_ou_local && tarefa.data_prevista) {
+      const { data: tipos } = await (supabase as any)
+        .from("tipos_acao_shelf_life")
+        .select("id, nome")
+        .eq("nome", tipoNoTitulo);
+      const tipoId = (tipos ?? [])[0]?.id;
+      if (tipoId) {
+        const { data: campanhas } = await (supabase as any)
+          .from("campanhas_lote")
+          .select("*")
+          .eq("sku", tarefa.sku_ou_local)
+          .eq("tipo_acao_id", tipoId)
+          .eq("data_acao", tarefa.data_prevista);
+        if ((campanhas ?? []).length === 1) {
+          const campanha = campanhas[0];
+          await (supabase as any)
+            .from("tarefas_operacionais")
+            .update({ campanha_lote_id: campanha.id })
+            .eq("id", tarefa.id);
+          qc.invalidateQueries({ queryKey: ["tarefas_op"] });
+          setCampanhaSel(campanha as AcaoLote);
+          return;
+        }
+      }
     }
 
     const idNaObservacao = /^Ação corretiva #([0-9a-f-]{36})$/i.exec(String(tarefa.observacao ?? "").trim())?.[1];
@@ -119,6 +147,15 @@ function ListaTarefas() {
 
     setTarefaSel(tarefa);
   }
+
+  async function alterarStatusCampanha(id: string, novo: string) {
+    const { error } = await (supabase as any).from("campanhas_lote").update({ status: novo }).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    setCampanhaSel((atual) => (atual?.id === id ? { ...atual, status: novo } : atual));
+    toast.success("Status atualizado");
+    qc.invalidateQueries({ queryKey: ["campanhas_lote"] });
+  }
+
 
   async function alterarStatusAcao(id: string, novo: string) {
     if (novo === "CONCLUIDA" && !(isAdmin || isCoord)) {
@@ -212,11 +249,13 @@ function ListaTarefas() {
         podeAlterarStatus={isAdmin || isCoord || isGerente}
         podeConcluir={isAdmin || isCoord}
       />
-      <CampanhaDialog
+      <DetalheAcaoLoteDialog
         open={!!campanhaSel}
         onOpenChange={(open) => !open && setCampanhaSel(null)}
-        draft={campanhaSel}
+        acao={campanhaSel}
+        onStatusChange={alterarStatusCampanha}
       />
+
       <Dialog open={!!tarefaSel} onOpenChange={(open) => !open && setTarefaSel(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>{tarefaSel?.titulo ?? "Detalhes da tarefa"}</DialogTitle></DialogHeader>
