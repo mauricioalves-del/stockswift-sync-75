@@ -31,6 +31,7 @@ import { exportarDispersaoBI } from "@/lib/export-bi-dispersao";
 import { fetchAll } from "@/lib/fetch-all";
 import { causaProvavel, carregarEstruturaBOM, situacaoEstrutura, type ImpactoLinha } from "@/lib/ft-arvore";
 import { RevisoesFichaTecnica } from "@/components/producao/RevisoesFichaTecnica";
+import { DetalheAcaoCorretivaDialog, type AcaoCorretiva } from "@/components/producao/DetalheAcaoCorretivaDialog";
 import { AlertCircle, Plus, Search, Settings2 } from "lucide-react";
 
 /** Rótulo compacto em R$ para exibição dentro dos gráficos. */
