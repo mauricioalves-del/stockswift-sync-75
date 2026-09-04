@@ -908,6 +908,7 @@ function AcoesCorretivas() {
   const isGerente = role === "GERENTE";
   const canConcluir = isAdmin || isCoord;
   const [statusFilter, setStatusFilter] = useState<string>("abertas");
+  const [acaoSel, setAcaoSel] = useState<AcaoCorretiva | null>(null);
 
   const acoesQ = useQuery({
     queryKey: ["dispersao", "acoes-full"],
