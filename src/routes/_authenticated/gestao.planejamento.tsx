@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DetalheAcaoCorretivaDialog, type AcaoCorretiva } from "@/components/producao/DetalheAcaoCorretivaDialog";
-import { CampanhaDialog, type CampanhaDraft } from "@/components/shelf-life/CampanhaDialog";
+import { DetalheAcaoLoteDialog, type AcaoLote } from "@/components/shelf-life/DetalheAcaoLoteDialog";
 import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
 import { Plus, Loader2, Trash2 } from "lucide-react";
