@@ -12,6 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DetalheAcaoCorretivaDialog, type AcaoCorretiva } from "@/components/producao/DetalheAcaoCorretivaDialog";
+import { CampanhaDialog, type CampanhaDraft } from "@/components/shelf-life/CampanhaDialog";
+import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
 import { Plus, Loader2, Trash2 } from "lucide-react";
 
@@ -48,8 +52,14 @@ function PlanejamentoPage() {
 
 function ListaTarefas() {
   const qc = useQueryClient();
+  const { role, isAdmin } = useRole();
+  const isCoord = role === "COORDENADOR_CONTROLE";
+  const isGerente = role === "GERENTE";
   const [filtroStatus, setFiltroStatus] = useState<string>("__all__");
   const [filtroTipo, setFiltroTipo] = useState<string>("__all__");
+  const [acaoSel, setAcaoSel] = useState<AcaoCorretiva | null>(null);
+  const [campanhaSel, setCampanhaSel] = useState<CampanhaDraft | null>(null);
+  const [tarefaSel, setTarefaSel] = useState<any | null>(null);
 
   const tiposQ = useQuery({
     queryKey: ["tipos_tarefa"],
@@ -80,6 +90,48 @@ function ListaTarefas() {
     if (error) return toast.error(error.message);
     toast.success("Tarefa excluída");
     qc.invalidateQueries({ queryKey: ["tarefas_op"] });
+  }
+
+  async function abrirTarefa(tarefa: any) {
+    if (!["Pendente", "EmAndamento", "Atrasada"].includes(tarefa.status)) return;
+
+    if (tarefa.campanha_lote_id) {
+      const { data, error } = await (supabase as any)
+        .from("campanhas_lote")
+        .select("*")
+        .eq("id", tarefa.campanha_lote_id)
+        .maybeSingle();
+      if (error) { toast.error(error.message); return; }
+      if (data) { setCampanhaSel(data as CampanhaDraft); return; }
+    }
+
+    const idNaObservacao = /^Ação corretiva #([0-9a-f-]{36})$/i.exec(String(tarefa.observacao ?? "").trim())?.[1];
+    const consumoNaRota = /[?&]pc=([^&]+)/.exec(String(tarefa.link_rota ?? ""))?.[1];
+    if (idNaObservacao || consumoNaRota) {
+      let query = (supabase as any).from("dispersao_acoes_corretivas").select("*");
+      query = idNaObservacao
+        ? query.eq("id", idNaObservacao)
+        : query.eq("producao_consumo_id", decodeURIComponent(consumoNaRota ?? ""));
+      const { data, error } = await query.maybeSingle();
+      if (error) { toast.error(error.message); return; }
+      if (data) { setAcaoSel(data as AcaoCorretiva); return; }
+    }
+
+    setTarefaSel(tarefa);
+  }
+
+  async function alterarStatusAcao(id: string, novo: string) {
+    if (novo === "CONCLUIDA" && !(isAdmin || isCoord)) {
+      toast.error("Apenas Administrador/Coordenador pode concluir.");
+      return;
+    }
+    const patch: Record<string, string> = { status: novo };
+    if (novo === "CONCLUIDA") patch.data_conclusao = new Date().toISOString();
+    const { error } = await (supabase as any).from("dispersao_acoes_corretivas").update(patch).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    setAcaoSel((atual) => atual?.id === id ? { ...atual, status: novo, data_conclusao: patch.data_conclusao ?? atual.data_conclusao } : atual);
+    toast.success("Status atualizado");
+    qc.invalidateQueries({ queryKey: ["dispersao"] });
   }
 
   return (
@@ -125,8 +177,14 @@ function ListaTarefas() {
             )}
             {(tarefasQ.data ?? []).map((t: any) => {
               const atrasada = t.data_prevista && t.data_prevista < hoje && t.status !== "Concluida" && t.status !== "Cancelada";
+              const podeAbrir = ["Pendente", "EmAndamento", "Atrasada"].includes(t.status);
               return (
-                <TableRow key={t.id} className={atrasada ? "bg-destructive/5" : ""}>
+                <TableRow
+                  key={t.id}
+                  onDoubleClick={() => abrirTarefa(t)}
+                  title={podeAbrir ? "Duplo clique para abrir a ação" : undefined}
+                  className={`${atrasada ? "bg-destructive/5 " : ""}${podeAbrir ? "cursor-pointer hover:bg-muted/50 select-none" : ""}`}
+                >
                   <TableCell className="font-medium">{t.titulo}</TableCell>
                   <TableCell className="text-xs">{tipoMap[t.tipo_id] ?? "—"}</TableCell>
                   <TableCell className="text-xs">{t.responsavel_label || "—"}</TableCell>
@@ -135,8 +193,8 @@ function ListaTarefas() {
                     {t.data_prevista ? new Date(t.data_prevista + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
                   </TableCell>
                   <TableCell><Badge className="text-[10px]">{STATUS_LABELS[t.status] ?? t.status}</Badge></TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="ghost" onClick={() => excluir(t.id)}>
+                  <TableCell onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+                    <Button size="sm" variant="ghost" onClick={() => excluir(t.id)} aria-label="Excluir tarefa">
                       <Trash2 className="size-3.5" />
                     </Button>
                   </TableCell>
@@ -146,8 +204,50 @@ function ListaTarefas() {
           </TableBody>
         </Table>
       </CardContent>
+      <DetalheAcaoCorretivaDialog
+        acao={acaoSel}
+        open={!!acaoSel}
+        onOpenChange={(open) => !open && setAcaoSel(null)}
+        onAlterarStatus={alterarStatusAcao}
+        podeAlterarStatus={isAdmin || isCoord || isGerente}
+        podeConcluir={isAdmin || isCoord}
+      />
+      <CampanhaDialog
+        open={!!campanhaSel}
+        onOpenChange={(open) => !open && setCampanhaSel(null)}
+        draft={campanhaSel}
+      />
+      <Dialog open={!!tarefaSel} onOpenChange={(open) => !open && setTarefaSel(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{tarefaSel?.titulo ?? "Detalhes da tarefa"}</DialogTitle></DialogHeader>
+          {tarefaSel && (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <DetalheTarefa rotulo="Responsável" valor={tarefaSel.responsavel_label || "—"} />
+                <DetalheTarefa rotulo="Status" valor={STATUS_LABELS[tarefaSel.status] ?? tarefaSel.status} />
+                <DetalheTarefa rotulo="Prioridade" valor={tarefaSel.prioridade || "—"} />
+                <DetalheTarefa rotulo="Data prevista" valor={tarefaSel.data_prevista ? new Date(tarefaSel.data_prevista + "T00:00:00").toLocaleDateString("pt-BR") : "—"} />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Descrição</p>
+                <p className="whitespace-pre-wrap">{tarefaSel.descricao || "Sem descrição."}</p>
+              </div>
+              {tarefaSel.observacao && !String(tarefaSel.observacao).startsWith("Ação corretiva #") && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Observação</p>
+                  <p className="whitespace-pre-wrap">{tarefaSel.observacao}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
+}
+
+function DetalheTarefa({ rotulo, valor }: { rotulo: string; valor: string }) {
+  return <div><p className="text-xs font-medium text-muted-foreground">{rotulo}</p><p>{valor}</p></div>;
 }
 
 function NovaTarefa() {
