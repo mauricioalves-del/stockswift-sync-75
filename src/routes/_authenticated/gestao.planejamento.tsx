@@ -58,7 +58,7 @@ function ListaTarefas() {
   const [filtroStatus, setFiltroStatus] = useState<string>("__all__");
   const [filtroTipo, setFiltroTipo] = useState<string>("__all__");
   const [acaoSel, setAcaoSel] = useState<AcaoCorretiva | null>(null);
-  const [campanhaSel, setCampanhaSel] = useState<CampanhaDraft | null>(null);
+  const [campanhaSel, setCampanhaSel] = useState<AcaoLote | null>(null);
   const [tarefaSel, setTarefaSel] = useState<any | null>(null);
 
   const tiposQ = useQuery({
