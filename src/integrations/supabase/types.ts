@@ -622,6 +622,44 @@ export type Database = {
         }
         Relationships: []
       }
+      dispersao_acao_comentarios: {
+        Row: {
+          acao_id: string
+          autor_id: string | null
+          autor_nome: string | null
+          created_at: string
+          id: string
+          texto: string
+          updated_at: string
+        }
+        Insert: {
+          acao_id: string
+          autor_id?: string | null
+          autor_nome?: string | null
+          created_at?: string
+          id?: string
+          texto: string
+          updated_at?: string
+        }
+        Update: {
+          acao_id?: string
+          autor_id?: string | null
+          autor_nome?: string | null
+          created_at?: string
+          id?: string
+          texto?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispersao_acao_comentarios_acao_id_fkey"
+            columns: ["acao_id"]
+            isOneToOne: false
+            referencedRelation: "dispersao_acoes_corretivas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dispersao_acoes_corretivas: {
         Row: {
           aberto_por: string | null
