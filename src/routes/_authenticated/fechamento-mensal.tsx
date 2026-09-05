@@ -216,42 +216,151 @@ function FechamentoMensalPage() {
     }
   }
 
-  async function exportarPdf() {
-    const { default: jsPDF } = await import("jspdf");
-    const autoTable = (await import("jspdf-autotable")).default;
-    const doc = new jsPDF({ orientation: "landscape", unit: "pt" });
-    const titulo = modo === "mes" ? `${MESES[mes - 1]}/${ano}` : `${periodo.inicio} a ${periodo.fim}`;
-    doc.setFontSize(16);
-    doc.text("Fechamento Mensal — Controle Operacional", 40, 40);
-    doc.setFontSize(11);
-    doc.text(`Período: ${titulo}`, 40, 60);
-    doc.text(
-      `Ações criadas: ${tot.criadas}   |   Concluídas: ${tot.concluidas}   |   Em aberto: ${tot.abertas}   |   Aderência FEFO: ${tot.aderencia === null ? "—" : `${num(tot.aderencia)}%`}`,
-      40, 78,
+  async function exportarPptx() {
+    const PptxGenJS = (await import("pptxgenjs")).default;
+    const NAVY = "1E2761", ICE = "CADCFC", TEAL = "1C7293", AMBER = "E7A94D", CORAL = "D9614E", CINZA = "5F5E5A";
+    const pptx = new PptxGenJS();
+    pptx.layout = "LAYOUT_16x9";
+
+    const dIni = new Date(`${periodo.inicio}T00:00:00`);
+    const dFim = new Date(`${periodo.fim}T00:00:00`);
+    const dd = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const periodoTxt = `${dd(dIni)} a ${dd(dFim)}/${dFim.getFullYear()}`;
+    const valorTxt = (l: LinhaResumo) =>
+      l.unidade_valor === "R$" ? brl(l.valor_ou_quantidade) : `${num(l.valor_ou_quantidade)} ${l.unidade_valor}`;
+
+    // ---------- Slide 1 — Capa ----------
+    const s1 = pptx.addSlide();
+    s1.background = { color: NAVY };
+    s1.addText("Fechamento mensal", { x: 0.7, y: 1.6, w: 8.6, h: 0.9, fontFace: "Cambria", fontSize: 44, bold: true, color: "FFFFFF" });
+    s1.addText("Controle e mapeamento de riscos e passivos operacionais", { x: 0.7, y: 2.5, w: 8.6, h: 0.5, fontFace: "Calibri", fontSize: 20, color: ICE });
+    s1.addText(periodoTxt, { x: 0.7, y: 3.1, w: 8.6, h: 0.4, fontFace: "Calibri", fontSize: 16, color: "FFFFFF" });
+    s1.addText(linhas.map((l) => l.modulo).join(" · ") || "—", { x: 0.7, y: 3.6, w: 8.6, h: 0.8, fontFace: "Calibri", fontSize: 12, color: ICE });
+    s1.addText("Painel de gestão de risco", { x: 0.7, y: 4.9, w: 5, h: 0.3, fontFace: "Calibri", fontSize: 10, color: ICE });
+
+    // ---------- Slide 2 — Resumo executivo ----------
+    const s2 = pptx.addSlide();
+    s2.background = { color: "FFFFFF" };
+    s2.addText("Resumo executivo do período", { x: 0.5, y: 0.35, w: 9, h: 0.6, fontFace: "Cambria", fontSize: 28, bold: true, color: NAVY });
+    const kpis: Array<[string, string, string]> = [
+      ["Ações criadas", num(tot.criadas), NAVY],
+      ["Concluídas", num(tot.concluidas), TEAL],
+      ["Em aberto", num(tot.abertas), AMBER],
+      ["Aderência FEFO", tot.aderencia === null ? "—" : `${num(tot.aderencia)}%`, CORAL],
+    ];
+    kpis.forEach(([rot, val, cor], i) => {
+      const x = 0.5 + i * 2.28;
+      s2.addShape(pptx.ShapeType.roundRect, { x, y: 1.15, w: 2.1, h: 1.15, fill: { color: "F4F5FA" }, line: { color: "F4F5FA" }, rectRadius: 0.08 });
+      s2.addText(rot.toUpperCase(), { x, y: 1.25, w: 2.1, h: 0.3, align: "center", fontFace: "Calibri", fontSize: 10, color: CINZA });
+      s2.addText(val, { x, y: 1.55, w: 2.1, h: 0.6, align: "center", fontFace: "Calibri", fontSize: 28, bold: true, color: cor });
+    });
+
+    const atencao = linhas
+      .filter((l) => l.status_geral === "Atenção" && l.acoes_criadas > 0)
+      .sort((a, b) => b.acoes_em_aberto / b.acoes_criadas - a.acoes_em_aberto / a.acoes_criadas)[0];
+    let yBul = 2.6;
+    if (atencao) {
+      s2.addShape(pptx.ShapeType.roundRect, { x: 0.5, y: 2.55, w: 9, h: 1.1, fill: { color: "FCF1E3" }, line: { color: "FCF1E3" }, rectRadius: 0.08 });
+      s2.addText("Ponto de atenção do mês", { x: 0.7, y: 2.62, w: 8.6, h: 0.3, fontFace: "Calibri", fontSize: 12, bold: true, color: AMBER });
+      s2.addText(
+        `${atencao.modulo} concentra o maior risco em aberto do período: ${num(atencao.acoes_criadas)} ações criadas, apenas ${num(atencao.acoes_concluidas)} concluídas (${num(atencao.acoes_em_aberto)} em aberto) e ${valorTxt(atencao)} associados.`,
+        { x: 0.7, y: 2.92, w: 8.6, h: 0.65, fontFace: "Calibri", fontSize: 13, color: "2B2B2B" },
+      );
+      yBul = 3.85;
+    }
+    const topDest = [...destaques].sort((a, b) => Math.abs(Number(b.valor ?? 0)) - Math.abs(Number(a.valor ?? 0))).slice(0, 3);
+    if (topDest.length) {
+      s2.addText(
+        topDest.map((d) => ({
+          text: `${d.texto} — ${d.modulo}${d.valor === null ? "" : ` · ${brl(Number(d.valor))}`}`,
+          options: { bullet: true, fontFace: "Calibri", fontSize: 12, color: CINZA, breakLine: true },
+        })),
+        { x: 0.6, y: yBul, w: 8.8, h: 1.1 },
+      );
+    }
+
+    // ---------- Slide 3 — Gráfico ----------
+    const s3 = pptx.addSlide();
+    s3.background = { color: "FFFFFF" };
+    s3.addText("Concluídas x em aberto por módulo", { x: 0.5, y: 0.35, w: 9, h: 0.6, fontFace: "Cambria", fontSize: 28, bold: true, color: NAVY });
+    const labels = linhas.map((l) => l.modulo);
+    s3.addChart(
+      pptx.ChartType.bar,
+      [
+        { name: "Concluídas", labels, values: linhas.map((l) => l.acoes_concluidas) },
+        { name: "Em aberto", labels, values: linhas.map((l) => l.acoes_em_aberto) },
+      ],
+      {
+        x: 0.5, y: 1.1, w: 9, h: 4,
+        barDir: "col", barGrouping: "stacked",
+        chartColors: [TEAL, AMBER],
+        showLegend: true, legendPos: "b", legendFontFace: "Calibri", legendFontSize: 11,
+        showValue: true, dataLabelColor: "FFFFFF", dataLabelFontFace: "Calibri", dataLabelFontSize: 10,
+        catAxisLabelFontFace: "Calibri", catAxisLabelFontSize: 10, catAxisLabelRotate: -20,
+        valAxisLabelFontFace: "Calibri", valAxisLabelFontSize: 10,
+      },
     );
-    autoTable(doc, {
-      startY: 96,
-      head: [["Módulo", "Criadas", "Concluídas", "Em aberto", "Valor/Qtd.", "Status"]],
-      body: linhasOrdenadas.map((l) => [
-        l.modulo, String(l.acoes_criadas), String(l.acoes_concluidas), String(l.acoes_em_aberto),
-        l.unidade_valor === "R$" ? brl(l.valor_ou_quantidade) : `${num(l.valor_ou_quantidade)} ${l.unidade_valor}`,
-        l.status_geral,
-      ]),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [40, 40, 40] },
+
+    // ---------- Slide 4 — Mapeamento ----------
+    const s4 = pptx.addSlide();
+    s4.background = { color: NAVY };
+    s4.addText("Mapeamento por módulo", { x: 0.5, y: 0.35, w: 9, h: 0.6, fontFace: "Cambria", fontSize: 28, bold: true, color: "FFFFFF" });
+    const corStatus = (s: string) => (s === "Sob controle" ? TEAL : s === "Atenção" ? AMBER : ICE);
+    const head = ["Módulo", "Criadas", "Concluídas", "Em aberto", "Valor / Qtd.", "Status"].map((t) => ({
+      text: t, options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 11 },
+    }));
+    const corpo = linhasOrdenadas.map((l, i) => {
+      const bg = i % 2 === 0 ? "27356F" : "1E2761";
+      const base = { fill: { color: bg }, color: "FFFFFF", fontFace: "Calibri", fontSize: 10 };
+      return [
+        { text: l.modulo, options: base },
+        { text: num(l.acoes_criadas), options: { ...base, align: "right" as const } },
+        { text: num(l.acoes_concluidas), options: { ...base, align: "right" as const } },
+        { text: num(l.acoes_em_aberto), options: { ...base, align: "right" as const } },
+        { text: valorTxt(l), options: { ...base, align: "right" as const } },
+        { text: l.status_geral, options: { ...base, color: corStatus(l.status_geral), bold: true } },
+      ];
     });
-    const y = (doc as any).lastAutoTable?.finalY ?? 200;
-    autoTable(doc, {
-      startY: y + 24,
-      head: [["Destaques de risco do período", "Módulo", "Data", "Valor/Qtd."]],
-      body: destaques.map((d) => [
-        d.texto, d.modulo, d.data_evento ?? "—", d.valor === null ? "—" : num(Number(d.valor)),
-      ]),
-      styles: { fontSize: 8, cellWidth: "wrap" },
-      headStyles: { fillColor: [40, 40, 40] },
+    s4.addTable([head, ...corpo], {
+      x: 0.5, y: 1.15, w: 9, colW: [3, 1, 1.3, 1.2, 1.5, 1],
+      border: { type: "solid", color: NAVY, pt: 1 }, autoPage: false,
     });
-    doc.save(`fechamento-${modo === "mes" ? `${ano}-${String(mes).padStart(2, "0")}` : `${periodo.inicio}_${periodo.fim}`}.pdf`);
+
+    // ---------- Slide 5 — Destaques ----------
+    const s5 = pptx.addSlide();
+    s5.background = { color: "FFFFFF" };
+    s5.addText("Destaques de risco do período", { x: 0.5, y: 0.35, w: 9, h: 0.6, fontFace: "Cambria", fontSize: 28, bold: true, color: NAVY });
+    const dOrd = [...destaques].sort((a, b) => Math.abs(Number(b.valor ?? 0)) - Math.abs(Number(a.valor ?? 0))).slice(0, 8);
+    const head5 = ["Descrição", "Módulo", "Data", "Valor"].map((t) => ({
+      text: t, options: { fill: { color: NAVY }, color: "FFFFFF", bold: true, fontFace: "Calibri", fontSize: 11 },
+    }));
+    const corpo5 = dOrd.map((d, i) => {
+      const base = { fill: { color: i % 2 === 0 ? "F4F5FA" : "FFFFFF" }, color: "2B2B2B", fontFace: "Calibri", fontSize: 10 };
+      return [
+        { text: d.texto, options: base },
+        { text: d.modulo, options: base },
+        { text: d.data_evento ? new Date(`${d.data_evento}T00:00:00`).toLocaleDateString("pt-BR") : "—", options: base },
+        { text: d.valor === null ? "—" : brl(Number(d.valor)), options: { ...base, align: "right" as const } },
+      ];
+    });
+    if (corpo5.length) {
+      s5.addTable([head5, ...corpo5], {
+        x: 0.5, y: 1.15, w: 9, colW: [4.2, 2, 1.3, 1.5],
+        border: { type: "solid", color: "D8DAE5", pt: 1 }, autoPage: false,
+      });
+    }
+    s5.addText(
+      `Lista completa de destaques (${destaques.length} itens) disponível no relatório detalhado exportado pelo sistema.`,
+      { x: 0.5, y: 4.95, w: 9, h: 0.3, fontFace: "Calibri", fontSize: 10, italic: true, color: CINZA },
+    );
+
+    const nome = modo === "mes"
+      ? `fechamento_${ano}-${String(mes).padStart(2, "0")}.pptx`
+      : `fechamento_${periodo.inicio}_${periodo.fim}.pptx`;
+    await pptx.writeFile({ fileName: nome });
+    toast.success("Apresentação gerada");
   }
+
 
   function SortHead({ k, children, className }: { k: SortKey; children: React.ReactNode; className?: string }) {
     const ativo = sort.k === k;
