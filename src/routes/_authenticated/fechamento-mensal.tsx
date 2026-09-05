@@ -388,7 +388,7 @@ function FechamentoMensalPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={exportarPdf} className="gap-2">
+          <Button variant="outline" onClick={exportarPptx} className="gap-2">
             <Download className="size-4" /> Exportar fechamento
           </Button>
           {podeFechar && modo === "mes" && (
