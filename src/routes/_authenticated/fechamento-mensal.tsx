@@ -371,8 +371,9 @@ function FechamentoMensalPage() {
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
               <RTooltip />
               <Legend />
-              <Bar dataKey="Concluídas" stackId="a" fill="hsl(var(--success))" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="Em aberto" stackId="a" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Concluídas" stackId="a" fill="var(--chart-2)" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="Em aberto" stackId="a" fill="var(--chart-4)" radius={[4, 4, 0, 0]} />
+
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
