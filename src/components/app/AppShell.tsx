@@ -6,7 +6,7 @@ import {
   Sun, Moon, Wifi, WifiOff, RefreshCw, Layers, FolderTree, Package, BarChart3,
   Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp, Warehouse, Mail,
   Compass, Sparkles, Settings2, Boxes, Truck, AlertTriangle, PanelLeftClose, PanelLeftOpen,
-  Factory, GitCompareArrows, CalendarClock, Bell, ArrowRightLeft,
+  Factory, GitCompareArrows, CalendarClock, Bell, ArrowRightLeft, CalendarCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -99,6 +99,7 @@ const NAV: (NavItem | NavGroup)[] = [
     id: "relatorios", label: "Relatórios", icon: BarChart3, role: "any",
     items: [
       { to: "/dashboard", label: "Dashboard Executivo", icon: LayoutDashboard, role: "any" },
+      { to: "/fechamento-mensal", label: "Fechamento Mensal", icon: CalendarCheck, role: "any" },
       { to: "/relatorios", label: "Relatório de Inventário", icon: FileBarChart2, role: "any" },
       { to: "/usuarios", label: "Usuários", icon: UsersIcon, role: "admin" },
       { to: "/logs", label: "Auditoria", icon: ScrollText, role: "admin" },
