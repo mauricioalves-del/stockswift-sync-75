@@ -917,6 +917,66 @@ export type Database = {
         }
         Relationships: []
       }
+      fechamentos_mensais: {
+        Row: {
+          acoes_concluidas: number
+          acoes_criadas: number
+          acoes_em_aberto: number
+          aderencia_fefo: number | null
+          ano: number
+          created_at: string
+          data_fim: string
+          data_inicio: string
+          destaques: Json
+          enviado_email_em: string | null
+          gerado_por: string | null
+          gerado_por_nome: string | null
+          id: string
+          mes: number
+          observacao: string | null
+          resumo: Json
+          updated_at: string
+        }
+        Insert: {
+          acoes_concluidas?: number
+          acoes_criadas?: number
+          acoes_em_aberto?: number
+          aderencia_fefo?: number | null
+          ano: number
+          created_at?: string
+          data_fim: string
+          data_inicio: string
+          destaques?: Json
+          enviado_email_em?: string | null
+          gerado_por?: string | null
+          gerado_por_nome?: string | null
+          id?: string
+          mes: number
+          observacao?: string | null
+          resumo?: Json
+          updated_at?: string
+        }
+        Update: {
+          acoes_concluidas?: number
+          acoes_criadas?: number
+          acoes_em_aberto?: number
+          aderencia_fefo?: number | null
+          ano?: number
+          created_at?: string
+          data_fim?: string
+          data_inicio?: string
+          destaques?: Json
+          enviado_email_em?: string | null
+          gerado_por?: string | null
+          gerado_por_nome?: string | null
+          id?: string
+          mes?: number
+          observacao?: string | null
+          resumo?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ficha_tecnica_bom: {
         Row: {
           created_at: string
@@ -3177,6 +3237,28 @@ export type Database = {
     }
     Functions: {
       almoxarifados_permitidos: { Args: { _uid: string }; Returns: string[] }
+      fechamento_mensal_destaques: {
+        Args: { data_fim: string; data_inicio: string }
+        Returns: {
+          data_evento: string
+          modulo: string
+          texto: string
+          valor: number
+        }[]
+      }
+      fechamento_mensal_resumo: {
+        Args: { data_fim: string; data_inicio: string }
+        Returns: {
+          acoes_concluidas: number
+          acoes_criadas: number
+          acoes_em_aberto: number
+          modulo: string
+          ordem: number
+          status_geral: string
+          unidade_valor: string
+          valor_ou_quantidade: number
+        }[]
+      }
       fefo_norm_sku: { Args: { _v: string }; Returns: string }
       get_my_role: {
         Args: never
