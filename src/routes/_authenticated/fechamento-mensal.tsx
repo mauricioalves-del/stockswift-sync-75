@@ -216,142 +216,259 @@ function FechamentoMensalPage() {
     }
   }
 
-  async function exportarPptx() {
-    const PptxGenJS = (await import("pptxgenjs")).default;
-    const NAVY = "1E2761", ICE = "CADCFC", TEAL = "1C7293", AMBER = "E7A94D", CORAL = "D9614E", CINZA = "5F5E5A";
-    const pptx = new PptxGenJS();
-    pptx.layout = "LAYOUT_16x9";
+    async function exportarPptx() {
+          const PptxGenJS = (await import("pptxgenjs")).default;
+          const NAVY = "1E2761", ICE = "CADCFC", TEAL = "1C7293", AMBER = "E7A94D", CORAL = "D9614E", CINZA = "5F5E5A", LIGHTBG = "F4F5FA";
+          const pptx = new PptxGenJS();
+          pptx.layout = "LAYOUT_16x9";
 
-    const dIni = new Date(`${periodo.inicio}T00:00:00`);
-    const dFim = new Date(`${periodo.fim}T00:00:00`);
-    const dd = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const periodoTxt = `${dd(dIni)} a ${dd(dFim)}/${dFim.getFullYear()}`;
-    const valorTxt = (l: LinhaResumo) =>
-      l.unidade_valor === "R$" ? brl(l.valor_ou_quantidade) : `${num(l.valor_ou_quantidade)} ${l.unidade_valor}`;
+          const dIni = new Date(`${periodo.inicio}T00:00:00`);
+          const dFim = new Date(`${periodo.fim}T00:00:00`);
+          const dd = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+          const periodoTxt = `${dd(dIni)} a ${dd(dFim)}/${dFim.getFullYear()}`;
+          const valorTxt = (l: LinhaResumo) =>
+                  l.unidade_valor === "R$" ? brl(l.valor_ou_quantidade) : `${num(l.valor_ou_quantidade)} ${l.unidade_valor}`;
 
-    // ---------- Slide 1 — Capa ----------
-    const s1 = pptx.addSlide();
-    s1.background = { color: NAVY };
-    s1.addText("Fechamento mensal", { x: 0.7, y: 1.6, w: 8.6, h: 0.9, fontFace: "Cambria", fontSize: 44, bold: true, color: "FFFFFF" });
-    s1.addText("Controle e mapeamento de riscos e passivos operacionais", { x: 0.7, y: 2.5, w: 8.6, h: 0.5, fontFace: "Calibri", fontSize: 20, color: ICE });
-    s1.addText(periodoTxt, { x: 0.7, y: 3.1, w: 8.6, h: 0.4, fontFace: "Calibri", fontSize: 16, color: "FFFFFF" });
-    s1.addText(linhas.map((l) => l.modulo).join(" · ") || "—", { x: 0.7, y: 3.6, w: 8.6, h: 0.8, fontFace: "Calibri", fontSize: 12, color: ICE });
-    s1.addText("Painel de gestão de risco", { x: 0.7, y: 4.9, w: 5, h: 0.3, fontFace: "Calibri", fontSize: 10, color: ICE });
+          const [pnlQ, top10LoteQ, top10GeralQ] = await Promise.all([
+                  (supabase as any).rpc("fechamento_pnl_shelf_life", { data_inicio: periodo.inicio, data_fim: periodo.fim }),
+                  (supabase as any).rpc("fechamento_top10_lote", { data_inicio: periodo.inicio, data_fim: periodo.fim }),
+                  (supabase as any).rpc("fechamento_top10_geral", { data_inicio: periodo.inicio, data_fim: periodo.fim }),
+                ]);
+          const pnl = ((pnlQ.data ?? [])[0] ?? null) as {
+                  qtd_acoes: number; custo_total: number; receita_recuperada: number;
+                  valor_recuperado_total: number; lucro_operacional: number; roi_operacional: number | null;
+          } | null;
+          const top10Lote = (top10LoteQ.data ?? []) as Array<{
+                  sku: string; descricao: string; lote: string; almoxarifado: string; tipo_acao: string | null;
+                  responsavel: string | null; quantidade: number; custo_acao: number; saving: number;
+          }>;
+          const top10Geral = (top10GeralQ.data ?? []) as Array<{
+                  modulo: string; rnk: number; item: string; detalhe: string; valor: number; unidade: string;
+          }>;
+          const valGeral = (v: number, u: string) => (u === "R$" ? brl(v) : `${num(v)} ${u}`);
 
-    // ---------- Slide 2 — Resumo executivo (KPIs + gráfico + ponto de atenção) ----------
-        const s2 = pptx.addSlide();
-        s2.background = { color: "FFFFFF" };
-        s2.addText("Resumo executivo do período", { x: 0.5, y: 0.3, w: 9, h: 0.55, fontFace: "Cambria", fontSize: 26, bold: true, color: NAVY });
-    
-        const kpis: Array<[string, string, string]> = [
-                ["Ações criadas", num(tot.criadas), NAVY],
-                ["Concluídas", num(tot.concluidas), TEAL],
-                ["Em aberto", num(tot.abertas), AMBER],
-                ["Aderência FEFO", tot.aderencia === null ? "—" : `${num(tot.aderencia)}%`, CORAL],
-              ];
-        kpis.forEach(([rot, val, cor], i) => {
-                const x = 0.5 + i * 2.28;
-                s2.addShape(pptx.ShapeType.roundRect, { x, y: 0.95, w: 2.1, h: 0.95, fill: { color: "F4F5FA" }, line: { color: "F4F5FA" }, rectRadius: 0.08 });
-                s2.addText(rot.toUpperCase(), { x, y: 1.03, w: 2.1, h: 0.3, align: "center", fontFace: "Calibri", fontSize: 9, color: CINZA });
-                s2.addText(val, { x, y: 1.3, w: 2.1, h: 0.5, align: "center", fontFace: "Calibri", fontSize: 22, bold: true, color: cor });
-        });
-    
-        s2.addText("Concluídas x em aberto por módulo", { x: 0.5, y: 2.05, w: 9, h: 0.3, fontFace: "Calibri", fontSize: 13, bold: true, color: NAVY });
-        const labels = linhas.map((l) => l.modulo);
-        s2.addChart(
-                pptx.ChartType.bar,
-                [
-                  { name: "Concluídas", labels, values: linhas.map((l) => l.acoes_concluidas) },
-                  { name: "Em aberto", labels, values: linhas.map((l) => l.acoes_em_aberto) },
-                        ],
-          {
-                    x: 0.5, y: 2.35, w: 9, h: 2.35,
-                    barDir: "col", barGrouping: "stacked",
-                    chartColors: [TEAL, AMBER],
-                    showLegend: true, legendPos: "b", legendFontFace: "Calibri", legendFontSize: 10,
-                    showValue: true, dataLabelColor: "FFFFFF", dataLabelFontFace: "Calibri", dataLabelFontSize: 9,
-                    catAxisLabelFontFace: "Calibri", catAxisLabelFontSize: 9, catAxisLabelRotate: -20,
-                    valAxisLabelFontFace: "Calibri", valAxisLabelFontSize: 9,
-          },
-              );
-    
-        const atencao = linhas
-                .filter((l) => l.status_geral === "Atenção" && l.acoes_criadas > 0)
-                .sort((a, b) => b.acoes_em_aberto / b.acoes_criadas - a.acoes_em_aberto / a.acoes_criadas)[0];
-        if (atencao) {
-                s2.addShape(pptx.ShapeType.roundRect, { x: 0.5, y: 4.85, w: 9, h: 0.65, fill: { color: "FCF1E3" }, line: { color: "FCF1E3" }, rectRadius: 0.08 });
-                s2.addText(
-                          [
-                            { text: "Ponto de atenção do mês\n", options: { fontFace: "Calibri", fontSize: 12, bold: true, color: AMBER } },
-                            {
-                                          text: `${atencao.modulo} concentra o maior risco em aberto do período: ${num(atencao.acoes_criadas)} ações criadas, apenas ${num(atencao.acoes_concluidas)} concluídas (${num(atencao.acoes_em_aberto)} em aberto) e ${valorTxt(atencao)} associados.`,
-                                          options: { fontFace: "Calibri", fontSize: 12, color: "2B2B2B" },
-                            },
-                                    ],
-                  { x: 0.7, y: 4.9, w: 8.6, h: 0.58 },
-                        );
-        }
-    
-        // ---------- Slide 3 — Mapeamento ----------
-    const s4 = pptx.addSlide();
-    s4.background = { color: NAVY };
-    s4.addText("Mapeamento por módulo", { x: 0.5, y: 0.35, w: 9, h: 0.6, fontFace: "Cambria", fontSize: 28, bold: true, color: "FFFFFF" });
-    const corStatus = (s: string) => (s === "Sob controle" ? TEAL : s === "Atenção" ? AMBER : ICE);
-    const head = ["Módulo", "Criadas", "Concluídas", "Em aberto", "Valor / Qtd.", "Status"].map((t) => ({
-      text: t, options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 11 },
-    }));
-    const corpo = linhasOrdenadas.map((l, i) => {
-      const bg = i % 2 === 0 ? "27356F" : "1E2761";
-      const base = { fill: { color: bg }, color: "FFFFFF", fontFace: "Calibri", fontSize: 10 };
-      return [
-        { text: l.modulo, options: base },
-        { text: num(l.acoes_criadas), options: { ...base, align: "right" as const } },
-        { text: num(l.acoes_concluidas), options: { ...base, align: "right" as const } },
-        { text: num(l.acoes_em_aberto), options: { ...base, align: "right" as const } },
-        { text: valorTxt(l), options: { ...base, align: "right" as const } },
-        { text: l.status_geral, options: { ...base, color: corStatus(l.status_geral), bold: true } },
-      ];
-    });
-    s4.addTable([head, ...corpo], {
-      x: 0.5, y: 1.15, w: 9, colW: [3, 1, 1.3, 1.2, 1.5, 1],
-      border: { type: "solid", color: NAVY, pt: 1 }, autoPage: false,
-    });
+          // ---------- Slide 1 — Capa ----------
+          const s1 = pptx.addSlide();
+          s1.background = { color: NAVY };
+          s1.addText("Fechamento mensal", { x: 0.7, y: 1.6, w: 8.6, h: 0.9, fontFace: "Cambria", fontSize: 44, bold: true, color: "FFFFFF" });
+          s1.addText("Controle e mapeamento de riscos e passivos operacionais", { x: 0.7, y: 2.5, w: 8.6, h: 0.5, fontFace: "Calibri", fontSize: 20, color: ICE });
+          s1.addText(periodoTxt, { x: 0.7, y: 3.1, w: 8.6, h: 0.4, fontFace: "Calibri", fontSize: 16, color: "FFFFFF" });
+          s1.addText(linhas.map((l) => l.modulo).join(" · ") || "—", { x: 0.7, y: 3.6, w: 8.6, h: 0.8, fontFace: "Calibri", fontSize: 12, color: ICE });
+          s1.addText("Painel de gestão de risco", { x: 0.7, y: 4.9, w: 5, h: 0.3, fontFace: "Calibri", fontSize: 10, color: ICE });
 
-    // ---------- Slide 4 — Destaques ----------
-    const s5 = pptx.addSlide();
-    s5.background = { color: "FFFFFF" };
-    s5.addText("Destaques de risco do período", { x: 0.5, y: 0.35, w: 9, h: 0.6, fontFace: "Cambria", fontSize: 28, bold: true, color: NAVY });
-    const dOrd = [...destaques].sort((a, b) => Math.abs(Number(b.valor ?? 0)) - Math.abs(Number(a.valor ?? 0))).slice(0, 8);
-    const head5 = ["Descrição", "Módulo", "Data", "Valor"].map((t) => ({
-      text: t, options: { fill: { color: NAVY }, color: "FFFFFF", bold: true, fontFace: "Calibri", fontSize: 11 },
-    }));
-    const corpo5 = dOrd.map((d, i) => {
-      const base = { fill: { color: i % 2 === 0 ? "F4F5FA" : "FFFFFF" }, color: "2B2B2B", fontFace: "Calibri", fontSize: 10 };
-      return [
-        { text: d.texto, options: base },
-        { text: d.modulo, options: base },
-        { text: d.data_evento ? new Date(`${d.data_evento}T00:00:00`).toLocaleDateString("pt-BR") : "—", options: base },
-        { text: d.valor === null ? "—" : brl(Number(d.valor)), options: { ...base, align: "right" as const } },
-      ];
-    });
-    if (corpo5.length) {
-      s5.addTable([head5, ...corpo5], {
-        x: 0.5, y: 1.15, w: 9, colW: [4.2, 2, 1.3, 1.5],
-        border: { type: "solid", color: "D8DAE5", pt: 1 }, autoPage: false,
-      });
+          // ---------- Slide 2 — Resumo executivo (KPIs + gráfico + ponto de atenção) ----------
+          const s2 = pptx.addSlide();
+          s2.background = { color: "FFFFFF" };
+          s2.addText("Resumo executivo do período", { x: 0.5, y: 0.3, w: 9, h: 0.55, fontFace: "Cambria", fontSize: 26, bold: true, color: NAVY });
+
+          const kpis: Array<[string, string, string]> = [
+                  ["Ações criadas", num(tot.criadas), NAVY],
+                  ["Concluídas", num(tot.concluidas), TEAL],
+                  ["Em aberto", num(tot.abertas), AMBER],
+                  ["Aderência FEFO", tot.aderencia === null ? "—" : `${num(tot.aderencia)}%`, CORAL],
+                ];
+          kpis.forEach(([rot, val, cor], i) => {
+                  const x = 0.5 + i * 2.28;
+                  s2.addShape(pptx.ShapeType.roundRect, { x, y: 0.95, w: 2.1, h: 0.95, fill: { color: "F4F5FA" }, line: { color: "F4F5FA" }, rectRadius: 0.08 });
+                  s2.addText(rot.toUpperCase(), { x, y: 1.03, w: 2.1, h: 0.3, align: "center", fontFace: "Calibri", fontSize: 9, color: CINZA });
+                  s2.addText(val, { x, y: 1.3, w: 2.1, h: 0.5, align: "center", fontFace: "Calibri", fontSize: 22, bold: true, color: cor });
+          });
+
+          s2.addText("Concluídas x em aberto por módulo", { x: 0.5, y: 2.05, w: 9, h: 0.3, fontFace: "Calibri", fontSize: 13, bold: true, color: NAVY });
+          const labels = linhas.map((l) => l.modulo);
+          s2.addChart(
+                  pptx.ChartType.bar,
+                  [
+                    { name: "Concluídas", labels, values: linhas.map((l) => l.acoes_concluidas) },
+                    { name: "Em aberto", labels, values: linhas.map((l) => l.acoes_em_aberto) },
+                          ],
+            {
+                      x: 0.5, y: 2.35, w: 9, h: 2.35,
+                      barDir: "col", barGrouping: "stacked",
+                      chartColors: [TEAL, AMBER],
+                      showLegend: true, legendPos: "b", legendFontFace: "Calibri", legendFontSize: 10,
+                      showValue: true, dataLabelColor: "FFFFFF", dataLabelFontFace: "Calibri", dataLabelFontSize: 9,
+                      catAxisLabelFontFace: "Calibri", catAxisLabelFontSize: 9, catAxisLabelRotate: -20,
+                      valAxisLabelFontFace: "Calibri", valAxisLabelFontSize: 9,
+            },
+                );
+
+          const atencao = linhas
+            .filter((l) => l.status_geral === "Atenção" && l.acoes_criadas > 0)
+            .sort((a, b) => b.acoes_em_aberto / b.acoes_criadas - a.acoes_em_aberto / a.acoes_criadas)[0];
+          if (atencao) {
+                  s2.addShape(pptx.ShapeType.roundRect, { x: 0.5, y: 4.85, w: 9, h: 0.65, fill: { color: "FCF1E3" }, line: { color: "FCF1E3" }, rectRadius: 0.08 });
+                  s2.addText(
+                            [
+                              { text: "Ponto de atenção do mês\n", options: { fontFace: "Calibri", fontSize: 12, bold: true, color: AMBER } },
+                              {
+                                            text: `${atencao.modulo} concentra o maior risco em aberto do período: ${num(atencao.acoes_criadas)} ações criadas, apenas ${num(atencao.acoes_concluidas)} concluídas (${num(atencao.acoes_em_aberto)} em aberto) e ${valorTxt(atencao)} associados.`,
+                                            options: { fontFace: "Calibri", fontSize: 12, color: "2B2B2B" },
+                              },
+                                      ],
+                    { x: 0.7, y: 4.9, w: 8.6, h: 0.58 },
+                          );
+          }
+
+          // ---------- Slide — Impacto Operacional: Resultado Financeiro Shelf Life (P&L) ----------
+          const s3 = pptx.addSlide();
+          s3.background = { color: "FFFFFF" };
+          s3.addText("Resultado Financeiro — Shelf Life", { x: 0.5, y: 0.3, w: 9, h: 0.55, fontFace: "Cambria", fontSize: 26, bold: true, color: NAVY });
+          if (pnl && pnl.qtd_acoes > 0) {
+                  s3.addText(`${num(pnl.qtd_acoes)} ações concluídas no período — o que estava em risco x o que foi realmente recuperado`, {
+                            x: 0.5, y: 0.85, w: 9, h: 0.35, fontFace: "Calibri", fontSize: 12, color: CINZA,
+                  });
+                  const pnlCards: Array<[string, string, string, string]> = [
+                            ["Custo estimado de perda", brl(pnl.custo_total), CORAL, "Valor em risco nas ações"],
+                            ["Valor recuperado real", brl(pnl.valor_recuperado_total), TEAL, "Receita + perda evitada"],
+                            ["Lucro operacional", brl(pnl.lucro_operacional), NAVY, "Recuperado − custo da ação"],
+                            ["ROI operacional", pnl.roi_operacional === null ? "—" : `${num(pnl.roi_operacional)}%`, AMBER, "Lucro ÷ custo da ação"],
+                          ];
+                  pnlCards.forEach(([rot, val, cor, dica], i) => {
+                            const x = 0.5 + i * 2.28;
+                            s3.addShape(pptx.ShapeType.roundRect, { x, y: 1.25, w: 2.1, h: 1.15, fill: { color: LIGHTBG }, line: { color: LIGHTBG }, rectRadius: 0.08 });
+                            s3.addText(val, { x: x + 0.1, y: 1.32, w: 1.9, h: 0.45, fontFace: "Calibri", fontSize: 16, bold: true, color: cor });
+                            s3.addText(rot, { x: x + 0.1, y: 1.75, w: 1.9, h: 0.3, fontFace: "Calibri", fontSize: 9, bold: true, color: NAVY });
+                            s3.addText(dica, { x: x + 0.1, y: 2.0, w: 1.9, h: 0.35, fontFace: "Calibri", fontSize: 7.5, color: CINZA });
+                  });
+                  s3.addText("Composição do valor recuperado", { x: 0.5, y: 2.65, w: 6, h: 0.3, fontFace: "Calibri", fontSize: 13, bold: true, color: NAVY });
+                  s3.addChart(pptx.ChartType.bar, [
+                    {
+                                name: "Valor",
+                                labels: ["Receita conquistada (vendas)", "Perda evitada (demais categorias)", "Custo da ação"],
+                                values: [pnl.receita_recuperada, Math.max(pnl.valor_recuperado_total - pnl.receita_recuperada, 0), pnl.custo_total],
+                    },
+                          ], {
+                            x: 0.5, y: 3.0, w: 9, h: 1.9,
+                            barDir: "bar", showLegend: false,
+                            chartColors: [TEAL],
+                            showValue: true, dataLabelColor: NAVY, dataLabelFontFace: "Calibri", dataLabelFontSize: 9, dataLabelPosition: "outEnd",
+                            catAxisLabelFontFace: "Calibri", catAxisLabelFontSize: 9,
+                            valAxisHidden: true,
+                  });
+          } else {
+                  s3.addText("Nenhuma ação de Shelf Life foi concluída no período — sem resultado financeiro a apurar.", {
+                            x: 0.5, y: 1.2, w: 9, h: 0.5, fontFace: "Calibri", fontSize: 13, color: CINZA,
+                  });
+          }
+
+          // ---------- Slide — Top 10: Ações de Lote (Shelf Life) ----------
+          if (top10Lote.length > 0) {
+                  const s3b = pptx.addSlide();
+                  s3b.background = { color: "FFFFFF" };
+                  s3b.addText("Top 10 — Ações de Lote (Shelf Life)", { x: 0.5, y: 0.3, w: 9, h: 0.5, fontFace: "Cambria", fontSize: 22, bold: true, color: NAVY });
+                  s3b.addText("Ações concluídas no período, ordenadas por saving recuperado", { x: 0.5, y: 0.75, w: 9, h: 0.3, fontFace: "Calibri", fontSize: 11, color: CINZA });
+                  const headLote = ["#", "Produto (SKU)", "Lote / Almox.", "Tipo de ação", "Responsável", "Qtd", "Custo", "Saving"].map((t, i) => ({
+                            text: t, options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 9, align: (i === 0 || i >= 5 ? "center" : "left") as const },
+                  }));
+                  const corpoLote = top10Lote.map((r, i) => {
+                            const bg = i % 2 === 0 ? LIGHTBG : "FFFFFF";
+                            const base = { fill: { color: bg }, color: "2B2B2B", fontFace: "Calibri", fontSize: 8.5 };
+                            return [
+                              { text: String(i + 1), options: { ...base, align: "center" as const } },
+                              { text: `${r.sku} — ${r.descricao ?? ""}`, options: base },
+                              { text: `${r.lote ?? "-"} / ${r.almoxarifado ?? "-"}`, options: base },
+                              { text: r.tipo_acao ?? "—", options: base },
+                              { text: r.responsavel ?? "—", options: base },
+                              { text: num(r.quantidade ?? 0), options: { ...base, align: "center" as const } },
+                              { text: brl(r.custo_acao ?? 0), options: { ...base, align: "center" as const, color: CORAL } },
+                              { text: brl(r.saving ?? 0), options: { ...base, align: "center" as const, color: TEAL, bold: true } },
+                                      ];
+                  });
+                  s3b.addTable([headLote, ...corpoLote], {
+                            x: 0.3, y: 1.15, w: 9.4, colW: [0.35, 2.7, 1.7, 1.4, 1.2, 0.55, 0.75, 0.75],
+                            border: { type: "none" }, autoPage: false,
+                  });
+          }
+
+          // ---------- Slides — Top 10 por módulo (Baixas, Dispersão, Testes, FEFO) ----------
+          const ordemModulosTop10 = ["Baixas Operacionais", "Dispersão de Lote (identificadas)", "Mapeamento de Testes Operacionais", "Controle de FEFO"];
+          for (const modNome of ordemModulosTop10) {
+                  const linhasModulo = top10Geral.filter((r) => r.modulo === modNome).sort((a, b) => a.rnk - b.rnk);
+                  if (!linhasModulo.length) continue;
+                  const sMod = pptx.addSlide();
+                  sMod.background = { color: "FFFFFF" };
+                  sMod.addText(`Top 10 — ${modNome}`, { x: 0.5, y: 0.3, w: 9, h: 0.5, fontFace: "Cambria", fontSize: 22, bold: true, color: NAVY });
+                  const headMod = ["#", "Item", "Detalhe", "Valor"].map((t, i) => ({
+                            text: t, options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 10, align: (i === 0 || i === 3 ? "center" : "left") as const },
+                  }));
+                  const corpoMod = linhasModulo.map((r, i) => {
+                            const bg = i % 2 === 0 ? LIGHTBG : "FFFFFF";
+                            const base = { fill: { color: bg }, color: "2B2B2B", fontFace: "Calibri", fontSize: 10 };
+                            return [
+                              { text: String(r.rnk), options: { ...base, align: "center" as const } },
+                              { text: r.item, options: base },
+                              { text: r.detalhe, options: base },
+                              { text: valGeral(r.valor, r.unidade), options: { ...base, align: "center" as const, bold: true, color: NAVY } },
+                                      ];
+                  });
+                  sMod.addTable([headMod, ...corpoMod], {
+                            x: 0.5, y: 0.9, w: 9, colW: [0.5, 3.7, 3.0, 1.8],
+                            border: { type: "none" }, autoPage: false,
+                  });
+          }
+
+          // ---------- Slide — Mapeamento por módulo ----------
+          const s4 = pptx.addSlide();
+          s4.background = { color: NAVY };
+          s4.addText("Mapeamento por módulo", { x: 0.5, y: 0.35, w: 9, h: 0.6, fontFace: "Cambria", fontSize: 28, bold: true, color: "FFFFFF" });
+          const corStatus = (s: string) => (s === "Sob controle" ? TEAL : s === "Atenção" ? AMBER : ICE);
+          const head = ["Módulo", "Criadas", "Concluídas", "Em aberto", "Valor / Qtd.", "Status"].map((t) => ({
+                  text: t, options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 11 },
+          }));
+          const corpo = linhasOrdenadas.map((l, i) => {
+                  const bg = i % 2 === 0 ? "27356F" : "1E2761";
+                  const base = { fill: { color: bg }, color: "FFFFFF", fontFace: "Calibri", fontSize: 10 };
+                  return [
+                    { text: l.modulo, options: base },
+                    { text: num(l.acoes_criadas), options: { ...base, align: "right" as const } },
+                    { text: num(l.acoes_concluidas), options: { ...base, align: "right" as const } },
+                    { text: num(l.acoes_em_aberto), options: { ...base, align: "right" as const } },
+                    { text: valorTxt(l), options: { ...base, align: "right" as const } },
+                    { text: l.status_geral, options: { ...base, color: corStatus(l.status_geral), bold: true } },
+                          ];
+          });
+          s4.addTable([head, ...corpo], {
+                  x: 0.5, y: 1.15, w: 9, colW: [3, 1, 1.3, 1.2, 1.5, 1],
+                  border: { type: "solid", color: NAVY, pt: 1 }, autoPage: false,
+          });
+
+          // ---------- Slide — Destaques de risco ----------
+          const s5 = pptx.addSlide();
+          s5.background = { color: "FFFFFF" };
+          s5.addText("Destaques de risco do período", { x: 0.5, y: 0.35, w: 9, h: 0.6, fontFace: "Cambria", fontSize: 28, bold: true, color: NAVY });
+          const dOrd = [...destaques].sort((a, b) => Math.abs(Number(b.valor ?? 0)) - Math.abs(Number(a.valor ?? 0))).slice(0, 8);
+          const head5 = ["Descrição", "Módulo", "Data", "Valor"].map((t) => ({
+                  text: t, options: { fill: { color: NAVY }, color: "FFFFFF", bold: true, fontFace: "Calibri", fontSize: 11 },
+          }));
+          const corpo5 = dOrd.map((d, i) => {
+                  const base = { fill: { color: i % 2 === 0 ? "F4F5FA" : "FFFFFF" }, color: "2B2B2B", fontFace: "Calibri", fontSize: 10 };
+                  return [
+                    { text: d.texto, options: base },
+                    { text: d.modulo, options: base },
+                    { text: d.data_evento ? new Date(`${d.data_evento}T00:00:00`).toLocaleDateString("pt-BR") : "—", options: base },
+                    { text: d.valor === null ? "—" : brl(Number(d.valor)), options: { ...base, align: "right" as const } },
+                          ];
+          });
+          if (corpo5.length) {
+                  s5.addTable([head5, ...corpo5], {
+                            x: 0.5, y: 1.15, w: 9, colW: [4.2, 2, 1.3, 1.5],
+                            border: { type: "solid", color: "D8DAE5", pt: 1 }, autoPage: false,
+                  });
+          }
+          s5.addText(
+                  `Lista completa de destaques (${destaques.length} itens) disponível no relatório detalhado exportado pelo sistema.`,
+            { x: 0.5, y: 4.95, w: 9, h: 0.3, fontFace: "Calibri", fontSize: 10, italic: true, color: CINZA },
+                );
+
+          const nome = modo === "mes"
+            ? `fechamento_${ano}-${String(mes).padStart(2, "0")}.pptx`
+                  : `fechamento_${periodo.inicio}_${periodo.fim}.pptx`;
+          await pptx.writeFile({ fileName: nome });
+          toast.success("Apresentação gerada");
     }
-    s5.addText(
-      `Lista completa de destaques (${destaques.length} itens) disponível no relatório detalhado exportado pelo sistema.`,
-      { x: 0.5, y: 4.95, w: 9, h: 0.3, fontFace: "Calibri", fontSize: 10, italic: true, color: CINZA },
-    );
 
-    const nome = modo === "mes"
-      ? `fechamento_${ano}-${String(mes).padStart(2, "0")}.pptx`
-      : `fechamento_${periodo.inicio}_${periodo.fim}.pptx`;
-    await pptx.writeFile({ fileName: nome });
-    toast.success("Apresentação gerada");
-  }
-
+  
 
   function SortHead({ k, children, className }: { k: SortKey; children: React.ReactNode; className?: string }) {
     const ativo = sort.k === k;
