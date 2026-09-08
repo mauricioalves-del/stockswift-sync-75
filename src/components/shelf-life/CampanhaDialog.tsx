@@ -336,7 +336,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       if (tarefasCriadas && tarefasCriadas.length) {
         const okEmails = tarefasCriadas.filter((t) => t.ok && t.email).map((t) => t.email);
         const falhas = tarefasCriadas.filter((t) => !t.ok);
-        if (okEmails.length) toast.success(`{Tarefa atribuída e e-mail enviado para ${okEmails.join(", ")}.`);
+        if (okEmails.length) toast.success(`Tarefa atribuída e e-mail enviado para ${okEmails.join(", ")}.`);
         if (falhas.length) toast.warning(`Tarefa atribuída, mas ${falhas.length} e-mail(is) de notificação não puderam ser enviados.`);
       }
       qc.invalidateQueries({ queryKey: ["shelf-campanhas"] });
