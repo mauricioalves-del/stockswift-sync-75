@@ -84,6 +84,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       status_original: draft.status ?? "PLANEJADA",
       responsavel: draft.responsavel ?? "",
       responsavel_id: "",
+      responsavel_ids: (draft as any)?.responsaveis_ids ?? [],
       data_acao: draft.data_acao ?? new Date().toISOString().slice(0, 10),
       status: draft.status ?? "PLANEJADA",
       observacao: draft.observacao ?? "",
@@ -203,6 +204,10 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
   });
   const savingPrevisto = savingRecuperadoCalculado(valorPrevisto, custoAcao);
 
+  const nomesResponsaveis = ((form.responsavel_ids ?? []) as string[])
+    .map((id) => (usuarios.data ?? []).find((u) => u.id === id)?.nome)
+    .filter(Boolean) as string[];
+
   const jaConcluida = form.status_original === "CONCLUIDA";
   const vaiConcluir = form.status === "CONCLUIDA";
   // Congela ao concluir: só recalcula na transição para Concluída ou via botão Recalcular.
@@ -230,7 +235,8 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
         // legado: mantém os indicadores antigos coerentes
         valor_estimado_recuperado: categoria === "Vendas" ? valorOficial : 0,
         valor_estimado_saving: categoria === "Vendas" ? 0 : valorOficial,
-        responsavel: form.responsavel || null,
+        responsavel: nomesResponsaveis.length ? nomesResponsaveis.join(", ") : (form.responsavel || null),
+        responsaveis_ids: form.responsavel_ids ?? [],
         data_acao: form.data_acao || new Date().toISOString().slice(0, 10),
         status: form.status,
         observacao: form.observacao || null,
@@ -249,7 +255,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
 
       const valorAnterior = Number(form.valor_recuperado) || 0;
 
-      let tarefaCriada: { ok: boolean; email?: string | null } | null = null;
+      const tarefasCriadas: Array<{ ok: boolean; email?: string | null }> = [];
 
       if (form.id) {
         const { error } = await (supabase as any).from("campanhas_lote").update(payload).eq("id", form.id);
@@ -259,9 +265,9 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
           .from("campanhas_lote").insert({ ...payload, criado_por: uid }).select("id").single();
         if (error) throw error;
 
-        // Atribuição: gera pendência em Tarefas para o usuário responsável.
-        const respId = form.responsavel_id || null;
-        if (respId) {
+        // Atribuição: gera uma pendência em Tarefas para cada responsável selecionado.
+        const respIds: string[] = form.responsavel_ids ?? [];
+        for (const respId of respIds) {
           const resp = (usuarios.data ?? []).find((u) => u.id === respId);
           const { data: tarefa, error: errTarefa } = await (supabase as any)
             .from("tarefas_operacionais")
@@ -287,9 +293,9 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
 
           try {
             const r: any = await notificarTarefaAtribuida({ data: { tarefaId: (tarefa as any).id } });
-            tarefaCriada = { ok: !!r?.ok, email: resp?.email ?? null };
+            tarefasCriadas.push({ ok: !!r?.ok, email: resp?.email ?? null });
           } catch {
-            tarefaCriada = { ok: false, email: resp?.email ?? null };
+            tarefasCriadas.push({ ok: false, email: resp?.email ?? null });
           }
         }
       }
@@ -323,13 +329,15 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
         );
       }
 
-      return tarefaCriada;
+      return tarefasCriadas;
     },
-    onSuccess: async (tarefaCriada) => {
+    onSuccess: async (tarefasCriadas) => {
       toast.success(form.id ? "Ação atualizada." : "Ação criada.");
-      if (tarefaCriada) {
-        if (tarefaCriada.ok) toast.success(`Tarefa atribuída e e-mail enviado para ${tarefaCriada.email ?? "o responsável"}.`);
-        else toast.warning("Tarefa atribuída, mas o e-mail de notificação não pôde ser enviado.");
+      if (tarefasCriadas && tarefasCriadas.length) {
+        const okEmails = tarefasCriadas.filter((t) => t.ok && t.email).map((t) => t.email);
+        const falhas = tarefasCriadas.filter((t) => !t.ok);
+        if (okEmails.length) toast.success(`{Tarefa atribuída e e-mail enviado para ${okEmails.join(", ")}.`);
+        if (falhas.length) toast.warning(`Tarefa atribuída, mas ${falhas.length} e-mail(is) de notificação não puderam ser enviados.`);
       }
       qc.invalidateQueries({ queryKey: ["shelf-campanhas"] });
       qc.invalidateQueries({ queryKey: ["precos-venda"] });
@@ -368,7 +376,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
           quantidade: qtdEnderecada,
           unidade: form.unidade || null,
           dataValidade: form.data_validade || null,
-          responsavel: form.responsavel,
+          responsavel: nomesResponsaveis.length ? nomesResponsaveis.join(", ") : form.responsavel,
         });
 
     const copiado = await copiarEAbrirWhatsApp(mensagem);
@@ -572,26 +580,33 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
           </div>
 
           <div>
-            <Label>Responsável</Label>
-            <Select
-              value={form.responsavel_id || "__none__"}
-              onValueChange={(v) => {
-                if (v === "__none__") { set("responsavel_id", ""); return; }
-                const u = (usuarios.data ?? []).find((x) => x.id === v);
-                setForm((f: any) => ({ ...f, responsavel_id: v, responsavel: u?.nome ?? f.responsavel }));
-              }}
-            >
-              <SelectTrigger><SelectValue placeholder={form.responsavel || "Selecione o usuário"} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Sem responsável</SelectItem>
-                {(usuarios.data ?? []).map((u) => (
-                  <SelectItem key={u.id} value={u.id}>{u.nome}{u.email ? ` · ${u.email}` : ""}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {!form.id && form.responsavel_id && (
+            <Label>Responsáveis</Label>
+            <div className="rounded-md border max-h-48 overflow-y-auto p-2 space-y-1">
+              {(usuarios.data ?? []).map((u) => {
+                const marcado = ((form.responsavel_ids ?? []) as string[]).includes(u.id);
+                return (
+                  <label key={u.id} className="flex items-center gap-2 text-sm py-1 cursor-pointer">
+                    <Checkbox
+                      checked={marcado}
+                      onCheckedChange={(v) => {
+                        setForm((f: any) => {
+                          const atual: string[] = f.responsavel_ids ?? [];
+                          const proximo = v ? [...atual, u.id] : atual.filter((id) => id !== u.id);
+                          return { ...f, responsavel_ids: proximo };
+                        });
+                      }}
+                    />
+                    {u.nome}{u.email ? ` · ${u.email}` : ""}
+                  </label>
+                );
+              })}
+              {!(usuarios.data ?? []).length && (
+                <p className="text-xs text-muted-foreground px-1">Nenhum usuário cadastrado.</p>
+              )}
+            </div>
+            {!form.id && (form.responsavel_ids ?? []).length > 0 && (
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Ao salvar, uma pendência será criada em Tarefas e o usuário receberá um e-mail.
+                {(form.responsavel_ids ?? []).length} responsável(is) selecionado(s). Ao salvar, uma pendência será criada em Tarefas e cada um receberá um e-mail.
               </p>
             )}
           </div>
