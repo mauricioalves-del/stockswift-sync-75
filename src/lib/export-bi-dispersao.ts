@@ -238,7 +238,7 @@ function hideTip(){ tip.style.display='none'; }
 var st = {
   de: D.filtros.dtDe||'', ate: D.filtros.dtAte||'', mes:'todos', linha:'todas', cls:'todas',
   prod: D.filtros.produto||'', mat: D.filtros.material||'', granul: D.filtros.granularidade||'mes',
-  busca:'', pagina:0, ordem:{campo:'impacto',asc:false}
+  busca: D.filtros.op||'', pagina:0, ordem:{campo:'impacto',asc:false}
 };
 if(D.filtros.linha && D.filtros.linha!=='todas') st.linha=D.filtros.linha;
 if(D.filtros.classificacao && D.filtros.classificacao!=='todas') st.cls=D.filtros.classificacao;
