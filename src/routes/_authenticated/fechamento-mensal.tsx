@@ -364,7 +364,7 @@ function FechamentoMensalPage() {
                   s3b.addText("Top 10 — Ações de Lote (Shelf Life)", { x: 0.5, y: 0.3, w: 9, h: 0.5, fontFace: "Cambria", fontSize: 22, bold: true, color: NAVY });
                   s3b.addText("Ações concluídas no período, ordenadas por saving recuperado", { x: 0.5, y: 0.75, w: 9, h: 0.3, fontFace: "Calibri", fontSize: 11, color: CINZA });
                   const headLote = ["#", "Produto (SKU)", "Lote / Almox.", "Tipo de ação", "Responsável", "Qtd", "Custo", "Saving"].map((t, i) => ({
-                            text: t, options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 9, align: (i === 0 || i >= 5 ? "center" : "left") as const },
+                            text: t, options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 9, align: (i === 0 || i >= 5 ? "center" : "left") as "center" | "left" },
                   }));
                   const corpoLote = top10Lote.map((r, i) => {
                             const bg = i % 2 === 0 ? LIGHTBG : "FFFFFF";
@@ -393,7 +393,7 @@ function FechamentoMensalPage() {
                   s3c.addText("Top 10 — Baixas Operacionais", { x: 0.5, y: 0.3, w: 9, h: 0.5, fontFace: "Cambria", fontSize: 22, bold: true, color: NAVY });
                   s3c.addText("Maiores baixas do período, com motivo, almoxarifado e solicitante", { x: 0.5, y: 0.75, w: 9, h: 0.3, fontFace: "Calibri", fontSize: 11, color: CINZA });
                   const headBaixas = ["#", "Produto", "Lote / Almox.", "Motivo", "Solicitante", "Valor"].map((t, i) => ({
-                            text: t, options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 9, align: (i === 0 || i === 5 ? "center" : "left") as const },
+                            text: t, options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 9, align: (i === 0 || i === 5 ? "center" : "left") as "center" | "left" },
                   }));
                   const corpoBaixas = top10Baixas.map((r, i) => {
                             const bg = i % 2 === 0 ? LIGHTBG : "FFFFFF";
@@ -422,7 +422,7 @@ function FechamentoMensalPage() {
                   sMod.background = { color: "FFFFFF" };
                   sMod.addText(`Top 10 — ${modNome}`, { x: 0.5, y: 0.3, w: 9, h: 0.5, fontFace: "Cambria", fontSize: 22, bold: true, color: NAVY });
                   const headMod = ["#", "Item", "Detalhe", "Valor"].map((t, i) => ({
-                            text: t, options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 10, align: (i === 0 || i === 3 ? "center" : "left") as const },
+                            text: t, options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 10, align: (i === 0 || i === 3 ? "center" : "left") as "center" | "left" },
                   }));
                   const corpoMod = linhasModulo.map((r, i) => {
                             const bg = i % 2 === 0 ? LIGHTBG : "FFFFFF";

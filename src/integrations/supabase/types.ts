@@ -317,6 +317,7 @@ export type Database = {
           quantidade_recuperada: number
           recalculado_em: string | null
           recalculado_por: string | null
+          responsaveis_ids: string[]
           responsavel: string | null
           saving_recuperado: number
           sku: string
@@ -348,6 +349,7 @@ export type Database = {
           quantidade_recuperada?: number
           recalculado_em?: string | null
           recalculado_por?: string | null
+          responsaveis_ids?: string[]
           responsavel?: string | null
           saving_recuperado?: number
           sku: string
@@ -379,6 +381,7 @@ export type Database = {
           quantidade_recuperada?: number
           recalculado_em?: string | null
           recalculado_por?: string | null
+          responsaveis_ids?: string[]
           responsavel?: string | null
           saving_recuperado?: number
           sku?: string
@@ -3257,6 +3260,67 @@ export type Database = {
           status_geral: string
           unidade_valor: string
           valor_ou_quantidade: number
+        }[]
+      }
+      fechamento_pnl_shelf_life: {
+        Args: { data_fim: string; data_inicio: string }
+        Returns: {
+          custo_total: number
+          lucro_operacional: number
+          qtd_acoes: number
+          receita_recuperada: number
+          roi_operacional: number
+          valor_recuperado_total: number
+        }[]
+      }
+      fechamento_top10_baixas: {
+        Args: { data_fim: string; data_inicio: string }
+        Returns: {
+          almoxarifado: string
+          codigo_produto: string
+          data_evento: string
+          descricao: string
+          lote: string
+          motivo: string
+          solicitante: string
+          valor_total: number
+        }[]
+      }
+      fechamento_top10_geral: {
+        Args: { data_fim: string; data_inicio: string }
+        Returns: {
+          detalhe: string
+          item: string
+          modulo: string
+          rnk: number
+          unidade: string
+          valor: number
+        }[]
+      }
+      fechamento_top10_lote: {
+        Args: { data_fim: string; data_inicio: string }
+        Returns: {
+          almoxarifado: string
+          custo_acao: number
+          descricao: string
+          lote: string
+          quantidade: number
+          responsavel: string
+          saving: number
+          sku: string
+          tipo_acao: string
+        }[]
+      }
+      fechamento_top10_testes: {
+        Args: { data_fim: string; data_inicio: string }
+        Returns: {
+          custo_operacional: number
+          data_evento: string
+          desc_material: string
+          material: string
+          numero_op: string
+          quantidade: number
+          unidade: string
         }[]
       }
       fefo_norm_sku: { Args: { _v: string }; Returns: string }
