@@ -229,11 +229,12 @@ function FechamentoMensalPage() {
           const valorTxt = (l: LinhaResumo) =>
                   l.unidade_valor === "R$" ? brl(l.valor_ou_quantidade) : `${num(l.valor_ou_quantidade)} ${l.unidade_valor}`;
 
-          const [pnlQ, top10LoteQ, top10GeralQ, top10BaixasQ] = await Promise.all([
+          const [pnlQ, top10LoteQ, top10GeralQ, top10BaixasQ, top10TestesQ] = await Promise.all([
                   (supabase as any).rpc("fechamento_pnl_shelf_life", { data_inicio: periodo.inicio, data_fim: periodo.fim }),
                   (supabase as any).rpc("fechamento_top10_lote", { data_inicio: periodo.inicio, data_fim: periodo.fim }),
                   (supabase as any).rpc("fechamento_top10_geral", { data_inicio: periodo.inicio, data_fim: periodo.fim }),
                   (supabase as any).rpc("fechamento_top10_baixas", { data_inicio: periodo.inicio, data_fim: periodo.fim }),
+                  (supabase as any).rpc("fechamento_top10_testes", { data_inicio: periodo.inicio, data_fim: periodo.fim }),
                 ]);
           const pnl = ((pnlQ.data ?? [])[0] ?? null) as {
                   qtd_acoes: number; custo_total: number; receita_recuperada: number;
@@ -249,6 +250,10 @@ function FechamentoMensalPage() {
           const top10Baixas = (top10BaixasQ.data ?? []) as Array<{
                   codigo_produto: string; descricao: string; lote: string; almoxarifado: string | null;
                   motivo: string | null; solicitante: string | null; valor_total: number; data_evento: string;
+          }>;
+          const top10Testes = (top10TestesQ.data ?? []) as Array<{
+                  numero_op: string; material: string; desc_material: string | null;
+                  quantidade: number; unidade: string | null; custo_operacional: number; data_evento: string;
           }>;
           const valGeral = (v: number, u: string) => (u === "R$" ? brl(v) : `${num(v)} ${u}`);
 
@@ -413,8 +418,40 @@ function FechamentoMensalPage() {
                   });
           }
 
-          // ---------- Slides — Top 10 por módulo (Dispersão, Testes, FEFO) ----------
-          const ordemModulosTop10 = ["Dispersão de Lote (identificadas)", "Mapeamento de Testes Operacionais", "Controle de FEFO"];
+          // ---------- Slide — Top 10: Testes Operacionais (matéria-prima) ----------
+          if (top10Testes.length > 0) {
+                  const s3d = pptx.addSlide();
+                  s3d.background = { color: "FFFFFF" };
+                  s3d.addText("Top 10 — Mapeamento de Testes Operacionais", { x: 0.5, y: 0.3, w: 9, h: 0.5, fontFace: "Cambria", fontSize: 22, bold: true, color: NAVY });
+                  s3d.addText("Matéria-prima consumida nos testes industriais, por custo operacional", { x: 0.5, y: 0.75, w: 9, h: 0.3, fontFace: "Calibri", fontSize: 11, color: CINZA });
+                  const headTestes = ["#", "OP", "Código", "Descrição", "Qtd", "Custo"].map((t, i) => ({
+                            text: t, options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 9, align: (i === 0 || i >= 4 ? "center" : "left") as const },
+                  }));
+                  const totalTestes = top10Testes.reduce((s, r) => s + (r.custo_operacional ?? 0), 0);
+                  const corpoTestes = top10Testes.map((r, i) => {
+                            const bg = i % 2 === 0 ? LIGHTBG : "FFFFFF";
+                            const base = { fill: { color: bg }, color: "2B2B2B", fontFace: "Calibri", fontSize: 9 };
+                            return [
+                              { text: String(i + 1), options: { ...base, align: "center" as const } },
+                              { text: r.numero_op ?? "—", options: base },
+                              { text: r.material ?? "—", options: base },
+                              { text: r.desc_material ?? "—", options: base },
+                              { text: `${num(r.quantidade ?? 0)} ${r.unidade ?? ""}`, options: { ...base, align: "center" as const } },
+                              { text: brl(r.custo_operacional ?? 0), options: { ...base, align: "center" as const, bold: true, color: NAVY } },
+                                      ];
+                  });
+                  corpoTestes.push([
+                    { text: "Total", options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 9, colspan: 5 } } as any,
+                    { text: brl(totalTestes), options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 9, align: "center" as const } },
+          ]);
+          s3d.addTable([headTestes, ...corpoTestes], {
+                  x: 0.3, y: 1.15, w: 9.4, colW: [0.35, 0.85, 1.4, 4.4, 1.2, 1.2],
+                  border: { type: "none" }, autoPage: false,
+          });
+          }
+
+          // ---------- Slides — Top 10 por módulo (Dispersão, FEFO) ----------
+          const ordemModulosTop10 = ["Dispersão de Lote (identificadas)", "Controle de FEFO"];
           for (const modNome of ordemModulosTop10) {
                   const linhasModulo = top10Geral.filter((r) => r.modulo === modNome).sort((a, b) => a.rnk - b.rnk);
                   if (!linhasModulo.length) continue;
