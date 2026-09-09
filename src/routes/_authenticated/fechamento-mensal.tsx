@@ -229,10 +229,11 @@ function FechamentoMensalPage() {
           const valorTxt = (l: LinhaResumo) =>
                   l.unidade_valor === "R$" ? brl(l.valor_ou_quantidade) : `${num(l.valor_ou_quantidade)} ${l.unidade_valor}`;
 
-          const [pnlQ, top10LoteQ, top10GeralQ] = await Promise.all([
+          const [pnlQ, top10LoteQ, top10GeralQ, top10BaixasQ] = await Promise.all([
                   (supabase as any).rpc("fechamento_pnl_shelf_life", { data_inicio: periodo.inicio, data_fim: periodo.fim }),
                   (supabase as any).rpc("fechamento_top10_lote", { data_inicio: periodo.inicio, data_fim: periodo.fim }),
                   (supabase as any).rpc("fechamento_top10_geral", { data_inicio: periodo.inicio, data_fim: periodo.fim }),
+                  (supabase as any).rpc("fechamento_top10_baixas", { data_inicio: periodo.inicio, data_fim: periodo.fim }),
                 ]);
           const pnl = ((pnlQ.data ?? [])[0] ?? null) as {
                   qtd_acoes: number; custo_total: number; receita_recuperada: number;
@@ -244,6 +245,10 @@ function FechamentoMensalPage() {
           }>;
           const top10Geral = (top10GeralQ.data ?? []) as Array<{
                   modulo: string; rnk: number; item: string; detalhe: string; valor: number; unidade: string;
+          }>;
+          const top10Baixas = (top10BaixasQ.data ?? []) as Array<{
+                  codigo_produto: string; descricao: string; lote: string; almoxarifado: string | null;
+                  motivo: string | null; solicitante: string | null; valor_total: number; data_evento: string;
           }>;
           const valGeral = (v: number, u: string) => (u === "R$" ? brl(v) : `${num(v)} ${u}`);
 
@@ -381,8 +386,35 @@ function FechamentoMensalPage() {
                   });
           }
 
-          // ---------- Slides — Top 10 por módulo (Baixas, Dispersão, Testes, FEFO) ----------
-          const ordemModulosTop10 = ["Baixas Operacionais", "Dispersão de Lote (identificadas)", "Mapeamento de Testes Operacionais", "Controle de FEFO"];
+          // ---------- Slide — Top 10: Baixas Operacionais ----------
+          if (top10Baixas.length > 0) {
+                  const s3c = pptx.addSlide();
+                  s3c.background = { color: "FFFFFF" };
+                  s3c.addText("Top 10 — Baixas Operacionais", { x: 0.5, y: 0.3, w: 9, h: 0.5, fontFace: "Cambria", fontSize: 22, bold: true, color: NAVY });
+                  s3c.addText("Maiores baixas do período, com motivo, almoxarifado e solicitante", { x: 0.5, y: 0.75, w: 9, h: 0.3, fontFace: "Calibri", fontSize: 11, color: CINZA });
+                  const headBaixas = ["#", "Produto", "Lote / Almox.", "Motivo", "Solicitante", "Valor"].map((t, i) => ({
+                            text: t, options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 9, align: (i === 0 || i === 5 ? "center" : "left") as const },
+                  }));
+                  const corpoBaixas = top10Baixas.map((r, i) => {
+                            const bg = i % 2 === 0 ? LIGHTBG : "FFFFFF";
+                            const base = { fill: { color: bg }, color: "2B2B2B", fontFace: "Calibri", fontSize: 8.5 };
+                            return [
+                              { text: String(i + 1), options: { ...base, align: "center" as const } },
+                              { text: `${r.codigo_produto} — ${r.descricao ?? ""}`, options: base },
+                              { text: `${r.lote ?? "-"} / ${r.almoxarifado ?? "-"}`, options: base },
+                              { text: r.motivo ?? "—", options: base },
+                              { text: r.solicitante ?? "—", options: base },
+                              { text: brl(r.valor_total ?? 0), options: { ...base, align: "center" as const, bold: true, color: NAVY } },
+                                      ];
+                  });
+                  s3c.addTable([headBaixas, ...corpoBaixas], {
+                            x: 0.3, y: 1.15, w: 9.4, colW: [0.35, 2.7, 2.0, 1.9, 1.7, 0.75],
+                            border: { type: "none" }, autoPage: false,
+                  });
+          }
+
+          // ---------- Slides — Top 10 por módulo (Dispersão, Testes, FEFO) ----------
+          const ordemModulosTop10 = ["Dispersão de Lote (identificadas)", "Mapeamento de Testes Operacionais", "Controle de FEFO"];
           for (const modNome of ordemModulosTop10) {
                   const linhasModulo = top10Geral.filter((r) => r.modulo === modNome).sort((a, b) => a.rnk - b.rnk);
                   if (!linhasModulo.length) continue;
