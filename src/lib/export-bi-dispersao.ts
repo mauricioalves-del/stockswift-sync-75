@@ -41,6 +41,7 @@ export type ExportarBIParams = {
     dtAte?: string;
     produto?: string;
     material?: string;
+    op?: string;
     linha?: string;
     classificacao?: string;
     granularidade?: string;

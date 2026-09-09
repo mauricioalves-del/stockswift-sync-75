@@ -95,6 +95,7 @@ function DispersaoPage() {
   const [material, setMaterial] = useState<string>(sp.material ?? "");
   const [produto, setProduto] = useState<string>(sp.produto ?? "");
   const [linha, setLinha] = useState<string>("todas");
+  const [opFiltro, setOpFiltro] = useState<string>("");
   const [classFilter, setClassFilter] = useState<string>("todas");
   const [estruturaFilter, setEstruturaFilter] = useState<string>("todas");
 
@@ -228,10 +229,11 @@ function DispersaoPage() {
     if (material && !r.material.toLowerCase().includes(material.toLowerCase()) && !(r.desc_material ?? "").toLowerCase().includes(material.toLowerCase())) return false;
     if (produto && !(r.produto ?? "").toLowerCase().includes(produto.toLowerCase()) && !(r.desc_produto ?? "").toLowerCase().includes(produto.toLowerCase())) return false;
     if (linha !== "todas" && r.linha_origem !== linha) return false;
+    if (opFiltro && !String(r.id_op ?? "").toLowerCase().includes(opFiltro.toLowerCase())) return false;
     if (classFilter !== "todas" && r.cls !== classFilter) return false;
     if (estruturaFilter !== "todas" && r.estrutura !== estruturaFilter) return false;
     return true;
-  }), [linhas, anoMes, dtDe, dtAte, material, produto, linha, classFilter, estruturaFilter]);
+  }), [linhas, anoMes, dtDe, dtAte, material, produto, linha, opFiltro, classFilter, estruturaFilter]);
 
 
   // Matriz de criticidade (mesma regra da view v_matriz_criticidade, com limiares configuráveis)
@@ -411,7 +413,7 @@ function DispersaoPage() {
                 limFreq,
                 limImpacto,
                 filtrosIniciais: {
-                  dtDe, dtAte, produto, material,
+                  dtDe, dtAte, produto, material, op: opFiltro,
                   linha, classificacao: classFilter, granularidade: granul, estrutura: estruturaFilter,
                 },
               })
@@ -433,7 +435,11 @@ function DispersaoPage() {
 
       {/* Filtros */}
       <Card>
-        <CardContent className="p-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+        <CardContent className="p-4 grid gap-3 md:grid-cols-4 xl:grid-cols-9">
+          <div>
+            <label className="text-xs text-muted-foreground">OP</label>
+            <Input value={opFiltro} onChange={(e) => setOpFiltro(e.target.value)} placeholder="Nº da OP…" />
+          </div>
           <div>
             <label className="text-xs text-muted-foreground">Data inicial</label>
             <Input type="date" value={dtDe} onChange={(e) => setDtDe(e.target.value)} />
