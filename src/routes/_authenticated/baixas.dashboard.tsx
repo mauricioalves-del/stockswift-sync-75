@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/inventory";
+import { fetchAll } from "@/lib/fetch-all";
 import { BarChart3, TrendingUp, AlertTriangle, PackageMinus } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, Cell,
@@ -21,7 +22,14 @@ import { DetalheMotivoBaixasDialog, type DetalheMotivoCtx } from "@/components/b
 
 export const Route = createFileRoute("/_authenticated/baixas/dashboard")({
   component: BaixasDashboard,
-  head: () => ({ meta: [{ title: "Dashboard Baixas Operacionais" }] }),
+  head: () => ({ meta: [
+    { title: "Dashboard Baixas Operacionais — Controle Operacional" },
+    { name: "description", content: "Análise de baixas aprovadas por grupo de produto, motivo, setor e solicitante no Controle Operacional." },
+    { property: "og:title", content: "Dashboard Baixas Operacionais — Controle Operacional" },
+    { property: "og:description", content: "Indicadores e apuração de baixas aprovadas por grupo de produto, motivo e setor." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
 });
 
 // Paleta BI consistente por motivo — cores vivas legíveis em fundo escuro
@@ -123,7 +131,12 @@ function BaixasDashboard() {
 
   const gruposQ = useQuery({
     queryKey: ["grupo-produtos-dash"],
-    queryFn: async () => (await supabase.from("grupo_produtos").select("codigo_produto, grupo")).data ?? [],
+    queryFn: () => fetchAll<{ codigo_produto: string; grupo: string }>((from, to) =>
+      supabase.from("grupo_produtos")
+        .select("codigo_produto, grupo")
+        .order("codigo_produto")
+        .range(from, to),
+    ),
   });
 
   const profilesQ = useQuery({
@@ -373,6 +386,25 @@ function BaixasDashboard() {
 
 
   const loading = baixasQ.isLoading || motivosQ.isLoading;
+
+  // Não apresentar nem exportar classificações parciais durante uma falha ou carga inicial.
+  if (gruposQ.isError || gruposQ.isPending) {
+    return (
+      <div className="w-full space-y-4">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <BarChart3 className="size-6" /> Dashboard Baixas Operacionais
+        </h1>
+        {gruposQ.isError ? (
+          <div role="alert" className="space-y-3 text-destructive">
+            <p>Não foi possível carregar os grupos de produtos. Os indicadores não foram exibidos para evitar classificações incompletas.</p>
+            <Button variant="outline" onClick={() => gruposQ.refetch()} disabled={gruposQ.isFetching}>
+              {gruposQ.isFetching ? "Tentando novamente…" : "Tentar novamente"}
+            </Button>
+          </div>
+        ) : <p role="status" className="text-muted-foreground">Carregando grupos de produtos…</p>}
+      </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-4" id="dash-baixas">
