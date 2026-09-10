@@ -474,8 +474,19 @@ function BaixasDashboard() {
               ))}
             </select>
           </div>
-          {(almoxFilter !== "__all__" || motivoFilter !== "__all__") && (
-            <Button variant="ghost" size="sm" onClick={() => { setAlmoxFilter("__all__"); setMotivoFilter("__all__"); }}>Limpar</Button>
+          <div>
+            <Label className="text-xs">Grupo</Label>
+            <MultiSelect
+              options={view.grupoList.map((g) => ({ value: g, label: g }))}
+              value={grupoFilter}
+              onChange={setGrupoFilter}
+              placeholder="Filtrar grupos…"
+              allLabel="Todos"
+              className="w-56"
+            />
+          </div>
+          {(almoxFilter !== "__all__" || motivoFilter !== "__all__" || grupoFilter.length > 0) && (
+            <Button variant="ghost" size="sm" onClick={() => { setAlmoxFilter("__all__"); setMotivoFilter("__all__"); setGrupoFilter([]); }}>Limpar</Button>
           )}
         </div>
       </div>
