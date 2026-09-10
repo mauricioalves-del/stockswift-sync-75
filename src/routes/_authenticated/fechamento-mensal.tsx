@@ -237,8 +237,8 @@ function FechamentoMensalPage() {
                   (supabase as any).rpc("fechamento_top10_testes", { data_inicio: periodo.inicio, data_fim: periodo.fim }),
                 ]);
           const pnl = ((pnlQ.data ?? [])[0] ?? null) as {
-                  qtd_acoes: number; custo_total: number; receita_recuperada: number;
-                  valor_recuperado_total: number; lucro_operacional: number; roi_operacional: number | null;
+                  qtd_acoes_abertas: number; perda_estimada: number; qtd_baixas_vencimento: number; perda_real: number;
+                  qtd_concluidas: number; valor_recuperado: number; saving_recuperado: number; roi_operacional: number | null;
           } | null;
           const top10Lote = (top10LoteQ.data ?? []) as Array<{
                   sku: string; descricao: string; lote: string; almoxarifado: string; tipo_acao: string | null;
@@ -324,15 +324,15 @@ function FechamentoMensalPage() {
           const s3 = pptx.addSlide();
           s3.background = { color: "FFFFFF" };
           s3.addText("Resultado Financeiro — Shelf Life", { x: 0.5, y: 0.3, w: 9, h: 0.55, fontFace: "Cambria", fontSize: 26, bold: true, color: NAVY });
-          if (pnl && pnl.qtd_acoes > 0) {
-                  s3.addText(`${num(pnl.qtd_acoes)} ações concluídas no período — o que estava em risco x o que foi realmente recuperado`, {
+          if (pnl && pnl.qtd_acoes_abertas > 0) {
+                  s3.addText(`${num(pnl.qtd_acoes_abertas)} ações abertas no período — do risco estimado ao que foi realmente recuperado`, {
                             x: 0.5, y: 0.85, w: 9, h: 0.35, fontFace: "Calibri", fontSize: 12, color: CINZA,
                   });
                   const pnlCards: Array<[string, string, string, string]> = [
-                            ["Custo estimado de perda", brl(pnl.custo_total), CORAL, "Valor em risco nas ações"],
-                            ["Valor recuperado real", brl(pnl.valor_recuperado_total), TEAL, "Receita + perda evitada"],
-                            ["Lucro operacional", brl(pnl.lucro_operacional), NAVY, "Recuperado − custo da ação"],
-                            ["ROI operacional", pnl.roi_operacional === null ? "—" : `${num(pnl.roi_operacional)}%`, AMBER, "Lucro ÷ custo da ação"],
+                            ["Perda estimada", brl(pnl.perda_estimada), CORAL, "Custo de todas as ações abertas no período"],
+                            ["Perda real", brl(pnl.perda_real), AMBER, "Baixas aprovadas por vencimento no período"],
+                            ["Valor recuperado", brl(pnl.valor_recuperado), TEAL, "Resultado das ações concluídas"],
+                            ["Saving recuperado", brl(pnl.saving_recuperado), NAVY, "Lucro real: recuperado − custo"],
                           ];
                   pnlCards.forEach(([rot, val, cor, dica], i) => {
                             const x = 0.5 + i * 2.28;
@@ -341,12 +341,12 @@ function FechamentoMensalPage() {
                             s3.addText(rot, { x: x + 0.1, y: 1.75, w: 1.9, h: 0.3, fontFace: "Calibri", fontSize: 9, bold: true, color: NAVY });
                             s3.addText(dica, { x: x + 0.1, y: 2.0, w: 1.9, h: 0.35, fontFace: "Calibri", fontSize: 7.5, color: CINZA });
                   });
-                  s3.addText("Composição do valor recuperado", { x: 0.5, y: 2.65, w: 6, h: 0.3, fontFace: "Calibri", fontSize: 13, bold: true, color: NAVY });
+                  s3.addText("Perda estimada x perda real x valor recuperado x saving", { x: 0.5, y: 2.65, w: 8, h: 0.3, fontFace: "Calibri", fontSize: 13, bold: true, color: NAVY });
                   s3.addChart(pptx.ChartType.bar, [
                     {
                                 name: "Valor",
-                                labels: ["Receita conquistada (vendas)", "Perda evitada (demais categorias)", "Custo da ação"],
-                                values: [pnl.receita_recuperada, Math.max(pnl.valor_recuperado_total - pnl.receita_recuperada, 0), pnl.custo_total],
+                                labels: ["Perda estimada", "Perda real", "Valor recuperado", "Saving recuperado"],
+                                values: [pnl.perda_estimada, pnl.perda_real, pnl.valor_recuperado, pnl.saving_recuperado],
                     },
                           ], {
                             x: 0.5, y: 3.0, w: 9, h: 1.9,
@@ -357,7 +357,7 @@ function FechamentoMensalPage() {
                             valAxisHidden: true,
                   });
           } else {
-                  s3.addText("Nenhuma ação de Shelf Life foi concluída no período — sem resultado financeiro a apurar.", {
+                  s3.addText("Nenhuma ação de Shelf Life foi aberta no período — sem resultado financeiro a apurar.", {
                             x: 0.5, y: 1.2, w: 9, h: 0.5, fontFace: "Calibri", fontSize: 13, color: CINZA,
                   });
           }
