@@ -174,10 +174,14 @@ function BaixasDashboard() {
     const profiles = profilesQ.data ?? [];
     const alertas = alertasQ.data ?? [];
 
-    const baixas = baixasRaw.filter((b) =>
-      (almoxFilter === "__all__" || (b.id_local ?? "—") === almoxFilter) &&
-      (motivoFilter === "__all__" || b.motivo_baixa_id === motivoFilter)
-    );
+    const baixas = baixasRaw.filter((b) => {
+      const g = grupoDe.get(b.codigo_produto) || b.categoria || "Sem grupo";
+      return (
+        (almoxFilter === "__all__" || (b.id_local ?? "—") === almoxFilter) &&
+        (motivoFilter === "__all__" || b.motivo_baixa_id === motivoFilter) &&
+        (grupoFilter.length === 0 || grupoFilter.includes(g))
+      );
+    });
 
     const almoxOptions = [...new Set(baixasRaw.map((b) => b.id_local ?? "—"))].sort();
     const motivoOptions = [...new Set(baixasRaw.map((b) => b.motivo_baixa_id).filter(Boolean))] as string[];
