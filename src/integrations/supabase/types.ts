@@ -713,6 +713,7 @@ export type Database = {
           id: string
           material: string | null
           producao_consumo_id: string | null
+          responsaveis_ids: string[]
           responsavel: string | null
           status: string
           updated_at: string
@@ -728,6 +729,7 @@ export type Database = {
           id?: string
           material?: string | null
           producao_consumo_id?: string | null
+          responsaveis_ids?: string[]
           responsavel?: string | null
           status?: string
           updated_at?: string
@@ -743,6 +745,7 @@ export type Database = {
           id?: string
           material?: string | null
           producao_consumo_id?: string | null
+          responsaveis_ids?: string[]
           responsavel?: string | null
           status?: string
           updated_at?: string
@@ -3265,12 +3268,14 @@ export type Database = {
       fechamento_pnl_shelf_life: {
         Args: { data_fim: string; data_inicio: string }
         Returns: {
-          custo_total: number
-          lucro_operacional: number
-          qtd_acoes: number
-          receita_recuperada: number
+          perda_estimada: number
+          perda_real: number
+          qtd_acoes_abertas: number
+          qtd_baixas_vencimento: number
+          qtd_concluidas: number
           roi_operacional: number
-          valor_recuperado_total: number
+          saving_recuperado: number
+          valor_recuperado: number
         }[]
       }
       fechamento_top10_baixas: {
