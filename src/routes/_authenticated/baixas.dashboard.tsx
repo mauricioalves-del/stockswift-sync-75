@@ -173,6 +173,7 @@ function BaixasDashboard() {
     const grupos = gruposQ.data ?? [];
     const profiles = profilesQ.data ?? [];
     const alertas = alertasQ.data ?? [];
+    const grupoDe = new Map(grupos.map((g) => [g.codigo_produto, g.grupo]));
 
     const baixas = baixasRaw.filter((b) => {
       const g = grupoDe.get(b.codigo_produto) || b.categoria || "Sem grupo";
@@ -189,7 +190,6 @@ function BaixasDashboard() {
 
     const motivoNome = new Map(motivos.map((m) => [m.id, m.descricao]));
     const motivoClassif = new Map(classifs.map((c) => [c.motivo_baixa_id, c.classificacao]));
-    const grupoDe = new Map(grupos.map((g) => [g.codigo_produto, g.grupo]));
     const nomeUsuario = new Map(profiles.map((p) => [p.id, p.nome || p.email || p.id.slice(0, 8)]));
 
     // Cor estável por motivo
