@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { formatBRL } from "@/lib/inventory";
 import { fetchAll } from "@/lib/fetch-all";
 import { BarChart3, TrendingUp, AlertTriangle, PackageMinus } from "lucide-react";
