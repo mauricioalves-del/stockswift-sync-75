@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { formatBRL } from "@/lib/inventory";
 import { fetchAll } from "@/lib/fetch-all";
 import { BarChart3, TrendingUp, AlertTriangle, PackageMinus } from "lucide-react";
@@ -98,6 +99,7 @@ function BaixasDashboard() {
   const [to, setTo] = useState<string>(todayISO());
   const [almoxFilter, setAlmoxFilter] = useState<string>("__all__");
   const [motivoFilter, setMotivoFilter] = useState<string>("__all__");
+  const [grupoFilter, setGrupoFilter] = useState<string[]>([]);
   const [detalheMotivo, setDetalheMotivo] = useState<DetalheMotivoCtx | null>(null);
 
 
@@ -172,10 +174,14 @@ function BaixasDashboard() {
     const profiles = profilesQ.data ?? [];
     const alertas = alertasQ.data ?? [];
 
-    const baixas = baixasRaw.filter((b) =>
-      (almoxFilter === "__all__" || (b.id_local ?? "—") === almoxFilter) &&
-      (motivoFilter === "__all__" || b.motivo_baixa_id === motivoFilter)
-    );
+    const baixas = baixasRaw.filter((b) => {
+      const g = grupoDe.get(b.codigo_produto) || b.categoria || "Sem grupo";
+      return (
+        (almoxFilter === "__all__" || (b.id_local ?? "—") === almoxFilter) &&
+        (motivoFilter === "__all__" || b.motivo_baixa_id === motivoFilter) &&
+        (grupoFilter.length === 0 || grupoFilter.includes(g))
+      );
+    });
 
     const almoxOptions = [...new Set(baixasRaw.map((b) => b.id_local ?? "—"))].sort();
     const motivoOptions = [...new Set(baixasRaw.map((b) => b.motivo_baixa_id).filter(Boolean))] as string[];
@@ -334,14 +340,16 @@ function BaixasDashboard() {
     const almoxList = almoxOptions;
     const motivoList = motivoOptions.map((id) => ({ id, nome: motivoNome.get(id) ?? id }))
       .sort((a, b) => a.nome.localeCompare(b.nome));
+    const grupoList = [...new Set(baixasRaw.map((b) => grupoDe.get(b.codigo_produto) || b.categoria || "Sem grupo"))]
+      .sort((a, b) => a.localeCompare(b));
 
     return {
       totalPrejuizo, motivoDestaqueNome, motivoDestaquePct, setorTop, grupoTop,
       kpiMotivos, rankingSKU, funil, grupoStack, setorStack, rankingSetor,
       tabelaMotivo, rankingSolic, motivosKeys,
-      almoxList, motivoList,
+      almoxList, motivoList, grupoList,
     };
-  }, [baixasQ.data, motivosQ.data, classifQ.data, gruposQ.data, profilesQ.data, alertasQ.data, almoxFilter, motivoFilter]);
+  }, [baixasQ.data, motivosQ.data, classifQ.data, gruposQ.data, profilesQ.data, alertasQ.data, almoxFilter, motivoFilter, grupoFilter]);
 
 
   const mom = useMemo(() => {
@@ -416,6 +424,7 @@ function BaixasDashboard() {
             { label: "Período", valor: `${from} a ${to}` },
             { label: "Almoxarifado", valor: almoxFilter === "__all__" ? "Todos" : almoxFilter },
             { label: "Motivo", valor: motivoFilter === "__all__" ? "Todos" : motivoFilter },
+            { label: "Grupo", valor: grupoFilter.length === 0 ? "Todos" : grupoFilter.join(", ") },
           ]}
         />
       </div>
@@ -465,8 +474,19 @@ function BaixasDashboard() {
               ))}
             </select>
           </div>
-          {(almoxFilter !== "__all__" || motivoFilter !== "__all__") && (
-            <Button variant="ghost" size="sm" onClick={() => { setAlmoxFilter("__all__"); setMotivoFilter("__all__"); }}>Limpar</Button>
+          <div>
+            <Label className="text-xs">Grupo</Label>
+            <MultiSelect
+              options={view.grupoList.map((g) => ({ value: g, label: g }))}
+              value={grupoFilter}
+              onChange={setGrupoFilter}
+              placeholder="Filtrar grupos…"
+              allLabel="Todos"
+              className="w-56"
+            />
+          </div>
+          {(almoxFilter !== "__all__" || motivoFilter !== "__all__" || grupoFilter.length > 0) && (
+            <Button variant="ghost" size="sm" onClick={() => { setAlmoxFilter("__all__"); setMotivoFilter("__all__"); setGrupoFilter([]); }}>Limpar</Button>
           )}
         </div>
       </div>
