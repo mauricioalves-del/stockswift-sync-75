@@ -340,14 +340,16 @@ function BaixasDashboard() {
     const almoxList = almoxOptions;
     const motivoList = motivoOptions.map((id) => ({ id, nome: motivoNome.get(id) ?? id }))
       .sort((a, b) => a.nome.localeCompare(b.nome));
+    const grupoList = [...new Set(baixasRaw.map((b) => grupoDe.get(b.codigo_produto) || b.categoria || "Sem grupo"))]
+      .sort((a, b) => a.localeCompare(b));
 
     return {
       totalPrejuizo, motivoDestaqueNome, motivoDestaquePct, setorTop, grupoTop,
       kpiMotivos, rankingSKU, funil, grupoStack, setorStack, rankingSetor,
       tabelaMotivo, rankingSolic, motivosKeys,
-      almoxList, motivoList,
+      almoxList, motivoList, grupoList,
     };
-  }, [baixasQ.data, motivosQ.data, classifQ.data, gruposQ.data, profilesQ.data, alertasQ.data, almoxFilter, motivoFilter]);
+  }, [baixasQ.data, motivosQ.data, classifQ.data, gruposQ.data, profilesQ.data, alertasQ.data, almoxFilter, motivoFilter, grupoFilter]);
 
 
   const mom = useMemo(() => {
