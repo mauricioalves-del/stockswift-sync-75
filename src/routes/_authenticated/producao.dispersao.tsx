@@ -235,6 +235,21 @@ function DispersaoPage() {
     return true;
   }), [linhas, anoMes, dtDe, dtAte, material, produto, linha, opFiltro, classFilter, estruturaFilter]);
 
+  // Lista Detalhada: agrupa por OP e ordena os grupos pelo desvio total (maior para menor).
+  const filtradasOrdenadas = useMemo(() => {
+    const totalPorOp = new Map<string, number>();
+    for (const r of filtradas) {
+      totalPorOp.set(r.id_op, (totalPorOp.get(r.id_op) ?? 0) + Math.abs(r.impacto));
+    }
+    return [...filtradas].sort((a, b) => {
+      const totalA = totalPorOp.get(a.id_op) ?? 0;
+      const totalB = totalPorOp.get(b.id_op) ?? 0;
+      if (totalB !== totalA) return totalB - totalA;
+      if (a.id_op !== b.id_op) return String(a.id_op).localeCompare(String(b.id_op));
+      return Math.abs(b.impacto) - Math.abs(a.impacto);
+    });
+  }, [filtradas]);
+
 
   // Matriz de criticidade (mesma regra da view v_matriz_criticidade, com limiares configuráveis)
   const matriz = useMemo(() => {
@@ -729,7 +744,7 @@ function DispersaoPage() {
 
         {/* ============ LISTA ============ */}
         <TabsContent value="lista" className="space-y-2">
-          <div className="text-sm text-muted-foreground">{filtradas.length} linhas</div>
+          <div className="text-sm text-muted-foreground">{filtradasOrdenadas.length} linhas</div>
           <div className="border rounded-md max-h-[65vh] overflow-auto">
             <Table>
               <TableHeader>
@@ -749,7 +764,7 @@ function DispersaoPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtradas.slice(0, 500).map((r) => (
+                {filtradasOrdenadas.slice(0, 500).map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="whitespace-nowrap">{r.data ? r.data.split("-").reverse().join("/") : "—"}</TableCell>
                     <TableCell>{r.id_op}</TableCell>
@@ -779,8 +794,8 @@ function DispersaoPage() {
                     <TableCell><EstruturaBadge situacao={r.estrutura} /></TableCell>
                   </TableRow>
                 ))}
-                {filtradas.length > 500 && (
-                  <TableRow><TableCell colSpan={12} className="text-center text-xs text-muted-foreground">Exibindo 500 de {filtradas.length}. Refine os filtros.</TableCell></TableRow>
+                {filtradasOrdenadas.length > 500 && (
+                  <TableRow><TableCell colSpan={12} className="text-center text-xs text-muted-foreground">Exibindo 500 de {filtradasOrdenadas.length}. Refine os filtros.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
