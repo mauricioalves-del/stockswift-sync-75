@@ -16,12 +16,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
 import {
   percentualDispersao, classificar, custoDesvio, badgeCor, labelClass, fmtBRL,
   CAUSAS, FAIXAS_DEFAULT, type Faixas,
 } from "@/lib/dispersao";
-import { ArrowLeft, ClipboardList, Tag } from "lucide-react";
+import { ArrowLeft, Check, ChevronsUpDown, ClipboardList, Tag } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/producao/material/$material")({
   validateSearch: (s: Record<string, unknown>): { pc?: string } =>
@@ -246,48 +248,57 @@ function CausaDialog({ row, onClose, onSaved }: { row: any | null; onClose: () =
 
 function AcaoDialog({ row, material, onClose, onSaved }: { row: any | null; material: string; onClose: () => void; onSaved: () => void }) {
   const [descricao, setDescricao] = useState("");
-  const [responsavelId, setResponsavelId] = useState("");
+  const [responsavelIds, setResponsavelIds] = useState<string[]>([]);
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const usuarios = useUsuariosSistema();
   const notificar = useServerFn(notificarTarefaAtribuida);
   if (!row) return null;
 
+  const selecionados = (usuarios.data ?? []).filter((u) => responsavelIds.includes(u.id));
+
   async function salvar() {
     if (!descricao.trim()) { toast.error("Descreva a ação"); return; }
-    if (!responsavelId) { toast.error("Selecione o responsável"); return; }
+    if (!responsavelIds.length) { toast.error("Selecione ao menos um responsável"); return; }
     setBusy(true);
     try {
       const { data: u } = await supabase.auth.getUser();
-      const resp = (usuarios.data ?? []).find((x) => x.id === responsavelId);
+      const nomes = selecionados.map((r) => r.nome).join(", ");
       const { data: acao, error } = await (supabase as any).from("dispersao_acoes_corretivas").insert({
         producao_consumo_id: row.id, material, ano_mes: row.ano_mes,
-        descricao_acao: descricao, responsavel: resp?.nome ?? null,
+        descricao_acao: descricao, responsavel: nomes || null, responsaveis_ids: responsavelIds,
         status: "IDENTIFICADA", aberto_por: u.user?.id ?? null,
       }).select("id").single();
       if (error) throw error;
 
       const link = `/producao/material/${encodeURIComponent(material)}?pc=${row.id}`;
-      const { data: tarefa, error: errT } = await (supabase as any).from("tarefas_operacionais").insert({
-        titulo: `Ação corretiva — Material ${material} · OP ${row.id_op}`,
-        descricao: `${descricao}\n\nPeríodo ${row.ano_mes} · Consumo ${Number(row.qtd_consumo).toFixed(2)} vs Previsto ${Number(row.qtd_previsto).toFixed(2)}`,
-        prioridade: "Alta",
-        data_prevista: new Date().toISOString().slice(0, 10),
-        recorrencia: "Unica",
-        responsavel_tipo: "Pessoa",
-        responsavel_id: responsavelId,
-        responsavel_label: resp?.nome ?? null,
-        sku_ou_local: material,
-        link_rota: link,
-        status: "Pendente",
-        criado_por: u.user?.id ?? null,
-        observacao: `Ação corretiva #${(acao as any)?.id ?? ""}`,
-      }).select("id").single();
-      if (errT) throw errT;
+      const falhasEmail: string[] = [];
+      for (const respId of responsavelIds) {
+        const resp = (usuarios.data ?? []).find((x) => x.id === respId);
+        const { data: tarefa, error: errT } = await (supabase as any).from("tarefas_operacionais").insert({
+          titulo: `Ação corretiva — Material ${material} · OP ${row.id_op}`,
+          descricao: `${descricao}\n\nPeríodo ${row.ano_mes} · Consumo ${Number(row.qtd_consumo).toFixed(2)} vs Previsto ${Number(row.qtd_previsto).toFixed(2)}`,
+          prioridade: "Alta",
+          data_prevista: new Date().toISOString().slice(0, 10),
+          recorrencia: "Unica",
+          responsavel_tipo: "Pessoa",
+          responsavel_id: respId,
+          responsavel_label: resp?.nome ?? null,
+          sku_ou_local: material,
+          link_rota: link,
+          status: "Pendente",
+          criado_por: u.user?.id ?? null,
+          observacao: `Ação corretiva #${(acao as any)?.id ?? ""}`,
+        }).select("id").single();
+        if (errT) throw errT;
 
-      try { await notificar({ data: { tarefaId: (tarefa as any).id } }); }
-      catch { toast.warning("Tarefa criada, mas o e-mail não pôde ser enviado."); }
+        try { await notificar({ data: { tarefaId: (tarefa as any).id } }); }
+        catch { falhasEmail.push(resp?.nome ?? respId); }
+      }
 
-      toast.success("Ação corretiva aberta e tarefa atribuída"); onSaved();
+      toast.success("Ação corretiva aberta e tarefa(s) atribuída(s)");
+      if (falhasEmail.length) toast.warning(`Tarefa criada, mas o e-mail não pôde ser enviado para: ${falhasEmail.join(", ")}.`);
+      onSaved();
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   }
 
@@ -302,17 +313,51 @@ function AcaoDialog({ row, material, onClose, onSaved }: { row: any | null; mate
             <Textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={4} placeholder="Ex.: Recalibrar balança da linha X..." />
           </div>
           <div>
-            <label className="text-xs">Responsável</label>
-            <Select value={responsavelId} onValueChange={setResponsavelId}>
-              <SelectTrigger><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
-              <SelectContent>
-                {(usuarios.data ?? []).map((u) => (
-                  <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <label className="text-xs">Responsáveis</label>
+            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={popoverOpen}
+                  className="w-full justify-between font-normal"
+                >
+                  {selecionados.length
+                    ? selecionados.map((r) => r.nome).join(", ")
+                    : "Selecione os responsáveis"}
+                  <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar usuário..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum usuário encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {(usuarios.data ?? []).map((u) => {
+                        const marcado = responsavelIds.includes(u.id);
+                        return (
+                          <CommandItem
+                            key={u.id}
+                            value={u.nome}
+                            onSelect={() => {
+                              setResponsavelIds((cur) =>
+                                marcado ? cur.filter((id) => id !== u.id) : [...cur, u.id],
+                              );
+                            }}
+                          >
+                            <Check className={`mr-2 size-4 ${marcado ? "opacity-100" : "opacity-0"}`} />
+                            {u.nome}{u.email ? ` · ${u.email}` : ""}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <p className="text-[11px] text-muted-foreground mt-1">
-              Uma tarefa será criada para o responsável, com link direto para esta linha, e um e-mail será enviado.
+              Uma tarefa será criada para cada responsável selecionado, com link direto para esta linha, e um e-mail será enviado a cada um.
             </p>
           </div>
         </div>
