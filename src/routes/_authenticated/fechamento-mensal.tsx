@@ -425,7 +425,7 @@ function FechamentoMensalPage() {
                   s3d.addText("Top 10 — Mapeamento de Testes Operacionais", { x: 0.5, y: 0.3, w: 9, h: 0.5, fontFace: "Cambria", fontSize: 22, bold: true, color: NAVY });
                   s3d.addText("Matéria-prima consumida nos testes industriais, por custo operacional", { x: 0.5, y: 0.75, w: 9, h: 0.3, fontFace: "Calibri", fontSize: 11, color: CINZA });
                   const headTestes = ["#", "OP", "Código", "Descrição", "Qtd", "Custo"].map((t, i) => ({
-                            text: t, options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 9, align: (i === 0 || i >= 4 ? "center" : "left") as const },
+                            text: t, options: { fill: { color: ICE }, color: NAVY, bold: true, fontFace: "Calibri", fontSize: 9, align: (i === 0 || i >= 4 ? "center" : "left") as "center" | "left" },
                   }));
                   const totalTestes = top10Testes.reduce((s, r) => s + (r.custo_operacional ?? 0), 0);
                   const corpoTestes = top10Testes.map((r, i) => {
