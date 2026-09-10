@@ -424,6 +424,7 @@ function BaixasDashboard() {
             { label: "Período", valor: `${from} a ${to}` },
             { label: "Almoxarifado", valor: almoxFilter === "__all__" ? "Todos" : almoxFilter },
             { label: "Motivo", valor: motivoFilter === "__all__" ? "Todos" : motivoFilter },
+            { label: "Grupo", valor: grupoFilter.length === 0 ? "Todos" : grupoFilter.join(", ") },
           ]}
         />
       </div>
