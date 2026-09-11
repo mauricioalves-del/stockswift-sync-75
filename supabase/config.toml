@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.solicitar-baixa-fiscal]
 verify_jwt = true
+
+[functions.farol-dispersao-diario]
+verify_jwt = false
