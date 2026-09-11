@@ -8,3 +8,6 @@ verify_jwt = true
 
 [functions.farol-dispersao-diario]
 verify_jwt = false
+
+[functions.farol-fefo-diario]
+verify_jwt = false
