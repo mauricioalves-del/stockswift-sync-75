@@ -80,6 +80,7 @@ function ControleFefoPage() {
   const [produto, setProduto] = useState("");
   const [destino, setDestino] = useState("__all__");
   const [grupo, setGrupo] = useState("__all__");
+  const [status, setStatus] = useState("__all__");
   const [semEmbalagem, setSemEmbalagem] = useState(true);
   const [rodando, setRodando] = useState(false);
 
@@ -149,6 +150,11 @@ function ControleFefoPage() {
     [todas],
   );
 
+  const statusDisponiveis = useMemo(
+    () => Array.from(new Set(todas.map((r) => r.status))).sort(),
+    [todas],
+  );
+
   const embalagensOcultas = useMemo(
     () => (semEmbalagem ? todas.filter((r) => EH_EMBALAGEM(r.grupo)).length : 0),
     [todas, semEmbalagem],
@@ -161,10 +167,11 @@ function ControleFefoPage() {
       if (grupo !== "__all__" && r.grupo !== grupo) return false;
       if (!tudo && (r.data < ini || r.data > fim)) return false;
       if (destino !== "__all__" && r.destino !== destino) return false;
+      if (status !== "__all__" && r.status !== status) return false;
       if (p && !(`${r.id_produto} ${r.descricao}`.toLowerCase().includes(p))) return false;
       return true;
     });
-  }, [todas, ini, fim, tudo, produto, destino, grupo, semEmbalagem]);
+  }, [todas, ini, fim, tudo, produto, destino, grupo, status, semEmbalagem]);
 
   const auditadas = useMemo(() => filtradas.filter((r) => AUDITADO(r.status)), [filtradas]);
 
@@ -296,6 +303,7 @@ function ControleFefoPage() {
         { label: "Período", valor: tudo ? "Todo o histórico" : `${ini} a ${fim}` },
         ...(destino !== "__all__" ? [{ label: "Destino", valor: destino }] : []),
         ...(grupo !== "__all__" ? [{ label: "Grupo", valor: grupo }] : []),
+        ...(status !== "__all__" ? [{ label: "Status", valor: status }] : []),
         ...(produto.trim() ? [{ label: "Produto", valor: produto.trim() }] : []),
         ...(semEmbalagem ? [{ label: "Filtro", valor: "Sem embalagens" }] : []),
       ],
@@ -349,6 +357,8 @@ function ControleFefoPage() {
             <Button variant={!tudo && ini === addDays(fim, -29) ? "default" : "secondary"} size="sm"
               onClick={() => { setTudo(false); setFim(iso(new Date())); setIni(addDays(iso(new Date()), -29)); }}>30 dias</Button>
             <Button variant={tudo ? "default" : "secondary"} size="sm" onClick={() => setTudo(true)}>Tudo</Button>
+            <Button variant={!tudo && ini === fim && ini === addDays(iso(new Date()), -1) ? "default" : "secondary"} size="sm"
+              onClick={() => { setTudo(false); const d1 = addDays(iso(new Date()), -1); setIni(d1); setFim(d1); }}>D-1</Button>
           </div>
           <div className="flex-1 min-w-48">
             <label className="text-xs text-muted-foreground">Produto</label>
@@ -371,6 +381,16 @@ function ControleFefoPage() {
               <SelectContent>
                 <SelectItem value="__all__">Todos os grupos</SelectItem>
                 {gruposDisponiveis.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-52">
+            <label className="text-xs text-muted-foreground">Status</label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todos os status</SelectItem>
+                {statusDisponiveis.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
