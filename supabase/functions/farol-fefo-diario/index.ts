@@ -473,12 +473,41 @@ Deno.serve(async (req) => {
       // ==== Checagens do dia (D-1) ====
       const { data: linhas, error: lerr } = await admin
                      .from("checagens_fefo")
-                     .select("id_produto, descricao, grupo, desc_movimento, desc_almox, destino, doc, lote_movimentado, qtd_movimentado, validade_movimentado, quebra, status, lote_mais_antigo, qtd_lote_mais_antigo, validade_mais_antiga")
+                     .select("id_produto, descricao, desc_movimento, desc_almox, destino, doc, lote_movimentado, qtd_movimentado, validade_movimentado, quebra, status, lote_mais_antigo, qtd_lote_mais_antigo, validade_mais_antiga")
                      .eq("data", dataAlvo);
                    if (lerr) throw lerr;
 
       const todas = linhas ?? [];
                    const auditadas = todas.filter((r: any) => (r.status ?? "") !== NAO_AUDITADO);
+
+    // ==== Grupo do produto (mesma lógica da tela: match exato ou prefixo de 8 dígitos) ====
+    function normCod(v: string): string {
+      const s = String(v ?? "").trim().toUpperCase();
+      return /^\d+$/.test(s) ? s.padStart(8, "0") : s;
+    }
+    const { data: gruposRaw } = await admin.from("grupo_produtos").select("codigo_produto,grupo");
+    const exatoMap = new Map<string, string>();
+    const contagemMap = new Map<string, Map<string, number>>();
+    for (const r of gruposRaw ?? []) {
+      const g = String((r as any).grupo ?? "").trim();
+      if (!g) continue;
+      const cod = normCod((r as any).codigo_produto);
+      exatoMap.set(cod, g);
+      const pre = cod.slice(0, 8);
+      const m = contagemMap.get(pre) ?? new Map<string, number>();
+      m.set(g, (m.get(g) ?? 0) + 1);
+      contagemMap.set(pre, m);
+    }
+    const prefixoMap = new Map<string, string>();
+    for (const [pre, m] of contagemMap) {
+      let melhor = "", n = -1;
+      for (const [g, c] of m) if (c > n) { melhor = g; n = c; }
+      prefixoMap.set(pre, melhor);
+    }
+    function resolveGrupo(codRaw: string): string {
+      const cod = normCod(codRaw);
+      return exatoMap.get(cod) ?? prefixoMap.get(cod.slice(0, 8)) ?? "Sem grupo";
+    }
                    const quebras = auditadas.filter((r: any) => r.quebra === true)
                      .sort((a: any, b: any) => String(a.destino ?? "").localeCompare(String(b.destino ?? "")));
 
@@ -549,7 +578,7 @@ Deno.serve(async (req) => {
         data: dataAlvo,
         id_produto: r.id_produto,
         descricao: r.descricao ?? "",
-        grupo: r.grupo,
+        grupo: resolveGrupo(r.id_produto),
         destino: r.destino || "—",
         desc_movimento: r.desc_movimento ?? "",
         lote_movimentado: r.lote_movimentado ?? "",
