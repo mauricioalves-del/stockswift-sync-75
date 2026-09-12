@@ -45,8 +45,20 @@ function b64url(s: string): string {
     return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+// Base64 padrão (RFC 2045), quebrado em linhas de 76 colunas — para anexos.
+function b64attach(s: string): string {
+  const bytes = new TextEncoder().encode(s);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  const flat = btoa(bin);
+  const lines: string[] = [];
+  for (let i = 0; i < flat.length; i += 76) lines.push(flat.slice(i, i + 76));
+  return lines.join("\r\n");
+}
+
 function buildRawEmail(opts: {
     from?: string | null; to: string[]; subject: string; html: string; replyTo?: string | null;
+    attachment?: { filename: string; content: string; mimeType: string };
 }): string {
     const headers: string[] = [];
     if (opts.from) headers.push(`From: ${opts.from}`);
@@ -55,8 +67,23 @@ function buildRawEmail(opts: {
     const subj = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(opts.subject)))}?=`;
     headers.push(`Subject: ${subj}`);
     headers.push("MIME-Version: 1.0");
-    headers.push('Content-Type: text/html; charset="UTF-8"');
-    const msg = headers.join("\r\n") + "\r\n\r\n" + opts.html;
+
+    if (!opts.attachment) {
+      headers.push('Content-Type: text/html; charset="UTF-8"');
+      const msg = headers.join("\r\n") + "\r\n\r\n" + opts.html;
+      return b64url(msg);
+    }
+
+    const boundary = "----=_farol_fefo_" + crypto.randomUUID().replace(/-/g, "");
+    headers.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+    const bodyPart = `--${boundary}\r\nContent-Type: text/html; charset="UTF-8"\r\n\r\n${opts.html}\r\n`;
+    const attB64 = b64attach(opts.attachment.content);
+    const attPart =
+      `--${boundary}\r\n` +
+      `Content-Type: ${opts.attachment.mimeType}; name="${opts.attachment.filename}"\r\n` +
+      `Content-Disposition: attachment; filename="${opts.attachment.filename}"\r\n` +
+      `Content-Transfer-Encoding: base64\r\n\r\n${attB64}\r\n`;
+    const msg = headers.join("\r\n") + "\r\n\r\n" + bodyPart + attPart + `--${boundary}--`;
     return b64url(msg);
 }
 
