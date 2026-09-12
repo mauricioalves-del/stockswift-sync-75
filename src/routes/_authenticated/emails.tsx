@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { toast } from "sonner";
 import { Mail, Plus, Pencil, X, Check } from "lucide-react";
 
@@ -31,7 +32,8 @@ function EmailsPage() {
   const podeGerir = isAdmin || role === "COORDENADOR_CONTROLE";
   const qc = useQueryClient();
 
-  const [finalidade, setFinalidade] = useState("Baixa Fiscal");
+  const [finalidades, setFinalidades] = useState<string[]>([]);
+  const [novaFinalidade, setNovaFinalidade] = useState("");
   const [email, setEmail] = useState("");
   const [nome, setNome] = useState("");
   const [saving, setSaving] = useState(false);
@@ -50,18 +52,31 @@ function EmailsPage() {
     },
   });
 
+  const finalidadesExistentes = useMemo(
+    () => Array.from(new Set((data ?? []).map((i) => i.finalidade))).sort(),
+    [data],
+  );
+
+  function adicionarNovaFinalidade() {
+    const v = novaFinalidade.trim();
+    if (!v) return;
+    if (!finalidades.includes(v)) setFinalidades((f) => [...f, v]);
+    setNovaFinalidade("");
+  }
+
   async function adicionar() {
-    if (!email.trim() || !finalidade.trim()) return toast.error("Finalidade e e-mail são obrigatórios");
+    if (!email.trim() || finalidades.length === 0) return toast.error("Selecione ao menos uma finalidade e informe o e-mail");
     setSaving(true);
-    const { error } = await (supabase as any).from("cadastro_emails").insert({
-      finalidade: finalidade.trim(),
+    const linhas = finalidades.map((f) => ({
+      finalidade: f,
       email: email.trim().toLowerCase(),
       nome_contato: nome.trim() || null,
-    });
+    }));
+    const { error } = await (supabase as any).from("cadastro_emails").insert(linhas);
     setSaving(false);
     if (error) return toast.error(error.message);
-    setEmail(""); setNome("");
-    toast.success("E-mail cadastrado");
+    setEmail(""); setNome(""); setFinalidades([]);
+    toast.success(`E-mail cadastrado em ${linhas.length} finalidade(s)`);
     qc.invalidateQueries({ queryKey: ["cadastro_emails"] });
   }
 
@@ -105,10 +120,27 @@ function EmailsPage() {
           <CardDescription>Uma finalidade pode ter vários e-mails. Ex.: "Baixa Fiscal".</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 md:grid-cols-[1fr_1.5fr_1fr_auto]">
+          <div className="grid gap-3 md:grid-cols-[1.3fr_1.5fr_1fr_auto]">
             <div>
-              <Label>Finalidade</Label>
-              <Input value={finalidade} onChange={(e) => setFinalidade(e.target.value)} placeholder="Baixa Fiscal" />
+              <Label>Finalidade (uma ou mais)</Label>
+              <MultiSelect
+                options={finalidadesExistentes.map((f) => ({ value: f, label: f }))}
+                value={finalidades}
+                onChange={setFinalidades}
+                placeholder="Selecione as finalidades…"
+              />
+              <div className="flex gap-1 mt-1">
+                <Input
+                  value={novaFinalidade}
+                  onChange={(e) => setNovaFinalidade(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); adicionarNovaFinalidade(); } }}
+                  placeholder="Nova finalidade…"
+                  className="h-8 text-xs"
+                />
+                <Button type="button" size="sm" variant="outline" className="h-8 px-2" onClick={adicionarNovaFinalidade}>
+                  <Plus className="size-3.5" />
+                </Button>
+              </div>
             </div>
             <div>
               <Label>E-mail</Label>
