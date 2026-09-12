@@ -83,11 +83,14 @@ async function sendViaGmail(raw: string): Promise<{ ok: boolean; status: number;
   return { ok: true, status: r.status, body, id: parsed?.id };
 }
 
-// Data-alvo (D-1) no fuso de São Paulo, no formato YYYY-MM-DD.
+// Data-alvo: último dia útil anterior, no fuso de São Paulo (YYYY-MM-DD).
+// Às segundas-feiras, considera a sexta-feira anterior (não o domingo).
 function dataAlvoSaoPaulo(): string {
   const now = new Date();
   const sp = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-  sp.setDate(sp.getDate() - 1);
+  const diaSemana = sp.getDay(); // 0=domingo, 1=segunda, ...
+  const voltar = diaSemana === 1 ? 3 : 1;
+  sp.setDate(sp.getDate() - voltar);
   const y = sp.getFullYear();
   const m = String(sp.getMonth() + 1).padStart(2, "0");
   const d = String(sp.getDate()).padStart(2, "0");
