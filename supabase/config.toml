@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.farol-fefo-diario]
 verify_jwt = false
+
+[functions.farol-shelf-semanal]
+verify_jwt = false
