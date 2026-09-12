@@ -568,12 +568,57 @@ ${corpo}
 <p style="font-size:11px;color:#6b7280">Enviado automaticamente todo dia útil pelo Controle Operacional.</p>
 </body></html>`;
 
+    const linhasBI = itens.map((r: any) => ({
+      numero_op: r.numero_op,
+      produto: r.sku_produto_final,
+      desc_prod: r.desc_prod ?? "",
+      material: r.material,
+      desc_material: r.desc_material ?? "",
+      qtd_consumo: Number(r.qtd_consumo) || 0,
+      qtd_previsto: Number(r.qtd_previsto) || 0,
+      qtd_dif: Number(r.qtd_dif) || 0,
+      impacto: Number(r.impacto_rs) || 0,
+      impactoAbs: Math.abs(Number(r.impacto_rs) || 0),
+      tipo_desvio: r.tipo_desvio ?? "—",
+    }));
+
+    const htmlInterativo = montarHtmlInterativo({
+      titulo: "Dispersão de Lote — Produção",
+      subtitulo: "Ficha Técnica × Consumo real por Ordem de Produção",
+      linhas: linhasBI,
+      dimensoes: [
+        { chave: "tipo_desvio", rotulo: "Tipo de Desvio" },
+        { chave: "material", rotulo: "Material", chaveRotulo: "desc_material" },
+        { chave: "numero_op", rotulo: "OP" },
+      ],
+      medida: { chave: "impactoAbs", rotulo: "Custo Desvio", formato: "brl" },
+      medidaSecundaria: { chave: "qtd_consumo", rotulo: "Consumo", formato: "num" },
+      colunas: [
+        { chave: "numero_op", rotulo: "OP" },
+        { chave: "produto", rotulo: "Produto" },
+        { chave: "desc_prod", rotulo: "Descrição Produto" },
+        { chave: "material", rotulo: "Material" },
+        { chave: "desc_material", rotulo: "Descrição Material" },
+        { chave: "qtd_consumo", rotulo: "Consumo", formato: "num" },
+        { chave: "qtd_previsto", rotulo: "Previsto", formato: "num" },
+        { chave: "qtd_dif", rotulo: "Dif", formato: "num" },
+        { chave: "impacto", rotulo: "Custo Desvio", formato: "brl" },
+        { chave: "tipo_desvio", rotulo: "Tipo" },
+      ],
+      filtrosAtivos: [{ label: "Data", valor: dataAlvoFmt }],
+    });
+
     const raw = buildRawEmail({
       from: FROM_HEADER,
       to: toList,
       replyTo: REPLY_TO,
       subject: `Farol de Dispersão de Lote — ${dataAlvoFmt}${itens.length ? ` (${itens.length} desvio(s))` : ""}`,
       html,
+      attachment: {
+        filename: `${slug("Dispersao de Lote Producao")}_${dataAlvo}.html`,
+        content: htmlInterativo,
+        mimeType: "text/html",
+      },
     });
 
     const r = await sendViaGmail(raw);
