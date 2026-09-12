@@ -105,6 +105,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/logs", label: "Auditoria", icon: ScrollText, role: "admin" },
     ],
   },
+  { to: "/emails", label: "Cadastro de E-mails", icon: Mail, role: "admin" } as NavItem,
   { to: "/config", label: "Configurações", icon: SettingsIcon, role: "admin" } as NavItem,
 ];
 
