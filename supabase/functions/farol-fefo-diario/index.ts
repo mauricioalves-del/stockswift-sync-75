@@ -81,11 +81,10 @@ function buildRawEmail(opts: {
       return { ok: true, status: r.status, body, id: parsed?.id };
   }
 
-// Data-alvo (D-1) no fuso de São Paulo, no formato YYYY-MM-DD.
-function dataAlvoSaoPaulo(): string {
+// Data de HOJE no fuso de São Paulo, no formato YYYY-MM-DD.
+function dataHojeSaoPaulo(): string {
     const now = new Date();
     const sp = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-    sp.setDate(sp.getDate() - 1);
     const y = sp.getFullYear();
     const m = String(sp.getMonth() + 1).padStart(2, "0");
     const d = String(sp.getDate()).padStart(2, "0");
@@ -108,7 +107,7 @@ Deno.serve(async (req) => {
                    }
 
       const body = await req.json().catch(() => ({}));
-                   const dataAlvo: string = (body?.data as string | undefined) || dataAlvoSaoPaulo();
+                   const dataAlvo: string = (body?.data as string | undefined) || dataHojeSaoPaulo();
                    const dataAlvoFmt = new Date(`${dataAlvo}T00:00:00`).toLocaleDateString("pt-BR");
 
       const cfgFrom = await getCfg(admin, "resend_from");
