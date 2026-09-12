@@ -473,7 +473,7 @@ Deno.serve(async (req) => {
       // ==== Checagens do dia (D-1) ====
       const { data: linhas, error: lerr } = await admin
                      .from("checagens_fefo")
-                     .select("id_produto, descricao, desc_movimento, desc_almox, destino, doc, lote_movimentado, qtd_movimentado, validade_movimentado, quebra, status, lote_mais_antigo, qtd_lote_mais_antigo, validade_mais_antiga")
+                     .select("id_produto, descricao, grupo, desc_movimento, desc_almox, destino, doc, lote_movimentado, qtd_movimentado, validade_movimentado, quebra, status, lote_mais_antigo, qtd_lote_mais_antigo, validade_mais_antiga")
                      .eq("data", dataAlvo);
                    if (lerr) throw lerr;
 
@@ -545,12 +545,58 @@ Deno.serve(async (req) => {
       <p style="font-size:11px;color:#6b7280">Enviado automaticamente todo dia útil pelo Controle Operacional.</p>
       </body></html>`;
 
+      const linhasBI = auditadas.map((r: any) => ({
+        data: dataAlvo,
+        id_produto: r.id_produto,
+        descricao: r.descricao ?? "",
+        grupo: r.grupo,
+        destino: r.destino || "—",
+        desc_movimento: r.desc_movimento ?? "",
+        lote_movimentado: r.lote_movimentado ?? "",
+        lote_mais_antigo: r.lote_mais_antigo ?? "",
+        status: r.status,
+        situacao: r.quebra ? "Quebra de FEFO" : String(r.status ?? "").startsWith("OK") ? "OK" : "Inconclusivo",
+        qtd: Number(r.qtd_movimentado) || 0,
+        quebra: r.quebra ? 1 : 0,
+      }));
+
+      const htmlInterativo = montarHtmlInterativo({
+        titulo: "Controle FEFO — Transferências",
+        subtitulo: "Banco embarcado e filtro cruzado entre todos os visuais",
+        linhas: linhasBI,
+        dimensoes: [
+          { chave: "destino", rotulo: "Destino", pizza: true },
+          { chave: "grupo", rotulo: "Grupo" },
+          { chave: "id_produto", rotulo: "Produto", chaveRotulo: "descricao" },
+          { chave: "situacao", rotulo: "Situação" },
+        ],
+        medida: { chave: "quebra", rotulo: "Quebras de FEFO", formato: "num" },
+        medidaSecundaria: { chave: "qtd", rotulo: "Quantidade movimentada", formato: "num" },
+        colunas: [
+          { chave: "id_produto", rotulo: "Código" },
+          { chave: "descricao", rotulo: "Produto" },
+          { chave: "grupo", rotulo: "Grupo" },
+          { chave: "desc_movimento", rotulo: "Movimento" },
+          { chave: "destino", rotulo: "Destino" },
+          { chave: "lote_movimentado", rotulo: "Lote mov." },
+          { chave: "lote_mais_antigo", rotulo: "Lote mais antigo" },
+          { chave: "qtd", rotulo: "Qtd", formato: "num" },
+          { chave: "status", rotulo: "Status" },
+        ],
+        filtrosAtivos: [{ label: "Data", valor: dataAlvoFmt }],
+      });
+
       const raw = buildRawEmail({
               from: FROM_HEADER,
               to: toList,
               replyTo: REPLY_TO,
               subject: `Farol de Controle FEFO — ${dataAlvoFmt}${quebras.length ? ` (${quebras.length} quebra(s))` : ""}`,
               html,
+              attachment: {
+                filename: `${slug("Controle FEFO Transferencias")}_${dataAlvo}.html`,
+                content: htmlInterativo,
+                mimeType: "text/html",
+              },
       });
 
       const r = await sendViaGmail(raw);
