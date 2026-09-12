@@ -11,8 +11,9 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { Mail, Plus, Pencil, X, Check } from "lucide-react";
+import { Mail, Plus, Pencil, X, Check, ListPlus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/emails")({
   component: EmailsPage,
@@ -41,6 +42,9 @@ function EmailsPage() {
   const [editEmail, setEditEmail] = useState("");
   const [editNome, setEditNome] = useState("");
   const [editFinalidade, setEditFinalidade] = useState("");
+  const [addFinId, setAddFinId] = useState<string | null>(null);
+  const [addFinSel, setAddFinSel] = useState<string[]>([]);
+  const [addFinNova, setAddFinNova] = useState("");
 
   const { data } = useQuery({
     queryKey: ["cadastro_emails"],
@@ -56,6 +60,26 @@ function EmailsPage() {
     () => Array.from(new Set((data ?? []).map((i) => i.finalidade))).sort(),
     [data],
   );
+
+  const finalidadesPorEmail = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    for (const d of data ?? []) {
+      const s = m.get(d.email) ?? new Set<string>();
+      s.add(d.finalidade);
+      m.set(d.email, s);
+    }
+    return m;
+  }, [data]);
+
+  async function confirmarAddFinalidade(item: Item) {
+    if (addFinSel.length === 0) return toast.error("Selecione ao menos uma finalidade");
+    const linhas = addFinSel.map((f) => ({ finalidade: f, email: item.email, nome_contato: item.nome_contato }));
+    const { error } = await (supabase as any).from("cadastro_emails").insert(linhas);
+    if (error) return toast.error(error.message);
+    toast.success(`Adicionado a ${linhas.length} finalidade(s)`);
+    setAddFinId(null); setAddFinSel([]); setAddFinNova("");
+    qc.invalidateQueries({ queryKey: ["cadastro_emails"] });
+  }
 
   function adicionarNovaFinalidade() {
     const v = novaFinalidade.trim();
@@ -202,9 +226,43 @@ function EmailsPage() {
                         <Button size="sm" onClick={salvarEdicao}><Check className="size-3.5" /></Button>
                       </div>
                     ) : (
-                      <Button size="sm" variant="ghost" onClick={() => iniciarEdicao(i)}>
-                        <Pencil className="size-3.5" />
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Popover open={addFinId === i.id} onOpenChange={(o) => { if (!o) { setAddFinId(null); setAddFinSel([]); setAddFinNova(""); } }}>
+                          <PopoverTrigger asChild>
+                            <Button size="sm" variant="ghost" title="Adicionar finalidade" onClick={() => { setAddFinId(i.id); setAddFinSel([]); }}>
+                              <ListPlus className="size-3.5" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" className="w-72 space-y-2">
+                            <div className="text-xs font-medium">Adicionar finalidade para {i.email}</div>
+                            <MultiSelect
+                              options={finalidadesExistentes.filter((f) => !(finalidadesPorEmail.get(i.email)?.has(f))).map((f) => ({ value: f, label: f }))}
+                              value={addFinSel}
+                              onChange={setAddFinSel}
+                              placeholder="Selecione…"
+                            />
+                            <div className="flex gap-1">
+                              <Input
+                                value={addFinNova}
+                                onChange={(e) => setAddFinNova(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = addFinNova.trim(); if (v && !addFinSel.includes(v)) setAddFinSel((s) => [...s, v]); setAddFinNova(""); } }}
+                                placeholder="Nova finalidade…"
+                                className="h-8 text-xs"
+                              />
+                              <Button type="button" size="sm" variant="outline" className="h-8 px-2" onClick={() => { const v = addFinNova.trim(); if (v && !addFinSel.includes(v)) setAddFinSel((s) => [...s, v]); setAddFinNova(""); }}>
+                                <Plus className="size-3.5" />
+                              </Button>
+                            </div>
+                            <div className="flex justify-end gap-1 pt-1">
+                              <Button size="sm" variant="outline" onClick={() => setAddFinId(null)}>Cancelar</Button>
+                              <Button size="sm" onClick={() => confirmarAddFinalidade(i)}>Adicionar</Button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                        <Button size="sm" variant="ghost" onClick={() => iniciarEdicao(i)}>
+                          <Pencil className="size-3.5" />
+                        </Button>
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>
