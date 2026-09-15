@@ -12,6 +12,9 @@ verify_jwt = false
 [functions.farol-dispersao-diario-pa]
 verify_jwt = false
 
+[functions.testar-conexao-demendes]
+verify_jwt = false
+
 [functions.farol-fefo-diario]
 verify_jwt = false
 
