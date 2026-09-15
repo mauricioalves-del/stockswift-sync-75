@@ -15,5 +15,8 @@ verify_jwt = false
 [functions.farol-shelf-semanal]
 verify_jwt = false
 
+[functions.farol-shelf-semanal-pa]
+verify_jwt = false
+
 [functions.farol-shelf-semanal]
 verify_jwt = false
