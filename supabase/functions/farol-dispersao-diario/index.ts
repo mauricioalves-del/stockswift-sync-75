@@ -15,7 +15,11 @@ const CORS = {
 };
 
 const GMAIL_GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v1/users/me/messages/send";
-const FINALIDADE = "Farol Dispersão Diário";
+const FINALIDADE = "Farol Dispersão Diário - SP";
+const EMPRESA_ALVO = "Filial SP - Fabrica";
+function empresaOk(v: unknown): boolean {
+  return String(v ?? "").trim().toLowerCase() === EMPRESA_ALVO.trim().toLowerCase();
+}
 
 function json(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -478,12 +482,12 @@ Deno.serve(async (req) => {
     // ==== Dispersões identificadas no dia (mesmo critério do módulo: tipo_desvio <> 'OK') ====
     const { data: linhas, error: lerr } = await admin
       .from("v_impacto_consumo")
-      .select("numero_op, sku_produto_final, desc_prod, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, impacto_rs, tipo_desvio, dt_producao")
+      .select("numero_op, sku_produto_final, desc_prod, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, impacto_rs, tipo_desvio, dt_producao, empresa")
       .eq("dt_producao", dataAlvo)
       .not("tipo_desvio", "eq", "OK");
     if (lerr) throw lerr;
 
-    const itens = (linhas ?? []).filter((r: any) => (r.tipo_desvio ?? "OK") !== "OK");
+    const itens = (linhas ?? []).filter((r: any) => (r.tipo_desvio ?? "OK") !== "OK" && empresaOk(r.empresa));
 
     // Agrupa por OP e ordena pelo desvio total (maior para menor) — mesma regra da Lista Detalhada.
     const totalPorOp = new Map<string, number>();
