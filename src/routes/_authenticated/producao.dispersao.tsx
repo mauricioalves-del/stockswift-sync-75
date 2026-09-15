@@ -98,6 +98,7 @@ function DispersaoPage() {
   const [opFiltro, setOpFiltro] = useState<string>("");
   const [classFilter, setClassFilter] = useState<string>("todas");
   const [estruturaFilter, setEstruturaFilter] = useState<string>("todas");
+  const [empresa, setEmpresa] = useState<string>("todas");
 
 
   const paramsQ = useQuery({
@@ -121,7 +122,7 @@ function DispersaoPage() {
     queryKey: ["dispersao", "v-impacto"],
     queryFn: async (): Promise<Impacto[]> => {
       return fetchAll<Impacto>((from, to) => (supabase as any).from("v_impacto_consumo")
-        .select("id, ano_mes, dt_producao, numero_op, sku_produto_final, desc_prod, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, custo_unit_medio, impacto_rs, tipo_desvio, tem_furo")
+        .select("id, ano_mes, dt_producao, numero_op, sku_produto_final, desc_prod, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, custo_unit_medio, impacto_rs, tipo_desvio, tem_furo, empresa")
         .order("dt_producao", { ascending: false, nullsFirst: false })
         .range(from, to));
     },
@@ -221,6 +222,7 @@ function DispersaoPage() {
   );
   const temSemData = useMemo(() => linhas.some((r) => r.mes === SEM_DATA), [linhas]);
   const linhasOrigem = useMemo(() => Array.from(new Set(linhas.map((r) => r.linha_origem).filter((v): v is string => !!v))).sort(), [linhas]);
+  const empresasDisponiveis = useMemo(() => Array.from(new Set(linhas.map((r) => r.empresa).filter((v): v is string => !!v))).sort(), [linhas]);
 
   const filtradas = useMemo(() => linhas.filter((r) => {
     if (anoMes !== "todos" && r.mes !== anoMes) return false;
@@ -232,8 +234,9 @@ function DispersaoPage() {
     if (opFiltro && !String(r.id_op ?? "").toLowerCase().includes(opFiltro.toLowerCase())) return false;
     if (classFilter !== "todas" && r.cls !== classFilter) return false;
     if (estruturaFilter !== "todas" && r.estrutura !== estruturaFilter) return false;
+    if (empresa !== "todas" && r.empresa !== empresa) return false;
     return true;
-  }), [linhas, anoMes, dtDe, dtAte, material, produto, linha, opFiltro, classFilter, estruturaFilter]);
+  }), [linhas, anoMes, dtDe, dtAte, material, produto, linha, opFiltro, classFilter, estruturaFilter, empresa]);
 
   // Lista Detalhada: agrupa por OP e ordena os grupos pelo desvio total (maior para menor).
   const filtradasOrdenadas = useMemo(() => {
@@ -514,6 +517,16 @@ function DispersaoPage() {
                 <SelectItem value="FORA_FT">Somente fora da estrutura</SelectItem>
                 <SelectItem value="SEM_FT">Somente sem Ficha Técnica</SelectItem>
                 <SelectItem value="NA_FT">Somente na estrutura</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Empresa</label>
+            <Select value={empresa} onValueChange={setEmpresa}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas</SelectItem>
+                {empresasDisponiveis.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
