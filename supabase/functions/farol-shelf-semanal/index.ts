@@ -18,12 +18,7 @@ const CORS = {
 
 const GMAIL_GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v1/users/me/messages/send";
 const FINALIDADE = "Farol de Shelf Semanal";
-const EMPRESA_ALVO = "Filial SP - Fabrica";
 const APP_URL = "https://stockswift-sync-75.lovable.app/shelf-life/farol";
-
-function empresaDeOrigem(o: unknown): string {
-  return /para/i.test(String(o ?? "")) ? "Matriz Para" : "Filial SP - Fabrica";
-}
 
 function json(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -502,7 +497,6 @@ Deno.serve(async (req) => {
       .map((r: any) => {
         const faixa = faixaDeRisco(r.data_validade ?? null, hojeISO);
         if (!faixa) return null;
-        if (empresaDeOrigem(r.origem) !== EMPRESA_ALVO) return null;
         const qtd = Number(r.quantidade) || 0;
         const custo = Number(r.custo_unitario) || 0;
         return {
