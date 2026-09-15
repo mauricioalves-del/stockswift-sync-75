@@ -66,6 +66,7 @@ export type ConsumoRow = {
   qtd_consumo: number; qtd_previsto: number;
   qtd_produzida?: number;
   data_producao?: string | null;
+  empresa?: string;
   status: "OK" | "ERRO"; erros: string[];
 };
 
@@ -192,6 +193,7 @@ export function parseConsumoPlanilha(file: ArrayBuffer): ConsumoRow[] {
       qtd_consumo, qtd_previsto,
       qtd_produzida: qtd_produzida_s ? num(qtd_produzida_s) : undefined,
       data_producao,
+      empresa: pick(r, "Empresa", "empresa") || undefined,
       status: erros.length ? "ERRO" : "OK",
       erros,
     };
