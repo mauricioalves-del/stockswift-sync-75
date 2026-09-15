@@ -467,6 +467,25 @@ function DispersaoPage() {
             <label className="text-xs text-muted-foreground">Data final</label>
             <Input type="date" value={dtAte} onChange={(e) => setDtAte(e.target.value)} />
           </div>
+          <div className="flex flex-col justify-end">
+            <label className="text-xs text-muted-foreground opacity-0">D-1</label>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const hoje = new Date();
+                const diaSemana = hoje.getDay(); // 0=domingo, 1=segunda...
+                const voltar = diaSemana === 1 ? 3 : diaSemana === 0 ? 2 : 1;
+                const d = new Date(hoje);
+                d.setDate(d.getDate() - voltar);
+                const iso = d.toISOString().slice(0, 10);
+                setDtDe(iso);
+                setDtAte(iso);
+              }}
+            >
+              D-1
+            </Button>
+          </div>
           <div>
             <label className="text-xs text-muted-foreground">Mês (Data)</label>
             <Select value={anoMes} onValueChange={setAnoMes}>
