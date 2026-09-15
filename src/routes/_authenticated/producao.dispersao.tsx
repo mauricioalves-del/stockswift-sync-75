@@ -65,6 +65,7 @@ type Impacto = {
   qtd_consumo: number; qtd_previsto: number; qtd_dif: number;
   custo_unit_medio: number | null; impacto_rs: number | null;
   tipo_desvio: "ok" | "perda" | "economia"; tem_furo: boolean;
+  empresa: string | null;
 };
 
 const SEM_DATA = "sem-data";

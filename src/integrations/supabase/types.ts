@@ -2317,6 +2317,7 @@ export type Database = {
           data_producao: string | null
           desc_material: string | null
           desc_produto: string | null
+          empresa: string | null
           id: string
           id_op: string
           material: string
@@ -2335,6 +2336,7 @@ export type Database = {
           data_producao?: string | null
           desc_material?: string | null
           desc_produto?: string | null
+          empresa?: string | null
           id?: string
           id_op: string
           material: string
@@ -2353,6 +2355,7 @@ export type Database = {
           data_producao?: string | null
           desc_material?: string | null
           desc_produto?: string | null
+          empresa?: string | null
           id?: string
           id_op?: string
           material?: string
@@ -3174,6 +3177,7 @@ export type Database = {
           desc_material: string | null
           desc_prod: string | null
           dt_producao: string | null
+          empresa: string | null
           id: string | null
           impacto_rs: number | null
           material: string | null
