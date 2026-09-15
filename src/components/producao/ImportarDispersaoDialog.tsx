@@ -138,7 +138,8 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
             produto: r.produto || null, desc_produto: r.desc_produto || null,
             material: r.material, desc_material: r.desc_material || null,
             um: r.um || null, qtd_consumo: r.qtd_consumo, qtd_previsto: r.qtd_previsto,
-            qtd_produzida: r.qtd_produzida ?? null, data_producao: r.data_producao ?? null, criado_por: uid,
+            qtd_produzida: r.qtd_produzida ?? null, data_producao: r.data_producao ?? null,
+            empresa: r.empresa || null, criado_por: uid,
           });
         }
         const payload = Array.from(agg.values());
