@@ -1,0 +1,310 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, LabelList, Cell,
+} from "recharts";
+
+export const Route = createFileRoute("/_authenticated/suprimentos/risco-obsoletos")({
+  component: RiscoObsoletos,
+  head: () => ({
+    meta: [
+      { title: "Risco Obsoletos — Suprimentos" },
+      { name: "description", content: "Itens em estoque sem movimentação, por faixa de dias e por empresa." },
+    ],
+  }),
+});
+
+type LinhaRisco = {
+  id_produto: string;
+  descricao: string | null;
+  almoxarifado: string | null;
+  id_local: string | null;
+  lote: string | null;
+  data_validade: string | null;
+  saldo: number;
+  valor: number;
+  custo_unitario_medio: number | null;
+  empresa: "Filial SP - Fabrica" | "Matriz Para";
+  ultima_mov: string | null;
+  dias_sem_mov: number | null;
+  faixa: "30-60" | "61-90" | "+90" | "sem_registro" | "movimentado";
+};
+
+const FAIXAS_RISCO = ["30-60", "61-90", "+90", "sem_registro"] as const;
+
+const FAIXA_LABEL: Record<string, string> = {
+  "30-60": "30 a 60 dias",
+  "61-90": "61 a 90 dias",
+  "+90": "Mais de 90 dias",
+  sem_registro: "Sem registro de movimentação",
+  movimentado: "Movimentado (fora do farol)",
+};
+
+const FAIXA_COR: Record<string, string> = {
+  "30-60": "#F2C14E",
+  "61-90": "#F1704B",
+  "+90": "#B23A2E",
+  sem_registro: "#7B3B2E",
+};
+
+function fmtBRL(v: number) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "danger" | "success" }) {
+  const cls = tone === "danger" ? "text-destructive" : tone === "success" ? "text-success" : "";
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className={"text-xl font-semibold mt-1 " + cls}>{value}</div>
+        {sub && <div className="text-[11px] text-muted-foreground mt-1">{sub}</div>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function FaixaBadge({ faixa }: { faixa: string }) {
+  if (faixa === "30-60") return <Badge variant="outline" className="text-warning border-warning">30-60 dias</Badge>;
+  if (faixa === "61-90") return <Badge variant="outline" className="text-destructive border-destructive">61-90 dias</Badge>;
+  if (faixa === "+90") return <Badge className="bg-destructive text-destructive-foreground">+90 dias</Badge>;
+  if (faixa === "sem_registro") return <Badge className="bg-destructive text-destructive-foreground">Sem registro</Badge>;
+  return <Badge variant="outline">Movimentado</Badge>;
+}
+
+function RiscoObsoletos() {
+  const [empresa, setEmpresa] = useState<string>("todas");
+  const [faixaFilter, setFaixaFilter] = useState<string>("todas");
+  const [almoxFilter, setAlmoxFilter] = useState<string>("todos");
+  const [busca, setBusca] = useState("");
+
+  const dataQ = useQuery({
+    queryKey: ["risco-obsoletos"],
+    queryFn: async () => {
+      const all: LinhaRisco[] = [];
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from("v_risco_obsoletos")
+          .select("id_produto, descricao, almoxarifado, id_local, lote, data_validade, saldo, valor, custo_unitario_medio, empresa, ultima_mov, dias_sem_mov, faixa")
+          .neq("faixa", "movimentado")
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        all.push(...((data ?? []) as LinhaRisco[]));
+        if (!data || data.length < pageSize) break;
+      }
+      return all;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const linhas = dataQ.data ?? [];
+
+  const almoxarifados = useMemo(
+    () => Array.from(new Set(linhas.map((r) => r.almoxarifado).filter((v): v is string => !!v))).sort(),
+    [linhas],
+  );
+
+  const filtradas = useMemo(() => {
+    const q = busca.trim().toUpperCase();
+    return linhas.filter((r) => {
+      if (empresa !== "todas" && r.empresa !== empresa) return false;
+      if (faixaFilter !== "todas" && r.faixa !== faixaFilter) return false;
+      if (almoxFilter !== "todos" && r.almoxarifado !== almoxFilter) return false;
+      if (q && !`${r.id_produto} ${r.descricao ?? ""}`.toUpperCase().includes(q)) return false;
+      return true;
+    });
+  }, [linhas, empresa, faixaFilter, almoxFilter, busca]);
+
+  const kpis = useMemo(() => {
+    const porFaixa = (fx: string) => filtradas.filter((r) => r.faixa === fx);
+    const soma = (rs: LinhaRisco[]) => rs.reduce((a, r) => a + (r.valor ?? 0), 0);
+    return {
+      totalItens: filtradas.length,
+      totalValor: soma(filtradas),
+      n3060: porFaixa("30-60").length,
+      v3060: soma(porFaixa("30-60")),
+      n6190: porFaixa("61-90").length,
+      v6190: soma(porFaixa("61-90")),
+      nMais90: porFaixa("+90").length,
+      vMais90: soma(porFaixa("+90")),
+      nSemReg: porFaixa("sem_registro").length,
+      vSemReg: soma(porFaixa("sem_registro")),
+    };
+  }, [filtradas]);
+
+  const graficoFaixa = useMemo(
+    () =>
+      FAIXAS_RISCO.map((fx) => ({
+        faixa: FAIXA_LABEL[fx],
+        valor: filtradas.filter((r) => r.faixa === fx).reduce((a, r) => a + (r.valor ?? 0), 0),
+        cor: FAIXA_COR[fx],
+      })),
+    [filtradas],
+  );
+
+  const graficoEmpresa = useMemo(() => {
+    const porEmpresa = new Map<string, number>();
+    filtradas.forEach((r) => porEmpresa.set(r.empresa, (porEmpresa.get(r.empresa) ?? 0) + (r.valor ?? 0)));
+    return Array.from(porEmpresa.entries()).map(([empresa, valor]) => ({ empresa, valor }));
+  }, [filtradas]);
+
+  return (
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Risco Obsoletos</h1>
+        <p className="text-sm text-muted-foreground">
+          Itens em estoque sem movimentação sistêmica (entradas, transferências, consumo em produção ou conclusão de OP).
+        </p>
+      </div>
+
+      <Card>
+        <CardContent className="p-4 flex flex-wrap gap-3 items-end">
+          <div>
+            <label className="text-xs text-muted-foreground">Buscar produto</label>
+            <Input placeholder="Código ou descrição" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-64" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Faixa</label>
+            <Select value={faixaFilter} onValueChange={setFaixaFilter}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas</SelectItem>
+                {FAIXAS_RISCO.map((fx) => (
+                  <SelectItem key={fx} value={fx}>{FAIXA_LABEL[fx]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Empresa</label>
+            <Select value={empresa} onValueChange={setEmpresa}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas</SelectItem>
+                <SelectItem value="Filial SP - Fabrica">Filial SP - Fábrica</SelectItem>
+                <SelectItem value="Matriz Para">Matriz Pará</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Almoxarifado</label>
+            <Select value={almoxFilter} onValueChange={setAlmoxFilter}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                {almoxarifados.map((a) => (
+                  <SelectItem key={a} value={a}>{a}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Kpi label="Itens em risco" value={kpis.totalItens.toString()} sub={fmtBRL(kpis.totalValor)} tone="danger" />
+        <Kpi label="30 a 60 dias" value={kpis.n3060.toString()} sub={fmtBRL(kpis.v3060)} />
+        <Kpi label="61 a 90 dias" value={kpis.n6190.toString()} sub={fmtBRL(kpis.v6190)} />
+        <Kpi label="Mais de 90 dias" value={kpis.nMais90.toString()} sub={fmtBRL(kpis.vMais90)} tone="danger" />
+        <Kpi label="Sem registro de movimentação" value={kpis.nSemReg.toString()} sub={fmtBRL(kpis.vSemReg)} tone="danger" />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader><CardTitle className="text-base">Valor em risco por faixa</CardTitle></CardHeader>
+          <CardContent style={{ height: 280 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={graficoFaixa} margin={{ top: 20, right: 10, left: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="faixa" tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={(v) => fmtBRL(v)} tick={{ fontSize: 11 }} width={90} />
+                <RTooltip formatter={(v: number) => fmtBRL(v)} />
+                <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
+                  {graficoFaixa.map((entry, i) => <Cell key={i} fill={entry.cor} />)}
+                  <LabelList dataKey="valor" position="top" formatter={(v: number) => fmtBRL(v)} style={{ fontSize: 10 }} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-base">Valor em risco por empresa</CardTitle></CardHeader>
+          <CardContent style={{ height: 280 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={graficoEmpresa} margin={{ top: 20, right: 10, left: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="empresa" tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={(v) => fmtBRL(v)} tick={{ fontSize: 11 }} width={90} />
+                <RTooltip formatter={(v: number) => fmtBRL(v)} />
+                <Bar dataKey="valor" fill="#F1704B" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="valor" position="top" formatter={(v: number) => fmtBRL(v)} style={{ fontSize: 10 }} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Itens em risco ({filtradas.length})</CardTitle></CardHeader>
+        <CardContent>
+          {dataQ.isLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando...</p>
+          ) : filtradas.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum item em risco no filtro atual.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Produto</TableHead>
+                    <TableHead>Almoxarifado</TableHead>
+                    <TableHead>Empresa</TableHead>
+                    <TableHead>Lote</TableHead>
+                    <TableHead className="text-right">Saldo</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead>Última movimentação</TableHead>
+                    <TableHead className="text-right">Dias sem mov.</TableHead>
+                    <TableHead>Faixa</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtradas
+                    .sort((a, b) => (b.valor ?? 0) - (a.valor ?? 0))
+                    .slice(0, 500)
+                    .map((r, i) => (
+                      <TableRow key={`${r.id_produto}-${r.lote}-${i}`}>
+                        <TableCell>
+                          <div className="font-medium">{r.id_produto}</div>
+                          <div className="text-xs text-muted-foreground">{r.descricao}</div>
+                        </TableCell>
+                        <TableCell>{r.almoxarifado}</TableCell>
+                        <TableCell className="text-xs">{r.empresa === "Matriz Para" ? "Pará" : "SP"}</TableCell>
+                        <TableCell>{r.lote}</TableCell>
+                        <TableCell className="text-right">{r.saldo?.toLocaleString("pt-BR")}</TableCell>
+                        <TableCell className="text-right font-medium">{fmtBRL(r.valor ?? 0)}</TableCell>
+                        <TableCell className="text-xs">{r.ultima_mov ?? "Nunca"}</TableCell>
+                        <TableCell className="text-right">{r.dias_sem_mov ?? "—"}</TableCell>
+                        <TableCell><FaixaBadge faixa={r.faixa} /></TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+              {filtradas.length > 500 && (
+                <p className="text-xs text-muted-foreground mt-2">Mostrando os 500 itens de maior valor. Refine os filtros para ver os demais.</p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
