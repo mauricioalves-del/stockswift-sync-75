@@ -463,16 +463,14 @@ function BaixasDashboard() {
           </div>
           <div>
             <Label className="text-xs">Motivo</Label>
-            <select
+            <MultiSelect
+              options={view.motivoList.map((m) => ({ value: m.id, label: m.nome }))}
               value={motivoFilter}
-              onChange={(e) => setMotivoFilter(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm w-48"
-            >
-              <option value="__all__">Todos</option>
-              {view.motivoList.map((m) => (
-                <option key={m.id} value={m.id}>{m.nome}</option>
-              ))}
-            </select>
+              onChange={setMotivoFilter}
+              placeholder="Filtrar motivos…"
+              allLabel="Todos"
+              className="w-56"
+            />
           </div>
           <div>
             <Label className="text-xs">Grupo</Label>
@@ -485,8 +483,8 @@ function BaixasDashboard() {
               className="w-56"
             />
           </div>
-          {(almoxFilter !== "__all__" || motivoFilter !== "__all__" || grupoFilter.length > 0) && (
-            <Button variant="ghost" size="sm" onClick={() => { setAlmoxFilter("__all__"); setMotivoFilter("__all__"); setGrupoFilter([]); }}>Limpar</Button>
+          {(almoxFilter !== "__all__" || motivoFilter.length > 0 || grupoFilter.length > 0) && (
+            <Button variant="ghost" size="sm" onClick={() => { setAlmoxFilter("__all__"); setMotivoFilter([]); setGrupoFilter([]); }}>Limpar</Button>
           )}
         </div>
       </div>
