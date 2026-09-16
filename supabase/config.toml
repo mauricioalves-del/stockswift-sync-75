@@ -22,3 +22,7 @@ verify_jwt = false
 verify_jwt = false
 [functions.farol-shelf-semanal]
 verify_jwt = false
+
+
+[functions.testar-conexao-mendes]
+verify_jwt = false
