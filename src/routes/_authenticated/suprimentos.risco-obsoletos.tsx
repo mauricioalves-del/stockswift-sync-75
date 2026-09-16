@@ -117,6 +117,33 @@ function RiscoObsoletos() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const gruposQ = useQuery({
+    queryKey: ["grupo-produtos-mapa"],
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () => {
+      const rows = await fetchAll<{ codigo_produto: string; grupo: string }>((from, to) =>
+        supabase.from("grupo_produtos").select("codigo_produto, grupo").range(from, to),
+      );
+      const exato = new Map<string, string>();
+      const numerico = new Map<string, string>();
+      for (const r of rows) {
+        const cod = String(r.codigo_produto ?? "").trim();
+        if (!cod) continue;
+        exato.set(cod, r.grupo);
+        const norm = cod.replace(/^0+(?=\d)/, "");
+        if (/^\d+$/.test(norm) && !numerico.has(norm)) numerico.set(norm, r.grupo);
+      }
+      return { exato, numerico };
+    },
+  });
+
+  const grupoDe = (id: string) => {
+    const m = gruposQ.data;
+    if (!m) return undefined;
+    const cod = String(id ?? "").trim();
+    return m.exato.get(cod) ?? (/^\d+$/.test(cod) ? m.numerico.get(cod.replace(/^0+(?=\d)/, "")) : undefined);
+  };
+
   const linhas = dataQ.data ?? [];
 
   const almoxarifados = useMemo(
