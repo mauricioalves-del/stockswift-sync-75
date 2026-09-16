@@ -473,3 +473,57 @@ function RiscoObsoletos() {
     </div>
   );
 }
+
+function Vazio() {
+  return <p className="py-6 text-center text-sm text-muted-foreground">Sem dados para os filtros atuais.</p>;
+}
+
+function TopCard({
+  title, cor, rows, onVerTudo,
+}: { title: string; cor: string; rows: { id: string; descricao: string; custo: number }[]; onVerTudo: () => void }) {
+  const total = rows.reduce((s, r) => s + r.custo, 0);
+  const top = rows.slice(0, 10);
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <span className="size-3 rounded-full shrink-0" style={{ background: cor }} />
+          <span className="truncate">{title}</span>
+          <Button size="sm" variant="outline" className="ml-auto shrink-0 h-7 text-xs" onClick={onVerTudo}>
+            Lista Completa
+          </Button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="overflow-x-auto">
+        {!top.length ? <Vazio /> : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">#</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead className="text-right">Custo</TableHead>
+                <TableHead className="text-right">%</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {top.map((r, i) => (
+                <TableRow key={r.id}>
+                  <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
+                  <TableCell className="max-w-[200px] truncate text-xs">{r.descricao}</TableCell>
+                  <TableCell className="text-right text-xs font-medium">{fmtBRL(r.custo)}</TableCell>
+                  <TableCell className="text-right text-xs">{total ? ((r.custo / total) * 100).toFixed(2) : "0,00"}%</TableCell>
+                </TableRow>
+              ))}
+              <TableRow>
+                <TableCell />
+                <TableCell className="text-xs font-semibold">Total ({rows.length} SKUs)</TableCell>
+                <TableCell className="text-right text-xs font-semibold">{fmtBRL(total)}</TableCell>
+                <TableCell className="text-right text-xs font-semibold">100,00%</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
