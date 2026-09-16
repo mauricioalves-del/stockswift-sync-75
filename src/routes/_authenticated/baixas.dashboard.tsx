@@ -98,7 +98,7 @@ function BaixasDashboard() {
   const [from, setFrom] = useState<string>(isoDaysAgo(60));
   const [to, setTo] = useState<string>(todayISO());
   const [almoxFilter, setAlmoxFilter] = useState<string>("__all__");
-  const [motivoFilter, setMotivoFilter] = useState<string>("__all__");
+  const [motivoFilter, setMotivoFilter] = useState<string[]>([]);
   const [grupoFilter, setGrupoFilter] = useState<string[]>([]);
   const [detalheMotivo, setDetalheMotivo] = useState<DetalheMotivoCtx | null>(null);
 
@@ -179,7 +179,7 @@ function BaixasDashboard() {
       const g = grupoDe.get(b.codigo_produto) || b.categoria || "Sem grupo";
       return (
         (almoxFilter === "__all__" || (b.id_local ?? "—") === almoxFilter) &&
-        (motivoFilter === "__all__" || b.motivo_baixa_id === motivoFilter) &&
+        (motivoFilter.length === 0 || (b.motivo_baixa_id && motivoFilter.includes(b.motivo_baixa_id))) &&
         (grupoFilter.length === 0 || grupoFilter.includes(g))
       );
     });
