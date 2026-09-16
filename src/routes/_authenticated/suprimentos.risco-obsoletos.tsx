@@ -7,6 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { fetchAll } from "@/lib/fetch-all";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, LabelList, Cell,
 } from "recharts";
@@ -38,6 +40,15 @@ type LinhaRisco = {
 };
 
 const FAIXAS_RISCO = ["30-60", "61-90", "+90", "sem_registro"] as const;
+
+/** Grupos considerados por padrão na análise de risco. */
+const GRUPOS_PADRAO = [
+  "Produto Acabado",
+  "Produto em Processo",
+  "Embalagem",
+  "Mercadoria de Revenda",
+  "SubConjunto",
+];
 
 const FAIXA_LABEL: Record<string, string> = {
   "30-60": "30 a 60 dias",
