@@ -9,8 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { fetchAll } from "@/lib/fetch-all";
+import { Button } from "@/components/ui/button";
+import { ListaObsoletosDialog } from "@/components/suprimentos/ListaObsoletosDialog";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, LabelList, Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, LabelList, Cell, Legend,
 } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/suprimentos/risco-obsoletos")({
