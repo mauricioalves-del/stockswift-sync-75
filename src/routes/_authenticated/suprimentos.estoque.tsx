@@ -32,6 +32,7 @@ function normCodigo(v: unknown): string {
 
 function EstoquePosicaoPage() {
   const [origemF, setOrigemF] = useState<string>("__all");
+  const [grupoF, setGrupoF] = useState<string>("__all");
   const [busca, setBusca] = useState("");
   const [detalhe, setDetalhe] = useState<{ origem: string; id_produto: string; descricao: string } | null>(null);
   const { almoxes } = useMeusAlmoxarifados();
@@ -96,12 +97,19 @@ function EstoquePosicaoPage() {
       else m.set(key, { ...r, quantidade: qtd, custo_unitario: cu, valor: qtd * cu });
     }
     let arr = Array.from(m.values());
+    if (grupoF !== "__all") arr = arr.filter((r) => grupoDe(r.id_produto) === grupoF);
     if (busca) {
       const t = busca.toLowerCase();
       arr = arr.filter((r) => r.id_produto.toLowerCase().includes(t) || r.descricao.toLowerCase().includes(t));
     }
     return arr.sort((a, b) => b.valor - a.valor);
-  }, [q.data, origemF, busca]);
+  }, [q.data, origemF, grupoF, busca, grupoMap]);
+
+  const grupos = useMemo(() => {
+    const s = new Set<string>();
+    (q.data ?? []).forEach((r) => { s.add(grupoDe(r.id_produto)); });
+    return Array.from(s).sort();
+  }, [q.data, grupoMap]);
 
   const kpis = useMemo(() => {
     const skus = agregado.length;
@@ -144,7 +152,7 @@ function EstoquePosicaoPage() {
 
       <Card>
         <CardHeader><CardTitle className="text-base">Filtros</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div>
             <Label className="text-xs">Almox</Label>
             <Select value={origemF} onValueChange={setOrigemF}>
@@ -152,6 +160,16 @@ function EstoquePosicaoPage() {
               <SelectContent>
                 <SelectItem value="__all">Todos</SelectItem>
                 {origens.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Grupo</Label>
+            <Select value={grupoF} onValueChange={setGrupoF}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all">Todos</SelectItem>
+                {grupos.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
