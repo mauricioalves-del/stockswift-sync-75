@@ -151,6 +151,13 @@ function RiscoObsoletos() {
     [linhas],
   );
 
+  const listaGrupos = useMemo(() => {
+    const s = new Set<string>(GRUPOS_PADRAO);
+    linhas.forEach((r) => { const g = grupoDe(r.id_produto); if (g) s.add(g); });
+    return Array.from(s).sort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linhas, gruposQ.data]);
+
   const filtradas = useMemo(() => {
     const q = busca.trim().toUpperCase();
     return linhas.filter((r) => {
@@ -245,6 +252,17 @@ function RiscoObsoletos() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Grupo</label>
+            <MultiSelect
+              options={listaGrupos.map((g) => ({ value: g, label: g }))}
+              value={grupoFilter}
+              onChange={setGrupoFilter}
+              placeholder="Filtrar grupos…"
+              allLabel="Todos"
+              className="w-56"
+            />
           </div>
         </CardContent>
       </Card>
