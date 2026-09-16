@@ -95,6 +95,7 @@ function RiscoObsoletos() {
   const [faixaFilter, setFaixaFilter] = useState<string>("todas");
   const [almoxFilter, setAlmoxFilter] = useState<string>("todos");
   const [busca, setBusca] = useState("");
+  const [grupoFilter, setGrupoFilter] = useState<string[]>(GRUPOS_PADRAO);
 
   const dataQ = useQuery({
     queryKey: ["risco-obsoletos"],
