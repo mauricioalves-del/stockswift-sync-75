@@ -423,7 +423,7 @@ function BaixasDashboard() {
           filtros={[
             { label: "Período", valor: `${from} a ${to}` },
             { label: "Almoxarifado", valor: almoxFilter === "__all__" ? "Todos" : almoxFilter },
-            { label: "Motivo", valor: motivoFilter === "__all__" ? "Todos" : motivoFilter },
+            { label: "Motivo", valor: motivoFilter.length === 0 ? "Todos" : motivoFilter.map((id) => view.motivoList.find((m) => m.id === id)?.nome ?? id).join(", ") },
             { label: "Grupo", valor: grupoFilter.length === 0 ? "Todos" : grupoFilter.join(", ") },
           ]}
         />
