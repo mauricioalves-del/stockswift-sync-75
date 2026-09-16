@@ -479,15 +479,20 @@ Deno.serve(async (req) => {
     const FROM_HEADER = cfgFrom || null;
     const REPLY_TO = cfgReply || null;
 
-    // ==== Dispersões identificadas no dia (mesmo critério do módulo: tipo_desvio <> 'OK') ====
-    const { data: linhas, error: lerr } = await admin
+    // ==== Movimentação do dia (todas as linhas, para separar desvios de itens dentro do padrão) ====
+    const { data: linhasDia, error: lerr } = await admin
       .from("v_impacto_consumo")
       .select("numero_op, sku_produto_final, desc_prod, material, desc_material, um, qtd_consumo, qtd_previsto, qtd_dif, impacto_rs, tipo_desvio, dt_producao, empresa")
-      .eq("dt_producao", dataAlvo)
-      .not("tipo_desvio", "eq", "OK");
+      .eq("dt_producao", dataAlvo);
     if (lerr) throw lerr;
 
-    const itens = (linhas ?? []).filter((r: any) => (r.tipo_desvio ?? "OK") !== "OK" && empresaOk(r.empresa));
+    const linhasEmpresa = (linhasDia ?? []).filter((r: any) => empresaOk(r.empresa));
+    const itens = linhasEmpresa.filter((r: any) => (r.tipo_desvio ?? "ok") !== "ok");
+
+    // Meritocracia: OPs cujos itens vieram 100% dentro do padrão (sem nenhum desvio)
+    const opsComDesvio = new Set(itens.map((r: any) => String(r.numero_op)));
+    const todasOps = new Set(linhasEmpresa.map((r: any) => String(r.numero_op)));
+    const opsDentroDoPadrao = [...todasOps].filter((op) => !opsComDesvio.has(op));
 
     // Agrupa por OP e ordena pelo desvio total (maior para menor) — mesma regra da Lista Detalhada.
     const totalPorOp = new Map<string, number>();
@@ -520,9 +525,15 @@ Deno.serve(async (req) => {
     const toList = dests.map((d: any) => d.email);
 
     // ==== Corpo do e-mail ====
+    const opsPadraoHtml = opsDentroDoPadrao.length
+      ? `<p style="font-size:13px;color:#059669;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;padding:8px 12px;margin:0 0 12px">
+      ✅ ${opsDentroDoPadrao.length} ordem(ns) de produção 100% dentro do padrão hoje: ${opsDentroDoPadrao.map((op: string) => esc(op)).join(", ")}.
+    </p>`
+      : "";
+
     let corpo: string;
     if (itens.length === 0) {
-      corpo = `<p style="font-size:13px;color:#374151">Nenhuma dispersão identificada em ${esc(dataAlvoFmt)}.</p>`;
+      corpo = `${opsPadraoHtml}<p style="font-size:13px;color:#374151">Nenhum desvio identificado em ${esc(dataAlvoFmt)}.</p>`;
     } else {
       const linhasHtml = itens.map((r: any) => {
         const impacto = Number(r.impacto_rs ?? 0);
@@ -544,6 +555,7 @@ Deno.serve(async (req) => {
       const qtdOps = totalPorOp.size;
 
       corpo = `
+    ${opsPadraoHtml}
     <p style="font-size:13px;color:#374151;margin:0 0 12px">
       ${itens.length} desvio(s) identificado(s) em ${qtdOps} ordem(ns) de produção, no dia ${esc(dataAlvoFmt)}.
     </p>
