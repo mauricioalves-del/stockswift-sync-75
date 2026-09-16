@@ -1480,6 +1480,24 @@ export type Database = {
         }
         Relationships: []
       }
+      materiais_bloqueados_ficha_tecnica: {
+        Row: {
+          bloqueado_em: string
+          id_item: string
+          motivo: string
+        }
+        Insert: {
+          bloqueado_em?: string
+          id_item: string
+          motivo: string
+        }
+        Update: {
+          bloqueado_em?: string
+          id_item?: string
+          motivo?: string
+        }
+        Relationships: []
+      }
       missoes: {
         Row: {
           created_at: string
@@ -1859,6 +1877,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ops_excluidas_dispersao: {
+        Row: {
+          excluido_em: string
+          id_op: string
+          motivo: string
+        }
+        Insert: {
+          excluido_em?: string
+          id_op: string
+          motivo: string
+        }
+        Update: {
+          excluido_em?: string
+          id_op?: string
+          motivo?: string
+        }
+        Relationships: []
       }
       ordens_producao: {
         Row: {
@@ -3185,6 +3221,7 @@ export type Database = {
       v_impacto_consumo: {
         Row: {
           ano_mes: string | null
+          congelado_em: string | null
           custo_unit_medio: number | null
           desc_material: string | null
           desc_prod: string | null
@@ -3244,6 +3281,24 @@ export type Database = {
       v_pareto_concentracao: {
         Row: {
           pct_top20: number | null
+        }
+        Relationships: []
+      }
+      v_risco_obsoletos: {
+        Row: {
+          almoxarifado: string | null
+          custo_unitario_medio: number | null
+          data_validade: string | null
+          descricao: string | null
+          dias_sem_mov: number | null
+          empresa: string | null
+          faixa: string | null
+          id_local: string | null
+          id_produto: string | null
+          lote: string | null
+          saldo: number | null
+          ultima_mov: string | null
+          valor: number | null
         }
         Relationships: []
       }
