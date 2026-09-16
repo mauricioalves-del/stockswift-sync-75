@@ -6,7 +6,7 @@ import {
   Sun, Moon, Wifi, WifiOff, RefreshCw, Layers, FolderTree, Package, BarChart3,
   Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp, Warehouse, Mail,
   Compass, Sparkles, Settings2, Boxes, Truck, AlertTriangle, PanelLeftClose, PanelLeftOpen,
-  Factory, GitCompareArrows, CalendarClock, Bell, ArrowRightLeft, CalendarCheck,
+  Factory, GitCompareArrows, CalendarClock, Bell, ArrowRightLeft, CalendarCheck, PackageX,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -54,6 +54,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/suprimentos/dashboard", label: "Dashboard Suprimentos", icon: LayoutDashboard, role: "any" },
       { to: "/suprimentos/estoque", label: "Posição de Estoque", icon: Boxes, role: "any" },
       { to: "/suprimentos/fefo", label: "Controle FEFO", icon: ArrowRightLeft, role: "any" },
+      { to: "/suprimentos/risco-obsoletos", label: "Risco Obsoletos", icon: PackageX, role: "any" },
       { to: "/suprimentos/requisicoes", label: "Requisições", icon: ClipboardList, role: "write" },
       { to: "/abastecimento/planejamento", label: "Abastecimento", icon: Compass, role: "write" },
       { to: "/abastecimento/demandas", label: "Demandas Extras", icon: Sparkles, role: "write" },
