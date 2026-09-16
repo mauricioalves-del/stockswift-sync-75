@@ -98,7 +98,7 @@ function BaixasDashboard() {
   const [from, setFrom] = useState<string>(isoDaysAgo(60));
   const [to, setTo] = useState<string>(todayISO());
   const [almoxFilter, setAlmoxFilter] = useState<string>("__all__");
-  const [motivoFilter, setMotivoFilter] = useState<string>("__all__");
+  const [motivoFilter, setMotivoFilter] = useState<string[]>([]);
   const [grupoFilter, setGrupoFilter] = useState<string[]>([]);
   const [detalheMotivo, setDetalheMotivo] = useState<DetalheMotivoCtx | null>(null);
 
@@ -179,7 +179,7 @@ function BaixasDashboard() {
       const g = grupoDe.get(b.codigo_produto) || b.categoria || "Sem grupo";
       return (
         (almoxFilter === "__all__" || (b.id_local ?? "—") === almoxFilter) &&
-        (motivoFilter === "__all__" || b.motivo_baixa_id === motivoFilter) &&
+        (motivoFilter.length === 0 || (b.motivo_baixa_id && motivoFilter.includes(b.motivo_baixa_id))) &&
         (grupoFilter.length === 0 || grupoFilter.includes(g))
       );
     });
@@ -423,7 +423,7 @@ function BaixasDashboard() {
           filtros={[
             { label: "Período", valor: `${from} a ${to}` },
             { label: "Almoxarifado", valor: almoxFilter === "__all__" ? "Todos" : almoxFilter },
-            { label: "Motivo", valor: motivoFilter === "__all__" ? "Todos" : motivoFilter },
+            { label: "Motivo", valor: motivoFilter.length === 0 ? "Todos" : motivoFilter.map((id) => view.motivoList.find((m) => m.id === id)?.nome ?? id).join(", ") },
             { label: "Grupo", valor: grupoFilter.length === 0 ? "Todos" : grupoFilter.join(", ") },
           ]}
         />
@@ -463,16 +463,14 @@ function BaixasDashboard() {
           </div>
           <div>
             <Label className="text-xs">Motivo</Label>
-            <select
+            <MultiSelect
+              options={view.motivoList.map((m) => ({ value: m.id, label: m.nome }))}
               value={motivoFilter}
-              onChange={(e) => setMotivoFilter(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm w-48"
-            >
-              <option value="__all__">Todos</option>
-              {view.motivoList.map((m) => (
-                <option key={m.id} value={m.id}>{m.nome}</option>
-              ))}
-            </select>
+              onChange={setMotivoFilter}
+              placeholder="Filtrar motivos…"
+              allLabel="Todos"
+              className="w-56"
+            />
           </div>
           <div>
             <Label className="text-xs">Grupo</Label>
@@ -485,8 +483,8 @@ function BaixasDashboard() {
               className="w-56"
             />
           </div>
-          {(almoxFilter !== "__all__" || motivoFilter !== "__all__" || grupoFilter.length > 0) && (
-            <Button variant="ghost" size="sm" onClick={() => { setAlmoxFilter("__all__"); setMotivoFilter("__all__"); setGrupoFilter([]); }}>Limpar</Button>
+          {(almoxFilter !== "__all__" || motivoFilter.length > 0 || grupoFilter.length > 0) && (
+            <Button variant="ghost" size="sm" onClick={() => { setAlmoxFilter("__all__"); setMotivoFilter([]); setGrupoFilter([]); }}>Limpar</Button>
           )}
         </div>
       </div>

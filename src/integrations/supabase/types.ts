@@ -2312,58 +2312,70 @@ export type Database = {
       producao_consumo: {
         Row: {
           ano_mes: string
+          congelado_em: string | null
           created_at: string
           criado_por: string | null
+          custo_unit_medio_congelado: number | null
           data_producao: string | null
           desc_material: string | null
           desc_produto: string | null
           empresa: string | null
           id: string
           id_op: string
+          impacto_rs_congelado: number | null
           material: string
           produto: string | null
           qtd_consumo: number
           qtd_dif: number | null
           qtd_previsto: number
           qtd_produzida: number | null
+          tipo_desvio_congelado: string | null
           um: string | null
           updated_at: string
         }
         Insert: {
           ano_mes: string
+          congelado_em?: string | null
           created_at?: string
           criado_por?: string | null
+          custo_unit_medio_congelado?: number | null
           data_producao?: string | null
           desc_material?: string | null
           desc_produto?: string | null
           empresa?: string | null
           id?: string
           id_op: string
+          impacto_rs_congelado?: number | null
           material: string
           produto?: string | null
           qtd_consumo?: number
           qtd_dif?: number | null
           qtd_previsto?: number
           qtd_produzida?: number | null
+          tipo_desvio_congelado?: string | null
           um?: string | null
           updated_at?: string
         }
         Update: {
           ano_mes?: string
+          congelado_em?: string | null
           created_at?: string
           criado_por?: string | null
+          custo_unit_medio_congelado?: number | null
           data_producao?: string | null
           desc_material?: string | null
           desc_produto?: string | null
           empresa?: string | null
           id?: string
           id_op?: string
+          impacto_rs_congelado?: number | null
           material?: string
           produto?: string | null
           qtd_consumo?: number
           qtd_dif?: number | null
           qtd_previsto?: number
           qtd_produzida?: number | null
+          tipo_desvio_congelado?: string | null
           um?: string | null
           updated_at?: string
         }
@@ -3247,6 +3259,7 @@ export type Database = {
     }
     Functions: {
       almoxarifados_permitidos: { Args: { _uid: string }; Returns: string[] }
+      congelar_producao_consumo: { Args: never; Returns: number }
       fechamento_mensal_destaques: {
         Args: { data_fim: string; data_inicio: string }
         Returns: {
