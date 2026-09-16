@@ -157,10 +157,11 @@ function RiscoObsoletos() {
       if (empresa !== "todas" && r.empresa !== empresa) return false;
       if (faixaFilter !== "todas" && r.faixa !== faixaFilter) return false;
       if (almoxFilter !== "todos" && r.almoxarifado !== almoxFilter) return false;
+      if (grupoFilter.length > 0 && !(grupoDe(r.id_produto) && grupoFilter.includes(grupoDe(r.id_produto)!))) return false;
       if (q && !`${r.id_produto} ${r.descricao ?? ""}`.toUpperCase().includes(q)) return false;
       return true;
     });
-  }, [linhas, empresa, faixaFilter, almoxFilter, busca]);
+  }, [linhas, empresa, faixaFilter, almoxFilter, grupoFilter, busca, gruposQ.data]);
 
   const kpis = useMemo(() => {
     const porFaixa = (fx: string) => filtradas.filter((r) => r.faixa === fx);
