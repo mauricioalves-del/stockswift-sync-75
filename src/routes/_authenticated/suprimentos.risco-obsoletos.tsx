@@ -7,6 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { fetchAll } from "@/lib/fetch-all";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, LabelList, Cell,
 } from "recharts";
@@ -38,6 +40,15 @@ type LinhaRisco = {
 };
 
 const FAIXAS_RISCO = ["30-60", "61-90", "+90", "sem_registro"] as const;
+
+/** Grupos considerados por padrão na análise de risco. */
+const GRUPOS_PADRAO = [
+  "Produto Acabado",
+  "Produto em Processo",
+  "Embalagem",
+  "Mercadoria de Revenda",
+  "SubConjunto",
+];
 
 const FAIXA_LABEL: Record<string, string> = {
   "30-60": "30 a 60 dias",
@@ -84,6 +95,7 @@ function RiscoObsoletos() {
   const [faixaFilter, setFaixaFilter] = useState<string>("todas");
   const [almoxFilter, setAlmoxFilter] = useState<string>("todos");
   const [busca, setBusca] = useState("");
+  const [grupoFilter, setGrupoFilter] = useState<string[]>(GRUPOS_PADRAO);
 
   const dataQ = useQuery({
     queryKey: ["risco-obsoletos"],
@@ -105,6 +117,33 @@ function RiscoObsoletos() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const gruposQ = useQuery({
+    queryKey: ["grupo-produtos-mapa"],
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () => {
+      const rows = await fetchAll<{ codigo_produto: string; grupo: string }>((from, to) =>
+        supabase.from("grupo_produtos").select("codigo_produto, grupo").range(from, to),
+      );
+      const exato = new Map<string, string>();
+      const numerico = new Map<string, string>();
+      for (const r of rows) {
+        const cod = String(r.codigo_produto ?? "").trim();
+        if (!cod) continue;
+        exato.set(cod, r.grupo);
+        const norm = cod.replace(/^0+(?=\d)/, "");
+        if (/^\d+$/.test(norm) && !numerico.has(norm)) numerico.set(norm, r.grupo);
+      }
+      return { exato, numerico };
+    },
+  });
+
+  const grupoDe = (id: string) => {
+    const m = gruposQ.data;
+    if (!m) return undefined;
+    const cod = String(id ?? "").trim();
+    return m.exato.get(cod) ?? (/^\d+$/.test(cod) ? m.numerico.get(cod.replace(/^0+(?=\d)/, "")) : undefined);
+  };
+
   const linhas = dataQ.data ?? [];
 
   const almoxarifados = useMemo(
@@ -112,16 +151,24 @@ function RiscoObsoletos() {
     [linhas],
   );
 
+  const listaGrupos = useMemo(() => {
+    const s = new Set<string>(GRUPOS_PADRAO);
+    linhas.forEach((r) => { const g = grupoDe(r.id_produto); if (g) s.add(g); });
+    return Array.from(s).sort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linhas, gruposQ.data]);
+
   const filtradas = useMemo(() => {
     const q = busca.trim().toUpperCase();
     return linhas.filter((r) => {
       if (empresa !== "todas" && r.empresa !== empresa) return false;
       if (faixaFilter !== "todas" && r.faixa !== faixaFilter) return false;
       if (almoxFilter !== "todos" && r.almoxarifado !== almoxFilter) return false;
+      if (grupoFilter.length > 0 && !(grupoDe(r.id_produto) && grupoFilter.includes(grupoDe(r.id_produto)!))) return false;
       if (q && !`${r.id_produto} ${r.descricao ?? ""}`.toUpperCase().includes(q)) return false;
       return true;
     });
-  }, [linhas, empresa, faixaFilter, almoxFilter, busca]);
+  }, [linhas, empresa, faixaFilter, almoxFilter, grupoFilter, busca, gruposQ.data]);
 
   const kpis = useMemo(() => {
     const porFaixa = (fx: string) => filtradas.filter((r) => r.faixa === fx);
@@ -205,6 +252,17 @@ function RiscoObsoletos() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Grupo</label>
+            <MultiSelect
+              options={listaGrupos.map((g) => ({ value: g, label: g }))}
+              value={grupoFilter}
+              onChange={setGrupoFilter}
+              placeholder="Filtrar grupos…"
+              allLabel="Todos"
+              className="w-56"
+            />
           </div>
         </CardContent>
       </Card>

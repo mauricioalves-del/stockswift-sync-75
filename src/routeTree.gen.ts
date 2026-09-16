@@ -39,6 +39,7 @@ import { Route as ApiPublicImportEstoqueSistemicoRouteImport } from './routes/ap
 import { Route as ApiPublicImportConsumoOpRouteImport } from './routes/api/public/import-consumo-op'
 import { Route as ApiPublicImportConsumoCmdRouteImport } from './routes/api/public/import-consumo-cmd'
 import { Route as ApiPublicAtlasExportarBaixasRouteImport } from './routes/api/public/atlas-exportar-baixas'
+import { Route as AuthenticatedSuprimentosRiscoObsoletosRouteImport } from './routes/_authenticated/suprimentos.risco-obsoletos'
 import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_authenticated/suprimentos.estoque'
 import { Route as AuthenticatedSuprimentosDashboardRouteImport } from './routes/_authenticated/suprimentos.dashboard'
 import { Route as AuthenticatedShelfLifeRiscoRouteImport } from './routes/_authenticated/shelf-life.risco'
@@ -236,6 +237,12 @@ const ApiPublicAtlasExportarBaixasRoute =
     id: '/api/public/atlas-exportar-baixas',
     path: '/api/public/atlas-exportar-baixas',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedSuprimentosRiscoObsoletosRoute =
+  AuthenticatedSuprimentosRiscoObsoletosRouteImport.update({
+    id: '/suprimentos/risco-obsoletos',
+    path: '/suprimentos/risco-obsoletos',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSuprimentosEstoqueRoute =
   AuthenticatedSuprimentosEstoqueRouteImport.update({
@@ -495,6 +502,7 @@ export interface FileRoutesByFullPath {
   '/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/suprimentos/risco-obsoletos': typeof AuthenticatedSuprimentosRiscoObsoletosRoute
   '/api/public/atlas-exportar-baixas': typeof ApiPublicAtlasExportarBaixasRoute
   '/api/public/import-consumo-cmd': typeof ApiPublicImportConsumoCmdRoute
   '/api/public/import-consumo-op': typeof ApiPublicImportConsumoOpRoute
@@ -561,6 +569,7 @@ export interface FileRoutesByTo {
   '/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/suprimentos/risco-obsoletos': typeof AuthenticatedSuprimentosRiscoObsoletosRoute
   '/api/public/atlas-exportar-baixas': typeof ApiPublicAtlasExportarBaixasRoute
   '/api/public/import-consumo-cmd': typeof ApiPublicImportConsumoCmdRoute
   '/api/public/import-consumo-op': typeof ApiPublicImportConsumoOpRoute
@@ -629,6 +638,7 @@ export interface FileRoutesById {
   '/_authenticated/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/_authenticated/suprimentos/risco-obsoletos': typeof AuthenticatedSuprimentosRiscoObsoletosRoute
   '/api/public/atlas-exportar-baixas': typeof ApiPublicAtlasExportarBaixasRoute
   '/api/public/import-consumo-cmd': typeof ApiPublicImportConsumoCmdRoute
   '/api/public/import-consumo-op': typeof ApiPublicImportConsumoOpRoute
@@ -697,6 +707,7 @@ export interface FileRouteTypes {
     | '/shelf-life/risco'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
+    | '/suprimentos/risco-obsoletos'
     | '/api/public/atlas-exportar-baixas'
     | '/api/public/import-consumo-cmd'
     | '/api/public/import-consumo-op'
@@ -763,6 +774,7 @@ export interface FileRouteTypes {
     | '/shelf-life/risco'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
+    | '/suprimentos/risco-obsoletos'
     | '/api/public/atlas-exportar-baixas'
     | '/api/public/import-consumo-cmd'
     | '/api/public/import-consumo-op'
@@ -830,6 +842,7 @@ export interface FileRouteTypes {
     | '/_authenticated/shelf-life/risco'
     | '/_authenticated/suprimentos/dashboard'
     | '/_authenticated/suprimentos/estoque'
+    | '/_authenticated/suprimentos/risco-obsoletos'
     | '/api/public/atlas-exportar-baixas'
     | '/api/public/import-consumo-cmd'
     | '/api/public/import-consumo-op'
@@ -1074,6 +1087,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/public/atlas-exportar-baixas'
       preLoaderRoute: typeof ApiPublicAtlasExportarBaixasRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/suprimentos/risco-obsoletos': {
+      id: '/_authenticated/suprimentos/risco-obsoletos'
+      path: '/suprimentos/risco-obsoletos'
+      fullPath: '/suprimentos/risco-obsoletos'
+      preLoaderRoute: typeof AuthenticatedSuprimentosRiscoObsoletosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/suprimentos/estoque': {
       id: '/_authenticated/suprimentos/estoque'
@@ -1383,6 +1403,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedShelfLifeRiscoRoute: typeof AuthenticatedShelfLifeRiscoRoute
   AuthenticatedSuprimentosDashboardRoute: typeof AuthenticatedSuprimentosDashboardRoute
   AuthenticatedSuprimentosEstoqueRoute: typeof AuthenticatedSuprimentosEstoqueRoute
+  AuthenticatedSuprimentosRiscoObsoletosRoute: typeof AuthenticatedSuprimentosRiscoObsoletosRoute
   AuthenticatedBaixasIndexRoute: typeof AuthenticatedBaixasIndexRoute
   AuthenticatedConfigIndexRoute: typeof AuthenticatedConfigIndexRoute
   AuthenticatedMissoesIndexRoute: typeof AuthenticatedMissoesIndexRoute
@@ -1447,6 +1468,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSuprimentosDashboardRoute:
     AuthenticatedSuprimentosDashboardRoute,
   AuthenticatedSuprimentosEstoqueRoute: AuthenticatedSuprimentosEstoqueRoute,
+  AuthenticatedSuprimentosRiscoObsoletosRoute:
+    AuthenticatedSuprimentosRiscoObsoletosRoute,
   AuthenticatedBaixasIndexRoute: AuthenticatedBaixasIndexRoute,
   AuthenticatedConfigIndexRoute: AuthenticatedConfigIndexRoute,
   AuthenticatedMissoesIndexRoute: AuthenticatedMissoesIndexRoute,
