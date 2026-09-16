@@ -197,11 +197,66 @@ function RiscoObsoletos() {
     [filtradas],
   );
 
-  const graficoEmpresa = useMemo(() => {
-    const porEmpresa = new Map<string, number>();
-    filtradas.forEach((r) => porEmpresa.set(r.empresa, (porEmpresa.get(r.empresa) ?? 0) + (r.valor ?? 0)));
-    return Array.from(porEmpresa.entries()).map(([empresa, valor]) => ({ empresa, valor }));
+  const porAlmox = useMemo(() => {
+    const m = new Map<string, any>();
+    filtradas.forEach((r) => {
+      const k = r.almoxarifado || "—";
+      const e = m.get(k) ?? { nome: k, "30-60": 0, "61-90": 0, "+90": 0, sem_registro: 0, total: 0 };
+      e[r.faixa] = (e[r.faixa] ?? 0) + (r.valor ?? 0);
+      e.total += r.valor ?? 0;
+      m.set(k, e);
+    });
+    return Array.from(m.values()).sort((a, b) => b.total - a.total);
   }, [filtradas]);
+
+  const porGrupo = useMemo(() => {
+    const m = new Map<string, any>();
+    filtradas.forEach((r) => {
+      const k = grupoDe(r.id_produto) || "Sem grupo";
+      const e = m.get(k) ?? { nome: k, "30-60": 0, "61-90": 0, "+90": 0, sem_registro: 0, total: 0 };
+      e[r.faixa] = (e[r.faixa] ?? 0) + (r.valor ?? 0);
+      e.total += r.valor ?? 0;
+      m.set(k, e);
+    });
+    return Array.from(m.values()).sort((a, b) => b.total - a.total);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtradas, gruposQ.data]);
+
+  const topPorFaixa = (fx: string) => {
+    const m = new Map<string, { id: string; descricao: string; custo: number }>();
+    filtradas
+      .filter((r) => r.faixa === fx)
+      .forEach((r) => {
+        const e = m.get(r.id_produto) ?? { id: r.id_produto, descricao: r.descricao || r.id_produto, custo: 0 };
+        e.custo += r.valor ?? 0;
+        m.set(r.id_produto, e);
+      });
+    return Array.from(m.values()).sort((a, b) => b.custo - a.custo);
+  };
+
+  const top3060 = useMemo(() => topPorFaixa("30-60"), [filtradas]);
+  const top6190 = useMemo(() => topPorFaixa("61-90"), [filtradas]);
+  const topMais90 = useMemo(() => topPorFaixa("+90"), [filtradas]);
+
+  const [lista, setLista] = useState<string | null>(null);
+  const itensLista = useMemo(
+    () =>
+      (lista ? filtradas.filter((r) => r.faixa === lista) : []).map((r) => ({
+        id_produto: r.id_produto,
+        descricao: r.descricao,
+        almoxarifado: r.almoxarifado,
+        lote: r.lote,
+        saldo: r.saldo,
+        valor: r.valor,
+        empresa: r.empresa,
+        ultima_mov: r.ultima_mov,
+        dias_sem_mov: r.dias_sem_mov,
+        grupo: grupoDe(r.id_produto),
+      })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lista, filtradas, gruposQ.data],
+  );
+
 
   return (
     <div className="p-6 space-y-6">
