@@ -9,8 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { fetchAll } from "@/lib/fetch-all";
+import { Button } from "@/components/ui/button";
+import { ListaObsoletosDialog } from "@/components/suprimentos/ListaObsoletosDialog";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, LabelList, Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, LabelList, Cell, Legend,
 } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/suprimentos/risco-obsoletos")({
@@ -197,11 +199,66 @@ function RiscoObsoletos() {
     [filtradas],
   );
 
-  const graficoEmpresa = useMemo(() => {
-    const porEmpresa = new Map<string, number>();
-    filtradas.forEach((r) => porEmpresa.set(r.empresa, (porEmpresa.get(r.empresa) ?? 0) + (r.valor ?? 0)));
-    return Array.from(porEmpresa.entries()).map(([empresa, valor]) => ({ empresa, valor }));
+  const porAlmox = useMemo(() => {
+    const m = new Map<string, any>();
+    filtradas.forEach((r) => {
+      const k = r.almoxarifado || "—";
+      const e = m.get(k) ?? { nome: k, "30-60": 0, "61-90": 0, "+90": 0, sem_registro: 0, total: 0 };
+      e[r.faixa] = (e[r.faixa] ?? 0) + (r.valor ?? 0);
+      e.total += r.valor ?? 0;
+      m.set(k, e);
+    });
+    return Array.from(m.values()).sort((a, b) => b.total - a.total);
   }, [filtradas]);
+
+  const porGrupo = useMemo(() => {
+    const m = new Map<string, any>();
+    filtradas.forEach((r) => {
+      const k = grupoDe(r.id_produto) || "Sem grupo";
+      const e = m.get(k) ?? { nome: k, "30-60": 0, "61-90": 0, "+90": 0, sem_registro: 0, total: 0 };
+      e[r.faixa] = (e[r.faixa] ?? 0) + (r.valor ?? 0);
+      e.total += r.valor ?? 0;
+      m.set(k, e);
+    });
+    return Array.from(m.values()).sort((a, b) => b.total - a.total);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtradas, gruposQ.data]);
+
+  const topPorFaixa = (fx: string) => {
+    const m = new Map<string, { id: string; descricao: string; custo: number }>();
+    filtradas
+      .filter((r) => r.faixa === fx)
+      .forEach((r) => {
+        const e = m.get(r.id_produto) ?? { id: r.id_produto, descricao: r.descricao || r.id_produto, custo: 0 };
+        e.custo += r.valor ?? 0;
+        m.set(r.id_produto, e);
+      });
+    return Array.from(m.values()).sort((a, b) => b.custo - a.custo);
+  };
+
+  const top3060 = useMemo(() => topPorFaixa("30-60"), [filtradas]);
+  const top6190 = useMemo(() => topPorFaixa("61-90"), [filtradas]);
+  const topMais90 = useMemo(() => topPorFaixa("+90"), [filtradas]);
+
+  const [lista, setLista] = useState<string | null>(null);
+  const itensLista = useMemo(
+    () =>
+      (lista ? filtradas.filter((r) => r.faixa === lista) : []).map((r) => ({
+        id_produto: r.id_produto,
+        descricao: r.descricao,
+        almoxarifado: r.almoxarifado,
+        lote: r.lote,
+        saldo: r.saldo,
+        valor: r.valor,
+        empresa: r.empresa,
+        ultima_mov: r.ultima_mov,
+        dias_sem_mov: r.dias_sem_mov,
+        grupo: grupoDe(r.id_produto),
+      })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lista, filtradas, gruposQ.data],
+  );
+
 
   return (
     <div className="p-6 space-y-6">
@@ -275,41 +332,91 @@ function RiscoObsoletos() {
         <Kpi label="Sem registro de movimentação" value={kpis.nSemReg.toString()} sub={fmtBRL(kpis.vSemReg)} tone="danger" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid gap-4 lg:grid-cols-3">
         <Card>
-          <CardHeader><CardTitle className="text-base">Valor em risco por faixa</CardTitle></CardHeader>
-          <CardContent style={{ height: 280 }}>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Farol de Obsoletos</CardTitle></CardHeader>
+          <CardContent style={{ height: 300 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={graficoFaixa} margin={{ top: 20, right: 10, left: 10, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="faixa" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={(v) => fmtBRL(v)} tick={{ fontSize: 11 }} width={90} />
+              <BarChart data={graficoFaixa} layout="vertical" margin={{ left: 20, right: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                <XAxis type="number" fontSize={11} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <YAxis type="category" dataKey="faixa" width={100} fontSize={11} />
                 <RTooltip formatter={(v: number) => fmtBRL(v)} />
-                <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
                   {graficoFaixa.map((entry, i) => <Cell key={i} fill={entry.cor} />)}
-                  <LabelList dataKey="valor" position="top" formatter={(v: number) => fmtBRL(v)} style={{ fontSize: 10 }} />
+                  <LabelList dataKey="valor" position="right" formatter={(v: number) => fmtBRL(v)} style={{ fontSize: 10 }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader><CardTitle className="text-base">Valor em risco por empresa</CardTitle></CardHeader>
-          <CardContent style={{ height: 280 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={graficoEmpresa} margin={{ top: 20, right: 10, left: 10, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="empresa" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={(v) => fmtBRL(v)} tick={{ fontSize: 11 }} width={90} />
-                <RTooltip formatter={(v: number) => fmtBRL(v)} />
-                <Bar dataKey="valor" fill="#F1704B" radius={[4, 4, 0, 0]}>
-                  <LabelList dataKey="valor" position="top" formatter={(v: number) => fmtBRL(v)} style={{ fontSize: 10 }} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Risco por Almoxarifado</CardTitle></CardHeader>
+          <CardContent style={{ height: 300 }}>
+            {!porAlmox.length ? <Vazio /> : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={porAlmox}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                  <XAxis dataKey="nome" fontSize={10} interval={0} angle={-15} textAnchor="end" height={50} />
+                  <YAxis fontSize={11} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                  <RTooltip formatter={(v: number) => fmtBRL(v)} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {FAIXAS_RISCO.map((fx) => (
+                    <Bar key={fx} dataKey={fx} stackId="a" fill={FAIXA_COR[fx]} name={FAIXA_LABEL[fx]} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Custo Total por Grupo e Faixa</CardTitle></CardHeader>
+          <CardContent className="space-y-3 max-h-[300px] overflow-y-auto">
+            {!porGrupo.length ? <Vazio /> : porGrupo.map((g) => {
+              const t = g.total || 1;
+              return (
+                <div key={g.nome} className="space-y-1">
+                  <div className="flex justify-between gap-2 text-xs">
+                    <span className="truncate">{g.nome}</span>
+                    <span className="font-medium shrink-0">{fmtBRL(g.total)}</span>
+                  </div>
+                  <div className="flex h-4 w-full overflow-hidden rounded">
+                    {FAIXAS_RISCO.map((fx) => ({ fx, p: ((g[fx] ?? 0) / t) * 100 }))
+                      .filter(({ p }) => p > 0)
+                      .map(({ fx, p }) => (
+                        <div
+                          key={fx}
+                          title={`${FAIXA_LABEL[fx]}: ${p.toFixed(2)}%`}
+                          style={{ width: `${p}%`, background: FAIXA_COR[fx] }}
+                          className="flex items-center justify-center text-[10px] font-medium text-background"
+                        >
+                          {p >= 12 ? `${p.toFixed(1)}%` : ""}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <TopCard title="Top 10 — 30 a 60 dias" cor={FAIXA_COR["30-60"]!} rows={top3060} onVerTudo={() => setLista("30-60")} />
+        <TopCard title="Top 10 — 61 a 90 dias" cor={FAIXA_COR["61-90"]!} rows={top6190} onVerTudo={() => setLista("61-90")} />
+        <TopCard title="Top 10 — Mais de 90 dias" cor={FAIXA_COR["+90"]!} rows={topMais90} onVerTudo={() => setLista("+90")} />
+      </div>
+
+      <ListaObsoletosDialog
+        open={!!lista}
+        onOpenChange={(v) => !v && setLista(null)}
+        titulo={lista ? `Lista completa — ${FAIXA_LABEL[lista]}` : ""}
+        {...(lista ? { cor: FAIXA_COR[lista] } : {})}
+        itens={itensLista}
+      />
+
 
       <Card>
         <CardHeader><CardTitle className="text-base">Itens em risco ({filtradas.length})</CardTitle></CardHeader>
@@ -364,5 +471,59 @@ function RiscoObsoletos() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function Vazio() {
+  return <p className="py-6 text-center text-sm text-muted-foreground">Sem dados para os filtros atuais.</p>;
+}
+
+function TopCard({
+  title, cor, rows, onVerTudo,
+}: { title: string; cor: string; rows: { id: string; descricao: string; custo: number }[]; onVerTudo: () => void }) {
+  const total = rows.reduce((s, r) => s + r.custo, 0);
+  const top = rows.slice(0, 10);
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <span className="size-3 rounded-full shrink-0" style={{ background: cor }} />
+          <span className="truncate">{title}</span>
+          <Button size="sm" variant="outline" className="ml-auto shrink-0 h-7 text-xs" onClick={onVerTudo}>
+            Lista Completa
+          </Button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="overflow-x-auto">
+        {!top.length ? <Vazio /> : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">#</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead className="text-right">Custo</TableHead>
+                <TableHead className="text-right">%</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {top.map((r, i) => (
+                <TableRow key={r.id}>
+                  <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
+                  <TableCell className="max-w-[200px] truncate text-xs">{r.descricao}</TableCell>
+                  <TableCell className="text-right text-xs font-medium">{fmtBRL(r.custo)}</TableCell>
+                  <TableCell className="text-right text-xs">{total ? ((r.custo / total) * 100).toFixed(2) : "0,00"}%</TableCell>
+                </TableRow>
+              ))}
+              <TableRow>
+                <TableCell />
+                <TableCell className="text-xs font-semibold">Total ({rows.length} SKUs)</TableCell>
+                <TableCell className="text-right text-xs font-semibold">{fmtBRL(total)}</TableCell>
+                <TableCell className="text-right text-xs font-semibold">100,00%</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
   );
 }
