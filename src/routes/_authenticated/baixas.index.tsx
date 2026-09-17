@@ -888,6 +888,38 @@ function FilaAprovacao() {
     qc.invalidateQueries({ queryKey: ["baixas"] });
   }
 
+  async function exportarSelecionadosExcel() {
+    if (selecionados.length === 0) return toast.error("Nenhum item selecionado");
+    const XLSX = await import("xlsx");
+    const linhas = selecionados.map((b: any) => ({
+      Req: b.solicitacao_id ?? "",
+      Código: b.codigo_produto ?? "",
+      Descrição: b.descricao ?? "",
+      Lote: b.lote ?? "",
+      Qtd: Number(b.quantidade ?? 0),
+      Valor: Number(b.valor_total ?? 0),
+      Motivo: b.motivo?.descricao ?? "",
+      Almox: b.id_local ?? "",
+      Solicitante: nomeSolicitante(b) || "",
+      Status: statusAprovacao(b) ?? "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(linhas);
+    ws["!cols"] = [
+      { wch: 8 }, { wch: 14 }, { wch: 40 }, { wch: 22 }, { wch: 10 },
+      { wch: 14 }, { wch: 22 }, { wch: 14 }, { wch: 22 }, { wch: 22 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Selecionados");
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const url = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `baixas-selecionados-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast.success(`${linhas.length} item(ns) exportado(s)`);
+  }
+
   return (
     <div className="space-y-3">
       <ResumoExecutivoBaixas itens={lista} />
@@ -898,6 +930,11 @@ function FilaAprovacao() {
               <span className="text-xs text-muted-foreground mr-auto">
                 {selecionados.length} item(ns) selecionado(s)
               </span>
+            )}
+            {sel.size > 0 && (
+              <Button variant="outline" onClick={exportarSelecionadosExcel}>
+                <Download className="size-4 mr-2" /> Baixar Excel dos selecionados
+              </Button>
             )}
             {podeAprovar && sel.size > 0 && etapasDisponiveis.map((etapa) => (
               <Button key={etapa} onClick={() => assinar(selecionados, etapa)} disabled={assinando}>
