@@ -662,7 +662,7 @@ function RupturaPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Estrutura — {drillItem?.item ?? drillItem?.id_item}</DialogTitle></DialogHeader>
           {drillItem && (() => {
-            const filhos = (bomQ.data ?? []).filter((b) => b.id_produto === drillItem.id_item);
+            const filhos = (bomQ.data ?? []).filter((b) => b.id_subconjunto === drillItem.id_item);
             const ehSub = drillItem.tipo === "Subconjunto";
             const naoDesdobrado = ehSub && drillItem.suficiente_por_saldo;
             return (
