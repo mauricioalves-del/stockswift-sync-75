@@ -527,7 +527,7 @@ Deno.serve(async (req) => {
     const toList = dests.map((d: any) => d.email);
 
     // ==== KPIs por faixa ====
-    const ORDEM = ["30-60", "61-90", "+90", "sem_registro"];
+    const ORDEM = ["30-60", "61-90", "+90"];
     const totais = new Map<string, number>();
     const contagens = new Map<string, number>();
     for (const r of linhas) {
