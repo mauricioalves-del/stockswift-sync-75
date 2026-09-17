@@ -324,12 +324,11 @@ function RiscoObsoletos() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Kpi label="Itens em risco" value={kpis.totalItens.toString()} sub={fmtBRL(kpis.totalValor)} tone="danger" />
         <Kpi label="30 a 60 dias" value={kpis.n3060.toString()} sub={fmtBRL(kpis.v3060)} />
         <Kpi label="61 a 90 dias" value={kpis.n6190.toString()} sub={fmtBRL(kpis.v6190)} />
         <Kpi label="Mais de 90 dias" value={kpis.nMais90.toString()} sub={fmtBRL(kpis.vMais90)} tone="danger" />
-        <Kpi label="Sem registro de movimentação" value={kpis.nSemReg.toString()} sub={fmtBRL(kpis.vSemReg)} tone="danger" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
