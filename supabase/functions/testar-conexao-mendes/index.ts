@@ -35,7 +35,7 @@ serve(async (req) => {
         host,
         port,
         tempo_ate_falhar_ms: ms,
-        erro: String(e?.message ?? e),
+        erro: String((e instanceof Error ? e.message : e) ?? e),
       }),
       { status: 200, headers: { ...CORS, "Content-Type": "application/json" } }
     );
