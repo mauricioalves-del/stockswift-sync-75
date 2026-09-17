@@ -26,3 +26,7 @@ verify_jwt = false
 
 [functions.testar-conexao-mendes]
 verify_jwt = false
+
+
+[functions.farol-risco-obsoletos-semanal]
+verify_jwt = false
