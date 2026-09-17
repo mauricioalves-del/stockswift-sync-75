@@ -132,19 +132,21 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       : 0;
   const precoComDesconto = calcularPrecoComDesconto(precoVendaNum, percentualEfetivo);
 
-  // Baixas elegíveis: mesmo SKU + mesmo lote, sem restrição de data,
-  // desde que ainda não estejam vinculadas a outra ação.
+  // Baixas elegíveis (vinculação automática): mesmo SKU + lote + almoxarifado,
+  // ocorridas a partir da data de início da ação, ainda não vinculadas a OUTRA ação.
   const baixas = useQuery({
-    queryKey: ["shelf-baixas-lote", form.sku, form.lote, form.data_validade, form.id],
-    enabled: open && podeVincular && !!form.sku,
+    queryKey: ["shelf-baixas-lote-auto", form.sku, form.lote, form.almoxarifado, form.data_acao, form.id],
+    enabled: open && podeVincular && !!form.sku && !!form.data_acao,
     queryFn: async () => {
       let q = (supabase as any)
         .from("baixa_operacional")
-        .select("id, codigo_produto, lote, quantidade, valor_total, data_ocorrencia, data_solicitacao, status_fluxo, descricao, motivo_baixa_id")
+        .select("id, codigo_produto, lote, quantidade, valor_total, data_ocorrencia, data_solicitacao, status_fluxo, descricao, motivo_baixa_id, id_local")
         .eq("codigo_produto", form.sku)
-        .order("data_solicitacao", { ascending: false })
-        .limit(100);
+        .gte("data_solicitacao", form.data_acao)
+        .order("data_solicitacao", { ascending: true })
+        .limit(200);
       if (form.lote) q = q.eq("lote", form.lote);
+      if (form.almoxarifado) q = q.eq("id_local", form.almoxarifado);
       const { data, error } = await q;
       if (error) throw error;
 
@@ -152,22 +154,17 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       if (!candidatas.length) return [] as any[];
 
       const { data: vinculadas } = await (supabase as any)
-        .from("campanhas_lote")
-        .select("id, baixa_operacional_id")
+        .from("campanha_baixas_vinculadas")
+        .select("campanha_id, baixa_operacional_id")
         .in("baixa_operacional_id", candidatas.map((b: any) => b.id));
       const ocupadas = new Set(
         (vinculadas ?? [])
-          .filter((v: any) => v.id !== form.id)
+          .filter((v: any) => v.campanha_id !== form.id)
           .map((v: any) => v.baixa_operacional_id),
       );
       return candidatas.filter((b: any) => !ocupadas.has(b.id)) as any[];
     },
   });
-
-  const baixaSel = useMemo(
-    () => (baixas.data ?? []).find((b) => b.id === form.baixa_operacional_id),
-    [baixas.data, form.baixa_operacional_id],
-  );
 
   // Motivos de baixa (para identificar quando a baixa é a execução da ação).
   const motivos = useQuery({
@@ -179,22 +176,33 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
       return (data ?? []) as { id: string; descricao: string }[];
     },
   });
-  const motivoDaBaixa = useMemo(
-    () => (motivos.data ?? []).find((m) => m.id === baixaSel?.motivo_baixa_id)?.descricao ?? null,
-    [motivos.data, baixaSel],
-  );
-  // Baixa cujo motivo corresponde ao tipo da ação = execução da ação, não perda.
-  const baixaExecucao = !!form.baixa_operacional_id
-    && baixaEhExecucaoDaAcao(tipoSel?.nome, motivoDaBaixa, {
-      motivoIdDoTipo: (tipoSel as any)?.motivo_baixa_id ?? null,
-      motivoIdDaBaixa: baixaSel?.motivo_baixa_id ?? null,
+  const motivoPorId = useMemo(() => {
+    const m = new Map<string, string>();
+    (motivos.data ?? []).forEach((mo) => m.set(mo.id, mo.descricao));
+    return m;
+  }, [motivos.data]);
+
+  // Cada baixa elegível classificada: é a execução da própria ação (não é perda) ou é perda de fato.
+  const baixasClassificadas = useMemo(() => {
+    return (baixas.data ?? []).map((b: any) => {
+      const motivoDesc = motivoPorId.get(b.motivo_baixa_id) ?? null;
+      const execucao = baixaEhExecucaoDaAcao(tipoSel?.nome, motivoDesc, {
+        motivoIdDoTipo: (tipoSel as any)?.motivo_baixa_id ?? null,
+        motivoIdDaBaixa: b.motivo_baixa_id ?? null,
+      });
+      return { ...b, motivoDesc, execucao };
     });
+  }, [baixas.data, motivoPorId, tipoSel]);
+
+  const qtdPerdaTotal = useMemo(
+    () => baixasClassificadas.filter((b) => !b.execucao).reduce((s, b) => s + (Number(b.quantidade) || 0), 0),
+    [baixasClassificadas],
+  );
 
   // ——— Metodologia financeira ———
   const qtdEnderecada = Number(form.quantidade_enderecada) || 0;
   const custoUnit = Number(form.custo_unitario) || 0;
-  const qtdBaixa = form.baixa_operacional_id ? Number(baixaSel?.quantidade ?? 0) : null;
-  const qtdRecuperada = calcQtdRecuperada(qtdEnderecada, qtdBaixa, baixaExecucao);
+  const qtdRecuperada = calcQtdRecuperada(qtdEnderecada, qtdPerdaTotal, false);
   const custoAcao = custoAcaoCalculado(qtdEnderecada, custoUnit);
   const valorPrevisto = valorRecuperadoCalculado({
     categoria,
@@ -240,7 +248,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
         data_acao: form.data_acao || new Date().toISOString().slice(0, 10),
         status: form.status,
         observacao: form.observacao || null,
-        baixa_operacional_id: form.baixa_operacional_id || null,
+        baixa_operacional_id: null, // legado: vínculo agora é automático via campanha_baixas_vinculadas
         preco_venda_referencia: isVendas ? precoVendaNum : null,
         percentual_desconto_aplicado: isVendas ? percentualEfetivo : null,
         preco_com_desconto: isVendas ? precoComDesconto : null,
@@ -257,6 +265,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
 
       const tarefasCriadas: Array<{ ok: boolean; email?: string | null }> = [];
 
+      let campanhaId: string | null = form.id ?? null;
       if (form.id) {
         const { error } = await (supabase as any).from("campanhas_lote").update(payload).eq("id", form.id);
         if (error) throw error;
@@ -264,6 +273,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
         const { data: nova, error } = await (supabase as any)
           .from("campanhas_lote").insert({ ...payload, criado_por: uid }).select("id").single();
         if (error) throw error;
+        campanhaId = (nova as any).id;
 
         // Atribuição: gera uma pendência em Tarefas para cada responsável selecionado.
         const respIds: string[] = form.responsavel_ids ?? [];
@@ -297,6 +307,21 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
           } catch {
             tarefasCriadas.push({ ok: false, email: resp?.email ?? null });
           }
+        }
+      }
+
+      // Sincroniza o vínculo automático: baixas do período/lote que representam perda.
+      if (campanhaId) {
+        await (supabase as any)
+          .from("campanha_baixas_vinculadas")
+          .delete()
+          .eq("campanha_id", campanhaId)
+          .eq("vinculado_automaticamente", true);
+        const idsPerda = baixasClassificadas.filter((b) => !b.execucao).map((b) => b.id);
+        if (idsPerda.length) {
+          await (supabase as any).from("campanha_baixas_vinculadas").insert(
+            idsPerda.map((bid: string) => ({ campanha_id: campanhaId, baixa_operacional_id: bid, vinculado_automaticamente: true })),
+          );
         }
       }
 
@@ -617,49 +642,32 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
 
           {podeVincular && (
             <div className="sm:col-span-2">
-              <Label>Baixa operacional vinculada (opcional)</Label>
-              <Select value={form.baixa_operacional_id || "__none__"}
-                onValueChange={(v) => set("baixa_operacional_id", v === "__none__" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Sem vínculo" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Sem vínculo</SelectItem>
-                  {(baixas.data ?? []).map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      BAIXA · {formatarDataBR(dataDaBaixa(b))} · Lote {b.lote || "—"} · {Number(b.quantidade)} un ·{" "}
-                      {formatBRL(Number(b.valor_total))} · {b.status_fluxo ?? "—"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {form.baixa_operacional_id ? (
-                <div className="mt-1 flex items-center gap-2">
-                  <p className="text-[11px] text-muted-foreground">
-                    Quantidade da baixa vinculada: {qtdBaixa ?? 0}
-                    <br />
-                    Quantidade que será considerada recuperada: {qtdRecuperada} (mínimo 0)
-                  </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 px-2 text-[11px] text-destructive"
-                    onClick={() => {
-                      if (window.confirm("Deseja remover a baixa operacional vinculada a esta ação?")) {
-                        set("baixa_operacional_id", "");
-                      }
-                    }}
-                  >
-                    Desvincular
-                  </Button>
-                </div>
+              <Label>Baixas vinculadas automaticamente (a partir da data da ação)</Label>
+              {!form.data_acao ? (
+                <p className="mt-1 text-[11px] text-muted-foreground">Defina a data da ação para calcular as baixas do período.</p>
+              ) : baixas.isLoading ? (
+                <p className="mt-1 text-[11px] text-muted-foreground">Buscando baixas do lote...</p>
+              ) : baixasClassificadas.length === 0 ? (
+                <p className="mt-1 text-[11px] text-muted-foreground">Nenhuma baixa deste SKU/lote/almoxarifado a partir da data da ação.</p>
               ) : (
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Vincula qualquer baixa do mesmo SKU + lote, sem restrição de data.
-                  {!baixas.isLoading && (baixas.data ?? []).length === 0 && (
-                    <> — nenhuma baixa disponível para este SKU/lote.</>
-                  )}
-                </p>
+                <div className="mt-1 max-h-40 overflow-y-auto rounded border p-2 space-y-1">
+                  {baixasClassificadas.map((b) => (
+                    <div key={b.id} className="text-[11px] flex items-center justify-between gap-2">
+                      <span>
+                        BAIXA · {formatarDataBR(dataDaBaixa(b))} · {Number(b.quantidade)} un · {formatBRL(Number(b.valor_total))} · {b.motivoDesc ?? "—"}
+                      </span>
+                      <span className={b.execucao ? "text-muted-foreground" : "text-destructive"}>
+                        {b.execucao ? "execução da ação" : "perda"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               )}
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Quantidade total considerada perda no período: {qtdPerdaTotal}
+                <br />
+                Quantidade que será considerada recuperada: {qtdRecuperada} (mínimo 0)
+              </p>
             </div>
           )}
 
