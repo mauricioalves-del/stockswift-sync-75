@@ -38,10 +38,10 @@ type LinhaRisco = {
   empresa: "Filial SP - Fabrica" | "Matriz Para";
   ultima_mov: string | null;
   dias_sem_mov: number | null;
-  faixa: "30-60" | "61-90" | "+90" | "sem_registro" | "movimentado";
+  faixa: "30-60" | "61-90" | "+90" | "movimentado";
 };
 
-const FAIXAS_RISCO = ["30-60", "61-90", "+90", "sem_registro"] as const;
+const FAIXAS_RISCO = ["30-60", "61-90", "+90"] as const;
 
 /** Grupos considerados por padrão na análise de risco. */
 const GRUPOS_PADRAO = [
