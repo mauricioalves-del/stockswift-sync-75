@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type BomLinha = {
   id_produto: string;
+  id_subconjunto: string;
   id_item: string;
   item: string | null;
   qtd: number;
@@ -28,11 +29,13 @@ export function explodirBOM(
   qtdPlanejada: number,
   bomRows: BomLinha[],
 ): NecessidadeItem[] {
+  // Agrupa pelo pai REAL de cada nível (id_subconjunto), não pelo produto raiz
+  // (id_produto fica constante = produto acabado em toda a árvore achatada).
   const porProduto = new Map<string, BomLinha[]>();
   for (const r of bomRows) {
-    const arr = porProduto.get(r.id_produto) ?? [];
+    const arr = porProduto.get(r.id_subconjunto) ?? [];
     arr.push(r);
-    porProduto.set(r.id_produto, arr);
+    porProduto.set(r.id_subconjunto, arr);
   }
 
   const out: NecessidadeItem[] = [];
@@ -136,11 +139,13 @@ export function explodirSimulacao(
   bomRows: BomLinha[],
   saldoProducao: Record<string, number>,
 ): ItemResultado[] {
+  // Agrupa pelo pai REAL de cada nível (id_subconjunto), não pelo produto raiz
+  // (id_produto fica constante = produto acabado em toda a árvore achatada).
   const porProduto = new Map<string, BomLinha[]>();
   for (const r of bomRows) {
-    const arr = porProduto.get(r.id_produto) ?? [];
+    const arr = porProduto.get(r.id_subconjunto) ?? [];
     arr.push(r);
-    porProduto.set(r.id_produto, arr);
+    porProduto.set(r.id_subconjunto, arr);
   }
 
   type Pending = {
@@ -284,7 +289,7 @@ export async function carregarBomCompleta(): Promise<BomLinha[]> {
   while (true) {
     const { data, error } = await supabase
       .from("ficha_tecnica_bom" as any)
-      .select("id_produto,id_item,item,qtd,tem_filho,gera_oc,item_unidade")
+      .select("id_produto,id_subconjunto,id_item,item,qtd,tem_filho,gera_oc,item_unidade")
       .range(from, from + size - 1);
     if (error) throw error;
     const rows = (data as unknown as BomLinha[]) ?? [];
