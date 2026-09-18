@@ -30,3 +30,7 @@ verify_jwt = false
 
 [functions.farol-risco-obsoletos-semanal]
 verify_jwt = false
+
+
+[functions.farol-baixas-diario]
+verify_jwt = false
