@@ -126,6 +126,9 @@ function NovaBaixaForm() {
   const [responsavelBaixa, setResponsavelBaixa] = useState("");
   const [foto, setFoto] = useState<File | null>(null);
 
+  const areasCortesiaQ = useContextoOpcoes("CORTESIA");
+  const operacoesQ = useContextoOpcoes("DEGUSTACAO");
+
   const motivosQ = useQuery({
     queryKey: ["motivo_baixa"],
     queryFn: async () => {
