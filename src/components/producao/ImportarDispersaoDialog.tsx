@@ -126,6 +126,9 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
             .in("id", obsoletos.slice(i, i + CHUNK));
           if (error) throw error;
         }
+        if (ignorados > 0) {
+          toast.info(`${ignorados} ${ignorados === 1 ? "item bloqueado foi desconsiderado" : "itens bloqueados foram desconsiderados"} (materiais de teste).`);
+        }
       } else {
         // O arquivo de origem traz apenas uma janela móvel (~3 meses).
         // Por isso o histórico é acumulativo: dedup/soma por
