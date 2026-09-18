@@ -1288,7 +1288,14 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
     setCusto(unitAtual ? String(unitAtual) : "");
     setMotivoId(baixa.motivo_baixa_id ?? "");
     setObs(baixa.observacao ?? "");
+    setContextoBaixa(baixa.contexto_baixa ?? "");
+    setResponsavelBaixa(baixa.responsavel_nome ?? "");
   }, [baixa]);
+
+  const motivoSelDesc = (motivosQ.data ?? []).find((m) => m.id === motivoId)?.descricao ?? "";
+  const ehCortesia = motivoSelDesc.trim().toLowerCase() === "cortesia";
+  const ehDegustacao = motivoSelDesc.trim().toLowerCase() === "degustação";
+
 
   const unitEditado = (() => {
     const t = String(custo).trim();
