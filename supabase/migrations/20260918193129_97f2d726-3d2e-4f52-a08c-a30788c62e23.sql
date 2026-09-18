@@ -1,0 +1,2 @@
+DROP POLICY IF EXISTS "cadastro_emails_select_auth" ON public.cadastro_emails;
+CREATE POLICY "cadastro_emails_select_gestor" ON public.cadastro_emails FOR SELECT TO authenticated USING (public.is_gestor(auth.uid()));
