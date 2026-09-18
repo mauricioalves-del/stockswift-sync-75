@@ -232,7 +232,7 @@ function DispersaoPage() {
         estrutura: situacaoEstrutura(estruturaQ.data, r.sku_produto_final, r.material),
       };
     });
-  }, [impactoQ.data, estruturaQ.data, descProdQ.data, faixas]);
+  }, [impactoQ.data, estruturaQ.data, descProdQ.data, bloqueadosQ.data, faixas]);
 
   const meses = useMemo(
     () => Array.from(new Set(linhas.map((r) => r.mes))).filter((m) => m !== SEM_DATA).sort().reverse(),
