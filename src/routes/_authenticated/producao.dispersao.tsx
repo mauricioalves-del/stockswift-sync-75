@@ -179,6 +179,19 @@ function DispersaoPage() {
     },
   });
 
+  // Materiais de teste bloqueados: desconsiderados da análise (não geram "fora da estrutura" fantasma).
+  const bloqueadosQ = useQuery({
+    queryKey: ["dispersao", "materiais-bloqueados"],
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<Set<string>> => {
+      const { data, error } = await (supabase as any)
+        .from("materiais_bloqueados_ficha_tecnica")
+        .select("id_item");
+      if (error) throw error;
+      return new Set((data ?? []).map((b: any) => String(b.id_item).trim().toUpperCase()));
+    },
+  });
+
   const acoesQ = useQuery({
     queryKey: ["dispersao", "acoes"],
     queryFn: async () => {
