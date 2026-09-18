@@ -126,6 +126,9 @@ function NovaBaixaForm() {
   const [responsavelBaixa, setResponsavelBaixa] = useState("");
   const [foto, setFoto] = useState<File | null>(null);
 
+  const areasCortesiaQ = useContextoOpcoes("CORTESIA");
+  const operacoesQ = useContextoOpcoes("DEGUSTACAO");
+
   const motivosQ = useQuery({
     queryKey: ["motivo_baixa"],
     queryFn: async () => {
@@ -475,11 +478,9 @@ function NovaBaixaForm() {
                     <Select value={contextoBaixa} onValueChange={setContextoBaixa}>
                       <SelectTrigger><SelectValue placeholder="Selecione a área" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Comercial">Comercial</SelectItem>
-                        <SelectItem value="Compras">Compras</SelectItem>
-                        <SelectItem value="Diretoria">Diretoria</SelectItem>
-                        <SelectItem value="Logística">Logística</SelectItem>
-                        <SelectItem value="RH">RH</SelectItem>
+                        {(areasCortesiaQ.data ?? []).map((o) => (
+                          <SelectItem key={o.id} value={o.descricao}>{o.descricao}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -496,10 +497,9 @@ function NovaBaixaForm() {
                   <Select value={contextoBaixa} onValueChange={setContextoBaixa}>
                     <SelectTrigger><SelectValue placeholder="Selecione a operação" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Ativações & Grêmio">Ativações & Grêmio</SelectItem>
-                      <SelectItem value="Shopping Pátio Paulista">Shopping Pátio Paulista</SelectItem>
-                      <SelectItem value="Shopping Eldorado">Shopping Eldorado</SelectItem>
-                      <SelectItem value="Loja Itaim">Loja Itaim</SelectItem>
+                      {(operacoesQ.data ?? []).map((o) => (
+                        <SelectItem key={o.id} value={o.descricao}>{o.descricao}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1267,6 +1267,9 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
   const [salvando, setSalvando] = useState(false);
 
 
+  const areasCortesiaQ = useContextoOpcoes("CORTESIA");
+  const operacoesQ = useContextoOpcoes("DEGUSTACAO");
+
   const motivosQ = useQuery({
     queryKey: ["motivo_baixa"],
     queryFn: async () => {
@@ -1394,11 +1397,9 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
                 <Select value={contextoBaixa} onValueChange={setContextoBaixa}>
                   <SelectTrigger><SelectValue placeholder="Selecione a área" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Comercial">Comercial</SelectItem>
-                    <SelectItem value="Compras">Compras</SelectItem>
-                    <SelectItem value="Diretoria">Diretoria</SelectItem>
-                    <SelectItem value="Logística">Logística</SelectItem>
-                    <SelectItem value="RH">RH</SelectItem>
+                    {(areasCortesiaQ.data ?? []).map((o) => (
+                      <SelectItem key={o.id} value={o.descricao}>{o.descricao}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1415,10 +1416,9 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
               <Select value={contextoBaixa} onValueChange={setContextoBaixa}>
                 <SelectTrigger><SelectValue placeholder="Selecione a operação" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Ativações & Grêmio">Ativações & Grêmio</SelectItem>
-                  <SelectItem value="Shopping Pátio Paulista">Shopping Pátio Paulista</SelectItem>
-                  <SelectItem value="Shopping Eldorado">Shopping Eldorado</SelectItem>
-                  <SelectItem value="Loja Itaim">Loja Itaim</SelectItem>
+                  {(operacoesQ.data ?? []).map((o) => (
+                    <SelectItem key={o.id} value={o.descricao}>{o.descricao}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -1681,4 +1681,20 @@ function Historico() {
       )}
     </div>
   );
+}
+
+function useContextoOpcoes(tipo: "CORTESIA" | "DEGUSTACAO") {
+  return useQuery({
+    queryKey: ["contexto-baixa-opcoes", tipo],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("contexto_baixa_opcoes")
+        .select("id,descricao")
+        .eq("tipo", tipo)
+        .eq("ativo", true)
+        .order("descricao");
+      if (error) throw error;
+      return (data ?? []) as { id: string; descricao: string }[];
+    },
+  });
 }

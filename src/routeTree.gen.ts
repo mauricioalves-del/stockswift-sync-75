@@ -28,6 +28,7 @@ import { Route as AuthenticatedGruposRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedFechamentoMensalRouteImport } from './routes/_authenticated/fechamento-mensal'
 import { Route as AuthenticatedEmailsRouteImport } from './routes/_authenticated/emails'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedContextosBaixaRouteImport } from './routes/_authenticated/contextos-baixa'
 import { Route as AuthenticatedContarRouteImport } from './routes/_authenticated/contar'
 import { Route as AuthenticatedAbcRouteImport } from './routes/_authenticated/abc'
 import { Route as AuthenticatedMissoesIndexRouteImport } from './routes/_authenticated/missoes.index'
@@ -174,6 +175,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedContextosBaixaRoute =
+  AuthenticatedContextosBaixaRouteImport.update({
+    id: '/contextos-baixa',
+    path: '/contextos-baixa',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedContarRoute = AuthenticatedContarRouteImport.update({
   id: '/contar',
   path: '/contar',
@@ -460,6 +467,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/abc': typeof AuthenticatedAbcRoute
   '/contar': typeof AuthenticatedContarRoute
+  '/contextos-baixa': typeof AuthenticatedContextosBaixaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/emails': typeof AuthenticatedEmailsRoute
   '/fechamento-mensal': typeof AuthenticatedFechamentoMensalRoute
@@ -527,6 +535,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/abc': typeof AuthenticatedAbcRoute
   '/contar': typeof AuthenticatedContarRoute
+  '/contextos-baixa': typeof AuthenticatedContextosBaixaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/emails': typeof AuthenticatedEmailsRoute
   '/fechamento-mensal': typeof AuthenticatedFechamentoMensalRoute
@@ -596,6 +605,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/abc': typeof AuthenticatedAbcRoute
   '/_authenticated/contar': typeof AuthenticatedContarRoute
+  '/_authenticated/contextos-baixa': typeof AuthenticatedContextosBaixaRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/emails': typeof AuthenticatedEmailsRoute
   '/_authenticated/fechamento-mensal': typeof AuthenticatedFechamentoMensalRoute
@@ -665,6 +675,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/abc'
     | '/contar'
+    | '/contextos-baixa'
     | '/dashboard'
     | '/emails'
     | '/fechamento-mensal'
@@ -732,6 +743,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/abc'
     | '/contar'
+    | '/contextos-baixa'
     | '/dashboard'
     | '/emails'
     | '/fechamento-mensal'
@@ -800,6 +812,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_authenticated/abc'
     | '/_authenticated/contar'
+    | '/_authenticated/contextos-baixa'
     | '/_authenticated/dashboard'
     | '/_authenticated/emails'
     | '/_authenticated/fechamento-mensal'
@@ -1009,6 +1022,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contextos-baixa': {
+      id: '/_authenticated/contextos-baixa'
+      path: '/contextos-baixa'
+      fullPath: '/contextos-baixa'
+      preLoaderRoute: typeof AuthenticatedContextosBaixaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/contar': {
@@ -1361,6 +1381,7 @@ const AuthenticatedSuprimentosRequisicoesIdRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbcRoute: typeof AuthenticatedAbcRoute
   AuthenticatedContarRoute: typeof AuthenticatedContarRoute
+  AuthenticatedContextosBaixaRoute: typeof AuthenticatedContextosBaixaRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEmailsRoute: typeof AuthenticatedEmailsRoute
   AuthenticatedFechamentoMensalRoute: typeof AuthenticatedFechamentoMensalRoute
@@ -1418,6 +1439,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAbcRoute: AuthenticatedAbcRoute,
   AuthenticatedContarRoute: AuthenticatedContarRoute,
+  AuthenticatedContextosBaixaRoute: AuthenticatedContextosBaixaRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEmailsRoute: AuthenticatedEmailsRoute,
   AuthenticatedFechamentoMensalRoute: AuthenticatedFechamentoMensalRoute,
