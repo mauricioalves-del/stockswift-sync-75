@@ -198,6 +198,7 @@ export const Route = createFileRoute('/api/public/import-ficha-tecnica-bom')({
             atualizados,
             removidos,
             falhas,
+            ignorados,
             erros,
           })
         } catch (e) {
