@@ -1682,3 +1682,19 @@ function Historico() {
     </div>
   );
 }
+
+function useContextoOpcoes(tipo: "CORTESIA" | "DEGUSTACAO") {
+  return useQuery({
+    queryKey: ["contexto-baixa-opcoes", tipo],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("contexto_baixa_opcoes")
+        .select("id,descricao")
+        .eq("tipo", tipo)
+        .eq("ativo", true)
+        .order("descricao");
+      if (error) throw error;
+      return (data ?? []) as { id: string; descricao: string }[];
+    },
+  });
+}
