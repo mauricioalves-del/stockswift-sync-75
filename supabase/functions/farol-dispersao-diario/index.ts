@@ -18,7 +18,11 @@ const GMAIL_GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v
 const FINALIDADE = "Farol Dispersão Diário - SP";
 const EMPRESA_ALVO = "Filial SP - Fabrica";
 function empresaOk(v: unknown): boolean {
-  return String(v ?? "").trim().toLowerCase() === EMPRESA_ALVO.trim().toLowerCase();
+  const s = String(v ?? "").trim().toLowerCase();
+  // Registro sem empresa classificada cai no farol de SP por padrão,
+  // para nunca desaparecer silenciosamente de ambos os farois (SP e PA).
+  if (!s) return true;
+  return s === EMPRESA_ALVO.trim().toLowerCase();
 }
 
 function json(body: Record<string, unknown>, status = 200): Response {
