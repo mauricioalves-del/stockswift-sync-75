@@ -14,6 +14,7 @@ export type BaixaItemInsert = {
   categoria?: string | null;
   subcategoria?: string | null;
   responsavel_nome?: string | null;
+  contexto_baixa?: string | null;
   data_ocorrencia?: string | null;
   origem_lancamento?: string;
 };
@@ -75,6 +76,7 @@ export async function criarSolicitacaoBaixa(entrada: NovaSolicitacaoInput): Prom
     categoria: i.categoria ?? null,
     subcategoria: i.subcategoria ?? null,
     responsavel_nome: i.responsavel_nome ?? solicitante_nome,
+    contexto_baixa: i.contexto_baixa ?? null,
     data_ocorrencia: i.data_ocorrencia ?? null,
     origem_lancamento: i.origem_lancamento ?? entrada.origem_lancamento ?? "MANUAL",
     solicitante_id: user.id,
