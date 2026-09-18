@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +15,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Plus, Sparkles, Trash2, Search, PackageSearch, FileWarning, Store, Factory } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Plus, Sparkles, Trash2, Search, PackageSearch, FileWarning, Store, Factory, ChevronDown, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { carregarBomCompleta, explodirSimulacao, type BomLinha, type ItemResultado } from "@/lib/pcp-bom";
 
@@ -55,6 +55,14 @@ function RupturaPage() {
   const search = Route.useSearch();
   const [linhas, setLinhas] = useState<LinhaSim[]>([]);
   const [drill, setDrill] = useState<string | null>(null);
+  const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
+  function toggleExpandido(key: string) {
+    setExpandidos((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
   const [grupoSel, setGrupoSel] = useState<string>("Produto Acabado");
   const [familiaSel, setFamiliaSel] = useState<string>("__all__");
   const [almoxLoja, setAlmoxLoja] = useState<string>(LOJA_DEFAULT);
@@ -595,16 +603,29 @@ function RupturaPage() {
               {resultado.rows.map((r) => {
                 const key = `${r.id_item}|${r.origem_estoque}`;
                 const ehSub = r.tipo === "Subconjunto";
+                const expandido = expandidos.has(key);
                 return (
+                <Fragment key={key}>
                 <TableRow
-                  key={key}
                   className={r.insuf ? "bg-destructive/5 hover:bg-destructive/10" : "hover:bg-muted/40"}
                 >
                   <TableCell>
-                    <button className="text-left" onClick={() => setDrill(key)}>
-                      <div className="text-sm font-medium underline-offset-2 hover:underline">{r.item ?? r.id_item}{r.um ? <span className="text-xs text-muted-foreground font-normal"> · {r.um}</span> : null}</div>
-                      <div className="text-[10px] text-muted-foreground font-mono">{r.id_item}</div>
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {ehSub && (
+                        <button
+                          type="button"
+                          className="p-0.5 text-muted-foreground hover:text-foreground shrink-0"
+                          onClick={() => toggleExpandido(key)}
+                          title="Ver ingredientes deste subconjunto"
+                        >
+                          {expandido ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
+                      <button className="text-left" onClick={() => setDrill(key)}>
+                        <div className="text-sm font-medium underline-offset-2 hover:underline">{r.item ?? r.id_item}{r.um ? <span className="text-xs text-muted-foreground font-normal"> · {r.um}</span> : null}</div>
+                        <div className="text-[10px] text-muted-foreground font-mono">{r.id_item}</div>
+                      </button>
+                    </div>
                   </TableCell>
                   <TableCell>
                     {ehSub ? (
@@ -644,6 +665,18 @@ function RupturaPage() {
                     )}
                   </TableCell>
                 </TableRow>
+                {ehSub && expandido && (
+                  <LinhasFilhas
+                    idPai={r.id_item}
+                    nivel={1}
+                    bomData={bomQ.data ?? []}
+                    resultadoRows={resultado.rows}
+                    expandidos={expandidos}
+                    toggle={toggleExpandido}
+                    ancestrais={new Set([r.id_item])}
+                  />
+                )}
+                </Fragment>
                 );
               })}
               {!resultado.rows.length && (
@@ -817,6 +850,94 @@ function AddProdutoPicker({ produtos, onPick, disabled }: { produtos: Produto[];
         </Command>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function LinhasFilhas({
+  idPai, nivel, bomData, resultadoRows, expandidos, toggle, ancestrais,
+}: {
+  idPai: string;
+  nivel: number;
+  bomData: BomLinha[];
+  resultadoRows: ItemResultado[];
+  expandidos: Set<string>;
+  toggle: (k: string) => void;
+  ancestrais: Set<string>;
+}) {
+  const filhos = bomData.filter((b) => b.id_subconjunto === idPai);
+  if (!filhos.length) return null;
+  return (
+    <>
+      {filhos.map((c, i) => {
+        const row = resultadoRows.find((x) => x.id_item === c.id_item && x.origem_estoque === "Fábrica");
+        const ehSub = !!c.tem_filho;
+        const chaveFilho = `${idPai}>${c.id_item}`;
+        const expandidoFilho = expandidos.has(chaveFilho);
+        const ciclo = ancestrais.has(c.id_item);
+        return (
+          <Fragment key={`${chaveFilho}-${i}`}>
+            <TableRow className="bg-muted/20 hover:bg-muted/30">
+              <TableCell style={{ paddingLeft: `${16 + nivel * 20}px` }}>
+                <div className="flex items-center gap-1">
+                  {ehSub && !ciclo && (
+                    <button
+                      type="button"
+                      className="p-0.5 text-muted-foreground hover:text-foreground shrink-0"
+                      onClick={() => toggle(chaveFilho)}
+                      title="Ver ingredientes deste subconjunto"
+                    >
+                      {expandidoFilho ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                    </button>
+                  )}
+                  <div>
+                    <div className="text-xs font-medium">{c.item ?? c.id_item}</div>
+                    <div className="text-[10px] text-muted-foreground font-mono">{c.id_item}</div>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                {ehSub ? (
+                  <Badge variant="outline" className="text-[10px] border-blue-500/40 text-blue-700 dark:text-blue-400">Subconjunto</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px]">Matéria-Prima</Badge>
+                )}
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline" className="text-[10px]"><Factory className="h-3 w-3 mr-1" />Produção</Badge>
+              </TableCell>
+              <TableCell className="text-right tabular-nums">{row ? fmt(row.necessidade) : "—"}</TableCell>
+              <TableCell className="text-right tabular-nums">{row ? fmt(row.saldo) : "—"}</TableCell>
+              <TableCell className={`text-right tabular-nums ${row?.insuf ? "text-destructive font-medium" : ""}`}>
+                {row ? fmt(row.diff) : "—"}
+              </TableCell>
+              <TableCell>
+                {ciclo ? (
+                  <span className="text-[10px] text-muted-foreground">ciclo na estrutura</span>
+                ) : row ? (
+                  row.insuf
+                    ? <Badge className="bg-destructive/15 text-destructive border-destructive/30"><AlertTriangle className="h-3 w-3 mr-1" />Insuficiente</Badge>
+                    : <Badge className="bg-success/15 text-success border-success/30"><CheckCircle2 className="h-3 w-3 mr-1" />Suficiente</Badge>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">não resolvido</span>
+                )}
+              </TableCell>
+              <TableCell />
+            </TableRow>
+            {ehSub && expandidoFilho && !ciclo && (
+              <LinhasFilhas
+                idPai={c.id_item}
+                nivel={nivel + 1}
+                bomData={bomData}
+                resultadoRows={resultadoRows}
+                expandidos={expandidos}
+                toggle={toggle}
+                ancestrais={new Set([...ancestrais, c.id_item])}
+              />
+            )}
+          </Fragment>
+        );
+      })}
+    </>
   );
 }
 
