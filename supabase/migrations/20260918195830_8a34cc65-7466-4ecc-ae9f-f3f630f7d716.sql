@@ -1,0 +1,1 @@
+ALTER TABLE public.baixa_operacional ADD COLUMN IF NOT EXISTS contexto_baixa TEXT;
