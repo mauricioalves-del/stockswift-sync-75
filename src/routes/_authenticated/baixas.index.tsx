@@ -1310,6 +1310,9 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
     const q = Number(String(qtd).replace(",", "."));
     if (!Number.isFinite(q) || q <= 0) return toast.error("Quantidade inválida");
     if (!Number.isFinite(unitEditado) || unitEditado < 0) return toast.error("Custo unitário inválido");
+    if (ehCortesia && !contextoBaixa) return toast.error("Selecione a área que solicitou a cortesia");
+    if (ehCortesia && !responsavelBaixa.trim()) return toast.error("Informe o responsável pela baixa");
+    if (ehDegustacao && !contextoBaixa) return toast.error("Selecione a operação da degustação");
     setSalvando(true);
     try {
       const unit = unitEditado;
@@ -1322,7 +1325,10 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
         motivo_baixa_id: motivoId || null,
         observacao: obs || null,
         valor_total: Number((unit * q).toFixed(2)),
+        contexto_baixa: ehCortesia || ehDegustacao ? contextoBaixa || null : null,
+        ...(ehCortesia ? { responsavel_nome: responsavelBaixa.trim() || null } : {}),
       };
+
 
       const { error } = await (supabase as any).from("baixa_operacional").update(patch).eq("id", baixa.id);
       if (error) throw error;
