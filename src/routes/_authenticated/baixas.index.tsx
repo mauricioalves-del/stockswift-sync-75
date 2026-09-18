@@ -1262,7 +1262,10 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
   const [custo, setCusto] = useState("");
   const [motivoId, setMotivoId] = useState("");
   const [obs, setObs] = useState("");
+  const [contextoBaixa, setContextoBaixa] = useState("");
+  const [responsavelBaixa, setResponsavelBaixa] = useState("");
   const [salvando, setSalvando] = useState(false);
+
 
   const motivosQ = useQuery({
     queryKey: ["motivo_baixa"],
