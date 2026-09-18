@@ -32,6 +32,7 @@ const NAV: (NavItem | NavGroup)[] = [
     items: [
       { to: "/origens", label: "Almox", icon: Warehouse, role: "write" },
       { to: "/motivos-baixa", label: "Motivos de Baixa", icon: PackageMinus, role: "write" },
+      { to: "/contextos-baixa", label: "Áreas e Operações de Baixa", icon: Tags, role: "write" },
       { to: "/emails", label: "E-mails", icon: Mail, role: "admin" },
       { to: "/importar", label: "Sincronização de Estoque", icon: RefreshCw, role: "write" },
       { to: "/importar-familias", label: "Importador de Famílias", icon: Leaf, role: "write" },
