@@ -63,10 +63,19 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
       const { data: userData } = await supabase.auth.getUser();
       const uid = userData?.user?.id ?? null;
       if (isBom) {
+        // Materiais de teste bloqueados (ex.: "Massa de Chocolate Branco - teste 2025")
+        // não entram na Ficha Técnica: são desconsiderados da importação, sem bloquear o resto.
+        const { data: bloqueadosRows, error: errBloq } = await (supabase as any)
+          .from("materiais_bloqueados_ficha_tecnica")
+          .select("id_item");
+        if (errBloq) throw errBloq;
+        const bloqueados = new Set((bloqueadosRows ?? []).map((b: any) => String(b.id_item).trim().toUpperCase()));
+        let ignorados = 0;
         // Dedup por (id_produto, id_subconjunto, id_item) — chave única do banco.
         // id_subconjunto vazio é gravado como string vazia (nunca null).
         const agg = new Map<string, any>();
         for (const r of okRowsBom) {
+          if (bloqueados.has(String(r.id_item).trim().toUpperCase())) { ignorados++; continue; }
           const id_subconjunto = (r.id_subconjunto || "").trim();
           agg.set(`${r.id_produto}|${id_subconjunto}|${r.id_item}`, {
             id_produto: r.id_produto, produto: r.produto || null,
@@ -116,6 +125,9 @@ export function ImportarDispersaoDialog({ modo }: { modo: Modo }) {
             .delete()
             .in("id", obsoletos.slice(i, i + CHUNK));
           if (error) throw error;
+        }
+        if (ignorados > 0) {
+          toast.info(`${ignorados} ${ignorados === 1 ? "item bloqueado foi desconsiderado" : "itens bloqueados foram desconsiderados"} (materiais de teste).`);
         }
       } else {
         // O arquivo de origem traz apenas uma janela móvel (~3 meses).

@@ -2456,6 +2456,24 @@ export type Database = {
         }
         Relationships: []
       }
+      produtos_excluidos_dispersao: {
+        Row: {
+          excluido_em: string
+          motivo: string
+          produto: string
+        }
+        Insert: {
+          excluido_em?: string
+          motivo: string
+          produto: string
+        }
+        Update: {
+          excluido_em?: string
+          motivo?: string
+          produto?: string
+        }
+        Relationships: []
+      }
       produtos_reposicao: {
         Row: {
           ativo: boolean

@@ -179,6 +179,19 @@ function DispersaoPage() {
     },
   });
 
+  // Materiais de teste bloqueados: desconsiderados da análise (não geram "fora da estrutura" fantasma).
+  const bloqueadosQ = useQuery({
+    queryKey: ["dispersao", "materiais-bloqueados"],
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<Set<string>> => {
+      const { data, error } = await (supabase as any)
+        .from("materiais_bloqueados_ficha_tecnica")
+        .select("id_item");
+      if (error) throw error;
+      return new Set((data ?? []).map((b: any) => String(b.id_item).trim().toUpperCase()));
+    },
+  });
+
   const acoesQ = useQuery({
     queryKey: ["dispersao", "acoes"],
     queryFn: async () => {
@@ -191,7 +204,11 @@ function DispersaoPage() {
 
   const linhas = useMemo(() => {
     const rows = impactoQ.data ?? [];
-    return rows.map((r) => {
+    const bloqueados = bloqueadosQ.data;
+    const consideradas = bloqueados?.size
+      ? rows.filter((r) => !bloqueados.has(String(r.material).trim().toUpperCase()))
+      : rows;
+    return consideradas.map((r) => {
       const custo = Number(r.custo_unit_medio ?? 0);
       const impacto = Number(r.impacto_rs ?? 0);
       const pct = percentualDispersao(r.qtd_dif, r.qtd_previsto, r.qtd_consumo);
@@ -215,7 +232,7 @@ function DispersaoPage() {
         estrutura: situacaoEstrutura(estruturaQ.data, r.sku_produto_final, r.material),
       };
     });
-  }, [impactoQ.data, estruturaQ.data, descProdQ.data, faixas]);
+  }, [impactoQ.data, estruturaQ.data, descProdQ.data, bloqueadosQ.data, faixas]);
 
   const meses = useMemo(
     () => Array.from(new Set(linhas.map((r) => r.mes))).filter((m) => m !== SEM_DATA).sort().reverse(),

@@ -123,9 +123,22 @@ export const Route = createFileRoute('/api/public/import-ficha-tecnica-bom')({
         try {
           const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
 
+          // Materiais de teste bloqueados: desconsiderados da importação (não bloqueiam o lote)
+          const { data: bloqRows } = await supabaseAdmin
+            .from('materiais_bloqueados_ficha_tecnica')
+            .select('id_item')
+          const bloqueados = new Set(
+            (bloqRows ?? []).map((b: any) => String(b.id_item).trim().toUpperCase()),
+          )
+          let ignorados = 0
+
           // Dedup por (id_produto, id_subconjunto, id_item) — última linha vence
           const agg = new Map<string, Valida>()
           for (const r of validas) {
+            if (bloqueados.has(String(r.id_item).trim().toUpperCase())) {
+              ignorados++
+              continue
+            }
             agg.set(`${r.id_produto}|${r.id_subconjunto}|${r.id_item}`, r)
           }
           const payload = Array.from(agg.values())
@@ -185,6 +198,7 @@ export const Route = createFileRoute('/api/public/import-ficha-tecnica-bom')({
             atualizados,
             removidos,
             falhas,
+            ignorados,
             erros,
           })
         } catch (e) {
