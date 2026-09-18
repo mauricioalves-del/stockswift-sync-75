@@ -645,6 +645,33 @@ export type Database = {
         }
         Relationships: []
       }
+      contexto_baixa_opcoes: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string
+          id: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao: string
+          id?: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string
+          id?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       demanda_extra: {
         Row: {
           aprovado_em: string | null
