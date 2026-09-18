@@ -204,7 +204,11 @@ function DispersaoPage() {
 
   const linhas = useMemo(() => {
     const rows = impactoQ.data ?? [];
-    return rows.map((r) => {
+    const bloqueados = bloqueadosQ.data;
+    const consideradas = bloqueados?.size
+      ? rows.filter((r) => !bloqueados.has(String(r.material).trim().toUpperCase()))
+      : rows;
+    return consideradas.map((r) => {
       const custo = Number(r.custo_unit_medio ?? 0);
       const impacto = Number(r.impacto_rs ?? 0);
       const pct = percentualDispersao(r.qtd_dif, r.qtd_previsto, r.qtd_consumo);
