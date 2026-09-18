@@ -97,6 +97,8 @@ type CarrinhoItem = {
   motivo_desc: string;
   observacao: string;
   foto_path?: string | null;
+  contexto_baixa?: string | null;
+  responsavel_baixa?: string | null;
 };
 
 function NovaBaixaForm() {
@@ -120,6 +122,8 @@ function NovaBaixaForm() {
   const [quantidade, setQuantidade] = useState("");
   const [motivoId, setMotivoId] = useState("");
   const [observacaoItem, setObservacaoItem] = useState("");
+  const [contextoBaixa, setContextoBaixa] = useState("");
+  const [responsavelBaixa, setResponsavelBaixa] = useState("");
   const [foto, setFoto] = useState<File | null>(null);
 
   const motivosQ = useQuery({
@@ -225,9 +229,15 @@ function NovaBaixaForm() {
     toast.success(`Produto selecionado: ${p.id_produto}`);
   }
 
+  const motivoSelDesc = (motivosQ.data ?? []).find((m) => m.id === motivoId)?.descricao ?? "";
+  const ehCortesia = motivoSelDesc.trim().toLowerCase() === "cortesia";
+  const ehDegustacao = motivoSelDesc.trim().toLowerCase() === "degustação";
+  useEffect(() => { setContextoBaixa(""); setResponsavelBaixa(""); }, [motivoId]);
+
   function limparItem() {
     setEan(""); setProduto(null); setLoteSel("");
     setQuantidade(""); setMotivoId(""); setObservacaoItem(""); setFoto(null);
+    setContextoBaixa(""); setResponsavelBaixa("");
   }
 
   async function adicionarAoCarrinho() {
@@ -237,6 +247,9 @@ function NovaBaixaForm() {
     if (!qtd || qtd <= 0) return toast.error("Informe a quantidade");
     if (qtd > saldo) return toast.error("Quantidade maior que saldo disponível");
     if (!motivoId) return toast.error("Selecione o motivo");
+    if (ehCortesia && !contextoBaixa) return toast.error("Selecione a área que solicitou a cortesia");
+    if (ehCortesia && !responsavelBaixa.trim()) return toast.error("Informe o responsável pela baixa");
+    if (ehDegustacao && !contextoBaixa) return toast.error("Selecione a operação da degustação");
     if (!observacaoItem.trim()) return toast.error("Informe a Observação do item");
 
     if (foto) {
@@ -268,6 +281,8 @@ function NovaBaixaForm() {
         motivo_desc: motivoDesc,
         observacao: observacaoItem,
         foto_path,
+        contexto_baixa: contextoBaixa || null,
+        responsavel_baixa: responsavelBaixa.trim() || null,
       },
     ]);
     toast.success(`Item adicionado ao carrinho (${carrinho.length + 1})`);
@@ -303,6 +318,8 @@ function NovaBaixaForm() {
           motivo_baixa_id: c.motivo_baixa_id,
           observacao: c.observacao || null,
           foto_url: c.foto_path || null,
+          contexto_baixa: c.contexto_baixa ?? null,
+          responsavel_nome: c.responsavel_baixa ?? undefined,
         })),
       });
       toast.success(`Solicitação #${id} criada com ${carrinho.length} item(ns)`);
@@ -450,6 +467,43 @@ function NovaBaixaForm() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {ehCortesia && (
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
+                  <div>
+                    <Label>Área que solicitou a cortesia *</Label>
+                    <Select value={contextoBaixa} onValueChange={setContextoBaixa}>
+                      <SelectTrigger><SelectValue placeholder="Selecione a área" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Comercial">Comercial</SelectItem>
+                        <SelectItem value="Compras">Compras</SelectItem>
+                        <SelectItem value="Diretoria">Diretoria</SelectItem>
+                        <SelectItem value="Logística">Logística</SelectItem>
+                        <SelectItem value="RH">RH</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Responsável pela baixa *</Label>
+                    <Input value={responsavelBaixa} onChange={(e) => setResponsavelBaixa(e.target.value)} placeholder="Nome do responsável" />
+                  </div>
+                </div>
+              )}
+
+              {ehDegustacao && (
+                <div className="md:col-span-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
+                  <Label>Operação *</Label>
+                  <Select value={contextoBaixa} onValueChange={setContextoBaixa}>
+                    <SelectTrigger><SelectValue placeholder="Selecione a operação" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Ativações & Grêmio">Ativações & Grêmio</SelectItem>
+                      <SelectItem value="Shopping Pátio Paulista">Shopping Pátio Paulista</SelectItem>
+                      <SelectItem value="Shopping Eldorado">Shopping Eldorado</SelectItem>
+                      <SelectItem value="Loja Itaim">Loja Itaim</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div>
                 <Label>Quantidade *</Label>
