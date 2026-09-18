@@ -111,6 +111,7 @@ export type Database = {
           categoria: string | null
           codigo_produto: string
           comentario_aprovacao: string | null
+          contexto_baixa: string | null
           created_at: string
           custo_unitario: number
           data_aprovacao: string | null
@@ -147,6 +148,7 @@ export type Database = {
           categoria?: string | null
           codigo_produto: string
           comentario_aprovacao?: string | null
+          contexto_baixa?: string | null
           created_at?: string
           custo_unitario?: number
           data_aprovacao?: string | null
@@ -183,6 +185,7 @@ export type Database = {
           categoria?: string | null
           codigo_produto?: string
           comentario_aprovacao?: string | null
+          contexto_baixa?: string | null
           created_at?: string
           custo_unitario?: number
           data_aprovacao?: string | null
