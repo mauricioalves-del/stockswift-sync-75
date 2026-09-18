@@ -494,10 +494,9 @@ function NovaBaixaForm() {
                   <Select value={contextoBaixa} onValueChange={setContextoBaixa}>
                     <SelectTrigger><SelectValue placeholder="Selecione a operação" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Ativações & Grêmio">Ativações & Grêmio</SelectItem>
-                      <SelectItem value="Shopping Pátio Paulista">Shopping Pátio Paulista</SelectItem>
-                      <SelectItem value="Shopping Eldorado">Shopping Eldorado</SelectItem>
-                      <SelectItem value="Loja Itaim">Loja Itaim</SelectItem>
+                      {(operacoesQ.data ?? []).map((o) => (
+                        <SelectItem key={o.id} value={o.descricao}>{o.descricao}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
