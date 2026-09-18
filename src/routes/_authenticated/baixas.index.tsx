@@ -1267,6 +1267,9 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
   const [salvando, setSalvando] = useState(false);
 
 
+  const areasCortesiaQ = useContextoOpcoes("CORTESIA");
+  const operacoesQ = useContextoOpcoes("DEGUSTACAO");
+
   const motivosQ = useQuery({
     queryKey: ["motivo_baixa"],
     queryFn: async () => {
