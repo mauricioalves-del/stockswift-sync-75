@@ -859,7 +859,7 @@ function LinhasFilhas({
   idPai: string;
   nivel: number;
   bomData: BomLinha[];
-  resultadoRows: ItemResultado[];
+  resultadoRows: (ItemResultado & { saldo: number; diff: number; insuf: boolean })[];
   expandidos: Set<string>;
   toggle: (k: string) => void;
   ancestrais: Set<string>;
