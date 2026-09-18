@@ -1262,7 +1262,10 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
   const [custo, setCusto] = useState("");
   const [motivoId, setMotivoId] = useState("");
   const [obs, setObs] = useState("");
+  const [contextoBaixa, setContextoBaixa] = useState("");
+  const [responsavelBaixa, setResponsavelBaixa] = useState("");
   const [salvando, setSalvando] = useState(false);
+
 
   const motivosQ = useQuery({
     queryKey: ["motivo_baixa"],
@@ -1285,7 +1288,14 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
     setCusto(unitAtual ? String(unitAtual) : "");
     setMotivoId(baixa.motivo_baixa_id ?? "");
     setObs(baixa.observacao ?? "");
+    setContextoBaixa(baixa.contexto_baixa ?? "");
+    setResponsavelBaixa(baixa.responsavel_nome ?? "");
   }, [baixa]);
+
+  const motivoSelDesc = (motivosQ.data ?? []).find((m) => m.id === motivoId)?.descricao ?? "";
+  const ehCortesia = motivoSelDesc.trim().toLowerCase() === "cortesia";
+  const ehDegustacao = motivoSelDesc.trim().toLowerCase() === "degustação";
+
 
   const unitEditado = (() => {
     const t = String(custo).trim();
@@ -1300,6 +1310,9 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
     const q = Number(String(qtd).replace(",", "."));
     if (!Number.isFinite(q) || q <= 0) return toast.error("Quantidade inválida");
     if (!Number.isFinite(unitEditado) || unitEditado < 0) return toast.error("Custo unitário inválido");
+    if (ehCortesia && !contextoBaixa) return toast.error("Selecione a área que solicitou a cortesia");
+    if (ehCortesia && !responsavelBaixa.trim()) return toast.error("Informe o responsável pela baixa");
+    if (ehDegustacao && !contextoBaixa) return toast.error("Selecione a operação da degustação");
     setSalvando(true);
     try {
       const unit = unitEditado;
@@ -1312,7 +1325,10 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
         motivo_baixa_id: motivoId || null,
         observacao: obs || null,
         valor_total: Number((unit * q).toFixed(2)),
+        contexto_baixa: ehCortesia || ehDegustacao ? contextoBaixa || null : null,
+        ...(ehCortesia ? { responsavel_nome: responsavelBaixa.trim() || null } : {}),
       };
+
 
       const { error } = await (supabase as any).from("baixa_operacional").update(patch).eq("id", baixa.id);
       if (error) throw error;
@@ -1370,6 +1386,44 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
               </SelectContent>
             </Select>
           </div>
+
+          {ehCortesia && (
+            <div className="grid grid-cols-1 gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
+              <div>
+                <Label className="text-xs">Área que solicitou a cortesia *</Label>
+                <Select value={contextoBaixa} onValueChange={setContextoBaixa}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a área" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Comercial">Comercial</SelectItem>
+                    <SelectItem value="Compras">Compras</SelectItem>
+                    <SelectItem value="Diretoria">Diretoria</SelectItem>
+                    <SelectItem value="Logística">Logística</SelectItem>
+                    <SelectItem value="RH">RH</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Responsável pela baixa *</Label>
+                <Input value={responsavelBaixa} onChange={(e) => setResponsavelBaixa(e.target.value)} placeholder="Nome do responsável" />
+              </div>
+            </div>
+          )}
+
+          {ehDegustacao && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
+              <Label className="text-xs">Operação *</Label>
+              <Select value={contextoBaixa} onValueChange={setContextoBaixa}>
+                <SelectTrigger><SelectValue placeholder="Selecione a operação" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Ativações & Grêmio">Ativações & Grêmio</SelectItem>
+                  <SelectItem value="Shopping Pátio Paulista">Shopping Pátio Paulista</SelectItem>
+                  <SelectItem value="Shopping Eldorado">Shopping Eldorado</SelectItem>
+                  <SelectItem value="Loja Itaim">Loja Itaim</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div>
             <Label className="text-xs">Observação</Label>
             <Textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} />
