@@ -257,6 +257,45 @@ export type Database = {
         }
         Relationships: []
       }
+      campanha_baixas_vinculadas: {
+        Row: {
+          baixa_operacional_id: string
+          campanha_id: string
+          created_at: string
+          id: string
+          vinculado_automaticamente: boolean
+        }
+        Insert: {
+          baixa_operacional_id: string
+          campanha_id: string
+          created_at?: string
+          id?: string
+          vinculado_automaticamente?: boolean
+        }
+        Update: {
+          baixa_operacional_id?: string
+          campanha_id?: string
+          created_at?: string
+          id?: string
+          vinculado_automaticamente?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campanha_baixas_vinculadas_baixa_operacional_id_fkey"
+            columns: ["baixa_operacional_id"]
+            isOneToOne: false
+            referencedRelation: "baixa_operacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campanha_baixas_vinculadas_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "campanhas_lote"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campanha_lote_comentarios: {
         Row: {
           autor_id: string
