@@ -3517,6 +3517,10 @@ export type Database = {
         }[]
       }
       proximo_numero_req_op: { Args: never; Returns: string }
+      recalcular_classificacao_abc: {
+        Args: { p_periodo_dias?: number }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role:
