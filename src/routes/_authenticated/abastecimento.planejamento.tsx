@@ -279,16 +279,30 @@ function PlanejamentoPage() {
         }
       }
       const pesoTotal = cmds.reduce((a, b) => a + b.peso, 0);
-      const cmd = pesoTotal > 0 ? cmds.reduce((a, b) => a + b.cmd * b.peso, 0) / pesoTotal : 0;
+      const cmdPonderado = pesoTotal > 0 ? cmds.reduce((a, b) => a + b.cmd * b.peso, 0) / pesoTotal : 0;
+      // Fator de tendência: compara a janela de 30d com a de 90d para reagir
+      // mais rápido em fase de crescimento/queda, evitando que a sugestão
+      // fique sempre um passo atrás da curva real de vendas. Só se aplica
+      // quando a janela de 90d tem base suficiente (>=45 dias com movimento),
+      // e é limitado a [0.75, 1.3] para não amplificar ruído de loja pequena.
+      const dias90 = diasJanela[2].get(key)?.size ?? 0;
+      const cmd30raw = (() => { const d = diasJanela[1].get(key)?.size ?? 0; const t = consumoJanela[1].get(key) ?? 0; return d > 0 ? t / d : 0; })();
+      const cmd90raw = (() => { const d = diasJanela[2].get(key)?.size ?? 0; const t = consumoJanela[2].get(key) ?? 0; return d > 0 ? t / d : 0; })();
+      const tendencia = (dias90 >= 45 && cmd90raw > 0) ? Math.min(1.3, Math.max(0.75, cmd30raw / cmd90raw)) : 1;
+      const cmd = cmdPonderado * tendencia;
       const diasBase = cmds.length > 0 ? Math.max(...cmds.map((c) => c.dias)) : 0;
       const janelaBase = cmds.length > 0 ? Math.max(...cmds.map((c) => JANELAS.find((j) => j.peso === c.peso)?.dias ?? 0)) : 30;
-      const semBase = cmd === 0;
+      const semBase = cmdPonderado === 0;
 
       // Contexto SKU para sazonalidade e ABC
       const familia = familiaMap.get(sku) ?? "";
       const grupo = grupoMap.get(sku) ?? "";
       const classe = abcMap.get(sku) ?? null;
       const cobertura_alvo = p.cobertura_dias;
+      // Estoque de segurança: dias configurados × CMD, com reforço para
+      // classes A/B (maior giro, maior risco de ruptura, menos substitutos
+      // na prateleira para o cliente premium).
+      const fatorSegurancaClasse = classe === "A" || classe === "B" ? 1.5 : 1.0;
 
       // Índice médio de sazonalidade na janela de cobertura alvo (afeta CMD projetado)
       const saz = indiceMedioNaJanela(periodos, { sku, grupo, familia }, Math.max(1, cobertura_alvo));
@@ -297,8 +311,12 @@ function PlanejamentoPage() {
 
       const cobertura_atual = cmd > 0 ? s.qtd / cmd : 999;
       const demanda_extra = demandaMap.get(key) ?? 0;
-      // Necessidade ajustada por sazonalidade média da janela
-      const necessidade = semBase ? demanda_extra : cmd * cobertura_alvo * saz.indice + demanda_extra;
+      // Estoque de segurança (dias configurados × CMD × fator de classe) —
+      // antes configurável na tela de Parâmetros mas nunca aplicado ao
+      // cálculo; agora soma explicitamente à necessidade.
+      const estoqueSeguranca = semBase ? 0 : cmd * (p.dias_seguranca || 0) * fatorSegurancaClasse;
+      // Necessidade ajustada por sazonalidade média da janela + estoque de segurança
+      const necessidade = semBase ? demanda_extra : cmd * cobertura_alvo * saz.indice + demanda_extra + estoqueSeguranca;
       let sugestao = Math.max(0, necessidade - s.qtd);
 
       // Regras de suprimento
@@ -317,7 +335,7 @@ function PlanejamentoPage() {
       const pr = prodMap.get(sku);
       const minimo = Number(pr?.estoque_minimo ?? 0);
       // Sazonalidade sobre Ideal/Máx no momento atual
-      const ideal = Number(pr?.estoque_ideal ?? 0) * sazHoje.indice;
+      const ideal = Number(pr?.estoque_ideal ?? 0) * sazHoje.indice + estoqueSeguranca;
       const maximo = Number(pr?.estoque_maximo ?? 0) * sazHoje.indice;
       let sugestao_minmax = 0;
       if (minimo > 0 && s.qtd < minimo && ideal > 0) {
