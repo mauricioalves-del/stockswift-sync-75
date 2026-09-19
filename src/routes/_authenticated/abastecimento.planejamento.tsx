@@ -45,6 +45,7 @@ type Linha = {
   demanda_extra: number; necessidade: number; sugestao: number; custo_unitario: number; valor_reposicao: number;
   minimo: number; ideal: number; maximo: number; sugestao_minmax: number;
   supplier_disp: number; lote_fefo: string | null; lote_fefo_qtd: number; is_granel: boolean;
+  sugestao_desejada: number; excedente: number; transferencia_sugerida: { origem: string; qtd: number }[] | null; transferencia_qtd: number;
   dias_base: number; janela_dias: number; sem_base: boolean;
   classe_abc: string | null;
   metodo_efetivo: MetodoSku; metodo_fonte: "override" | "abc" | "default";
@@ -330,7 +331,12 @@ function PlanejamentoPage() {
       if (is_granel && isSupplied && fefo && fefo.qtd > 0 && precisaRepor) {
         sugestao = Math.max(sugestao, fefo.qtd);
       }
+      const sugestaoDesejada = sugestao;
       if (isSupplied) sugestao = Math.min(sugestao, supplier_disp);
+      // Excedente: quanto a loja tem hoje além da própria necessidade — candidato
+      // a doar numa transferência lateral para outra loja com falta do mesmo SKU,
+      // quando a fábrica não tem saldo suficiente para cobrir todo mundo.
+      const excedente = is_granel ? 0 : Math.max(0, s.qtd - necessidade);
 
       const pr = prodMap.get(sku);
       const minimo = Number(pr?.estoque_minimo ?? 0);
@@ -361,12 +367,54 @@ function PlanejamentoPage() {
         lote_fefo: fefo?.lote ?? null,
         lote_fefo_qtd: fefo?.qtd ?? 0,
         is_granel,
+        sugestao_desejada: Math.ceil(Math.max(0, sugestaoDesejada)),
+        excedente: Math.floor(excedente),
+        transferencia_sugerida: null,
+        transferencia_qtd: 0,
         dias_base: diasBase, janela_dias: janelaBase, sem_base: semBase,
         classe_abc: classe,
         metodo_efetivo: met.metodo, metodo_fonte: met.fonte,
         indice_sazonal: saz.indice, sazonal_nomes: saz.nomes,
       });
     }
+
+    // ==== Balanceamento entre lojas (transferência lateral) ====
+    // Quando a fábrica não tem saldo suficiente para cobrir a necessidade de
+    // uma loja, verifica se outra loja do mesmo SKU tem excedente acima da
+    // própria necessidade e sugere transferência lateral em vez de esperar
+    // produção nova — mais rápido e mais barato que repor pela fábrica.
+    const porSku = new Map<string, Linha[]>();
+    for (const l of out) {
+      if (l.is_granel) continue; // granéis seguem lote FEFO, fora deste escopo
+      if (!porSku.has(l.sku)) porSku.set(l.sku, []);
+      porSku.get(l.sku)!.push(l);
+    }
+    for (const linhas of porSku.values()) {
+      const doadores = linhas
+        .filter((l) => l.excedente > 0)
+        .sort((a, b) => b.excedente - a.excedente)
+        .map((l) => ({ origem: l.origem, disponivel: l.excedente }));
+      for (const l of linhas) {
+        let falta = l.sugestao_desejada - l.sugestao;
+        if (falta <= 0) continue;
+        const transfers: { origem: string; qtd: number }[] = [];
+        for (const d of doadores) {
+          if (falta <= 0) break;
+          if (d.origem === l.origem || d.disponivel <= 0) continue;
+          const qtd = Math.min(falta, d.disponivel);
+          if (qtd > 0) {
+            transfers.push({ origem: d.origem, qtd: Math.ceil(qtd) });
+            d.disponivel -= qtd;
+            falta -= qtd;
+          }
+        }
+        if (transfers.length) {
+          l.transferencia_sugerida = transfers;
+          l.transferencia_qtd = transfers.reduce((s, t) => s + t.qtd, 0);
+        }
+      }
+    }
+
     return out.sort((a, b) => a.cobertura_atual - b.cobertura_atual);
   }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data, prodRepQ.data, supplierStockQ.data, familiasQ.data, abcQ.data, gruposQ.data, sazonaisQ.data]);
 
@@ -591,6 +639,7 @@ function PlanejamentoPage() {
                   <TableHead className="text-right">Cob. Alvo</TableHead>
                   <TableHead className="text-right">Dem. Extra</TableHead>
                   <TableHead className="text-right">Disp. Fornec.</TableHead>
+                  <TableHead className="text-right">Transferência</TableHead>
                   <TableHead className="text-right">Lote FEFO</TableHead>
                   <TableHead className="text-right">Sugestão</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
@@ -642,6 +691,9 @@ function PlanejamentoPage() {
                         {(SUPPLY_ORIGENS as readonly string[]).includes(l.origem_abastecimento)
                           ? <span className={l.supplier_disp <= 0 ? "text-destructive" : ""}>{formatNum(l.supplier_disp)}</span>
                           : "—"}
+                      </TableCell>
+                      <TableCell className="text-right text-xs">
+                        <TransferenciaCell linha={l} />
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-xs">
                         {l.lote_fefo ? <span className="font-mono">{l.lote_fefo} ({formatNum(l.lote_fefo_qtd)})</span> : "—"}
@@ -756,6 +808,25 @@ function MetodoBadge({ metodo, fonte }: { metodo: "POR_DEMANDA" | "MIN_IDEAL_MAX
   );
 }
 
+function TransferenciaCell({ linha }: { linha: Linha }) {
+  if (linha.transferencia_sugerida && linha.transferencia_sugerida.length > 0) {
+    const detalhe = linha.transferencia_sugerida.map((t) => `${t.qtd} de ${t.origem}`).join(", ");
+    return (
+      <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400 text-[10px]" title={`Transferência sugerida: ${detalhe}`}>
+        ↔ {formatNum(linha.transferencia_qtd)}
+      </Badge>
+    );
+  }
+  if (linha.excedente > 0) {
+    return (
+      <span className="text-muted-foreground" title="Excedente acima da própria necessidade — disponível para transferir a outra loja">
+        +{formatNum(linha.excedente)}
+      </span>
+    );
+  }
+  return <span className="text-muted-foreground">—</span>;
+}
+
 function SazonBadge({ indice, nomes }: { indice: number; nomes: string[] }) {
   if (!indice || indice === 1) return <span className="text-xs text-muted-foreground">—</span>;
   const pct = Math.round((indice - 1) * 100);
@@ -791,6 +862,8 @@ function exportarExcel(linhas: Linha[], metodo: Metodo) {
     "Necessidade": Number(l.necessidade.toFixed(3)),
     "Sugestão": Number(sugestaoDe(l).toFixed(3)),
     "Disp. Fornecedor": Number(l.supplier_disp.toFixed(3)),
+    "Excedente (p/ transferência)": Number(l.excedente.toFixed(3)),
+    "Transferência sugerida": l.transferencia_sugerida ? l.transferencia_sugerida.map((t) => `${t.qtd} de ${t.origem}`).join("; ") : "",
     "Lote FEFO": l.lote_fefo ?? "",
     "Qtd Lote FEFO": Number(l.lote_fefo_qtd.toFixed(3)),
     "Granel": l.is_granel ? "Sim" : "Não",
