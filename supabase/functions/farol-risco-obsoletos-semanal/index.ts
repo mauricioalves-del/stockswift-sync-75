@@ -324,7 +324,7 @@ function barras(rows, dim, alvo, maxN){
   dados.forEach(function(d,i){
     var w = Math.max(3, d.v/max*(W*0.62));
     var op = sel.length && sel.indexOf(d.k)<0 ? ' dim' : '';
-    s += '<g class="bar'+op+'" onclick="__toggle('' + dim.chave + '','' + String(d.k).replace(/'/g,"\'") + '')">'
+    s += '<g class="bar'+op+'" onclick="__toggle(\''+dim.chave+'\',\''+String(d.k).replace(/'/g,"\\'")+'\')">'
       + '<rect x="0" y="'+(i*h+4)+'" width="'+w.toFixed(1)+'" height="20" rx="3" fill="'+CORES[i%CORES.length]+'"></rect>'
       + '<text x="6" y="'+(i*h+18)+'" font-size="11" fill="#0b1220" style="font-weight:600">'+esc(trunc(d.nome,46))+'</text>'
       + '<text x="'+(w+6).toFixed(1)+'" y="'+(i*h+18)+'" font-size="11" fill="#e6edf7">'+esc(fmt(d.v,C.medida.formato||'brl'))+'</text>'
@@ -348,7 +348,7 @@ function pizza(rows, dim, alvo){
     var big = (a2-ang)>Math.PI?1:0;
     var cheio = (d.v/total) > 0.9999;
     var op = sel.length && sel.indexOf(d.k)<0 ? ' dim' : '';
-    var clic = d.k==='__outros' ? '' : ' onclick="__toggle(''+dim.chave+'',''+String(d.k).replace(/'/g,"\'")+'')"';
+    var clic = d.k==='__outros' ? '' : ' onclick="__toggle(\''+dim.chave+'\',\''+String(d.k).replace(/'/g,"\\'")+'\')"';
     s += cheio
       ? '<circle class="bar'+op+'"'+clic+' cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+CORES[i%CORES.length]+'"><title>'+esc(d.nome)+' — '+esc(fmt(d.v,C.medida.formato||'brl'))+' (100%)</title></circle>'
       : '<path class="bar'+op+'"'+clic+' d="M'+cx+','+cy+' L'+x1.toFixed(2)+','+y1.toFixed(2)+' A'+r+','+r+' 0 '+big+',1 '+x2.toFixed(2)+','+y2.toFixed(2)+' Z" fill="'+CORES[i%CORES.length]+'" stroke="#111c30"><title>'+esc(d.nome)+' — '+esc(fmt(d.v,C.medida.formato||'brl'))+' ('+(d.v/total*100).toFixed(1)+'%)</title></path>';
@@ -377,7 +377,7 @@ function serieChart(rows){
     var ant = i>0 ? m[keys[i-1]] : null;
     var varp = ant && ant>0 ? ((v-ant)/ant*100) : null;
     var op = sel.length && sel.indexOf(k)<0 ? ' dim' : '';
-    s+='<g class="bar'+op+'" onclick="__toggle(''+dim.chave+'',''+k.replace(/'/g,"\'")+'')">'
+    s+='<g class="bar'+op+'" onclick="__toggle(\''+dim.chave+'\',\''+k.replace(/'/g,"\\'")+'\')">'
      + '<rect x="'+x+'" y="'+(base-hgt)+'" width="'+w+'" height="'+hgt+'" rx="3" fill="#4FC3F7"></rect>'
      + '<text x="'+(x+w/2)+'" y="'+(base-hgt-4)+'" font-size="9" text-anchor="middle" fill="#e6edf7">'+compact(v)+'</text>'
      + '<text x="'+(x+w/2)+'" y="'+(base+14)+'" font-size="9" text-anchor="middle" fill="#8ea3c2">'+esc(k)+'</text>'
