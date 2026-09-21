@@ -143,6 +143,9 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
         .select("id, codigo_produto, lote, quantidade, valor_total, data_ocorrencia, data_solicitacao, status_fluxo, descricao, motivo_baixa_id, id_local")
         .eq("codigo_produto", form.sku)
         .gte("data_solicitacao", form.data_acao)
+        // Baixas reprovadas nunca ocorreram de fato — não podem contar como
+        // perda nem entrar no cálculo de quantidade recuperada da ação.
+        .neq("status_fluxo", "REPROVADA")
         .order("data_solicitacao", { ascending: true })
         .limit(200);
       if (form.lote) q = q.eq("lote", form.lote);
