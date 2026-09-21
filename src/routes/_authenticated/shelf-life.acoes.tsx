@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatBRL, formatNum } from "@/lib/inventory";
 import { STATUS_CAMPANHA, chaveLote, statusCampanhaLabel, statusCampanhaTone } from "@/lib/shelf-life";
 import { categoriaDaCampanha, valorRecuperadoFinal } from "@/lib/shelf-life-financeiro";
-import { autoVincularBaixas, useCampanhas, useLotesComSaldo, useTiposAcao } from "@/hooks/useShelfLife";
+import { autoVincularBaixas, useCampanhas, useEstoqueAtualPorLote, useLotesComSaldo, useTiposAcao } from "@/hooks/useShelfLife";
 
 import { CampanhaDialog, type CampanhaDraft } from "@/components/shelf-life/CampanhaDialog";
 import { useRole } from "@/hooks/useRole";
@@ -44,6 +44,7 @@ function AcoesLote() {
   const campanhas = useCampanhas();
   const tipos = useTiposAcao();
   const saldos = useLotesComSaldo();
+  const estoqueAtual = useEstoqueAtualPorLote();
 
   const { isAdmin, role } = useRole();
   const podeExcluir = isAdmin || role === "COORDENADOR_CONTROLE";
@@ -205,6 +206,7 @@ function AcoesLote() {
                 <TableHead>Lote</TableHead>
                 <TableHead>Tipo de Ação</TableHead>
                 <TableHead className="text-right">Qtd</TableHead>
+                <TableHead className="text-right">Estoque Atual</TableHead>
                 <TableHead className="text-right">Recuperado</TableHead>
                 <TableHead className="text-right">Custo</TableHead>
                 <TableHead>Status</TableHead>
@@ -241,6 +243,14 @@ function AcoesLote() {
                     <Badge variant="outline" className="ml-1 text-[10px]">{categoriaDaCampanha(c)}</Badge>
                   </TableCell>
                   <TableCell className="text-right">{formatNum(c.quantidade_enderecada)}</TableCell>
+                  <TableCell className="text-right">
+                    {(() => {
+                      const atual = c.lote ? estoqueAtual.data?.get(chaveLote(c.sku, c.lote)) : undefined;
+                      if (atual === undefined) return <span className="text-muted-foreground">—</span>;
+                      const caiu = atual < (Number(c.quantidade_enderecada) || 0);
+                      return <span className={caiu ? "text-success" : ""}>{formatNum(atual)}</span>;
+                    })()}
+                  </TableCell>
                   <TableCell className="text-right font-medium">{formatBRL(valorRecuperadoFinal(c))}</TableCell>
                   <TableCell className="text-right">{formatBRL(c.custo_acao)}</TableCell>
                   <TableCell><Badge variant="secondary" className={statusCampanhaTone(c.status)}>{statusCampanhaLabel(c.status)}</Badge></TableCell>
@@ -256,7 +266,7 @@ function AcoesLote() {
                 </TableRow>
               ))}
               {!rows.length && (
-                <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">Nenhuma ação cadastrada.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground py-6">Nenhuma ação cadastrada.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
