@@ -320,3 +320,31 @@ export function useLotesComSaldo() {
     },
   });
 }
+
+
+/**
+ * Estoque sistêmico atual por SKU+Lote (soma entre almoxarifados). Usado para
+ * comparar visualmente, em Ações de Lote, o saldo no início da campanha
+ * (quantidade endereçada) com o saldo atual.
+ */
+export function useEstoqueAtualPorLote() {
+  return useQuery({
+    queryKey: ["shelf-estoque-atual-por-lote"],
+    staleTime: 0,
+    refetchOnMount: "always",
+    queryFn: async (): Promise<Map<string, number>> => {
+      const rows = await fetchAll<any>((from, to) =>
+        (supabase as any)
+          .from("estoque_sistemico")
+          .select("id_produto, lote, quantidade")
+          .range(from, to),
+      );
+      const m = new Map<string, number>();
+      for (const r of rows) {
+        const k = chaveLote(String(r.id_produto ?? ""), r.lote);
+        m.set(k, (m.get(k) ?? 0) + (Number(r.quantidade) || 0));
+      }
+      return m;
+    },
+  });
+}
