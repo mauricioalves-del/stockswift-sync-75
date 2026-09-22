@@ -63,6 +63,7 @@ import { Route as AuthenticatedConfigPerfisRouteImport } from './routes/_authent
 import { Route as AuthenticatedConfigInventarioRouteImport } from './routes/_authenticated/config.inventario'
 import { Route as AuthenticatedConfigDispersaoRouteImport } from './routes/_authenticated/config.dispersao'
 import { Route as AuthenticatedConfigAparenciaRouteImport } from './routes/_authenticated/config.aparencia'
+import { Route as AuthenticatedBaixasInvestimentoOperacionalRouteImport } from './routes/_authenticated/baixas.investimento-operacional'
 import { Route as AuthenticatedBaixasDashboardRouteImport } from './routes/_authenticated/baixas.dashboard'
 import { Route as AuthenticatedAbastecimentoPlanejamentoRouteImport } from './routes/_authenticated/abastecimento.planejamento'
 import { Route as AuthenticatedAbastecimentoParametrosRouteImport } from './routes/_authenticated/abastecimento.parametros'
@@ -382,6 +383,12 @@ const AuthenticatedConfigAparenciaRoute =
     path: '/config/aparencia',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBaixasInvestimentoOperacionalRoute =
+  AuthenticatedBaixasInvestimentoOperacionalRouteImport.update({
+    id: '/baixas/investimento-operacional',
+    path: '/baixas/investimento-operacional',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedBaixasDashboardRoute =
   AuthenticatedBaixasDashboardRouteImport.update({
     id: '/baixas/dashboard',
@@ -488,6 +495,7 @@ export interface FileRoutesByFullPath {
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
+  '/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
   '/config/dispersao': typeof AuthenticatedConfigDispersaoRoute
   '/config/inventario': typeof AuthenticatedConfigInventarioRoute
@@ -556,6 +564,7 @@ export interface FileRoutesByTo {
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
+  '/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
   '/config/dispersao': typeof AuthenticatedConfigDispersaoRoute
   '/config/inventario': typeof AuthenticatedConfigInventarioRoute
@@ -626,6 +635,7 @@ export interface FileRoutesById {
   '/_authenticated/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/_authenticated/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
   '/_authenticated/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
+  '/_authenticated/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/_authenticated/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
   '/_authenticated/config/dispersao': typeof AuthenticatedConfigDispersaoRoute
   '/_authenticated/config/inventario': typeof AuthenticatedConfigInventarioRoute
@@ -696,6 +706,7 @@ export interface FileRouteTypes {
     | '/abastecimento/parametros'
     | '/abastecimento/planejamento'
     | '/baixas/dashboard'
+    | '/baixas/investimento-operacional'
     | '/config/aparencia'
     | '/config/dispersao'
     | '/config/inventario'
@@ -764,6 +775,7 @@ export interface FileRouteTypes {
     | '/abastecimento/parametros'
     | '/abastecimento/planejamento'
     | '/baixas/dashboard'
+    | '/baixas/investimento-operacional'
     | '/config/aparencia'
     | '/config/dispersao'
     | '/config/inventario'
@@ -833,6 +845,7 @@ export interface FileRouteTypes {
     | '/_authenticated/abastecimento/parametros'
     | '/_authenticated/abastecimento/planejamento'
     | '/_authenticated/baixas/dashboard'
+    | '/_authenticated/baixas/investimento-operacional'
     | '/_authenticated/config/aparencia'
     | '/_authenticated/config/dispersao'
     | '/_authenticated/config/inventario'
@@ -1269,6 +1282,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfigAparenciaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/baixas/investimento-operacional': {
+      id: '/_authenticated/baixas/investimento-operacional'
+      path: '/baixas/investimento-operacional'
+      fullPath: '/baixas/investimento-operacional'
+      preLoaderRoute: typeof AuthenticatedBaixasInvestimentoOperacionalRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/baixas/dashboard': {
       id: '/_authenticated/baixas/dashboard'
       path: '/baixas/dashboard'
@@ -1402,6 +1422,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbastecimentoParametrosRoute: typeof AuthenticatedAbastecimentoParametrosRoute
   AuthenticatedAbastecimentoPlanejamentoRoute: typeof AuthenticatedAbastecimentoPlanejamentoRoute
   AuthenticatedBaixasDashboardRoute: typeof AuthenticatedBaixasDashboardRoute
+  AuthenticatedBaixasInvestimentoOperacionalRoute: typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   AuthenticatedConfigAparenciaRoute: typeof AuthenticatedConfigAparenciaRoute
   AuthenticatedConfigDispersaoRoute: typeof AuthenticatedConfigDispersaoRoute
   AuthenticatedConfigInventarioRoute: typeof AuthenticatedConfigInventarioRoute
@@ -1464,6 +1485,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAbastecimentoPlanejamentoRoute:
     AuthenticatedAbastecimentoPlanejamentoRoute,
   AuthenticatedBaixasDashboardRoute: AuthenticatedBaixasDashboardRoute,
+  AuthenticatedBaixasInvestimentoOperacionalRoute:
+    AuthenticatedBaixasInvestimentoOperacionalRoute,
   AuthenticatedConfigAparenciaRoute: AuthenticatedConfigAparenciaRoute,
   AuthenticatedConfigDispersaoRoute: AuthenticatedConfigDispersaoRoute,
   AuthenticatedConfigInventarioRoute: AuthenticatedConfigInventarioRoute,
