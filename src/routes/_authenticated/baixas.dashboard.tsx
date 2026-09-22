@@ -15,7 +15,7 @@ import { fetchAll } from "@/lib/fetch-all";
 import { BarChart3, TrendingUp, AlertTriangle, PackageMinus } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, Cell,
-  ComposedChart, Line, PieChart, Pie, FunnelChart, Funnel,
+  ComposedChart, Line,
 } from "recharts";
 import type { ReactNode } from "react";
 import { DetalheMotivoBaixasDialog, type DetalheMotivoCtx } from "@/components/baixas/DetalheMotivoBaixasDialog";
@@ -94,44 +94,6 @@ function MotivoLegend({ items }: { items: { id: string; nome: string; cor: strin
   );
 }
 
-type TopBaixa = {
-  id: string;
-  codigo: string;
-  descricao: string;
-  contexto: string;
-  quantidade: number;
-  valor: number;
-};
-
-function TopBaixasTable({ title, rows, totalItens, onVerTudo }: { title: string; rows: TopBaixa[]; totalItens: number; onVerTudo: () => void }) {
-  return (
-    <BiPanel title={title}>
-      <div className="mb-2 flex justify-end" data-export-hide>
-        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onVerTudo}>Lista completa</Button>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead className="border-b border-slate-700 text-slate-400">
-            <tr><th className="py-1.5 text-left">#</th><th className="py-1.5 text-left">Produto</th><th className="py-1.5 text-left">Área / operação</th><th className="py-1.5 text-right">Valor</th></tr>
-          </thead>
-          <tbody>
-            {rows.map((r, index) => (
-              <tr key={r.id} className="border-b border-slate-800/60">
-                <td className="py-1.5 text-slate-400">{index + 1}</td>
-                <td className="max-w-[220px] py-1.5"><div className="font-medium">{r.codigo}</div><div className="truncate text-slate-400" title={r.descricao}>{r.descricao}</div></td>
-                <td className="max-w-[150px] truncate py-1.5" title={r.contexto}>{r.contexto}</td>
-                <td className="py-1.5 text-right font-semibold tabular-nums">{formatBRL(r.valor)}</td>
-              </tr>
-            ))}
-            {rows.length === 0 && <tr><td colSpan={4} className="py-6 text-center text-slate-500">Sem baixas nesta categoria.</td></tr>}
-          </tbody>
-          <tfoot><tr className="border-t-2 border-slate-600"><td colSpan={3} className="py-1.5 font-semibold">{totalItens} item(ns)</td><td className="py-1.5 text-right font-semibold">{formatBRL(rows.reduce((s, r) => s + r.valor, 0))}</td></tr></tfoot>
-        </table>
-      </div>
-    </BiPanel>
-  );
-}
-
 function BaixasDashboard() {
   const [from, setFrom] = useState<string>(isoDaysAgo(60));
   const [to, setTo] = useState<string>(todayISO());
@@ -149,7 +111,7 @@ function BaixasDashboard() {
       const toTs = new Date(to + "T23:59:59").toISOString();
       const { data, error } = await supabase
         .from("baixa_operacional")
-        .select("id, codigo_produto, descricao, id_local, motivo_baixa_id, contexto_baixa, valor_total, quantidade, data_solicitacao, solicitante_id, categoria")
+        .select("id, codigo_produto, descricao, id_local, motivo_baixa_id, valor_total, quantidade, data_solicitacao, solicitante_id, categoria")
         .eq("status_fluxo", "APROVADA")
         .gte("data_solicitacao", fromTs)
         .lte("data_solicitacao", toTs)
@@ -196,7 +158,7 @@ function BaixasDashboard() {
       const desde = isoDaysAgo(365);
       const { data } = await supabase
         .from("baixa_operacional")
-        .select("valor_total, data_solicitacao, motivo_baixa_id, codigo_produto, categoria, id_local")
+        .select("valor_total, data_solicitacao, motivo_baixa_id")
         .eq("status_fluxo", "APROVADA")
         .gte("data_solicitacao", new Date(desde + "T00:00:00").toISOString())
         .limit(50000);
@@ -381,51 +343,17 @@ function BaixasDashboard() {
     const grupoList = [...new Set(baixasRaw.map((b) => grupoDe.get(b.codigo_produto) || b.categoria || "Sem grupo"))]
       .sort((a, b) => a.localeCompare(b));
 
-    const normalizar = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    const idsPorCategoria = (nomes: string[]) => motivos
-      .filter((m) => nomes.some((nome) => normalizar(m.descricao).includes(normalizar(nome))))
-      .map((m) => m.id);
-    const cortesiaIds = idsPorCategoria(["Cortesia"]);
-    const degustacaoIds = idsPorCategoria(["Degustacao"]);
-    const outrosIds = idsPorCategoria(["Sensorial", "Uso e Consumo"]);
-    const agruparContexto = (ids: string[]) => {
-      const mapa = new Map<string, { nome: string; valor: number; quantidade: number }>();
-      baixas.filter((b) => b.motivo_baixa_id && ids.includes(b.motivo_baixa_id)).forEach((b) => {
-        const nome = b.contexto_baixa?.trim() || "Não informado";
-        const atual = mapa.get(nome) ?? { nome, valor: 0, quantidade: 0 };
-        atual.valor += Number(b.valor_total || 0);
-        atual.quantidade += 1;
-        mapa.set(nome, atual);
-      });
-      return [...mapa.values()].sort((a, b) => b.valor - a.valor);
-    };
-    const topCategoria = (ids: string[]) => baixas
-      .filter((b) => b.motivo_baixa_id && ids.includes(b.motivo_baixa_id))
-      .map((b) => ({ id: b.id, codigo: b.codigo_produto, descricao: b.descricao, contexto: b.contexto_baixa?.trim() || "Não informado", quantidade: Number(b.quantidade || 0), valor: Number(b.valor_total || 0) }))
-      .sort((a, b) => b.valor - a.valor);
-    const cortesia = topCategoria(cortesiaIds);
-    const degustacao = topCategoria(degustacaoIds);
-    const outros = topCategoria(outrosIds);
-
     return {
       totalPrejuizo, motivoDestaqueNome, motivoDestaquePct, setorTop, grupoTop,
       kpiMotivos, rankingSKU, funil, grupoStack, setorStack, rankingSetor,
       tabelaMotivo, rankingSolic, motivosKeys,
-      almoxList, motivoList, grupoList, cortesiaIds, degustacaoIds, outrosIds,
-      cortesiaContextos: agruparContexto(cortesiaIds), degustacaoContextos: agruparContexto(degustacaoIds),
-      cortesia, degustacao, outros,
+      almoxList, motivoList, grupoList,
     };
   }, [baixasQ.data, motivosQ.data, classifQ.data, gruposQ.data, profilesQ.data, alertasQ.data, almoxFilter, motivoFilter, grupoFilter]);
 
 
   const mom = useMemo(() => {
-    const grupoDe = new Map((gruposQ.data ?? []).map((g) => [g.codigo_produto, g.grupo]));
-    const rows = (momQ.data ?? []).filter((r: any) => {
-      const grupo = grupoDe.get(r.codigo_produto) || r.categoria || "Sem grupo";
-      return (almoxFilter === "__all__" || (r.id_local ?? "—") === almoxFilter)
-        && (motivoFilter.length === 0 || (r.motivo_baixa_id && motivoFilter.includes(r.motivo_baixa_id)))
-        && (grupoFilter.length === 0 || grupoFilter.includes(grupo));
-    });
+    const rows = momQ.data ?? [];
     const nomeMotivo = new Map((motivosQ.data ?? []).map((m: any) => [m.id, m.descricao as string]));
 
     // Total por mês e por motivo
@@ -462,7 +390,7 @@ function BaixasDashboard() {
     });
 
     return { data, motivos };
-  }, [momQ.data, motivosQ.data, gruposQ.data, almoxFilter, motivoFilter, grupoFilter]);
+  }, [momQ.data, motivosQ.data]);
 
 
   const loading = baixasQ.isLoading || motivosQ.isLoading;
@@ -578,99 +506,43 @@ function BaixasDashboard() {
         )}
       </div>
 
-      {/* Indicador principal — tendência mensal e leitura MoM */}
-      <BiPanel title="Tendência mensal por motivo — análise MoM" legend={<MotivoLegend items={mom.motivos.map((m) => ({ ...m, id: m.nome }))} />} className="ring-1 ring-primary/30">
-        {mom.data.length > 0 && (() => {
-          const atual = mom.data[mom.data.length - 1];
-          const anterior = mom.data.length > 1 ? mom.data[mom.data.length - 2] : null;
-          const variacao = atual?.variacaoPct;
-          const favoravel = variacao != null && variacao < 0;
-          return (
-            <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-slate-700/70 pb-3 text-xs">
-              <span className="text-slate-400">Último mês</span>
-              <strong className="text-base text-slate-100">{atual?.mes}: {formatBRL(Number(atual?.total || 0))}</strong>
-              {anterior && variacao != null && (
-                <Badge variant="outline" className={favoravel ? "border-success/50 bg-success/15 text-success" : "border-destructive/50 bg-destructive/15 text-destructive"}>
-                  {favoravel ? "Evolução" : "Involução"} · {variacao >= 0 ? "▲" : "▼"} {Math.abs(variacao).toFixed(1)}% vs {anterior.mes}
-                </Badge>
-              )}
-            </div>
-          );
-        })()}
-        <ResponsiveContainer width="100%" height={410}>
-          <ComposedChart data={mom.data} margin={{ top: 34, left: 30, right: 44, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
-            <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#cbd5e1" }} />
-            <YAxis yAxisId="left" tickFormatter={(v) => fmtMil(Number(v))} tick={{ fontSize: 11, fill: "#cbd5e1" }} />
-            <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11, fill: "#cbd5e1" }} />
-            <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} formatter={(v: number, name: string) => name === "Variação MoM" ? [`${Number(v).toFixed(1)}%`, name] : [formatBRL(Number(v)), name]} />
-            {mom.motivos.map((m, i) => <Bar key={m.nome} yAxisId="left" dataKey={m.nome} stackId="motivos" fill={m.cor} radius={i === mom.motivos.length - 1 ? [3, 3, 0, 0] : undefined} />)}
-            <Line yAxisId="left" dataKey="total" stroke="transparent" dot={false} activeDot={false} legendType="none">
-              <LabelList dataKey="total" position="top" formatter={(v: number) => formatBRL(v)} style={{ fontSize: 11, fill: "#e2e8f0", fontWeight: 600 }} />
-            </Line>
-            <Line yAxisId="right" type="monotone" dataKey="variacaoPct" name="Variação MoM" stroke="#FFB74D" strokeWidth={3} connectNulls dot={(props: any) => {
-              const { cx, cy, payload } = props;
-              if (payload.variacaoPct == null) return <g />;
-              return <circle cx={cx} cy={cy} r={5} fill={payload.variacaoPct < 0 ? "#81C784" : "#E57373"} stroke="#0f172a" strokeWidth={2} />;
-            }}>
-              <LabelList dataKey="variacaoPct" position="top" formatter={(v: number) => v == null ? "" : `${v >= 0 ? "▲" : "▼"} ${Math.abs(v).toFixed(1)}%`} style={{ fontSize: 10, fill: "#e2e8f0" }} />
-            </Line>
-          </ComposedChart>
-        </ResponsiveContainer>
-        <p className="mt-2 text-xs text-slate-400">▼ verde indica redução das baixas e evolução positiva; ▲ vermelho indica aumento e involução do processo.</p>
+      {/* Painel de Acompanhamento — tiles coloridos proporcionais ao valor */}
+      <BiPanel title="Painel de Acompanhamento" legend={<MotivoLegend items={view.motivosKeys} />}>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12 gap-2 items-end min-h-[180px]">
+          {view.kpiMotivos.map((m) => {
+            const max = view.kpiMotivos[0]?.valor || 1;
+            const h = Math.max(28, Math.round((m.valor / max) * 140));
+            return (
+              <div key={m.id} className="flex flex-col items-center gap-1">
+                <button
+                  type="button"
+                  className="w-full rounded-sm flex items-start justify-center pt-1 text-[11px] font-semibold text-slate-900 tabular-nums cursor-pointer transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-white/60"
+                  style={{ background: m.cor, height: h }}
+                  title={`${m.nome}: ${formatBRL(m.valor)} — clique para ver os produtos`}
+                  onClick={() =>
+                    setDetalheMotivo({
+                      motivoId: m.id,
+                      motivoNome: m.nome,
+                      fromISO: new Date(from + "T00:00:00").toISOString(),
+                      toISO: new Date(to + "T23:59:59").toISOString(),
+                      almoxFilter,
+                    })
+                  }
+                >
+                  {m.valor > 0 ? fmtMil(m.valor).replace("R$ ", "") : ""}
+                </button>
+                <div className="text-[10px] text-slate-300 text-center leading-tight line-clamp-2 min-h-[24px]" title={m.nome}>
+                  {m.nome}
+                </div>
+              </div>
+            );
+          })}
+
+          {view.kpiMotivos.length === 0 && (
+            <div className="col-span-full text-sm text-slate-400 py-6 text-center">Sem baixas no período.</div>
+          )}
+        </div>
       </BiPanel>
-
-      {/* Três leituras de composição abaixo do indicador principal */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <BiPanel title="Valor por motivo">
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={view.kpiMotivos} layout="vertical" margin={{ left: 25, right: 70 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
-              <XAxis type="number" tickFormatter={(v) => fmtMil(Number(v))} tick={{ fontSize: 10, fill: "#cbd5e1" }} />
-              <YAxis type="category" dataKey="nome" width={120} tick={{ fontSize: 10, fill: "#cbd5e1" }} />
-              <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} formatter={(v: number) => formatBRL(v)} />
-              <Bar dataKey="valor" radius={[0, 4, 4, 0]} onClick={(entry: any) => setDetalheMotivo({ motivoId: entry.id, motivoNome: entry.nome, fromISO: new Date(from + "T00:00:00").toISOString(), toISO: new Date(to + "T23:59:59").toISOString(), almoxFilter })}>
-                {view.kpiMotivos.map((m) => <Cell key={m.id} fill={m.cor} className="cursor-pointer" />)}
-                <LabelList dataKey="valor" position="right" formatter={(v: number) => fmtMil(v)} style={{ fontSize: 10, fill: "#e2e8f0" }} />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </BiPanel>
-
-        <BiPanel title="Cortesia — Área que solicitou">
-          <ResponsiveContainer width="100%" height={320}>
-            <PieChart>
-              <Pie data={view.cortesiaContextos} dataKey="valor" nameKey="nome" cx="50%" cy="43%" innerRadius={58} outerRadius={94} paddingAngle={2}>
-                {view.cortesiaContextos.map((item, i) => <Cell key={item.nome} fill={PALETTE[i % PALETTE.length]} />)}
-              </Pie>
-              <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} formatter={(v: number) => formatBRL(v)} />
-              <Legend verticalAlign="bottom" formatter={(value: string) => {
-                const item = view.cortesiaContextos.find((row) => row.nome === value);
-                const total = view.cortesiaContextos.reduce((sum, row) => sum + row.valor, 0);
-                return `${value} ${total > 0 && item ? ((item.valor / total) * 100).toFixed(0) : 0}%`;
-              }} wrapperStyle={{ fontSize: 10, lineHeight: "18px" }} />
-            </PieChart>
-          </ResponsiveContainer>
-        </BiPanel>
-
-        <BiPanel title="Degustação — Operação">
-          <ResponsiveContainer width="100%" height={320}>
-            <FunnelChart margin={{ left: 20, right: 110, top: 10, bottom: 10 }}>
-              <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} formatter={(v: number) => formatBRL(v)} />
-              <Funnel data={view.degustacaoContextos} dataKey="valor" nameKey="nome" isAnimationActive lastShapeType="rectangle">
-                {view.degustacaoContextos.map((item, i) => <Cell key={item.nome} fill={PALETTE[(i + 2) % PALETTE.length]} />)}
-                <LabelList position="right" fill="#e2e8f0" stroke="none" dataKey="nome" style={{ fontSize: 9 }} />
-              </Funnel>
-            </FunnelChart>
-          </ResponsiveContainer>
-        </BiPanel>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <TopBaixasTable title="Top 10 — Degustações" rows={view.degustacao.slice(0, 10)} totalItens={view.degustacao.length} onVerTudo={() => setDetalheMotivo({ motivoIds: view.degustacaoIds, motivoNome: "Degustações", baixaIds: view.degustacao.map((r) => r.id), fromISO: new Date(from + "T00:00:00").toISOString(), toISO: new Date(to + "T23:59:59").toISOString(), almoxFilter })} />
-        <TopBaixasTable title="Top 10 — Cortesias" rows={view.cortesia.slice(0, 10)} totalItens={view.cortesia.length} onVerTudo={() => setDetalheMotivo({ motivoIds: view.cortesiaIds, motivoNome: "Cortesias", baixaIds: view.cortesia.map((r) => r.id), fromISO: new Date(from + "T00:00:00").toISOString(), toISO: new Date(to + "T23:59:59").toISOString(), almoxFilter })} />
-        <TopBaixasTable title="Top 10 — Outros" rows={view.outros.slice(0, 10)} totalItens={view.outros.length} onVerTudo={() => setDetalheMotivo({ motivoIds: view.outrosIds, motivoNome: "Sensorial e Uso e Consumo", baixaIds: view.outros.map((r) => r.id), fromISO: new Date(from + "T00:00:00").toISOString(), toISO: new Date(to + "T23:59:59").toISOString(), almoxFilter })} />
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Ranking SKU */}
@@ -868,6 +740,67 @@ function BaixasDashboard() {
           </table>
         </BiPanel>
       </div>
+
+      {/* MoM — colunas de total + linha de variação % vs mês anterior */}
+      <BiPanel title="MoM — Mês vs Mês Anterior">
+        <ResponsiveContainer width="100%" height={360}>
+          <ComposedChart data={mom.data} margin={{ top: 26, left: 30, right: 40, bottom: 10 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
+            <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Mês", position: "insideBottom", offset: -4, fill: "#94a3b8", fontSize: 11 }} />
+            <YAxis yAxisId="left" tickFormatter={(v) => fmtMil(Number(v))} tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Total Baixas (R$ Mil)", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }} />
+            <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Variação % MoM", angle: 90, position: "insideRight", fill: "#94a3b8", fontSize: 11 }} />
+            <Tooltip
+              contentStyle={{ background: "#0f172a", border: "1px solid #334155" }}
+              formatter={(v: number, name: string) => {
+                if (name === "Variação %") return v == null ? ["—", name] : [`${v.toFixed(1)}%`, name];
+                if (!v) return [null as any, null as any];
+                return [formatBRL(v), name];
+              }}
+            />
+            <Legend wrapperStyle={{ fontSize: 11, color: "#cbd5e1" }} />
+            {mom.motivos.map((m, i) => (
+              <Bar
+                key={m.nome}
+                yAxisId="left"
+                dataKey={m.nome}
+                name={m.nome}
+                stackId="motivos"
+                fill={m.cor}
+                radius={i === mom.motivos.length - 1 ? [3, 3, 0, 0] : undefined}
+              >
+                {i === mom.motivos.length - 1 && (
+                  <LabelList dataKey="total" position="top" formatter={(v: number) => fmtMil(v)} style={{ fontSize: 10, fill: "#e2e8f0" }} />
+                )}
+              </Bar>
+            ))}
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="variacaoPct"
+              name="Variação %"
+              stroke="#FFB74D"
+              strokeWidth={2}
+              connectNulls
+              dot={(props: any) => {
+                const { cx, cy, payload } = props;
+                if (payload.variacaoPct == null) return <g />;
+                const up = payload.variacaoPct >= 0;
+                return <circle cx={cx} cy={cy} r={4} fill={up ? "#E57373" : "#81C784"} stroke="#0f172a" strokeWidth={1} />;
+              }}
+            >
+              <LabelList
+                dataKey="variacaoPct"
+                position="top"
+                formatter={(v: number) => (v == null ? "" : `${v >= 0 ? "▲" : "▼"} ${Math.abs(v).toFixed(1)}%`)}
+                style={{ fontSize: 10, fill: "#e2e8f0" }}
+              />
+            </Line>
+          </ComposedChart>
+        </ResponsiveContainer>
+        <p className="text-xs text-slate-400 mt-2">
+          Barras empilhadas por motivo de baixa. Linha indica evolução (▲ vermelho = aumento de baixas / involução) ou involução (▼ verde = redução / evolução positiva) em pontos percentuais vs mês anterior.
+        </p>
+      </BiPanel>
 
       <DetalheMotivoBaixasDialog ctx={detalheMotivo} onOpenChange={(o) => !o && setDetalheMotivo(null)} />
 
