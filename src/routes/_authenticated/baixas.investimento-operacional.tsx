@@ -408,6 +408,7 @@ function InvestimentoOperacionalDashboard() {
                 innerRadius={52}
                 outerRadius={86}
                 paddingAngle={2}
+                isAnimationActive={false}
                 label={(props: any) => {
                   const { cx, cy, midAngle, outerRadius: or, name, value } = props;
                   const RAD = Math.PI / 180;
@@ -434,7 +435,7 @@ function InvestimentoOperacionalDashboard() {
           <ResponsiveContainer width="100%" height={280}>
             <FunnelChart margin={{ left: 20, right: 20, top: 10, bottom: 10 }}>
               <Tooltip formatter={(v: number) => formatBRL(v)} contentStyle={{ background: "#111c24", border: "1px solid #2a3548" }} />
-              <Funnel dataKey="valor" data={view.rankingOperacaoDegustacao} isAnimationActive lastShapeType="rectangle">
+              <Funnel dataKey="valor" data={view.rankingOperacaoDegustacao} isAnimationActive={false} lastShapeType="rectangle">
                 <LabelList
                   dataKey="chave"
                   position="right"
