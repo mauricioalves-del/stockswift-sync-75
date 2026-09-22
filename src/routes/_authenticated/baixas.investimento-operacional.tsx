@@ -49,7 +49,7 @@ const fmtCompact = (v: number) => `R$ ${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k
 
 function BiPanel({ title, children, className = "" }: { title: string; children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl border border-border/40 bg-[hsl(220_18%_12%)] text-slate-100 shadow-lg overflow-hidden ${className}`}>
+    <div className={`rounded-xl border border-border/40 bg-[hsl(220_18%_12%)] text-slate-100 shadow-lg ${className.includes("overflow-visible") ? "overflow-visible" : "overflow-hidden"} ${className}`}>
       <div className="px-4 pt-3 pb-2 text-center">
         <div className="text-sm font-semibold tracking-wide">{title}</div>
       </div>
@@ -398,53 +398,60 @@ function InvestimentoOperacionalDashboard() {
           </ResponsiveContainer>
         </BiPanel>
 
-        <BiPanel title="Cortesia — Área que solicitou">
-          <ResponsiveContainer width="100%" height={220}>
+        <BiPanel title="Cortesia — Área que solicitou" className="overflow-visible">
+          <div className="[&_svg]:overflow-visible">
+          <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
                 data={view.rankingAreaCortesia}
                 dataKey="valor"
                 nameKey="chave"
-                innerRadius={58}
-                outerRadius={94}
+                innerRadius={44}
+                outerRadius={72}
                 paddingAngle={2}
+                isAnimationActive={false}
+                label={(props: any) => {
+                  const { cx, cy, midAngle, outerRadius: or, name, value } = props;
+                  const RAD = Math.PI / 180;
+                  const r = (or ?? 72) + 12;
+                  const x = cx + r * Math.cos(-midAngle * RAD);
+                  const y = cy + r * Math.sin(-midAngle * RAD);
+                  const nm = String(name ?? "");
+                  const curto = nm.length > 14 ? nm.slice(0, 13) + "…" : nm;
+                  return (
+                    <text x={x} y={y} textAnchor={x > cx ? "start" : "end"} dominantBaseline="central" fontSize={10.5} fill="#e2e8f0">
+                      <title>{`${nm} · ${formatBRL(Number(value) || 0)}`}</title>
+                      {`${curto} · ${formatBRL(Number(value) || 0)}`}
+                    </text>
+                  );
+                }}
+                labelLine={{ stroke: "#64748b" }}
               >
                 {view.rankingAreaCortesia.map((_, i) => <Cell key={i} fill={SERIES[i % SERIES.length]} />)}
               </Pie>
               <Tooltip formatter={(v: number) => formatBRL(v)} contentStyle={{ background: "#111c24", border: "1px solid #2a3548" }} />
             </PieChart>
           </ResponsiveContainer>
-          <div className="space-y-1 border-t border-border/40 pt-2">
-            {view.rankingAreaCortesia.map((item, i) => (
-              <div key={item.chave} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-xs">
-                <span className="size-2.5 rounded-sm" style={{ backgroundColor: SERIES[i % SERIES.length] }} />
-                <span className="truncate text-slate-200" title={item.chave}>{item.chave}</span>
-                <span className="tabular-nums text-slate-400">{formatBRL(item.valor)}</span>
-              </div>
-            ))}
-            {!view.rankingAreaCortesia.length && <div className="text-center text-xs text-slate-400">Nenhuma área no período.</div>}
           </div>
+          {!view.rankingAreaCortesia.length && <div className="text-center text-xs text-slate-400">Nenhuma área no período.</div>}
         </BiPanel>
 
         <BiPanel title="Degustação — Operação">
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={280}>
             <FunnelChart margin={{ left: 20, right: 20, top: 10, bottom: 10 }}>
               <Tooltip formatter={(v: number) => formatBRL(v)} contentStyle={{ background: "#111c24", border: "1px solid #2a3548" }} />
-              <Funnel dataKey="valor" data={view.rankingOperacaoDegustacao} isAnimationActive lastShapeType="rectangle">
+              <Funnel dataKey="valor" data={view.rankingOperacaoDegustacao} isAnimationActive={false} lastShapeType="rectangle">
+                <LabelList
+                  dataKey="chave"
+                  position="right"
+                  style={{ fill: "#e2e8f0", fontSize: 11 }}
+                  formatter={(v: any) => String(v ?? "")}
+                />
                 {view.rankingOperacaoDegustacao.map((_, i) => <Cell key={i} fill={SERIES[i % SERIES.length]} />)}
               </Funnel>
             </FunnelChart>
           </ResponsiveContainer>
-          <div className="space-y-1 border-t border-border/40 pt-2">
-            {view.rankingOperacaoDegustacao.map((item, i) => (
-              <div key={item.chave} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-xs">
-                <span className="size-2.5 rounded-sm" style={{ backgroundColor: SERIES[i % SERIES.length] }} />
-                <span className="truncate text-slate-200" title={item.chave}>{item.chave}</span>
-                <span className="tabular-nums text-slate-400">{formatBRL(item.valor)}</span>
-              </div>
-            ))}
-            {!view.rankingOperacaoDegustacao.length && <div className="text-center text-xs text-slate-400">Nenhuma operação no período.</div>}
-          </div>
+          {!view.rankingOperacaoDegustacao.length && <div className="text-center text-xs text-slate-400">Nenhuma operação no período.</div>}
         </BiPanel>
       </div>
 
