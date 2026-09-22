@@ -412,12 +412,15 @@ function InvestimentoOperacionalDashboard() {
                 label={(props: any) => {
                   const { cx, cy, midAngle, outerRadius: or, name, value } = props;
                   const RAD = Math.PI / 180;
-                  const r = (or ?? 86) + 14;
+                  const r = (or ?? 72) + 12;
                   const x = cx + r * Math.cos(-midAngle * RAD);
                   const y = cy + r * Math.sin(-midAngle * RAD);
+                  const nm = String(name ?? "");
+                  const curto = nm.length > 14 ? nm.slice(0, 13) + "…" : nm;
                   return (
-                    <text x={x} y={y} textAnchor={x > cx ? "start" : "end"} dominantBaseline="central" fontSize={11} fill="#e2e8f0">
-                      {`${name} · ${formatBRL(Number(value) || 0)}`}
+                    <text x={x} y={y} textAnchor={x > cx ? "start" : "end"} dominantBaseline="central" fontSize={10.5} fill="#e2e8f0">
+                      <title>{`${nm} · ${formatBRL(Number(value) || 0)}`}</title>
+                      {`${curto} · ${formatBRL(Number(value) || 0)}`}
                     </text>
                   );
                 }}
