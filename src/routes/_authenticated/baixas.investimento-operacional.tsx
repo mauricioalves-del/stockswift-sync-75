@@ -432,6 +432,7 @@ function InvestimentoOperacionalDashboard() {
               <Tooltip formatter={(v: number) => formatBRL(v)} contentStyle={{ background: "#111c24", border: "1px solid #2a3548" }} />
             </PieChart>
           </ResponsiveContainer>
+          </div>
           {!view.rankingAreaCortesia.length && <div className="text-center text-xs text-slate-400">Nenhuma área no período.</div>}
         </BiPanel>
 
