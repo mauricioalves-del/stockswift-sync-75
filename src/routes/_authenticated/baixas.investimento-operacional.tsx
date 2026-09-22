@@ -399,6 +399,7 @@ function InvestimentoOperacionalDashboard() {
         </BiPanel>
 
         <BiPanel title="Cortesia — Área que solicitou">
+          <div className="[&_svg]:overflow-visible">
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
