@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatBRL } from "@/lib/inventory";
 import { fetchAll } from "@/lib/fetch-all";
-import { Gift, Utensils, Sparkles, Package, TrendingUp, TrendingDown, List } from "lucide-react";
+import { Gift, Utensils, Sparkles, Package, TrendingUp, TrendingDown, List, Download } from "lucide-react";
 import {
   ResponsiveContainer, ComposedChart, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, Cell,
   Line, PieChart, Pie, FunnelChart, Funnel,
@@ -165,10 +165,256 @@ function ListaCompletaDialog({ ctx, onOpenChange }: { ctx: ListaCtx; onOpenChang
   );
 }
 
+function baixarHtmlInterativo(opts: {
+  titulo: string;
+  periodo: string;
+  linhas: any[];
+  kpisMotivo: { nome: string; valor: number; qtd: number }[];
+  totalGeral: number;
+}) {
+  const dados = {
+    titulo: opts.titulo,
+    periodo: opts.periodo,
+    geradoEm: new Date().toLocaleString("pt-BR"),
+    totalGeral: opts.totalGeral,
+    kpisMotivo: opts.kpisMotivo,
+    linhas: opts.linhas.map((b) => ({
+      data: String(b.data_solicitacao).slice(0, 10),
+      sku: b.codigo_produto,
+      descricao: b.descricao,
+      motivo: b.motivoNome,
+      contexto: b.contexto_baixa || "",
+      almox: b.id_local || "",
+      responsavel: b.responsavel_nome || "",
+      qtd: Number(b.quantidade) || 0,
+      valor: Number(b.valor_total) || 0,
+    })),
+  };
+
+  const html = `<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>${opts.titulo}</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, Segoe UI, Arial, sans-serif; background:#0b1220; color:#e2e8f0; padding:24px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:#94a3b8; font-size:13px; margin:0 0 20px; }
+  .kpis { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
+  .kpi { flex:1; min-width:160px; background:#111c24; border:1px solid #263242; border-radius:10px; padding:12px 14px; cursor:pointer; user-select:none; transition:opacity .15s; }
+  .kpi.off { opacity:.35; }
+  .kpi .lbl { font-size:11px; text-transform:uppercase; color:#94a3b8; }
+  .kpi .val { font-size:20px; font-weight:700; margin-top:2px; }
+  .kpi .qtd { font-size:11px; color:#94a3b8; margin-top:2px; }
+  .panel { background:#111c24; border:1px solid #263242; border-radius:12px; padding:16px; margin-bottom:20px; }
+  .panel h2 { font-size:13px; text-transform:uppercase; color:#94a3b8; margin:0 0 12px; text-align:center; font-weight:600; }
+  .bars { display:flex; align-items:flex-end; gap:16px; height:180px; padding:0 10px; }
+  .bar-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+  .bar { width:100%; max-width:64px; border-radius:6px 6px 0 0; transition:height .2s; }
+  .bar-val { font-size:11px; font-weight:600; margin-bottom:4px; }
+  .bar-lbl { font-size:11px; color:#94a3b8; margin-top:6px; text-align:center; }
+  .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; align-items:center; }
+  input[type=text] { background:#0b1220; border:1px solid #263242; color:#e2e8f0; border-radius:8px; padding:8px 10px; font-size:13px; flex:1; min-width:200px; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th, td { padding:6px 8px; border-bottom:1px solid #1e293b; text-align:left; }
+  th { cursor:pointer; color:#94a3b8; text-transform:uppercase; font-size:10.5px; white-space:nowrap; }
+  th:hover { color:#e2e8f0; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:10.5px; font-weight:600; }
+  .muted { color:#64748b; font-size:11px; margin-top:8px; }
+  .count { font-size:12px; color:#94a3b8; margin-left:auto; }
+</style>
+</head>
+<body>
+  <h1 id="tituloEl"></h1>
+  <p class="sub" id="subEl"></p>
+
+  <div class="kpis" id="kpisEl"></div>
+
+  <div class="panel">
+    <h2>Valor por motivo</h2>
+    <div class="bars" id="barsEl"></div>
+  </div>
+
+  <div class="panel">
+    <div class="toolbar">
+      <input type="text" id="buscaEl" placeholder="Buscar SKU, produto, contexto, responsável..." />
+      <span class="count" id="countEl"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th data-k="data">Data</th>
+            <th data-k="sku">SKU</th>
+            <th data-k="descricao">Produto</th>
+            <th data-k="motivo">Motivo</th>
+            <th data-k="contexto">Contexto</th>
+            <th data-k="almox">Almox.</th>
+            <th data-k="responsavel">Responsável</th>
+            <th data-k="qtd" class="num">Qtd</th>
+            <th data-k="valor" class="num">Valor</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyEl"></tbody>
+      </table>
+    </div>
+    <p class="muted">Exportado de Investimento Operacional. Este arquivo funciona offline — clique num motivo acima ou use a busca para refiltrar os KPIs, o gráfico e a tabela abaixo.</p>
+  </div>
+
+<script id="dados" type="application/json">${JSON.stringify(dados)}</script>
+<script id="paleta" type="application/json">${JSON.stringify(PALETTE)}</script>
+<script>
+(function(){
+  var D = JSON.parse(document.getElementById('dados').textContent);
+  var PALETA = JSON.parse(document.getElementById('paleta').textContent);
+  var ativos = {};
+  D.kpisMotivo.forEach(function(k){ ativos[k.nome] = true; });
+  var ordem = { k: 'data', dir: -1 };
+  var busca = '';
+
+  document.getElementById('tituloEl').textContent = D.titulo;
+  document.getElementById('subEl').textContent = D.periodo + ' \u00b7 gerado em ' + D.geradoEm;
+
+  function fmtBRL(v){
+    return 'R$ ' + (Number(v)||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+
+  function linhasFiltradas(){
+    var t = busca.trim().toLowerCase();
+    return D.linhas.filter(function(l){
+      if (!ativos[l.motivo]) return false;
+      if (!t) return true;
+      return [l.sku, l.descricao, l.contexto, l.almox, l.responsavel].some(function(v){
+        return String(v||'').toLowerCase().indexOf(t) >= 0;
+      });
+    });
+  }
+
+  function renderKpis(linhas){
+    var porMotivo = {};
+    D.kpisMotivo.forEach(function(k){ porMotivo[k.nome] = {valor:0, qtd:0}; });
+    var total = 0;
+    linhas.forEach(function(l){
+      if (!porMotivo[l.motivo]) porMotivo[l.motivo] = {valor:0, qtd:0};
+      porMotivo[l.motivo].valor += l.valor;
+      porMotivo[l.motivo].qtd += 1;
+      total += l.valor;
+    });
+    var html = '<div class="kpi" style="border-left:3px solid #e2e8f0"><div class="lbl">Total no período</div><div class="val">' + fmtBRL(total) + '</div></div>';
+    D.kpisMotivo.forEach(function(k){
+      var v = porMotivo[k.nome] || {valor:0, qtd:0};
+      var cor = PALETA[k.nome] || '#4FC3F7';
+      var off = ativos[k.nome] ? '' : ' off';
+      html += '<div class="kpi' + off + '" data-motivo="' + k.nome + '" style="border-left:3px solid ' + cor + '">' +
+        '<div class="lbl">' + k.nome + '</div>' +
+        '<div class="val">' + fmtBRL(v.valor) + '</div>' +
+        '<div class="qtd">' + v.qtd + ' baixa(s) \u2014 clique para filtrar</div>' +
+      '</div>';
+    });
+    document.getElementById('kpisEl').innerHTML = html;
+    Array.prototype.forEach.call(document.querySelectorAll('.kpi[data-motivo]'), function(el){
+      el.addEventListener('click', function(){
+        var m = el.getAttribute('data-motivo');
+        ativos[m] = !ativos[m];
+        renderAll();
+      });
+    });
+    return porMotivo;
+  }
+
+  function renderBars(porMotivo){
+    var max = 0;
+    D.kpisMotivo.forEach(function(k){ var v=(porMotivo[k.nome]||{valor:0}).valor; if (v>max) max=v; });
+    var html = '';
+    D.kpisMotivo.forEach(function(k){
+      var v = (porMotivo[k.nome]||{valor:0}).valor;
+      var h = max > 0 ? Math.max(4, Math.round((v/max)*140)) : 4;
+      var cor = PALETA[k.nome] || '#4FC3F7';
+      var op = ativos[k.nome] ? '1' : '.25';
+      html += '<div class="bar-col" style="opacity:' + op + '">' +
+        '<div class="bar-val">' + fmtBRL(v) + '</div>' +
+        '<div class="bar" style="height:' + h + 'px;background:' + cor + '"></div>' +
+        '<div class="bar-lbl">' + k.nome + '</div>' +
+      '</div>';
+    });
+    document.getElementById('barsEl').innerHTML = html;
+  }
+
+  function renderTabela(linhas){
+    var copia = linhas.slice();
+    copia.sort(function(a,b){
+      var av = a[ordem.k], bv = b[ordem.k];
+      if (ordem.k === 'qtd' || ordem.k === 'valor') { av = Number(av)||0; bv = Number(bv)||0; }
+      if (av < bv) return -1 * ordem.dir;
+      if (av > bv) return 1 * ordem.dir;
+      return 0;
+    });
+    var html = '';
+    copia.slice(0, 500).forEach(function(l){
+      var cor = PALETA[l.motivo] || '#4FC3F7';
+      var dataFmt = l.data.split('-').reverse().join('/');
+      html += '<tr>' +
+        '<td>' + dataFmt + '</td>' +
+        '<td style="font-family:monospace">' + (l.sku||'') + '</td>' +
+        '<td>' + (l.descricao||'') + '</td>' +
+        '<td><span class="badge" style="background:' + cor + '22;color:' + cor + '">' + l.motivo + '</span></td>' +
+        '<td>' + (l.contexto || '\u2014') + '</td>' +
+        '<td>' + (l.almox || '\u2014') + '</td>' +
+        '<td>' + (l.responsavel || '\u2014') + '</td>' +
+        '<td class="num">' + l.qtd + '</td>' +
+        '<td class="num">' + fmtBRL(l.valor) + '</td>' +
+      '</tr>';
+    });
+    document.getElementById('tbodyEl').innerHTML = html || '<tr><td colspan="9" style="text-align:center;color:#64748b;padding:20px">Nenhum lançamento com os filtros atuais.</td></tr>';
+    document.getElementById('countEl').textContent = copia.length + ' lançamento(s)' + (copia.length > 500 ? ' (mostrando 500)' : '');
+  }
+
+  function renderAll(){
+    var linhas = linhasFiltradas();
+    var porMotivo = renderKpis(linhas);
+    renderBars(porMotivo);
+    renderTabela(linhas);
+  }
+
+  document.getElementById('buscaEl').addEventListener('input', function(e){
+    busca = e.target.value;
+    renderAll();
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('th[data-k]'), function(th){
+    th.addEventListener('click', function(){
+      var k = th.getAttribute('data-k');
+      if (ordem.k === k) { ordem.dir = ordem.dir * -1; } else { ordem.k = k; ordem.dir = 1; }
+      renderAll();
+    });
+  });
+
+  renderAll();
+})();
+</script>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `investimento-operacional_${opts.periodo.replace(/[^\d]/g, "-")}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+
 function InvestimentoOperacionalDashboard() {
   const [from, setFrom] = useState<string>(isoDaysAgo(90));
   const [to, setTo] = useState<string>(todayISO());
   const [lista, setLista] = useState<ListaCtx>(null);
+  const [motivosAtivos, setMotivosAtivos] = useState<Set<string>>(new Set(MOTIVOS_ALVO));
 
   const motivosQ = useQuery({
     queryKey: ["motivos-invest-op"],
@@ -199,7 +445,9 @@ function InvestimentoOperacionalDashboard() {
   const view = useMemo(() => {
     const motivos = motivosQ.data ?? [];
     const motivoNome = new Map(motivos.map((m) => [m.id, m.descricao]));
-    const baixas = (baixasQ.data ?? []).map((b) => ({ ...b, motivoNome: motivoNome.get(b.motivo_baixa_id) ?? "—" }));
+    const baixas = (baixasQ.data ?? [])
+      .map((b) => ({ ...b, motivoNome: motivoNome.get(b.motivo_baixa_id) ?? "—" }))
+      .filter((b) => motivosAtivos.has(b.motivoNome));
 
     const totalGeral = baixas.reduce((s, b) => s + Number(b.valor_total || 0), 0);
 
@@ -276,30 +524,76 @@ function InvestimentoOperacionalDashboard() {
     return {
       totalGeral, kpisMotivo, barrasMotivo, tendencia, momAtual, ultimo, penultimo,
       rankingAreaCortesia, rankingOperacaoDegustacao, topDegustacao, topCortesia, topOutros, tabela,
+      todasLinhas: baixas,
     };
-  }, [baixasQ.data, motivosQ.data]);
+  }, [baixasQ.data, motivosQ.data, motivosAtivos]);
 
   const loading = motivosQ.isLoading || baixasQ.isLoading;
   const evolucao = view.momAtual != null && view.momAtual > 0;
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Investimento Operacional</h1>
-        <p className="text-sm text-muted-foreground">
-          Cortesia, Degustação, Sensorial/Inovações e Uso e Consumo — tratados como investimento operacional, não perda.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Investimento Operacional</h1>
+          <p className="text-sm text-muted-foreground">
+            Cortesia, Degustação, Sensorial/Inovações e Uso e Consumo — tratados como investimento operacional, não perda.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() =>
+            baixarHtmlInterativo({
+              titulo: "Investimento Operacional",
+              periodo: `${from.split("-").reverse().join("/")} a ${to.split("-").reverse().join("/")}`,
+              linhas: view.todasLinhas,
+              kpisMotivo: view.kpisMotivo,
+              totalGeral: view.totalGeral,
+            })
+          }
+        >
+          <Download className="size-3.5" /> Baixar HTML interativo
+        </Button>
       </div>
 
       <Card>
-        <CardContent className="pt-4 grid gap-3 sm:grid-cols-4">
-          <div>
-            <Label className="text-xs">De</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+        <CardContent className="pt-4 space-y-3">
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div>
+              <Label className="text-xs">De</Label>
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Até</Label>
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            </div>
           </div>
           <div>
-            <Label className="text-xs">Até</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            <Label className="text-xs">Motivo</Label>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {MOTIVOS_ALVO.map((nome) => {
+                const ativo = motivosAtivos.has(nome);
+                return (
+                  <Badge
+                    key={nome}
+                    variant="secondary"
+                    className="cursor-pointer select-none"
+                    style={ativo ? { background: `${PALETTE[nome]}22`, color: PALETTE[nome], borderColor: PALETTE[nome] } : { opacity: 0.4 }}
+                    onClick={() => {
+                      setMotivosAtivos((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(nome)) { if (next.size > 1) next.delete(nome); } else { next.add(nome); }
+                        return next;
+                      });
+                    }}
+                  >
+                    {nome}
+                  </Badge>
+                );
+              })}
+            </div>
           </div>
         </CardContent>
       </Card>
