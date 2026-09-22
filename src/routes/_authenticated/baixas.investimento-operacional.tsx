@@ -405,8 +405,8 @@ function InvestimentoOperacionalDashboard() {
                 data={view.rankingAreaCortesia}
                 dataKey="valor"
                 nameKey="chave"
-                innerRadius={52}
-                outerRadius={86}
+                innerRadius={44}
+                outerRadius={72}
                 paddingAngle={2}
                 isAnimationActive={false}
                 label={(props: any) => {
