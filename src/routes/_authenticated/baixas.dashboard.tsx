@@ -640,22 +640,26 @@ function BaixasDashboard() {
         <BiPanel title="Cortesia — Área que solicitou">
           <ResponsiveContainer width="100%" height={320}>
             <PieChart>
-              <Pie data={view.cortesiaContextos} dataKey="valor" nameKey="nome" cx="50%" cy="48%" innerRadius={62} outerRadius={105} paddingAngle={2} label={({ nome, percent }) => `${nome} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+              <Pie data={view.cortesiaContextos} dataKey="valor" nameKey="nome" cx="50%" cy="43%" innerRadius={58} outerRadius={94} paddingAngle={2}>
                 {view.cortesiaContextos.map((item, i) => <Cell key={item.nome} fill={PALETTE[i % PALETTE.length]} />)}
               </Pie>
               <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} formatter={(v: number) => formatBRL(v)} />
-              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Legend verticalAlign="bottom" formatter={(value: string) => {
+                const item = view.cortesiaContextos.find((row) => row.nome === value);
+                const total = view.cortesiaContextos.reduce((sum, row) => sum + row.valor, 0);
+                return `${value} ${total > 0 && item ? ((item.valor / total) * 100).toFixed(0) : 0}%`;
+              }} wrapperStyle={{ fontSize: 10, lineHeight: "18px" }} />
             </PieChart>
           </ResponsiveContainer>
         </BiPanel>
 
         <BiPanel title="Degustação — Operação">
           <ResponsiveContainer width="100%" height={320}>
-            <FunnelChart>
+            <FunnelChart margin={{ left: 20, right: 110, top: 10, bottom: 10 }}>
               <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} formatter={(v: number) => formatBRL(v)} />
-              <Funnel data={view.degustacaoContextos} dataKey="valor" nameKey="nome" isAnimationActive>
+              <Funnel data={view.degustacaoContextos} dataKey="valor" nameKey="nome" isAnimationActive lastShapeType="rectangle">
                 {view.degustacaoContextos.map((item, i) => <Cell key={item.nome} fill={PALETTE[(i + 2) % PALETTE.length]} />)}
-                <LabelList position="right" fill="#e2e8f0" stroke="none" dataKey="nome" style={{ fontSize: 10 }} />
+                <LabelList position="right" fill="#e2e8f0" stroke="none" dataKey="nome" style={{ fontSize: 9 }} />
               </Funnel>
             </FunnelChart>
           </ResponsiveContainer>
