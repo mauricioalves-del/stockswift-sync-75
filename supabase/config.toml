@@ -34,3 +34,7 @@ verify_jwt = false
 
 [functions.farol-baixas-diario]
 verify_jwt = false
+
+
+[functions.farol-investimento-operacional-semanal]
+verify_jwt = false
