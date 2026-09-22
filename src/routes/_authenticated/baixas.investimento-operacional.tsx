@@ -408,7 +408,18 @@ function InvestimentoOperacionalDashboard() {
                 innerRadius={52}
                 outerRadius={86}
                 paddingAngle={2}
-                label={({ name, value }: any) => `${name} · ${formatBRL(Number(value) || 0)}`}
+                label={(props: any) => {
+                  const { cx, cy, midAngle, outerRadius: or, name, value } = props;
+                  const RAD = Math.PI / 180;
+                  const r = (or ?? 86) + 14;
+                  const x = cx + r * Math.cos(-midAngle * RAD);
+                  const y = cy + r * Math.sin(-midAngle * RAD);
+                  return (
+                    <text x={x} y={y} textAnchor={x > cx ? "start" : "end"} dominantBaseline="central" fontSize={11} fill="#e2e8f0">
+                      {`${name} · ${formatBRL(Number(value) || 0)}`}
+                    </text>
+                  );
+                }}
                 labelLine={{ stroke: "#64748b" }}
               >
                 {view.rankingAreaCortesia.map((_, i) => <Cell key={i} fill={SERIES[i % SERIES.length]} />)}
