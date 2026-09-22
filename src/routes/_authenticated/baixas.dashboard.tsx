@@ -15,7 +15,7 @@ import { fetchAll } from "@/lib/fetch-all";
 import { BarChart3, TrendingUp, AlertTriangle, PackageMinus } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, Cell,
-  ComposedChart, Line,
+  ComposedChart, Line, PieChart, Pie, FunnelChart, Funnel,
 } from "recharts";
 import type { ReactNode } from "react";
 import { DetalheMotivoBaixasDialog, type DetalheMotivoCtx } from "@/components/baixas/DetalheMotivoBaixasDialog";
@@ -111,7 +111,7 @@ function BaixasDashboard() {
       const toTs = new Date(to + "T23:59:59").toISOString();
       const { data, error } = await supabase
         .from("baixa_operacional")
-        .select("id, codigo_produto, descricao, id_local, motivo_baixa_id, valor_total, quantidade, data_solicitacao, solicitante_id, categoria")
+        .select("id, codigo_produto, descricao, id_local, motivo_baixa_id, contexto_baixa, valor_total, quantidade, data_solicitacao, solicitante_id, categoria")
         .eq("status_fluxo", "APROVADA")
         .gte("data_solicitacao", fromTs)
         .lte("data_solicitacao", toTs)
