@@ -49,7 +49,7 @@ const fmtCompact = (v: number) => `R$ ${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k
 
 function BiPanel({ title, children, className = "" }: { title: string; children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl border border-border/40 bg-[hsl(220_18%_12%)] text-slate-100 shadow-lg overflow-hidden ${className}`}>
+    <div className={`rounded-xl border border-border/40 bg-[hsl(220_18%_12%)] text-slate-100 shadow-lg ${className.includes("overflow-visible") ? "overflow-visible" : "overflow-hidden"} ${className}`}>
       <div className="px-4 pt-3 pb-2 text-center">
         <div className="text-sm font-semibold tracking-wide">{title}</div>
       </div>
