@@ -94,6 +94,44 @@ function MotivoLegend({ items }: { items: { id: string; nome: string; cor: strin
   );
 }
 
+type TopBaixa = {
+  id: string;
+  codigo: string;
+  descricao: string;
+  contexto: string;
+  quantidade: number;
+  valor: number;
+};
+
+function TopBaixasTable({ title, rows, totalItens, onVerTudo }: { title: string; rows: TopBaixa[]; totalItens: number; onVerTudo: () => void }) {
+  return (
+    <BiPanel title={title}>
+      <div className="mb-2 flex justify-end" data-export-hide>
+        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onVerTudo}>Lista completa</Button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="border-b border-slate-700 text-slate-400">
+            <tr><th className="py-1.5 text-left">#</th><th className="py-1.5 text-left">Produto</th><th className="py-1.5 text-left">Área / operação</th><th className="py-1.5 text-right">Valor</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((r, index) => (
+              <tr key={r.id} className="border-b border-slate-800/60">
+                <td className="py-1.5 text-slate-400">{index + 1}</td>
+                <td className="max-w-[220px] py-1.5"><div className="font-medium">{r.codigo}</div><div className="truncate text-slate-400" title={r.descricao}>{r.descricao}</div></td>
+                <td className="max-w-[150px] truncate py-1.5" title={r.contexto}>{r.contexto}</td>
+                <td className="py-1.5 text-right font-semibold tabular-nums">{formatBRL(r.valor)}</td>
+              </tr>
+            ))}
+            {rows.length === 0 && <tr><td colSpan={4} className="py-6 text-center text-slate-500">Sem baixas nesta categoria.</td></tr>}
+          </tbody>
+          <tfoot><tr className="border-t-2 border-slate-600"><td colSpan={3} className="py-1.5 font-semibold">{totalItens} item(ns)</td><td className="py-1.5 text-right font-semibold">{formatBRL(rows.reduce((s, r) => s + r.valor, 0))}</td></tr></tfoot>
+        </table>
+      </div>
+    </BiPanel>
+  );
+}
+
 function BaixasDashboard() {
   const [from, setFrom] = useState<string>(isoDaysAgo(60));
   const [to, setTo] = useState<string>(todayISO());
@@ -158,7 +196,7 @@ function BaixasDashboard() {
       const desde = isoDaysAgo(365);
       const { data } = await supabase
         .from("baixa_operacional")
-        .select("valor_total, data_solicitacao, motivo_baixa_id")
+        .select("valor_total, data_solicitacao, motivo_baixa_id, codigo_produto, categoria, id_local")
         .eq("status_fluxo", "APROVADA")
         .gte("data_solicitacao", new Date(desde + "T00:00:00").toISOString())
         .limit(50000);
@@ -343,17 +381,51 @@ function BaixasDashboard() {
     const grupoList = [...new Set(baixasRaw.map((b) => grupoDe.get(b.codigo_produto) || b.categoria || "Sem grupo"))]
       .sort((a, b) => a.localeCompare(b));
 
+    const normalizar = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const idsPorCategoria = (nomes: string[]) => motivos
+      .filter((m) => nomes.some((nome) => normalizar(m.descricao).includes(normalizar(nome))))
+      .map((m) => m.id);
+    const cortesiaIds = idsPorCategoria(["Cortesia"]);
+    const degustacaoIds = idsPorCategoria(["Degustacao"]);
+    const outrosIds = idsPorCategoria(["Sensorial", "Uso e Consumo"]);
+    const agruparContexto = (ids: string[]) => {
+      const mapa = new Map<string, { nome: string; valor: number; quantidade: number }>();
+      baixas.filter((b) => b.motivo_baixa_id && ids.includes(b.motivo_baixa_id)).forEach((b) => {
+        const nome = b.contexto_baixa?.trim() || "Não informado";
+        const atual = mapa.get(nome) ?? { nome, valor: 0, quantidade: 0 };
+        atual.valor += Number(b.valor_total || 0);
+        atual.quantidade += 1;
+        mapa.set(nome, atual);
+      });
+      return [...mapa.values()].sort((a, b) => b.valor - a.valor);
+    };
+    const topCategoria = (ids: string[]) => baixas
+      .filter((b) => b.motivo_baixa_id && ids.includes(b.motivo_baixa_id))
+      .map((b) => ({ id: b.id, codigo: b.codigo_produto, descricao: b.descricao, contexto: b.contexto_baixa?.trim() || "Não informado", quantidade: Number(b.quantidade || 0), valor: Number(b.valor_total || 0) }))
+      .sort((a, b) => b.valor - a.valor);
+    const cortesia = topCategoria(cortesiaIds);
+    const degustacao = topCategoria(degustacaoIds);
+    const outros = topCategoria(outrosIds);
+
     return {
       totalPrejuizo, motivoDestaqueNome, motivoDestaquePct, setorTop, grupoTop,
       kpiMotivos, rankingSKU, funil, grupoStack, setorStack, rankingSetor,
       tabelaMotivo, rankingSolic, motivosKeys,
-      almoxList, motivoList, grupoList,
+      almoxList, motivoList, grupoList, cortesiaIds, degustacaoIds, outrosIds,
+      cortesiaContextos: agruparContexto(cortesiaIds), degustacaoContextos: agruparContexto(degustacaoIds),
+      cortesia, degustacao, outros,
     };
   }, [baixasQ.data, motivosQ.data, classifQ.data, gruposQ.data, profilesQ.data, alertasQ.data, almoxFilter, motivoFilter, grupoFilter]);
 
 
   const mom = useMemo(() => {
-    const rows = momQ.data ?? [];
+    const grupoDe = new Map((gruposQ.data ?? []).map((g) => [g.codigo_produto, g.grupo]));
+    const rows = (momQ.data ?? []).filter((r: any) => {
+      const grupo = grupoDe.get(r.codigo_produto) || r.categoria || "Sem grupo";
+      return (almoxFilter === "__all__" || (r.id_local ?? "—") === almoxFilter)
+        && (motivoFilter.length === 0 || (r.motivo_baixa_id && motivoFilter.includes(r.motivo_baixa_id)))
+        && (grupoFilter.length === 0 || grupoFilter.includes(grupo));
+    });
     const nomeMotivo = new Map((motivosQ.data ?? []).map((m: any) => [m.id, m.descricao as string]));
 
     // Total por mês e por motivo
@@ -390,7 +462,7 @@ function BaixasDashboard() {
     });
 
     return { data, motivos };
-  }, [momQ.data, motivosQ.data]);
+  }, [momQ.data, motivosQ.data, gruposQ.data, almoxFilter, motivoFilter, grupoFilter]);
 
 
   const loading = baixasQ.isLoading || motivosQ.isLoading;
