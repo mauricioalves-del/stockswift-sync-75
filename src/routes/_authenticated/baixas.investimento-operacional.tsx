@@ -399,52 +399,42 @@ function InvestimentoOperacionalDashboard() {
         </BiPanel>
 
         <BiPanel title="Cortesia — Área que solicitou">
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
                 data={view.rankingAreaCortesia}
                 dataKey="valor"
                 nameKey="chave"
-                innerRadius={58}
-                outerRadius={94}
+                innerRadius={52}
+                outerRadius={86}
                 paddingAngle={2}
+                label={({ name, value }: any) => `${name} · ${formatBRL(Number(value) || 0)}`}
+                labelLine={{ stroke: "#64748b" }}
               >
                 {view.rankingAreaCortesia.map((_, i) => <Cell key={i} fill={SERIES[i % SERIES.length]} />)}
               </Pie>
               <Tooltip formatter={(v: number) => formatBRL(v)} contentStyle={{ background: "#111c24", border: "1px solid #2a3548" }} />
             </PieChart>
           </ResponsiveContainer>
-          <div className="space-y-1 border-t border-border/40 pt-2">
-            {view.rankingAreaCortesia.map((item, i) => (
-              <div key={item.chave} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-xs">
-                <span className="size-2.5 rounded-sm" style={{ backgroundColor: SERIES[i % SERIES.length] }} />
-                <span className="truncate text-slate-200" title={item.chave}>{item.chave}</span>
-                <span className="tabular-nums text-slate-400">{formatBRL(item.valor)}</span>
-              </div>
-            ))}
-            {!view.rankingAreaCortesia.length && <div className="text-center text-xs text-slate-400">Nenhuma área no período.</div>}
-          </div>
+          {!view.rankingAreaCortesia.length && <div className="text-center text-xs text-slate-400">Nenhuma área no período.</div>}
         </BiPanel>
 
         <BiPanel title="Degustação — Operação">
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={280}>
             <FunnelChart margin={{ left: 20, right: 20, top: 10, bottom: 10 }}>
               <Tooltip formatter={(v: number) => formatBRL(v)} contentStyle={{ background: "#111c24", border: "1px solid #2a3548" }} />
               <Funnel dataKey="valor" data={view.rankingOperacaoDegustacao} isAnimationActive lastShapeType="rectangle">
+                <LabelList
+                  dataKey="chave"
+                  position="right"
+                  style={{ fill: "#e2e8f0", fontSize: 11 }}
+                  formatter={(v: any) => String(v ?? "")}
+                />
                 {view.rankingOperacaoDegustacao.map((_, i) => <Cell key={i} fill={SERIES[i % SERIES.length]} />)}
               </Funnel>
             </FunnelChart>
           </ResponsiveContainer>
-          <div className="space-y-1 border-t border-border/40 pt-2">
-            {view.rankingOperacaoDegustacao.map((item, i) => (
-              <div key={item.chave} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-xs">
-                <span className="size-2.5 rounded-sm" style={{ backgroundColor: SERIES[i % SERIES.length] }} />
-                <span className="truncate text-slate-200" title={item.chave}>{item.chave}</span>
-                <span className="tabular-nums text-slate-400">{formatBRL(item.valor)}</span>
-              </div>
-            ))}
-            {!view.rankingOperacaoDegustacao.length && <div className="text-center text-xs text-slate-400">Nenhuma operação no período.</div>}
-          </div>
+          {!view.rankingOperacaoDegustacao.length && <div className="text-center text-xs text-slate-400">Nenhuma operação no período.</div>}
         </BiPanel>
       </div>
 
