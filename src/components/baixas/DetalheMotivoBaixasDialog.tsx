@@ -10,13 +10,11 @@ import { formatBRL } from "@/lib/inventory";
 import { ArrowDown, ArrowUp, Tag } from "lucide-react";
 
 export type DetalheMotivoCtx = {
-  motivoId?: string;
-  motivoIds?: string[];
+  motivoId: string;
   motivoNome: string;
   fromISO: string;
   toISO: string;
   almoxFilter: string; // "__all__" ou id_local
-  baixaIds?: string[];
 };
 
 type Linha = {
@@ -64,35 +62,24 @@ export function DetalheMotivoBaixasDialog({
   const [asc, setAsc] = useState(false);
 
   const q = useQuery({
-    queryKey: ["detalhe-motivo-baixas", ctx?.motivoId, ctx?.motivoIds, ctx?.baixaIds, ctx?.fromISO, ctx?.toISO, ctx?.almoxFilter],
+    queryKey: ["detalhe-motivo-baixas", ctx?.motivoId, ctx?.fromISO, ctx?.toISO, ctx?.almoxFilter],
     enabled: !!ctx,
     queryFn: async (): Promise<Linha[]> => {
       const c = ctx!;
-      const carregar = async (ids?: string[]) => fetchAll<any>((from, to) => {
+      const baixas = await fetchAll<any>((from, to) => {
         let sel = (supabase as any)
           .from("baixa_operacional")
           .select(
             "id, codigo_produto, descricao, lote, unidade, id_local, origem, quantidade, custo_unitario, valor_total, data_ocorrencia, data_solicitacao, status_fluxo, origem_lancamento, solicitante_id, responsavel_nome, observacao, categoria",
           )
+          .eq("motivo_baixa_id", c.motivoId)
           .eq("status_fluxo", "APROVADA")
           .gte("data_solicitacao", c.fromISO)
           .lte("data_solicitacao", c.toISO)
           .range(from, to);
-        if (ids?.length) sel = sel.in("id", ids);
-        else if (c.motivoIds?.length) sel = sel.in("motivo_baixa_id", c.motivoIds);
-        else if (c.motivoId) sel = sel.eq("motivo_baixa_id", c.motivoId);
         if (c.almoxFilter !== "__all__") sel = sel.eq("id_local", c.almoxFilter);
         return sel;
       });
-
-      const baixas: any[] = [];
-      if (c.baixaIds?.length) {
-        for (let i = 0; i < c.baixaIds.length; i += 100) {
-          baixas.push(...await carregar(c.baixaIds.slice(i, i + 100)));
-        }
-      } else {
-        baixas.push(...await carregar());
-      }
 
       const ids = baixas.map((b) => b.id);
       const [profilesRes, tiposRes] = await Promise.all([
