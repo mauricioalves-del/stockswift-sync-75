@@ -184,6 +184,10 @@ export function parseConsumoPlanilha(file: ArrayBuffer): ConsumoRow[] {
     if (!data_producao) erros.push("Data de produção inválida ou vazia");
     if (!id_op) erros.push("IDOP vazio");
     if (!material) erros.push("Material vazio");
+    // Sem a coluna Empresa a linha não pode ser atribuída a nenhuma unidade
+    // (SP ou Pará) e some dos dois faróis de dispersão, ou pior, cai no
+    // farol errado por um fallback de compatibilidade. Bloqueia na origem.
+    if (!pick(r, "Empresa", "empresa")) erros.push("Empresa vazia — obrigatória para o Farol de Dispersão (Filial SP - Fabrica ou Matriz Para)");
     return {
       linha: i + 2, ano_mes, id_op,
       produto: pick(r, "Produto", "produto"),
@@ -213,8 +217,8 @@ export function gerarModeloBOM(): Blob {
 
 export function gerarModeloConsumo(): Blob {
   const aoa = [
-    ["AnoMes", "IDOP", "Produto", "DescProduto", "Material", "DescMaterial", "UM", "QtdConsumo", "QtdPrevisto", "QtdProduzida", "Data"],
-    ["2026-04", "OP-1001", "PROD-001", "Chocolate 70%", "MAT-001", "Cacau em pó", "KG", 72.5, 70, 100, "14/04/2026"],
+    ["AnoMes", "IDOP", "Produto", "DescProduto", "Material", "DescMaterial", "UM", "QtdConsumo", "QtdPrevisto", "QtdProduzida", "Data", "Empresa"],
+    ["2026-04", "OP-1001", "PROD-001", "Chocolate 70%", "MAT-001", "Cacau em pó", "KG", 72.5, 70, 100, "14/04/2026", "Filial SP - Fabrica"],
   ];
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(aoa);
