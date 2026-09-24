@@ -834,6 +834,13 @@ export type Database = {
             referencedRelation: "v_impacto_consumo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "dispersao_acoes_corretivas_producao_consumo_id_fkey"
+            columns: ["producao_consumo_id"]
+            isOneToOne: false
+            referencedRelation: "v_teste_industrial_consumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       dispersao_causa_raiz: {
@@ -880,6 +887,13 @@ export type Database = {
             columns: ["producao_consumo_id"]
             isOneToOne: false
             referencedRelation: "v_impacto_consumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispersao_causa_raiz_producao_consumo_id_fkey"
+            columns: ["producao_consumo_id"]
+            isOneToOne: false
+            referencedRelation: "v_teste_industrial_consumo"
             referencedColumns: ["id"]
           },
         ]
@@ -3395,6 +3409,30 @@ export type Database = {
           economia_rs: number | null
           n_furos: number | null
           perda_rs: number | null
+        }
+        Relationships: []
+      }
+      v_teste_industrial_consumo: {
+        Row: {
+          ano_mes: string | null
+          congelado_em: string | null
+          custo_unit_medio: number | null
+          desc_material: string | null
+          desc_prod: string | null
+          dt_producao: string | null
+          empresa: string | null
+          id: string | null
+          impacto_rs: number | null
+          material: string | null
+          numero_op: string | null
+          qtd_consumo: number | null
+          qtd_custos_distintos: number | null
+          qtd_dif: number | null
+          qtd_previsto: number | null
+          sku_produto_final: string | null
+          tem_furo: boolean | null
+          tipo_desvio: string | null
+          um: string | null
         }
         Relationships: []
       }
