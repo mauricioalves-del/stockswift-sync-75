@@ -38,3 +38,7 @@ verify_jwt = false
 
 [functions.farol-investimento-operacional-semanal]
 verify_jwt = false
+
+
+[functions.farol-teste-industrial-quinzenal]
+verify_jwt = false
