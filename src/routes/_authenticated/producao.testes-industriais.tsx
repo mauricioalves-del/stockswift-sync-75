@@ -19,7 +19,8 @@ import { exportarBIInterativo } from "@/lib/export-bi-interativo";
 import { toast } from "sonner";
 
 /**
- * FONTE DE DADOS: view `v_impacto_consumo`, filtrada por sku_produto_final = '05104122'
+ * FONTE DE DADOS: view `v_teste_industrial_consumo` (dedicada — não depende de
+ * v_impacto_consumo, que exclui este SKU da análise de Dispersão)
  * (Teste Industrial). Usamos APENAS: ano_mes, dt_producao, numero_op, material,
  * desc_material, um, qtd_consumo e custo_unit_medio. Campos de desvio são IGNORADOS:
  * não existe Ficha Técnica estável para Testes Industriais.
@@ -153,7 +154,7 @@ function TestesIndustriaisPage() {
     queryFn: async () =>
       await fetchAll<Linha>((from, to) =>
         (supabase as any)
-          .from("v_impacto_consumo")
+          .from("v_teste_industrial_consumo")
           .select("id, ano_mes, dt_producao, numero_op, material, desc_material, um, qtd_consumo, custo_unit_medio")
           .eq("sku_produto_final", SKU_TESTE_INDUSTRIAL)
           .order("ano_mes", { ascending: true })
@@ -617,7 +618,7 @@ function TestesIndustriaisPage() {
       </Card>
 
       <p className="text-xs text-muted-foreground">
-        Fonte: view <code>v_impacto_consumo</code> filtrada por <code>sku_produto_final = '{SKU_TESTE_INDUSTRIAL}'</code>;
+        Fonte: view <code>v_teste_industrial_consumo</code> (dedicada, filtrada por <code>sku_produto_final = '{SKU_TESTE_INDUSTRIAL}'</code>);
         grupos vindos de <code>grupo_produtos</code>. Tela somente leitura. Para desvio contra Ficha Técnica, use{" "}
         <Link to="/producao/dispersao" className="underline">Dispersão de Lote</Link>.
       </p>
