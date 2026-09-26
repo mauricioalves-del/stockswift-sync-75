@@ -556,6 +556,13 @@ export type Database = {
             referencedRelation: "checagens_fefo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "checagens_fefo_lotes_snapshot_checagem_id_fkey"
+            columns: ["checagem_id"]
+            isOneToOne: false
+            referencedRelation: "v_transferencias_fabrica_loja"
+            referencedColumns: ["id"]
+          },
         ]
       }
       checklist_execucao: {
@@ -3433,6 +3440,66 @@ export type Database = {
           tem_furo: boolean | null
           tipo_desvio: string | null
           um: string | null
+        }
+        Relationships: []
+      }
+      v_transferencias_fabrica_loja: {
+        Row: {
+          created_at: string | null
+          data: string | null
+          descricao: string | null
+          destino: string | null
+          id: string | null
+          id_produto: string | null
+          lote_mais_antigo: string | null
+          lote_movimentado: string | null
+          numero_requisicao: string | null
+          origem: string | null
+          qtd_lote_mais_antigo: number | null
+          qtd_movimentado: number | null
+          quebra: boolean | null
+          rota: string | null
+          status: string | null
+          validade_mais_antiga: string | null
+          validade_movimentado: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          data?: string | null
+          descricao?: string | null
+          destino?: string | null
+          id?: string | null
+          id_produto?: string | null
+          lote_mais_antigo?: string | null
+          lote_movimentado?: string | null
+          numero_requisicao?: string | null
+          origem?: string | null
+          qtd_lote_mais_antigo?: number | null
+          qtd_movimentado?: number | null
+          quebra?: boolean | null
+          rota?: string | null
+          status?: string | null
+          validade_mais_antiga?: string | null
+          validade_movimentado?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          data?: string | null
+          descricao?: string | null
+          destino?: string | null
+          id?: string | null
+          id_produto?: string | null
+          lote_mais_antigo?: string | null
+          lote_movimentado?: string | null
+          numero_requisicao?: string | null
+          origem?: string | null
+          qtd_lote_mais_antigo?: number | null
+          qtd_movimentado?: number | null
+          quebra?: boolean | null
+          rota?: string | null
+          status?: string | null
+          validade_mais_antiga?: string | null
+          validade_movimentado?: string | null
         }
         Relationships: []
       }
