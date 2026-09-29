@@ -7,6 +7,7 @@ import {
   Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp, Warehouse, Mail,
   Compass, Sparkles, Settings2, Boxes, Truck, AlertTriangle, PanelLeftClose, PanelLeftOpen,
   Factory, GitCompareArrows, CalendarClock, Bell, ArrowRightLeft, CalendarCheck, PackageX, Tags,
+  PackageCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -70,6 +71,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/producao/pcp", label: "Análise de Ruptura", icon: Factory, role: "any" },
       { to: "/producao/solicitacao-materiais", label: "Solicitação de Materiais", icon: ClipboardList, role: "write" },
       { to: "/producao/dispersao", label: "Dispersão de Lote", icon: GitCompareArrows, role: "any" },
+      { to: "/producao/confirmacao-recebimento", label: "Confirmação de Recebimento", icon: PackageCheck, role: "any" },
       { to: "/producao/testes-industriais", label: "Testes Industriais", icon: Factory, role: "any" },
 
       { to: "/producao/auditoria-ft", label: "Auditoria de Ficha Técnica", icon: ClipboardList, role: "write" },
