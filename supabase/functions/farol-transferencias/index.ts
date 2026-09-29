@@ -20,7 +20,7 @@ const CORS = {
 
 const GMAIL_GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v1/users/me/messages/send";
 const FINALIDADE = "Farol de Transferências";
-const APP_URL = "https://stockswift-sync-75.lovable.app/quebras-fefo";
+const APP_URL = "https://stockswift-sync-75.lovable.app/producao/confirmacao-recebimento";
 
 function json(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -198,7 +198,7 @@ ${kpis}
 </table>
 
 <p style="margin:20px 0">
-  <a href="${APP_URL}" style="background:#111827;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;display:inline-block">Abrir Controle FEFO na plataforma →</a>
+  <a href="${APP_URL}?data=${dataAlvo}" style="background:#111827;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;display:inline-block">Confirmar recebimento na plataforma →</a>
 </p>
 <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb" />
 <p style="font-size:11px;color:#6b7280">Enviado automaticamente de segunda a sexta, às 17h, pelo Controle Operacional.</p>
