@@ -63,6 +63,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/abastecimento/consumo", label: "Importar Consumo", icon: TrendingUp, role: "write" },
       { to: "/abastecimento/parametros", label: "Parâmetros Abastecimento", icon: Settings2, role: "admin" },
       { to: "/config/sazonalidade", label: "Sazonalidade", icon: Sparkles, role: "admin" },
+      { to: "/producao/confirmacao-recebimento", label: "Confirmação de Recebimento", icon: PackageCheck, role: "any" },
     ],
   },
   {
@@ -71,7 +72,6 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/producao/pcp", label: "Análise de Ruptura", icon: Factory, role: "any" },
       { to: "/producao/solicitacao-materiais", label: "Solicitação de Materiais", icon: ClipboardList, role: "write" },
       { to: "/producao/dispersao", label: "Dispersão de Lote", icon: GitCompareArrows, role: "any" },
-      { to: "/producao/confirmacao-recebimento", label: "Confirmação de Recebimento", icon: PackageCheck, role: "any" },
       { to: "/producao/testes-industriais", label: "Testes Industriais", icon: Factory, role: "any" },
 
       { to: "/producao/auditoria-ft", label: "Auditoria de Ficha Técnica", icon: ClipboardList, role: "write" },
