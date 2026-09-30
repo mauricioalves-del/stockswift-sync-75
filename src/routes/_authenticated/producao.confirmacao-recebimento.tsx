@@ -10,9 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CheckCircle2, PackageCheck, User } from "lucide-react";
 import { toast } from "sonner";
@@ -63,6 +60,20 @@ function ConfirmacaoRecebimentoPage() {
   const requisicaoFoco = searchParams.get("requisicao");
 
   const usuarios = useUsuariosSistema();
+
+  const usuarioLogadoQ = useQuery({
+    queryKey: ["usuario-logado-confirmacao"],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getUser();
+      return data.user?.id ?? null;
+    },
+  });
+
+  const responsavelLogado = useMemo(() => {
+    const uid = usuarioLogadoQ.data;
+    if (!uid) return null;
+    return (usuarios.data ?? []).find((u) => u.id === uid) ?? null;
+  }, [usuarioLogadoQ.data, usuarios.data]);
 
   const transferenciasQ = useQuery({
     queryKey: ["transferencias-recebimento", data],
@@ -142,7 +153,7 @@ function ConfirmacaoRecebimentoPage() {
             data={data}
             itens={itens}
             confirmada={confirmada}
-            usuarios={usuarios.data ?? []}
+            responsavelLogado={responsavelLogado}
             focoInicial={requisicaoFoco === req}
             onConfirmado={() => {
               qc.invalidateQueries({ queryKey: ["confirmacoes-recebimento", data] });
@@ -159,13 +170,12 @@ function RequisicaoCard(props: {
   data: string;
   itens: LinhaTransferencia[];
   confirmada: any | null;
-  usuarios: { id: string; nome: string; email: string }[];
+  responsavelLogado: { id: string; nome: string; email: string } | null;
   focoInicial: boolean;
   onConfirmado: () => void;
 }) {
-  const { numeroRequisicao, data, itens, confirmada, usuarios, focoInicial, onConfirmado } = props;
+  const { numeroRequisicao, data, itens, confirmada, responsavelLogado, focoInicial, onConfirmado } = props;
   const [aberto, setAberto] = useState(focoInicial && !confirmada);
-  const [responsavelId, setResponsavelId] = useState<string>("");
   const [observacao, setObservacao] = useState("");
   const [linhas, setLinhas] = useState<ItemForm[]>(() =>
     itens.map((it) => ({
@@ -189,8 +199,8 @@ function RequisicaoCard(props: {
 
   const salvar = useMutation({
     mutationFn: async () => {
-      const resp = usuarios.find((u) => u.id === responsavelId);
-      if (!resp) throw new Error("Selecione o responsável pelo recebimento.");
+      const resp = responsavelLogado;
+      if (!resp) throw new Error("Não foi possível identificar o usuário logado.");
       for (const l of linhas) {
         if (l.temInconformidade && !l.motivo.trim()) {
           throw new Error(`Informe o motivo da inconformidade em ${l.id_produto} — ${l.descricao}.`);
@@ -303,14 +313,10 @@ function RequisicaoCard(props: {
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <Label className="text-xs">Responsável pelo recebimento</Label>
-              <Select value={responsavelId} onValueChange={setResponsavelId}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {usuarios.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2 h-10 px-3 rounded-md border bg-muted/30 text-sm font-medium">
+                <User className="size-3.5 text-muted-foreground" />
+                {responsavelLogado?.nome ?? "Identificando usuário..."}
+              </div>
             </div>
           </div>
 
@@ -370,7 +376,7 @@ function RequisicaoCard(props: {
           </div>
 
           <div className="flex justify-end">
-            <Button disabled={!responsavelId || salvar.isPending} onClick={() => salvar.mutate()}>
+            <Button disabled={!responsavelLogado || salvar.isPending} onClick={() => salvar.mutate()}>
               {salvar.isPending ? "Confirmando..." : "Confirmar Recebimento"}
             </Button>
           </div>
