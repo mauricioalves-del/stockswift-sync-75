@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle2, PackageCheck, User } from "lucide-react";
 import { toast } from "sonner";
 
@@ -119,6 +120,25 @@ function ConfirmacaoRecebimentoPage() {
   const loading = transferenciasQ.isLoading || confirmadasQ.isLoading;
   const requisicoes = [...porRequisicao.keys()];
 
+  const pendentes = useMemo(
+    () => requisicoes.filter((r) => !confirmadasPorRequisicao.has(r)),
+    [requisicoes, confirmadasPorRequisicao],
+  );
+  const confirmadas = useMemo(
+    () => requisicoes.filter((r) => confirmadasPorRequisicao.has(r)),
+    [requisicoes, confirmadasPorRequisicao],
+  );
+
+  const [statusFiltro, setStatusFiltro] = useState<"todos" | "sem_divergencia" | "com_divergencia">("todos");
+  const confirmadasFiltradas = useMemo(() => {
+    if (statusFiltro === "todos") return confirmadas;
+    return confirmadas.filter((r) => {
+      const c = confirmadasPorRequisicao.get(r);
+      const temDivergencia = (c?.confirmacoes_recebimento_itens ?? []).some((i: any) => i.tem_inconformidade);
+      return statusFiltro === "com_divergencia" ? temDivergencia : !temDivergencia;
+    });
+  }, [confirmadas, confirmadasPorRequisicao, statusFiltro]);
+
   return (
     <div className="space-y-4">
       <div>
@@ -139,28 +159,76 @@ function ConfirmacaoRecebimentoPage() {
 
       {loading && <p className="text-sm text-muted-foreground">Carregando...</p>}
 
-      {!loading && requisicoes.length === 0 && (
-        <Card><CardContent className="py-10 text-center text-muted-foreground">Nenhuma transferência Fábrica → Loja em {fmtDataBR(data)}.</CardContent></Card>
-      )}
+      {!loading && (
+        <Tabs defaultValue="pendentes">
+          <TabsList>
+            <TabsTrigger value="pendentes">Pendentes ({pendentes.length})</TabsTrigger>
+            <TabsTrigger value="confirmados">Confirmados ({confirmadas.length})</TabsTrigger>
+          </TabsList>
 
-      {requisicoes.map((req) => {
-        const itens = porRequisicao.get(req) ?? [];
-        const confirmada = confirmadasPorRequisicao.get(req);
-        return (
-          <RequisicaoCard
-            key={req}
-            numeroRequisicao={req}
-            data={data}
-            itens={itens}
-            confirmada={confirmada}
-            responsavelLogado={responsavelLogado}
-            focoInicial={requisicaoFoco === req}
-            onConfirmado={() => {
-              qc.invalidateQueries({ queryKey: ["confirmacoes-recebimento", data] });
-            }}
-          />
-        );
-      })}
+          <TabsContent value="pendentes" className="space-y-4 pt-4">
+            {pendentes.length === 0 && (
+              <Card><CardContent className="py-10 text-center text-muted-foreground">Nenhuma transferência pendente em {fmtDataBR(data)}.</CardContent></Card>
+            )}
+            {pendentes.map((req) => {
+              const itens = porRequisicao.get(req) ?? [];
+              return (
+                <RequisicaoCard
+                  key={req}
+                  numeroRequisicao={req}
+                  data={data}
+                  itens={itens}
+                  confirmada={null}
+                  responsavelLogado={responsavelLogado}
+                  focoInicial={requisicaoFoco === req}
+                  onConfirmado={() => {
+                    qc.invalidateQueries({ queryKey: ["confirmacoes-recebimento", data] });
+                  }}
+                />
+              );
+            })}
+          </TabsContent>
+
+          <TabsContent value="confirmados" className="space-y-4 pt-4">
+            <div className="flex flex-wrap gap-2">
+              {([
+                ["todos", "Todos"],
+                ["sem_divergencia", "Sem divergências"],
+                ["com_divergencia", "Com divergências"],
+              ] as const).map(([value, label]) => (
+                <Badge
+                  key={value}
+                  variant={statusFiltro === value ? "default" : "outline"}
+                  className="cursor-pointer select-none"
+                  onClick={() => setStatusFiltro(value)}
+                >
+                  {label}
+                </Badge>
+              ))}
+            </div>
+
+            {confirmadasFiltradas.length === 0 && (
+              <Card><CardContent className="py-10 text-center text-muted-foreground">Nenhuma confirmação encontrada com esse filtro.</CardContent></Card>
+            )}
+            {confirmadasFiltradas.map((req) => {
+              const itens = porRequisicao.get(req) ?? [];
+              const confirmada = confirmadasPorRequisicao.get(req);
+              return (
+                <RequisicaoCard
+                  key={req}
+                  numeroRequisicao={req}
+                  data={data}
+                  itens={itens}
+                  confirmada={confirmada}
+                  responsavelLogado={responsavelLogado}
+                  focoInicial={false}
+                  onConfirmado={() => {}}
+                />
+              );
+            })}
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 }
