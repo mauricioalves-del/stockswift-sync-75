@@ -652,6 +652,86 @@ export type Database = {
         }
         Relationships: []
       }
+      confirmacoes_recebimento: {
+        Row: {
+          confirmado_em: string
+          created_at: string
+          data: string
+          id: string
+          numero_requisicao: string
+          observacao_geral: string | null
+          responsavel_id: string | null
+          responsavel_nome: string
+        }
+        Insert: {
+          confirmado_em?: string
+          created_at?: string
+          data: string
+          id?: string
+          numero_requisicao: string
+          observacao_geral?: string | null
+          responsavel_id?: string | null
+          responsavel_nome: string
+        }
+        Update: {
+          confirmado_em?: string
+          created_at?: string
+          data?: string
+          id?: string
+          numero_requisicao?: string
+          observacao_geral?: string | null
+          responsavel_id?: string | null
+          responsavel_nome?: string
+        }
+        Relationships: []
+      }
+      confirmacoes_recebimento_itens: {
+        Row: {
+          confirmacao_id: string
+          created_at: string
+          descricao: string | null
+          id: string
+          id_produto: string
+          lote_movimentado: string | null
+          motivo_inconformidade: string | null
+          qtd_recebida: number
+          qtd_transferida: number
+          tem_inconformidade: boolean
+        }
+        Insert: {
+          confirmacao_id: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          id_produto: string
+          lote_movimentado?: string | null
+          motivo_inconformidade?: string | null
+          qtd_recebida: number
+          qtd_transferida: number
+          tem_inconformidade?: boolean
+        }
+        Update: {
+          confirmacao_id?: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          id_produto?: string
+          lote_movimentado?: string | null
+          motivo_inconformidade?: string | null
+          qtd_recebida?: number
+          qtd_transferida?: number
+          tem_inconformidade?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "confirmacoes_recebimento_itens_confirmacao_id_fkey"
+            columns: ["confirmacao_id"]
+            isOneToOne: false
+            referencedRelation: "confirmacoes_recebimento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contexto_baixa_opcoes: {
         Row: {
           ativo: boolean
@@ -1967,6 +2047,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notas_transferencia_recebimento: {
+        Row: {
+          almox: string
+          cod_prod: string
+          created_at: string
+          desc_produto: string | null
+          dt_emissao: string
+          dt_recebimento: string | null
+          empresa: string
+          estado: string | null
+          id: string
+          importado_por: string | null
+          lote: string
+          nota_cancelada: string | null
+          nr_nf: string
+          qtd: number | null
+          recebimento: string
+          serie: string | null
+          updated_at: string
+          vt_total_item: number | null
+        }
+        Insert: {
+          almox: string
+          cod_prod: string
+          created_at?: string
+          desc_produto?: string | null
+          dt_emissao: string
+          dt_recebimento?: string | null
+          empresa: string
+          estado?: string | null
+          id?: string
+          importado_por?: string | null
+          lote: string
+          nota_cancelada?: string | null
+          nr_nf: string
+          qtd?: number | null
+          recebimento: string
+          serie?: string | null
+          updated_at?: string
+          vt_total_item?: number | null
+        }
+        Update: {
+          almox?: string
+          cod_prod?: string
+          created_at?: string
+          desc_produto?: string | null
+          dt_emissao?: string
+          dt_recebimento?: string | null
+          empresa?: string
+          estado?: string | null
+          id?: string
+          importado_por?: string | null
+          lote?: string
+          nota_cancelada?: string | null
+          nr_nf?: string
+          qtd?: number | null
+          recebimento?: string
+          serie?: string | null
+          updated_at?: string
+          vt_total_item?: number | null
+        }
+        Relationships: []
       }
       ops_excluidas_dispersao: {
         Row: {
