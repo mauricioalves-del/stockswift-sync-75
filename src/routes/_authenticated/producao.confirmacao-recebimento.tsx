@@ -146,18 +146,9 @@ function ConfirmacaoRecebimentoPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><PackageCheck className="size-6" /> Confirmação de Recebimento</h1>
         <p className="text-sm text-muted-foreground">
-          Transferências Fábrica → Loja do dia. Confirme com o responsável e aponte eventuais inconformidades.
+          Transferências Fábrica → Loja. Confirme com o responsável e aponte eventuais inconformidades.
         </p>
       </div>
-
-      <Card>
-        <CardContent className="pt-4 grid gap-3 sm:grid-cols-4">
-          <div>
-            <Label className="text-xs">Data</Label>
-            <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
-          </div>
-        </CardContent>
-      </Card>
 
       {loading && <p className="text-sm text-muted-foreground">Carregando...</p>}
 
@@ -170,7 +161,7 @@ function ConfirmacaoRecebimentoPage() {
 
           <TabsContent value="pendentes" className="space-y-4 pt-4">
             {pendentes.length === 0 && (
-              <Card><CardContent className="py-10 text-center text-muted-foreground">Nenhuma transferência pendente em {fmtDataBR(data)}.</CardContent></Card>
+              <Card><CardContent className="py-10 text-center text-muted-foreground">Nenhuma transferência pendente de confirmação.</CardContent></Card>
             )}
             {pendentes.map((req) => {
               const itens = porRequisicao.get(req) ?? [];
@@ -178,13 +169,13 @@ function ConfirmacaoRecebimentoPage() {
                 <RequisicaoCard
                   key={req}
                   numeroRequisicao={req}
-                  data={data}
+                  data={dataPorRequisicao.get(req) ?? todayISO()}
                   itens={itens}
                   confirmada={null}
                   responsavelLogado={responsavelLogado}
                   focoInicial={requisicaoFoco === req}
                   onConfirmado={() => {
-                    qc.invalidateQueries({ queryKey: ["confirmacoes-recebimento", data] });
+                    qc.invalidateQueries({ queryKey: ["confirmacoes-recebimento"] });
                   }}
                 />
               );
@@ -219,7 +210,7 @@ function ConfirmacaoRecebimentoPage() {
                 <RequisicaoCard
                   key={req}
                   numeroRequisicao={req}
-                  data={data}
+                  data={dataPorRequisicao.get(req) ?? todayISO()}
                   itens={itens}
                   confirmada={confirmada}
                   responsavelLogado={responsavelLogado}
