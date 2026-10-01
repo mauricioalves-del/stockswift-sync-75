@@ -46,6 +46,11 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function fmtDataBR(iso: string) {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 function fmtNum(v: number) {
   return v.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
 }
@@ -316,7 +321,7 @@ function RequisicaoCard(props: {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center justify-between gap-2 flex-wrap">
             <span className="flex items-center gap-2">
-              <CheckCircle2 className="size-4 text-green-600" /> Requisição {numeroRequisicao} — confirmada
+              <CheckCircle2 className="size-4 text-green-600" /> Requisição {numeroRequisicao} — confirmada <span className="text-muted-foreground font-normal text-sm">· {fmtDataBR(confirmada.data ?? data)}</span>
             </span>
             <Badge variant={temInconformidade ? "destructive" : "secondary"}>
               {temInconformidade ? "Com inconformidade" : "Sem divergências"}
@@ -365,7 +370,7 @@ function RequisicaoCard(props: {
     <Card id={`req-${numeroRequisicao}`}>
       <CardHeader className="pb-3 cursor-pointer" onClick={() => setAberto((v) => !v)}>
         <CardTitle className="text-base flex items-center justify-between gap-2 flex-wrap">
-          <span>Requisição {numeroRequisicao} <span className="text-muted-foreground font-normal text-sm">— {itens.length} item(ns), {fmtNum(qtdTotal)} un.</span></span>
+          <span>Requisição {numeroRequisicao} <span className="text-muted-foreground font-normal text-sm">· {fmtDataBR(data)} — {itens.length} item(ns), {fmtNum(qtdTotal)} un.</span></span>
           <Badge variant="outline">Pendente de confirmação</Badge>
         </CardTitle>
       </CardHeader>
