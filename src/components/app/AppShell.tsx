@@ -64,6 +64,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/abastecimento/parametros", label: "Parâmetros Abastecimento", icon: Settings2, role: "admin" },
       { to: "/config/sazonalidade", label: "Sazonalidade", icon: Sparkles, role: "admin" },
       { to: "/producao/confirmacao-recebimento", label: "Confirmação de Recebimento", icon: PackageCheck, role: "any" },
+      { to: "/suprimentos/farol-recebimento", label: "Farol de Recebimento Pendente", icon: Truck, role: "any" },
     ],
   },
   {
