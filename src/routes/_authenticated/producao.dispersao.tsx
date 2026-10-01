@@ -485,23 +485,59 @@ function DispersaoPage() {
             <Input type="date" value={dtAte} onChange={(e) => setDtAte(e.target.value)} />
           </div>
           <div className="flex flex-col justify-end">
-            <label className="text-xs text-muted-foreground opacity-0">D-1</label>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                const hoje = new Date();
-                const diaSemana = hoje.getDay(); // 0=domingo, 1=segunda...
-                const voltar = diaSemana === 1 ? 3 : diaSemana === 0 ? 2 : 1;
-                const d = new Date(hoje);
-                d.setDate(d.getDate() - voltar);
-                const iso = d.toISOString().slice(0, 10);
-                setDtDe(iso);
-                setDtAte(iso);
-              }}
-            >
-              D-1
-            </Button>
+            <label className="text-xs text-muted-foreground opacity-0">Atalhos</label>
+            <div className="flex gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 px-2"
+                title="Somente hoje"
+                onClick={() => {
+                  const iso = new Date().toISOString().slice(0, 10);
+                  setDtDe(iso);
+                  setDtAte(iso);
+                }}
+              >
+                Day
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 px-2"
+                title="Semana atual (segunda a domingo)"
+                onClick={() => {
+                  const hoje = new Date();
+                  const diaSemana = hoje.getDay(); // 0=domingo, 1=segunda...
+                  const desdeSegunda = diaSemana === 0 ? 6 : diaSemana - 1;
+                  const ini = new Date(hoje);
+                  ini.setDate(ini.getDate() - desdeSegunda);
+                  const fim = new Date(ini);
+                  fim.setDate(fim.getDate() + 6);
+                  setDtDe(ini.toISOString().slice(0, 10));
+                  setDtAte(fim.toISOString().slice(0, 10));
+                }}
+              >
+                Week
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 px-2"
+                title="Último dia útil"
+                onClick={() => {
+                  const hoje = new Date();
+                  const diaSemana = hoje.getDay(); // 0=domingo, 1=segunda...
+                  const voltar = diaSemana === 1 ? 3 : diaSemana === 0 ? 2 : 1;
+                  const d = new Date(hoje);
+                  d.setDate(d.getDate() - voltar);
+                  const iso = d.toISOString().slice(0, 10);
+                  setDtDe(iso);
+                  setDtAte(iso);
+                }}
+              >
+                D-1
+              </Button>
+            </div>
           </div>
           <div>
             <label className="text-xs text-muted-foreground">Mês (Data)</label>
