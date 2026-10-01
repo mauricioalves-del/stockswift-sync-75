@@ -41,6 +41,7 @@ import { Route as ApiPublicImportConsumoOpRouteImport } from './routes/api/publi
 import { Route as ApiPublicImportConsumoCmdRouteImport } from './routes/api/public/import-consumo-cmd'
 import { Route as ApiPublicAtlasExportarBaixasRouteImport } from './routes/api/public/atlas-exportar-baixas'
 import { Route as AuthenticatedSuprimentosRiscoObsoletosRouteImport } from './routes/_authenticated/suprimentos.risco-obsoletos'
+import { Route as AuthenticatedSuprimentosFarolRecebimentoRouteImport } from './routes/_authenticated/suprimentos.farol-recebimento'
 import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_authenticated/suprimentos.estoque'
 import { Route as AuthenticatedSuprimentosDashboardRouteImport } from './routes/_authenticated/suprimentos.dashboard'
 import { Route as AuthenticatedShelfLifeRiscoRouteImport } from './routes/_authenticated/shelf-life.risco'
@@ -52,6 +53,7 @@ import { Route as AuthenticatedProducaoTestesIndustriaisRouteImport } from './ro
 import { Route as AuthenticatedProducaoSolicitacaoMateriaisRouteImport } from './routes/_authenticated/producao.solicitacao-materiais'
 import { Route as AuthenticatedProducaoPcpRouteImport } from './routes/_authenticated/producao.pcp'
 import { Route as AuthenticatedProducaoDispersaoRouteImport } from './routes/_authenticated/producao.dispersao'
+import { Route as AuthenticatedProducaoConfirmacaoRecebimentoRouteImport } from './routes/_authenticated/producao.confirmacao-recebimento'
 import { Route as AuthenticatedProducaoAuditoriaFtRouteImport } from './routes/_authenticated/producao.auditoria-ft'
 import { Route as AuthenticatedMissoesIdRouteImport } from './routes/_authenticated/missoes.$id'
 import { Route as AuthenticatedGestaoPlanejamentoRouteImport } from './routes/_authenticated/gestao.planejamento'
@@ -252,6 +254,12 @@ const AuthenticatedSuprimentosRiscoObsoletosRoute =
     path: '/suprimentos/risco-obsoletos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSuprimentosFarolRecebimentoRoute =
+  AuthenticatedSuprimentosFarolRecebimentoRouteImport.update({
+    id: '/suprimentos/farol-recebimento',
+    path: '/suprimentos/farol-recebimento',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSuprimentosEstoqueRoute =
   AuthenticatedSuprimentosEstoqueRouteImport.update({
     id: '/suprimentos/estoque',
@@ -316,6 +324,12 @@ const AuthenticatedProducaoDispersaoRoute =
   AuthenticatedProducaoDispersaoRouteImport.update({
     id: '/producao/dispersao',
     path: '/producao/dispersao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedProducaoConfirmacaoRecebimentoRoute =
+  AuthenticatedProducaoConfirmacaoRecebimentoRouteImport.update({
+    id: '/producao/confirmacao-recebimento',
+    path: '/producao/confirmacao-recebimento',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedProducaoAuditoriaFtRoute =
@@ -507,6 +521,7 @@ export interface FileRoutesByFullPath {
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/producao/auditoria-ft': typeof AuthenticatedProducaoAuditoriaFtRoute
+  '/producao/confirmacao-recebimento': typeof AuthenticatedProducaoConfirmacaoRecebimentoRoute
   '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
   '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
@@ -518,6 +533,7 @@ export interface FileRoutesByFullPath {
   '/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/suprimentos/farol-recebimento': typeof AuthenticatedSuprimentosFarolRecebimentoRoute
   '/suprimentos/risco-obsoletos': typeof AuthenticatedSuprimentosRiscoObsoletosRoute
   '/api/public/atlas-exportar-baixas': typeof ApiPublicAtlasExportarBaixasRoute
   '/api/public/import-consumo-cmd': typeof ApiPublicImportConsumoCmdRoute
@@ -576,6 +592,7 @@ export interface FileRoutesByTo {
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/producao/auditoria-ft': typeof AuthenticatedProducaoAuditoriaFtRoute
+  '/producao/confirmacao-recebimento': typeof AuthenticatedProducaoConfirmacaoRecebimentoRoute
   '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
   '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
@@ -587,6 +604,7 @@ export interface FileRoutesByTo {
   '/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/suprimentos/farol-recebimento': typeof AuthenticatedSuprimentosFarolRecebimentoRoute
   '/suprimentos/risco-obsoletos': typeof AuthenticatedSuprimentosRiscoObsoletosRoute
   '/api/public/atlas-exportar-baixas': typeof ApiPublicAtlasExportarBaixasRoute
   '/api/public/import-consumo-cmd': typeof ApiPublicImportConsumoCmdRoute
@@ -647,6 +665,7 @@ export interface FileRoutesById {
   '/_authenticated/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/_authenticated/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/_authenticated/producao/auditoria-ft': typeof AuthenticatedProducaoAuditoriaFtRoute
+  '/_authenticated/producao/confirmacao-recebimento': typeof AuthenticatedProducaoConfirmacaoRecebimentoRoute
   '/_authenticated/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
   '/_authenticated/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/_authenticated/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
@@ -658,6 +677,7 @@ export interface FileRoutesById {
   '/_authenticated/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
+  '/_authenticated/suprimentos/farol-recebimento': typeof AuthenticatedSuprimentosFarolRecebimentoRoute
   '/_authenticated/suprimentos/risco-obsoletos': typeof AuthenticatedSuprimentosRiscoObsoletosRoute
   '/api/public/atlas-exportar-baixas': typeof ApiPublicAtlasExportarBaixasRoute
   '/api/public/import-consumo-cmd': typeof ApiPublicImportConsumoCmdRoute
@@ -718,6 +738,7 @@ export interface FileRouteTypes {
     | '/gestao/planejamento'
     | '/missoes/$id'
     | '/producao/auditoria-ft'
+    | '/producao/confirmacao-recebimento'
     | '/producao/dispersao'
     | '/producao/pcp'
     | '/producao/solicitacao-materiais'
@@ -729,6 +750,7 @@ export interface FileRouteTypes {
     | '/shelf-life/risco'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
+    | '/suprimentos/farol-recebimento'
     | '/suprimentos/risco-obsoletos'
     | '/api/public/atlas-exportar-baixas'
     | '/api/public/import-consumo-cmd'
@@ -787,6 +809,7 @@ export interface FileRouteTypes {
     | '/gestao/planejamento'
     | '/missoes/$id'
     | '/producao/auditoria-ft'
+    | '/producao/confirmacao-recebimento'
     | '/producao/dispersao'
     | '/producao/pcp'
     | '/producao/solicitacao-materiais'
@@ -798,6 +821,7 @@ export interface FileRouteTypes {
     | '/shelf-life/risco'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
+    | '/suprimentos/farol-recebimento'
     | '/suprimentos/risco-obsoletos'
     | '/api/public/atlas-exportar-baixas'
     | '/api/public/import-consumo-cmd'
@@ -857,6 +881,7 @@ export interface FileRouteTypes {
     | '/_authenticated/gestao/planejamento'
     | '/_authenticated/missoes/$id'
     | '/_authenticated/producao/auditoria-ft'
+    | '/_authenticated/producao/confirmacao-recebimento'
     | '/_authenticated/producao/dispersao'
     | '/_authenticated/producao/pcp'
     | '/_authenticated/producao/solicitacao-materiais'
@@ -868,6 +893,7 @@ export interface FileRouteTypes {
     | '/_authenticated/shelf-life/risco'
     | '/_authenticated/suprimentos/dashboard'
     | '/_authenticated/suprimentos/estoque'
+    | '/_authenticated/suprimentos/farol-recebimento'
     | '/_authenticated/suprimentos/risco-obsoletos'
     | '/api/public/atlas-exportar-baixas'
     | '/api/public/import-consumo-cmd'
@@ -1128,6 +1154,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSuprimentosRiscoObsoletosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/suprimentos/farol-recebimento': {
+      id: '/_authenticated/suprimentos/farol-recebimento'
+      path: '/suprimentos/farol-recebimento'
+      fullPath: '/suprimentos/farol-recebimento'
+      preLoaderRoute: typeof AuthenticatedSuprimentosFarolRecebimentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/suprimentos/estoque': {
       id: '/_authenticated/suprimentos/estoque'
       path: '/suprimentos/estoque'
@@ -1203,6 +1236,13 @@ declare module '@tanstack/react-router' {
       path: '/producao/dispersao'
       fullPath: '/producao/dispersao'
       preLoaderRoute: typeof AuthenticatedProducaoDispersaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/producao/confirmacao-recebimento': {
+      id: '/_authenticated/producao/confirmacao-recebimento'
+      path: '/producao/confirmacao-recebimento'
+      fullPath: '/producao/confirmacao-recebimento'
+      preLoaderRoute: typeof AuthenticatedProducaoConfirmacaoRecebimentoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/producao/auditoria-ft': {
@@ -1434,6 +1474,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGestaoPlanejamentoRoute: typeof AuthenticatedGestaoPlanejamentoRoute
   AuthenticatedMissoesIdRoute: typeof AuthenticatedMissoesIdRoute
   AuthenticatedProducaoAuditoriaFtRoute: typeof AuthenticatedProducaoAuditoriaFtRoute
+  AuthenticatedProducaoConfirmacaoRecebimentoRoute: typeof AuthenticatedProducaoConfirmacaoRecebimentoRoute
   AuthenticatedProducaoDispersaoRoute: typeof AuthenticatedProducaoDispersaoRoute
   AuthenticatedProducaoPcpRoute: typeof AuthenticatedProducaoPcpRoute
   AuthenticatedProducaoSolicitacaoMateriaisRoute: typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
@@ -1445,6 +1486,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedShelfLifeRiscoRoute: typeof AuthenticatedShelfLifeRiscoRoute
   AuthenticatedSuprimentosDashboardRoute: typeof AuthenticatedSuprimentosDashboardRoute
   AuthenticatedSuprimentosEstoqueRoute: typeof AuthenticatedSuprimentosEstoqueRoute
+  AuthenticatedSuprimentosFarolRecebimentoRoute: typeof AuthenticatedSuprimentosFarolRecebimentoRoute
   AuthenticatedSuprimentosRiscoObsoletosRoute: typeof AuthenticatedSuprimentosRiscoObsoletosRoute
   AuthenticatedBaixasIndexRoute: typeof AuthenticatedBaixasIndexRoute
   AuthenticatedConfigIndexRoute: typeof AuthenticatedConfigIndexRoute
@@ -1499,6 +1541,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedGestaoPlanejamentoRoute: AuthenticatedGestaoPlanejamentoRoute,
   AuthenticatedMissoesIdRoute: AuthenticatedMissoesIdRoute,
   AuthenticatedProducaoAuditoriaFtRoute: AuthenticatedProducaoAuditoriaFtRoute,
+  AuthenticatedProducaoConfirmacaoRecebimentoRoute:
+    AuthenticatedProducaoConfirmacaoRecebimentoRoute,
   AuthenticatedProducaoDispersaoRoute: AuthenticatedProducaoDispersaoRoute,
   AuthenticatedProducaoPcpRoute: AuthenticatedProducaoPcpRoute,
   AuthenticatedProducaoSolicitacaoMateriaisRoute:
@@ -1513,6 +1557,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSuprimentosDashboardRoute:
     AuthenticatedSuprimentosDashboardRoute,
   AuthenticatedSuprimentosEstoqueRoute: AuthenticatedSuprimentosEstoqueRoute,
+  AuthenticatedSuprimentosFarolRecebimentoRoute:
+    AuthenticatedSuprimentosFarolRecebimentoRoute,
   AuthenticatedSuprimentosRiscoObsoletosRoute:
     AuthenticatedSuprimentosRiscoObsoletosRoute,
   AuthenticatedBaixasIndexRoute: AuthenticatedBaixasIndexRoute,
