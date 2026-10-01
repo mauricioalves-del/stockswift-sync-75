@@ -46,3 +46,7 @@ verify_jwt = false
 
 [functions.farol-transferencias]
 verify_jwt = false
+
+
+[functions.farol-recebimento-pendente]
+verify_jwt = false
