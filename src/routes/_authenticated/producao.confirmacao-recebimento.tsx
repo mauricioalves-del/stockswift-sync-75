@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle2, PackageCheck, User } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/producao/confirmacao-recebimento")({
@@ -146,6 +147,64 @@ function ConfirmacaoRecebimentoPage() {
     });
   }, [confirmadas, confirmadasPorRequisicao, statusFiltro]);
 
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
+
+  const toggleSelecao = (req: string, v: boolean) => {
+    setSelecionadas((prev) => {
+      const next = new Set(prev);
+      if (v) next.add(req);
+      else next.delete(req);
+      return next;
+    });
+  };
+
+  const salvarLote = useMutation({
+    mutationFn: async () => {
+      const resp = responsavelLogado;
+      if (!resp) throw new Error("Não foi possível identificar o usuário logado.");
+      const alvos = pendentes.filter((r) => selecionadas.has(r));
+      if (!alvos.length) throw new Error("Selecione ao menos uma requisição pendente.");
+      for (const req of alvos) {
+        const itens = porRequisicao.get(req) ?? [];
+        const { data: cab, error: e1 } = await (supabase as any)
+          .from("confirmacoes_recebimento")
+          .insert({
+            numero_requisicao: req,
+            data: dataPorRequisicao.get(req) ?? todayISO(),
+            responsavel_id: resp.id,
+            responsavel_nome: resp.nome,
+            observacao_geral: "Confirmado em lote.",
+          })
+          .select("id")
+          .single();
+        if (e1) throw e1;
+        const itensPayload = itens.map((it) => ({
+          confirmacao_id: cab.id,
+          id_produto: it.id_produto,
+          descricao: it.descricao,
+          lote_movimentado: it.lote_movimentado,
+          qtd_transferida: Number(it.qtd_movimentado) || 0,
+          qtd_recebida: Number(it.qtd_movimentado) || 0,
+          tem_inconformidade: false,
+          motivo_inconformidade: null,
+        }));
+        if (itensPayload.length) {
+          const { error: e2 } = await (supabase as any).from("confirmacoes_recebimento_itens").insert(itensPayload);
+          if (e2) throw e2;
+        }
+      }
+      return alvos.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`${n} requisição(ões) confirmada(s) em lote.`);
+      setSelecionadas(new Set());
+      qc.invalidateQueries({ queryKey: ["confirmacoes-recebimento"] });
+    },
+    onError: (err: any) => {
+      toast.error(err.message ?? "Não foi possível confirmar em lote.");
+    },
+  });
+
   return (
     <div className="space-y-4">
       <div>
@@ -165,6 +224,27 @@ function ConfirmacaoRecebimentoPage() {
           </TabsList>
 
           <TabsContent value="pendentes" className="space-y-4 pt-4">
+            {pendentes.length > 0 && (
+              <div className="flex flex-wrap items-center gap-3 rounded-md border bg-muted/30 px-3 py-2">
+                <Checkbox
+                  checked={pendentes.length > 0 && selecionadas.size === pendentes.length}
+                  onCheckedChange={(v) => setSelecionadas(v === true ? new Set(pendentes) : new Set())}
+                  aria-label="Selecionar todas as requisições"
+                />
+                <span className="text-sm text-muted-foreground">
+                  Selecionar todas · {selecionadas.size} selecionada(s)
+                </span>
+                <div className="ml-auto">
+                  <Button
+                    size="sm"
+                    disabled={!responsavelLogado || selecionadas.size === 0 || salvarLote.isPending}
+                    onClick={() => salvarLote.mutate()}
+                  >
+                    {salvarLote.isPending ? "Confirmando..." : `Confirmar em lote (${selecionadas.size})`}
+                  </Button>
+                </div>
+              </div>
+            )}
             {pendentes.length === 0 && (
               <Card><CardContent className="py-10 text-center text-muted-foreground">Nenhuma transferência pendente de confirmação.</CardContent></Card>
             )}
@@ -179,6 +259,8 @@ function ConfirmacaoRecebimentoPage() {
                   confirmada={null}
                   responsavelLogado={responsavelLogado}
                   focoInicial={requisicaoFoco === req}
+                  selecionada={selecionadas.has(req)}
+                  onSelecionar={(v) => toggleSelecao(req, v)}
                   onConfirmado={() => {
                     qc.invalidateQueries({ queryKey: ["confirmacoes-recebimento"] });
                   }}
@@ -238,9 +320,11 @@ function RequisicaoCard(props: {
   confirmada: any | null;
   responsavelLogado: { id: string; nome: string; email: string } | null;
   focoInicial: boolean;
+  selecionada?: boolean;
+  onSelecionar?: (v: boolean) => void;
   onConfirmado: () => void;
 }) {
-  const { numeroRequisicao, data, itens, confirmada, responsavelLogado, focoInicial, onConfirmado } = props;
+  const { numeroRequisicao, data, itens, confirmada, responsavelLogado, focoInicial, selecionada, onSelecionar, onConfirmado } = props;
   const [aberto, setAberto] = useState(focoInicial && !confirmada);
   const [observacao, setObservacao] = useState("");
   const [linhas, setLinhas] = useState<ItemForm[]>(() =>
@@ -370,7 +454,18 @@ function RequisicaoCard(props: {
     <Card id={`req-${numeroRequisicao}`}>
       <CardHeader className="pb-3 cursor-pointer" onClick={() => setAberto((v) => !v)}>
         <CardTitle className="text-base flex items-center justify-between gap-2 flex-wrap">
-          <span>Requisição {numeroRequisicao} <span className="text-muted-foreground font-normal text-sm">· {fmtDataBR(data)} — {itens.length} item(ns), {fmtNum(qtdTotal)} un.</span></span>
+          <span className="flex items-center gap-2">
+            {onSelecionar && (
+              <span className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={!!selecionada}
+                  onCheckedChange={(v) => onSelecionar(v === true)}
+                  aria-label={`Selecionar requisição ${numeroRequisicao}`}
+                />
+              </span>
+            )}
+            <span>Requisição {numeroRequisicao} <span className="text-muted-foreground font-normal text-sm">· {fmtDataBR(data)} — {itens.length} item(ns), {fmtNum(qtdTotal)} un.</span></span>
+          </span>
           <Badge variant="outline">Pendente de confirmação</Badge>
         </CardTitle>
       </CardHeader>

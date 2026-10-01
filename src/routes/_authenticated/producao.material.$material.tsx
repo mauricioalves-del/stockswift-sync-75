@@ -30,7 +30,7 @@ export const Route = createFileRoute("/_authenticated/producao/material/$materia
     s['pc'] ? { pc: String(s['pc']) } : {},
   component: MaterialDrilldown,
   head: ({ params }) => ({ meta: [{ title: `Material ${params.material} — Dispersão` }] }),
-  errorComponent: ({ error }) => <div className="p-6 text-sm text-destructive">Erro: {error.message}</div>,
+  errorComponent: ({ error }) => <div className="p-6 text-sm text-destructive">Erro: {error instanceof Error ? error.message : String(error)}</div>,
   notFoundComponent: () => <div className="p-6">Material não encontrado.</div>,
 });
 
