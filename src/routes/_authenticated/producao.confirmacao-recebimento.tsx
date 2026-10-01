@@ -29,6 +29,7 @@ type LinhaTransferencia = {
   numero_requisicao: string;
   lote_movimentado: string;
   qtd_movimentado: number;
+  data: string;
 };
 
 type ItemForm = {
@@ -45,11 +46,6 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function fmtDataBR(iso: string) {
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
-}
-
 function fmtNum(v: number) {
   return v.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
 }
@@ -57,7 +53,6 @@ function fmtNum(v: number) {
 function ConfirmacaoRecebimentoPage() {
   const qc = useQueryClient();
   const [searchParams] = useState(() => new URLSearchParams(window.location.search));
-  const [data, setData] = useState(searchParams.get("data") || todayISO());
   const requisicaoFoco = searchParams.get("requisicao");
 
   const usuarios = useUsuariosSistema();
@@ -77,12 +72,11 @@ function ConfirmacaoRecebimentoPage() {
   }, [usuarioLogadoQ.data, usuarios.data]);
 
   const transferenciasQ = useQuery({
-    queryKey: ["transferencias-recebimento", data],
+    queryKey: ["transferencias-recebimento"],
     queryFn: async () => {
       const { data: rows, error } = await (supabase as any)
         .from("v_transferencias_fabrica_loja")
-        .select("id_produto, descricao, numero_requisicao, lote_movimentado, qtd_movimentado")
-        .eq("data", data)
+        .select("id_produto, descricao, numero_requisicao, lote_movimentado, qtd_movimentado, data")
         .order("numero_requisicao", { ascending: true });
       if (error) throw error;
       return (rows ?? []) as LinhaTransferencia[];
@@ -90,12 +84,11 @@ function ConfirmacaoRecebimentoPage() {
   });
 
   const confirmadasQ = useQuery({
-    queryKey: ["confirmacoes-recebimento", data],
+    queryKey: ["confirmacoes-recebimento"],
     queryFn: async () => {
       const { data: rows, error } = await (supabase as any)
         .from("confirmacoes_recebimento")
-        .select("id, numero_requisicao, responsavel_nome, confirmado_em, observacao_geral, confirmacoes_recebimento_itens(id_produto, descricao, lote_movimentado, qtd_transferida, qtd_recebida, tem_inconformidade, motivo_inconformidade)")
-        .eq("data", data);
+        .select("id, numero_requisicao, data, responsavel_nome, confirmado_em, observacao_geral, confirmacoes_recebimento_itens(id_produto, descricao, lote_movimentado, qtd_transferida, qtd_recebida, tem_inconformidade, motivo_inconformidade)")
       if (error) throw error;
       return rows ?? [];
     },
@@ -107,6 +100,15 @@ function ConfirmacaoRecebimentoPage() {
       const arr = m.get(r.numero_requisicao) ?? [];
       arr.push(r);
       m.set(r.numero_requisicao, arr);
+    });
+    return m;
+  }, [transferenciasQ.data]);
+
+  const dataPorRequisicao = useMemo(() => {
+    const m = new Map<string, string>();
+    (transferenciasQ.data ?? []).forEach((r) => {
+      const cur = m.get(r.numero_requisicao);
+      if (!cur || r.data < cur) m.set(r.numero_requisicao, r.data);
     });
     return m;
   }, [transferenciasQ.data]);
