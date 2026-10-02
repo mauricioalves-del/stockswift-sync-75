@@ -1690,10 +1690,13 @@ export type Database = {
           data_execucao: string | null
           descricao: string | null
           familia: string | null
+          familias_alvo: string[] | null
           grupo: string | null
+          grupos_alvo: string[] | null
           id: string
           id_local: string | null
           origem: string | null
+          plano_origem_id: string | null
           responsavel_id: string | null
           status: string
           tipo: string
@@ -1706,10 +1709,13 @@ export type Database = {
           data_execucao?: string | null
           descricao?: string | null
           familia?: string | null
+          familias_alvo?: string[] | null
           grupo?: string | null
+          grupos_alvo?: string[] | null
           id?: string
           id_local?: string | null
           origem?: string | null
+          plano_origem_id?: string | null
           responsavel_id?: string | null
           status?: string
           tipo?: string
@@ -1722,17 +1728,28 @@ export type Database = {
           data_execucao?: string | null
           descricao?: string | null
           familia?: string | null
+          familias_alvo?: string[] | null
           grupo?: string | null
+          grupos_alvo?: string[] | null
           id?: string
           id_local?: string | null
           origem?: string | null
+          plano_origem_id?: string | null
           responsavel_id?: string | null
           status?: string
           tipo?: string
           titulo?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "missoes_plano_origem_id_fkey"
+            columns: ["plano_origem_id"]
+            isOneToOne: false
+            referencedRelation: "planos_contagem_ciclica"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       missoes_itens: {
         Row: {
@@ -2568,6 +2585,51 @@ export type Database = {
           origem?: string | null
           tipo_missao?: string
           ultima_geracao?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      planos_contagem_ciclica: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          criado_por: string | null
+          criterio_abc: string | null
+          dias_semana: number[]
+          familias: string[] | null
+          grupos: string[] | null
+          id: string
+          nome: string
+          origem: string | null
+          ultima_execucao: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          criterio_abc?: string | null
+          dias_semana?: number[]
+          familias?: string[] | null
+          grupos?: string[] | null
+          id?: string
+          nome: string
+          origem?: string | null
+          ultima_execucao?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          criterio_abc?: string | null
+          dias_semana?: number[]
+          familias?: string[] | null
+          grupos?: string[] | null
+          id?: string
+          nome?: string
+          origem?: string | null
+          ultima_execucao?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -3716,6 +3778,7 @@ export type Database = {
     Functions: {
       almoxarifados_permitidos: { Args: { _uid: string }; Returns: string[] }
       congelar_producao_consumo: { Args: never; Returns: number }
+      executar_planos_contagem_ciclica: { Args: never; Returns: number }
       fechamento_mensal_destaques: {
         Args: { data_fim: string; data_inicio: string }
         Returns: {
