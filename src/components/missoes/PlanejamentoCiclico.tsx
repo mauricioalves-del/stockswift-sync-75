@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { toast } from "sonner";
-import { Loader2, Pencil, Plus } from "lucide-react";
+import { Loader2, Pencil, Play, Plus } from "lucide-react";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 type Form = { id?: string; nome: string; dias_semana: number[]; familias: string[]; grupos: string[]; origem: string; criterio_abc: string };
@@ -23,6 +23,7 @@ export function PlanejamentoCiclico() {
   const qc = useQueryClient();
   const [form, setForm] = useState<Form>(vazio);
   const [saving, setSaving] = useState(false);
+  const [executingId, setExecutingId] = useState<string | null>(null);
 
   const planosQ = useQuery({
     queryKey: ["planos-ciclicos"],
@@ -89,6 +90,25 @@ export function PlanejamentoCiclico() {
     const { error } = await db.from("planos_contagem_ciclica").update({ ativo }).eq("id", p.id);
     if (error) return toast.error(error.message);
     qc.invalidateQueries({ queryKey: ["planos-ciclicos"] });
+  }
+
+  async function executarAgora(p: any) {
+    setExecutingId(p.id);
+    try {
+      const { data, error } = await db.rpc("executar_plano_contagem_ciclica", { _plano_id: p.id });
+      if (error) throw error;
+      if (!data?.ok) {
+        toast.warning(data?.motivo ?? "Nenhum item encontrado para os filtros deste plano. Nenhuma missão foi criada.");
+        return;
+      }
+      toast.success(`Missão "${data.titulo}" criada com ${data.itens} itens. Veja na aba Lista.`);
+      qc.invalidateQueries({ queryKey: ["planos-ciclicos"] });
+      qc.invalidateQueries({ queryKey: ["missoes"] });
+    } catch (e: any) {
+      toast.error(e.message ?? "Falha ao executar o plano");
+    } finally {
+      setExecutingId(null);
+    }
   }
 
   return (
@@ -193,10 +213,16 @@ export function PlanejamentoCiclico() {
                   </TableCell>
                   <TableCell><Switch checked={p.ativo} onCheckedChange={(v) => toggle(p, v)} /></TableCell>
                   <TableCell>
-                    <Button size="sm" variant="ghost" aria-label="Editar plano" onClick={() => setForm({
-                      id: p.id, nome: p.nome, dias_semana: p.dias_semana ?? [], familias: p.familias ?? [],
-                      grupos: p.grupos ?? [], origem: p.origem ?? "", criterio_abc: p.criterio_abc ?? "",
-                    })}><Pencil className="size-4" /></Button>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="ghost" aria-label="Executar agora" title="Executar agora"
+                        disabled={executingId === p.id} onClick={() => executarAgora(p)}>
+                        {executingId === p.id ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+                      </Button>
+                      <Button size="sm" variant="ghost" aria-label="Editar plano" onClick={() => setForm({
+                        id: p.id, nome: p.nome, dias_semana: p.dias_semana ?? [], familias: p.familias ?? [],
+                        grupos: p.grupos ?? [], origem: p.origem ?? "", criterio_abc: p.criterio_abc ?? "",
+                      })}><Pencil className="size-4" /></Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

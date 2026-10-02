@@ -3778,6 +3778,10 @@ export type Database = {
     Functions: {
       almoxarifados_permitidos: { Args: { _uid: string }; Returns: string[] }
       congelar_producao_consumo: { Args: never; Returns: number }
+      executar_plano_contagem_ciclica: {
+        Args: { _plano_id: string }
+        Returns: Json
+      }
       executar_planos_contagem_ciclica: { Args: never; Returns: number }
       fechamento_mensal_destaques: {
         Args: { data_fim: string; data_inicio: string }
