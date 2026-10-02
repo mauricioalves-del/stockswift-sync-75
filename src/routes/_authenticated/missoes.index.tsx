@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
+import { PlanejamentoCiclico } from "@/components/missoes/PlanejamentoCiclico";
 
 type QuickFilter = "pendentes" | "concluidas" | "todas";
 // Memória de sessão (não persiste entre sessões)
@@ -52,9 +53,11 @@ function MissoesPage() {
         <TabsList>
           <TabsTrigger value="lista">Lista</TabsTrigger>
           {podeGerir && <TabsTrigger value="nova">Nova Missão</TabsTrigger>}
+          {podeGerir && <TabsTrigger value="ciclico">Planejamento Cíclico</TabsTrigger>}
         </TabsList>
         <TabsContent value="lista"><ListaMissoes podeGerir={podeGerir} /></TabsContent>
         {podeGerir && <TabsContent value="nova"><NovaMissao /></TabsContent>}
+        {podeGerir && <TabsContent value="ciclico"><PlanejamentoCiclico /></TabsContent>}
       </Tabs>
     </div>
   );
