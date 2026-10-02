@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { toast } from "sonner";
-import { Loader2, Pencil, Plus } from "lucide-react";
+import { Loader2, Pencil, Play, Plus } from "lucide-react";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 type Form = { id?: string; nome: string; dias_semana: number[]; familias: string[]; grupos: string[]; origem: string; criterio_abc: string };
@@ -23,6 +23,7 @@ export function PlanejamentoCiclico() {
   const qc = useQueryClient();
   const [form, setForm] = useState<Form>(vazio);
   const [saving, setSaving] = useState(false);
+  const [executingId, setExecutingId] = useState<string | null>(null);
 
   const planosQ = useQuery({
     queryKey: ["planos-ciclicos"],
