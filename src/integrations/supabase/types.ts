@@ -126,6 +126,11 @@ export type Database = {
           lote: string | null
           motivo_baixa_id: string | null
           motivo_reprovacao: string | null
+          nfe_baixa_chave: string | null
+          nfe_baixa_data: string | null
+          nfe_baixa_numero: string | null
+          nfe_baixa_observacao: string | null
+          nfe_baixa_serie: string | null
           observacao: string | null
           origem: string | null
           origem_lancamento: string
@@ -163,6 +168,11 @@ export type Database = {
           lote?: string | null
           motivo_baixa_id?: string | null
           motivo_reprovacao?: string | null
+          nfe_baixa_chave?: string | null
+          nfe_baixa_data?: string | null
+          nfe_baixa_numero?: string | null
+          nfe_baixa_observacao?: string | null
+          nfe_baixa_serie?: string | null
           observacao?: string | null
           origem?: string | null
           origem_lancamento?: string
@@ -200,6 +210,11 @@ export type Database = {
           lote?: string | null
           motivo_baixa_id?: string | null
           motivo_reprovacao?: string | null
+          nfe_baixa_chave?: string | null
+          nfe_baixa_data?: string | null
+          nfe_baixa_numero?: string | null
+          nfe_baixa_observacao?: string | null
+          nfe_baixa_serie?: string | null
           observacao?: string | null
           origem?: string | null
           origem_lancamento?: string
