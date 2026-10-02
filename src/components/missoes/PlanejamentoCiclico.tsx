@@ -218,10 +218,11 @@ export function PlanejamentoCiclico() {
                         disabled={executingId === p.id} onClick={() => executarAgora(p)}>
                         {executingId === p.id ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
                       </Button>
-                    <Button size="sm" variant="ghost" aria-label="Editar plano" onClick={() => setForm({
-                      id: p.id, nome: p.nome, dias_semana: p.dias_semana ?? [], familias: p.familias ?? [],
-                      grupos: p.grupos ?? [], origem: p.origem ?? "", criterio_abc: p.criterio_abc ?? "",
-                    })}><Pencil className="size-4" /></Button>
+                      <Button size="sm" variant="ghost" aria-label="Editar plano" onClick={() => setForm({
+                        id: p.id, nome: p.nome, dias_semana: p.dias_semana ?? [], familias: p.familias ?? [],
+                        grupos: p.grupos ?? [], origem: p.origem ?? "", criterio_abc: p.criterio_abc ?? "",
+                      })}><Pencil className="size-4" /></Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
