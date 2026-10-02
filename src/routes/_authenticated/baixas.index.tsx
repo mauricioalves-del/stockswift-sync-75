@@ -26,6 +26,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from "@/lib/utils";
 import { extrairCodigoNumericoQR } from "@/lib/qr-estoque";
 import { ImportarBaixasDialog } from "@/components/baixas/ImportarBaixasDialog";
+import { NfeBaixaDialog } from "@/components/baixas/NfeBaixaDialog";
 import { criarSolicitacaoBaixa } from "@/lib/solicitacoes-baixa";
 import { fetchAll } from "@/lib/fetch-all";
 import { readEdgeFunctionFailure } from "@/lib/edge-function-errors";
@@ -668,6 +669,7 @@ function FilaAprovacao() {
   const [detalhe, setDetalhe] = useState<any | null>(null);
   const [assinando, setAssinando] = useState(false);
   const [aprovandoAdmin, setAprovandoAdmin] = useState(false);
+  const [nfeIds, setNfeIds] = useState<string[] | null>(null);
 
   const [sel, setSel] = useState<Set<string>>(new Set());
 
@@ -876,6 +878,7 @@ function FilaAprovacao() {
     try {
       const r = await aprovarComoAdministrador(alvos, user.id);
       await enviarFiscal(alvos.map((b: any) => b.id));
+      setNfeIds(alvos.map((b: any) => String(b.id)));
       toast.success(
         `${r.aprovadas} item(ns) aprovado(s)` +
         (r.emailsFalha ? ` — ${r.emailsFalha} e-mail(s) de aprovação falharam.` : ""),
@@ -1242,6 +1245,7 @@ function FilaAprovacao() {
     </Card>
 
       <DetalheBaixaDialog baixa={detalhe} onClose={() => setDetalhe(null)} />
+      <NfeBaixaDialog ids={nfeIds} onClose={() => { setNfeIds(null); qc.invalidateQueries({ queryKey: ["baixas"] }); }} />
 
       {isAdmin && (
         <EditarBaixaDialog

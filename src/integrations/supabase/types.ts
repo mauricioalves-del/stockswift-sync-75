@@ -126,6 +126,11 @@ export type Database = {
           lote: string | null
           motivo_baixa_id: string | null
           motivo_reprovacao: string | null
+          nfe_baixa_chave: string | null
+          nfe_baixa_data: string | null
+          nfe_baixa_numero: string | null
+          nfe_baixa_observacao: string | null
+          nfe_baixa_serie: string | null
           observacao: string | null
           origem: string | null
           origem_lancamento: string
@@ -163,6 +168,11 @@ export type Database = {
           lote?: string | null
           motivo_baixa_id?: string | null
           motivo_reprovacao?: string | null
+          nfe_baixa_chave?: string | null
+          nfe_baixa_data?: string | null
+          nfe_baixa_numero?: string | null
+          nfe_baixa_observacao?: string | null
+          nfe_baixa_serie?: string | null
           observacao?: string | null
           origem?: string | null
           origem_lancamento?: string
@@ -200,6 +210,11 @@ export type Database = {
           lote?: string | null
           motivo_baixa_id?: string | null
           motivo_reprovacao?: string | null
+          nfe_baixa_chave?: string | null
+          nfe_baixa_data?: string | null
+          nfe_baixa_numero?: string | null
+          nfe_baixa_observacao?: string | null
+          nfe_baixa_serie?: string | null
           observacao?: string | null
           origem?: string | null
           origem_lancamento?: string
@@ -2505,6 +2520,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      planos_contagem: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          criado_por: string | null
+          criterio_abc: string | null
+          descricao: string | null
+          dias_semana: number[]
+          familias: string[]
+          grupos: string[]
+          id: string
+          nome: string
+          origem: string | null
+          tipo_missao: string
+          ultima_geracao: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          criterio_abc?: string | null
+          descricao?: string | null
+          dias_semana?: number[]
+          familias?: string[]
+          grupos?: string[]
+          id?: string
+          nome: string
+          origem?: string | null
+          tipo_missao?: string
+          ultima_geracao?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          criterio_abc?: string | null
+          descricao?: string | null
+          dias_semana?: number[]
+          familias?: string[]
+          grupos?: string[]
+          id?: string
+          nome?: string
+          origem?: string | null
+          tipo_missao?: string
+          ultima_geracao?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       precos_venda: {
         Row: {
