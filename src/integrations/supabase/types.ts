@@ -2506,6 +2506,57 @@ export type Database = {
           },
         ]
       }
+      planos_contagem: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          criado_por: string | null
+          criterio_abc: string | null
+          descricao: string | null
+          dias_semana: number[]
+          familias: string[]
+          grupos: string[]
+          id: string
+          nome: string
+          origem: string | null
+          tipo_missao: string
+          ultima_geracao: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          criterio_abc?: string | null
+          descricao?: string | null
+          dias_semana?: number[]
+          familias?: string[]
+          grupos?: string[]
+          id?: string
+          nome: string
+          origem?: string | null
+          tipo_missao?: string
+          ultima_geracao?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          criterio_abc?: string | null
+          descricao?: string | null
+          dias_semana?: number[]
+          familias?: string[]
+          grupos?: string[]
+          id?: string
+          nome?: string
+          origem?: string | null
+          tipo_missao?: string
+          ultima_geracao?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       precos_venda: {
         Row: {
           ativo: boolean
