@@ -92,6 +92,25 @@ export function PlanejamentoCiclico() {
     qc.invalidateQueries({ queryKey: ["planos-ciclicos"] });
   }
 
+  async function executarAgora(p: any) {
+    setExecutingId(p.id);
+    try {
+      const { data, error } = await db.rpc("executar_plano_contagem_ciclica", { _plano_id: p.id });
+      if (error) throw error;
+      if (!data?.ok) {
+        toast.warning(data?.motivo ?? "Nenhum item encontrado para os filtros deste plano. Nenhuma missão foi criada.");
+        return;
+      }
+      toast.success(`Missão "${data.titulo}" criada com ${data.itens} itens. Veja na aba Lista.`);
+      qc.invalidateQueries({ queryKey: ["planos-ciclicos"] });
+      qc.invalidateQueries({ queryKey: ["missoes"] });
+    } catch (e: any) {
+      toast.error(e.message ?? "Falha ao executar o plano");
+    } finally {
+      setExecutingId(null);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <Card>
@@ -194,6 +213,11 @@ export function PlanejamentoCiclico() {
                   </TableCell>
                   <TableCell><Switch checked={p.ativo} onCheckedChange={(v) => toggle(p, v)} /></TableCell>
                   <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="ghost" aria-label="Executar agora" title="Executar agora"
+                        disabled={executingId === p.id} onClick={() => executarAgora(p)}>
+                        {executingId === p.id ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+                      </Button>
                     <Button size="sm" variant="ghost" aria-label="Editar plano" onClick={() => setForm({
                       id: p.id, nome: p.nome, dias_semana: p.dias_semana ?? [], familias: p.familias ?? [],
                       grupos: p.grupos ?? [], origem: p.origem ?? "", criterio_abc: p.criterio_abc ?? "",
