@@ -182,18 +182,18 @@ function MissaoExecucaoPage() {
   const [filtroGrupo, setFiltroGrupo] = useState(FILTRO_TODOS);
   const [filtroFamilia, setFiltroFamilia] = useState(FILTRO_TODOS);
 
-  const { data: gruposOpcoes } = useQuery({
+  const { data: gruposOpcoes } = useQuery<string[]>({
     queryKey: ["missoes-exec-grupos"],
     queryFn: async () => {
       const { data } = await (supabase as any).from("grupo_produtos").select("grupo");
-      return Array.from(new Set((data ?? []).map((r: any) => r.grupo))).filter(Boolean).sort();
+      return Array.from(new Set<string>((data ?? []).map((r: any) => r.grupo as string))).filter(Boolean).sort();
     },
   });
-  const { data: familiasOpcoes } = useQuery({
+  const { data: familiasOpcoes } = useQuery<string[]>({
     queryKey: ["missoes-exec-familias"],
     queryFn: async () => {
       const { data } = await (supabase as any).from("familias").select("familia");
-      return Array.from(new Set((data ?? []).map((r: any) => r.familia))).filter(Boolean).sort();
+      return Array.from(new Set<string>((data ?? []).map((r: any) => r.familia as string))).filter(Boolean).sort();
     },
   });
   const { data: codigosGrupo } = useQuery({
