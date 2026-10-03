@@ -338,23 +338,13 @@ function MissaoExecucaoPage() {
             </Select>
           </div>
         </CardHeader>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>SKU</TableHead>
-                <TableHead>Produto</TableHead>
-                {isAdmin && <TableHead className="text-right">Sistema</TableHead>}
-                <TableHead className="w-[420px]">Contagem por lote</TableHead>
-                <TableHead className="w-40">Status</TableHead>
-                <TableHead className="w-32 text-right">Ação</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <CardContent className="p-0">
+          {isMobile ? (
+            <div className="divide-y">
               {itensFiltrados.length === 0 && (
-                <TableRow><TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-10 text-muted-foreground">
-                  {itens.length === 0 ? "Nenhum item gerado para esta missão." : "Nenhum item corresponde à busca."}
-                </TableCell></TableRow>
+                <div className="px-3 py-10 text-center text-sm text-muted-foreground">
+                  {itens.length === 0 ? "Nenhum item gerado para esta missão." : "Nenhum item corresponde aos filtros."}
+                </div>
               )}
               {itensFiltrados.map((it) => (
                 <LinhaItem
@@ -364,11 +354,45 @@ function MissaoExecucaoPage() {
                   lotesSist={lotesQ.data?.get(it.codigo_produto) ?? []}
                   linhasSalvas={linhasQ.data?.get(it.id) ?? []}
                   isAdmin={isAdmin}
+                  mobile
                   onSaved={onSavedItem}
                 />
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Produto</TableHead>
+                    {isAdmin && <TableHead className="text-right">Sistema</TableHead>}
+                    <TableHead className="w-[420px]">Contagem por lote</TableHead>
+                    <TableHead className="w-40">Status</TableHead>
+                    <TableHead className="w-32 text-right">Ação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {itensFiltrados.length === 0 && (
+                    <TableRow><TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-10 text-muted-foreground">
+                      {itens.length === 0 ? "Nenhum item gerado para esta missão." : "Nenhum item corresponde aos filtros."}
+                    </TableCell></TableRow>
+                  )}
+                  {itensFiltrados.map((it) => (
+                    <LinhaItem
+                      key={it.id}
+                      item={it}
+                      missao={missao}
+                      lotesSist={lotesQ.data?.get(it.codigo_produto) ?? []}
+                      linhasSalvas={linhasQ.data?.get(it.id) ?? []}
+                      isAdmin={isAdmin}
+                      onSaved={onSavedItem}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
