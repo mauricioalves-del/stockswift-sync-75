@@ -314,13 +314,29 @@ function MissaoExecucaoPage() {
               {pct === 100 && <CheckCircle2 className="size-4 text-success inline ml-1.5" />}
             </span>
           </CardTitle>
-          <Input
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar SKU ou descrição… (atalho: /)"
-            className="h-8 text-sm max-w-sm"
-            data-busca-missao
-          />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar SKU ou descrição… (atalho: /)"
+              className="h-8 text-sm flex-1 min-w-0 sm:max-w-sm"
+              data-busca-missao
+            />
+            <Select value={filtroGrupo} onValueChange={setFiltroGrupo}>
+              <SelectTrigger className="h-8 w-full sm:w-44 text-xs"><SelectValue placeholder="Grupo" /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value={FILTRO_TODOS}>Todos os grupos</SelectItem>
+                {(gruposOpcoes ?? []).map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={filtroFamilia} onValueChange={setFiltroFamilia}>
+              <SelectTrigger className="h-8 w-full sm:w-44 text-xs"><SelectValue placeholder="Família" /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value={FILTRO_TODOS}>Todas as famílias</SelectItem>
+                {(familiasOpcoes ?? []).map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <Table>
