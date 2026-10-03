@@ -415,13 +415,14 @@ function useBuscaShortcut() {
 }
 
 const LinhaItem = memo(function LinhaItem({
-  item, missao, lotesSist, linhasSalvas, isAdmin, onSaved,
+  item, missao, lotesSist, linhasSalvas, isAdmin, mobile, onSaved,
 }: {
   item: Item;
   missao: Missao;
   lotesSist: LoteSist[];
   linhasSalvas: any[];
   isAdmin: boolean;
+  mobile?: boolean;
   onSaved: () => void;
 }) {
   // Semente inicial: se já tiver linhas salvas → usa; senão, cria uma linha vazia com sugestão FEFO
