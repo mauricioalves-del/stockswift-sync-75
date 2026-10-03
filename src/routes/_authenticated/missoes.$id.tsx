@@ -773,6 +773,7 @@ const LinhaItem = memo(function LinhaItem({
       sounds.divergente();
     } else {
       toast.success("Dentro da Tolerância");
+      sounds.success();
     }
 
     setSaving(false);
