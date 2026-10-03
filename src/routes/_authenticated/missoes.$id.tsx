@@ -20,6 +20,7 @@ import { formatNum, classificarFaixa, acuracidadeColor, statusLabel } from "@/li
 import { aprovarRecontagem, type RecontagemRow } from "@/lib/recontagem";
 import { useRole } from "@/hooks/useRole";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { format, parseISO } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/missoes/$id")({
@@ -68,6 +69,7 @@ function MissaoExecucaoPage() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
   const { isAdmin } = useRole();
+  const isMobile = useIsMobile();
   useBuscaShortcut();
 
   const missaoQ = useQuery({
@@ -175,14 +177,57 @@ function MissaoExecucaoPage() {
     return Math.round((contado / sistema) * 1000) / 10;
   }, [itens]);
 
+  // Filtros Grupo / Família (mesma lógica do sistema: grupo_produtos e familias, ligados por codigo_produto)
+  const FILTRO_TODOS = "__TODOS__";
+  const [filtroGrupo, setFiltroGrupo] = useState(FILTRO_TODOS);
+  const [filtroFamilia, setFiltroFamilia] = useState(FILTRO_TODOS);
+
+  const { data: gruposOpcoes } = useQuery<string[]>({
+    queryKey: ["missoes-exec-grupos"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("grupo_produtos").select("grupo");
+      return Array.from(new Set<string>((data ?? []).map((r: any) => r.grupo as string))).filter(Boolean).sort();
+    },
+  });
+  const { data: familiasOpcoes } = useQuery<string[]>({
+    queryKey: ["missoes-exec-familias"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("familias").select("familia");
+      return Array.from(new Set<string>((data ?? []).map((r: any) => r.familia as string))).filter(Boolean).sort();
+    },
+  });
+  const { data: codigosGrupo } = useQuery({
+    queryKey: ["missoes-exec-codigos-grupo", filtroGrupo],
+    enabled: filtroGrupo !== FILTRO_TODOS,
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("grupo_produtos").select("codigo_produto").eq("grupo", filtroGrupo);
+      return (data ?? []).map((r: any) => r.codigo_produto) as string[];
+    },
+  });
+  const { data: codigosFamilia } = useQuery({
+    queryKey: ["missoes-exec-codigos-familia", filtroFamilia],
+    enabled: filtroFamilia !== FILTRO_TODOS,
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("familias").select("codigo_produto").eq("familia", filtroFamilia);
+      return (data ?? []).map((r: any) => r.codigo_produto) as string[];
+    },
+  });
+
   const itensFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    if (!q) return itens;
-    return itens.filter((i) =>
-      i.codigo_produto.toLowerCase().includes(q) ||
-      (i.descricao ?? "").toLowerCase().includes(q),
-    );
-  }, [itens, busca]);
+    const setG = filtroGrupo !== FILTRO_TODOS ? new Set(codigosGrupo ?? []) : null;
+    const setF = filtroFamilia !== FILTRO_TODOS ? new Set(codigosFamilia ?? []) : null;
+    if (!q && !setG && !setF) return itens;
+    return itens.filter((i) => {
+      if (setG && !setG.has(i.codigo_produto)) return false;
+      if (setF && !setF.has(i.codigo_produto)) return false;
+      if (!q) return true;
+      return (
+        i.codigo_produto.toLowerCase().includes(q) ||
+        (i.descricao ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [itens, busca, filtroGrupo, filtroFamilia, codigosGrupo, codigosFamilia]);
 
 
   if (missaoQ.isLoading) return <div className="p-8 text-center text-muted-foreground">Carregando…</div>;
@@ -269,31 +314,37 @@ function MissaoExecucaoPage() {
               {pct === 100 && <CheckCircle2 className="size-4 text-success inline ml-1.5" />}
             </span>
           </CardTitle>
-          <Input
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar SKU ou descrição… (atalho: /)"
-            className="h-8 text-sm max-w-sm"
-            data-busca-missao
-          />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar SKU ou descrição… (atalho: /)"
+              className="h-8 text-sm flex-1 min-w-0 sm:max-w-sm"
+              data-busca-missao
+            />
+            <Select value={filtroGrupo} onValueChange={setFiltroGrupo}>
+              <SelectTrigger className="h-8 w-full sm:w-44 text-xs"><SelectValue placeholder="Grupo" /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value={FILTRO_TODOS}>Todos os grupos</SelectItem>
+                {(gruposOpcoes ?? []).map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={filtroFamilia} onValueChange={setFiltroFamilia}>
+              <SelectTrigger className="h-8 w-full sm:w-44 text-xs"><SelectValue placeholder="Família" /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value={FILTRO_TODOS}>Todas as famílias</SelectItem>
+                {(familiasOpcoes ?? []).map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>SKU</TableHead>
-                <TableHead>Produto</TableHead>
-                {isAdmin && <TableHead className="text-right">Sistema</TableHead>}
-                <TableHead className="w-[420px]">Contagem por lote</TableHead>
-                <TableHead className="w-40">Status</TableHead>
-                <TableHead className="w-32 text-right">Ação</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <CardContent className="p-0">
+          {isMobile ? (
+            <div className="divide-y">
               {itensFiltrados.length === 0 && (
-                <TableRow><TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-10 text-muted-foreground">
-                  {itens.length === 0 ? "Nenhum item gerado para esta missão." : "Nenhum item corresponde à busca."}
-                </TableCell></TableRow>
+                <div className="px-3 py-10 text-center text-sm text-muted-foreground">
+                  {itens.length === 0 ? "Nenhum item gerado para esta missão." : "Nenhum item corresponde aos filtros."}
+                </div>
               )}
               {itensFiltrados.map((it) => (
                 <LinhaItem
@@ -303,11 +354,45 @@ function MissaoExecucaoPage() {
                   lotesSist={lotesQ.data?.get(it.codigo_produto) ?? []}
                   linhasSalvas={linhasQ.data?.get(it.id) ?? []}
                   isAdmin={isAdmin}
+                  mobile
                   onSaved={onSavedItem}
                 />
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Produto</TableHead>
+                    {isAdmin && <TableHead className="text-right">Sistema</TableHead>}
+                    <TableHead className="w-[420px]">Contagem por lote</TableHead>
+                    <TableHead className="w-40">Status</TableHead>
+                    <TableHead className="w-32 text-right">Ação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {itensFiltrados.length === 0 && (
+                    <TableRow><TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-10 text-muted-foreground">
+                      {itens.length === 0 ? "Nenhum item gerado para esta missão." : "Nenhum item corresponde aos filtros."}
+                    </TableCell></TableRow>
+                  )}
+                  {itensFiltrados.map((it) => (
+                    <LinhaItem
+                      key={it.id}
+                      item={it}
+                      missao={missao}
+                      lotesSist={lotesQ.data?.get(it.codigo_produto) ?? []}
+                      linhasSalvas={linhasQ.data?.get(it.id) ?? []}
+                      isAdmin={isAdmin}
+                      onSaved={onSavedItem}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -330,13 +415,14 @@ function useBuscaShortcut() {
 }
 
 const LinhaItem = memo(function LinhaItem({
-  item, missao, lotesSist, linhasSalvas, isAdmin, onSaved,
+  item, missao, lotesSist, linhasSalvas, isAdmin, mobile, onSaved,
 }: {
   item: Item;
   missao: Missao;
   lotesSist: LoteSist[];
   linhasSalvas: any[];
   isAdmin: boolean;
+  mobile?: boolean;
   onSaved: () => void;
 }) {
   // Semente inicial: se já tiver linhas salvas → usa; senão, cria uma linha vazia com sugestão FEFO
@@ -727,6 +813,162 @@ const LinhaItem = memo(function LinhaItem({
   const unidadeBadgeClass = destacar
     ? "bg-warning/40 text-warning-foreground border-warning/60"
     : "bg-muted text-muted-foreground border-border";
+
+  // ===== Layout mobile: card empilhado por item =====
+  if (mobile) {
+    return (
+      <div className={cn("p-3 space-y-2.5", destacar && "bg-warning/10")}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-xs font-semibold">{item.codigo_produto}</span>
+              <span className={cn("inline-flex items-center rounded border px-1.5 py-0 text-[10px] font-bold uppercase", unidadeBadgeClass)}>
+                {unidade}
+              </span>
+            </div>
+            <div className="text-sm font-medium leading-snug mt-0.5">{item.descricao}</div>
+          </div>
+          {isAdmin && (
+            <div className="shrink-0 text-right">
+              <div className="text-[10px] uppercase text-muted-foreground">Sistema</div>
+              <div className="text-sm font-semibold tabular-nums">{formatNum(totalSist)}</div>
+              {opcoesLote.length > 0 && (
+                <div className="text-[10px] text-muted-foreground">{opcoesLote.length} lote(s)</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {linhas.map((l) => (
+          <div key={l.key} className="rounded-md border bg-muted/20 p-2 space-y-2">
+            {l.eh_nao_relacionado ? (
+              <>
+                <Input
+                  type="text"
+                  className="h-9 text-xs font-mono"
+                  value={l.lote_manual_texto ?? ""}
+                  onChange={(e) => alterarLoteManual(l.key, e.target.value)}
+                  placeholder="Lote físico (manual)…"
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button" variant="outline" size="sm"
+                      className={cn("h-8 justify-start text-xs font-normal gap-1.5",
+                        !l.data_validade_manual && "text-muted-foreground")}
+                    >
+                      <CalendarIcon className="size-3.5" />
+                      {l.data_validade_manual
+                        ? format(parseISO(l.data_validade_manual), "dd/MM/yyyy")
+                        : "Validade"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={l.data_validade_manual ? parseISO(l.data_validade_manual) : undefined}
+                      onSelect={(d) => alterarValidadeManual(l.key, d ? format(d, "yyyy-MM-dd") : null)}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </>
+            ) : (
+              <Select value={l.lote ?? ""} onValueChange={(v) => alterarLote(l.key, v)}>
+                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Lote…" /></SelectTrigger>
+                <SelectContent>
+                  {opcoesLote.length === 0 && (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                      Nenhum lote no sistema para este SKU
+                    </div>
+                  )}
+                  {opcoesLote
+                    .filter((o) => o.lote === l.lote || !linhas.some((x) => !x.eh_nao_relacionado && x.key !== l.key && x.lote === o.lote))
+                    .map((o) => (
+                      <SelectItem key={o.lote} value={o.lote} className="text-xs">
+                        <span className="font-mono">{o.lote || "(sem lote)"}</span>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            )}
+            <div className="flex items-center gap-2">
+              <Input
+                type="number" inputMode="decimal" step="0.001" min="0"
+                className="h-9 w-24 tabular-nums text-sm"
+                value={l.quantidade_contada}
+                onChange={(e) => alterarQtd(l.key, e.target.value)}
+                onKeyDown={onQtdKeyDown}
+                placeholder="0"
+              />
+              {(() => {
+                const live = !l.eh_nao_relacionado && l.lote ? lotesSist.find((x) => x.lote === l.lote) : null;
+                const saldo = l.eh_nao_relacionado ? null : (live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0));
+                const st = statusLinha(l);
+                const stClass =
+                  st === "TOLERANCIA" ? "bg-success/15 text-success" :
+                  st === "DIV_NEG" || st === "DIV_POS" ? "bg-destructive/15 text-destructive" :
+                  st === "QUEBRA_FEFO" ? "bg-warning/25 text-warning-foreground" :
+                  "bg-muted text-muted-foreground";
+                const stLabel =
+                  st === "TOLERANCIA" ? "Tolerância" :
+                  st === "DIV_NEG" ? "Div. (−)" :
+                  st === "DIV_POS" ? "Div. (+)" :
+                  st === "QUEBRA_FEFO" ? "Quebra de FEFO" :
+                  "Pendente";
+                return (
+                  <>
+                    {isAdmin && saldo != null && (
+                      <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
+                        Saldo: <span className="font-semibold text-foreground">{formatNum(saldo)}</span>
+                      </span>
+                    )}
+                    <span className={cn("inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase whitespace-nowrap", stClass)}>
+                      {stLabel}
+                    </span>
+                  </>
+                );
+              })()}
+              <Button
+                type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 ml-auto"
+                onClick={() => removerLinha(l.key)} disabled={linhas.length === 1}
+                title="Remover linha"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          </div>
+        ))}
+
+        <div className="flex flex-wrap gap-1.5">
+          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={addLinha}>
+            <Plus className="size-3 mr-1" /> Adicionar lote
+          </Button>
+          <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={addLinhaManual}>
+            <Plus className="size-3 mr-1" /> Lote manual
+          </Button>
+        </div>
+
+        <div className="text-xs text-muted-foreground">
+          Total contado: <span className="tabular-nums font-semibold">{formatNum(totalContado)}</span>
+          {isAdmin && (
+            <>
+              {" · "}Total Sistema: <span className="tabular-nums font-semibold">{formatNum(totalSistemaLinhas)}</span>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${badge}`}>
+            {badgeLabel}
+          </span>
+          <Button size="sm" onClick={salvar} disabled={saving} className="h-9 px-5">
+            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <><Save className="size-3.5 mr-1" /> Salvar</>}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <TableRow className={destacar ? "bg-warning/10 hover:bg-warning/15" : undefined}>
