@@ -20,6 +20,7 @@ import { formatNum, classificarFaixa, acuracidadeColor, statusLabel } from "@/li
 import { aprovarRecontagem, type RecontagemRow } from "@/lib/recontagem";
 import { useRole } from "@/hooks/useRole";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { format, parseISO } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/missoes/$id")({
@@ -68,6 +69,7 @@ function MissaoExecucaoPage() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
   const { isAdmin } = useRole();
+  const isMobile = useIsMobile();
   useBuscaShortcut();
 
   const missaoQ = useQuery({
