@@ -177,14 +177,57 @@ function MissaoExecucaoPage() {
     return Math.round((contado / sistema) * 1000) / 10;
   }, [itens]);
 
+  // Filtros Grupo / Família (mesma lógica do sistema: grupo_produtos e familias, ligados por codigo_produto)
+  const FILTRO_TODOS = "__TODOS__";
+  const [filtroGrupo, setFiltroGrupo] = useState(FILTRO_TODOS);
+  const [filtroFamilia, setFiltroFamilia] = useState(FILTRO_TODOS);
+
+  const { data: gruposOpcoes } = useQuery({
+    queryKey: ["missoes-exec-grupos"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("grupo_produtos").select("grupo");
+      return Array.from(new Set((data ?? []).map((r: any) => r.grupo))).filter(Boolean).sort();
+    },
+  });
+  const { data: familiasOpcoes } = useQuery({
+    queryKey: ["missoes-exec-familias"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("familias").select("familia");
+      return Array.from(new Set((data ?? []).map((r: any) => r.familia))).filter(Boolean).sort();
+    },
+  });
+  const { data: codigosGrupo } = useQuery({
+    queryKey: ["missoes-exec-codigos-grupo", filtroGrupo],
+    enabled: filtroGrupo !== FILTRO_TODOS,
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("grupo_produtos").select("codigo_produto").eq("grupo", filtroGrupo);
+      return (data ?? []).map((r: any) => r.codigo_produto) as string[];
+    },
+  });
+  const { data: codigosFamilia } = useQuery({
+    queryKey: ["missoes-exec-codigos-familia", filtroFamilia],
+    enabled: filtroFamilia !== FILTRO_TODOS,
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("familias").select("codigo_produto").eq("familia", filtroFamilia);
+      return (data ?? []).map((r: any) => r.codigo_produto) as string[];
+    },
+  });
+
   const itensFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    if (!q) return itens;
-    return itens.filter((i) =>
-      i.codigo_produto.toLowerCase().includes(q) ||
-      (i.descricao ?? "").toLowerCase().includes(q),
-    );
-  }, [itens, busca]);
+    const setG = filtroGrupo !== FILTRO_TODOS ? new Set(codigosGrupo ?? []) : null;
+    const setF = filtroFamilia !== FILTRO_TODOS ? new Set(codigosFamilia ?? []) : null;
+    if (!q && !setG && !setF) return itens;
+    return itens.filter((i) => {
+      if (setG && !setG.has(i.codigo_produto)) return false;
+      if (setF && !setF.has(i.codigo_produto)) return false;
+      if (!q) return true;
+      return (
+        i.codigo_produto.toLowerCase().includes(q) ||
+        (i.descricao ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [itens, busca, filtroGrupo, filtroFamilia, codigosGrupo, codigosFamilia]);
 
 
   if (missaoQ.isLoading) return <div className="p-8 text-center text-muted-foreground">Carregando…</div>;
