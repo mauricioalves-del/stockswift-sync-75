@@ -814,6 +814,162 @@ const LinhaItem = memo(function LinhaItem({
     ? "bg-warning/40 text-warning-foreground border-warning/60"
     : "bg-muted text-muted-foreground border-border";
 
+  // ===== Layout mobile: card empilhado por item =====
+  if (mobile) {
+    return (
+      <div className={cn("p-3 space-y-2.5", destacar && "bg-warning/10")}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-xs font-semibold">{item.codigo_produto}</span>
+              <span className={cn("inline-flex items-center rounded border px-1.5 py-0 text-[10px] font-bold uppercase", unidadeBadgeClass)}>
+                {unidade}
+              </span>
+            </div>
+            <div className="text-sm font-medium leading-snug mt-0.5">{item.descricao}</div>
+          </div>
+          {isAdmin && (
+            <div className="shrink-0 text-right">
+              <div className="text-[10px] uppercase text-muted-foreground">Sistema</div>
+              <div className="text-sm font-semibold tabular-nums">{formatNum(totalSist)}</div>
+              {opcoesLote.length > 0 && (
+                <div className="text-[10px] text-muted-foreground">{opcoesLote.length} lote(s)</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {linhas.map((l) => (
+          <div key={l.key} className="rounded-md border bg-muted/20 p-2 space-y-2">
+            {l.eh_nao_relacionado ? (
+              <>
+                <Input
+                  type="text"
+                  className="h-9 text-xs font-mono"
+                  value={l.lote_manual_texto ?? ""}
+                  onChange={(e) => alterarLoteManual(l.key, e.target.value)}
+                  placeholder="Lote físico (manual)…"
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button" variant="outline" size="sm"
+                      className={cn("h-8 justify-start text-xs font-normal gap-1.5",
+                        !l.data_validade_manual && "text-muted-foreground")}
+                    >
+                      <CalendarIcon className="size-3.5" />
+                      {l.data_validade_manual
+                        ? format(parseISO(l.data_validade_manual), "dd/MM/yyyy")
+                        : "Validade"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={l.data_validade_manual ? parseISO(l.data_validade_manual) : undefined}
+                      onSelect={(d) => alterarValidadeManual(l.key, d ? format(d, "yyyy-MM-dd") : null)}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </>
+            ) : (
+              <Select value={l.lote ?? ""} onValueChange={(v) => alterarLote(l.key, v)}>
+                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Lote…" /></SelectTrigger>
+                <SelectContent>
+                  {opcoesLote.length === 0 && (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                      Nenhum lote no sistema para este SKU
+                    </div>
+                  )}
+                  {opcoesLote
+                    .filter((o) => o.lote === l.lote || !linhas.some((x) => !x.eh_nao_relacionado && x.key !== l.key && x.lote === o.lote))
+                    .map((o) => (
+                      <SelectItem key={o.lote} value={o.lote} className="text-xs">
+                        <span className="font-mono">{o.lote || "(sem lote)"}</span>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            )}
+            <div className="flex items-center gap-2">
+              <Input
+                type="number" inputMode="decimal" step="0.001" min="0"
+                className="h-9 w-24 tabular-nums text-sm"
+                value={l.quantidade_contada}
+                onChange={(e) => alterarQtd(l.key, e.target.value)}
+                onKeyDown={onQtdKeyDown}
+                placeholder="0"
+              />
+              {(() => {
+                const live = !l.eh_nao_relacionado && l.lote ? lotesSist.find((x) => x.lote === l.lote) : null;
+                const saldo = l.eh_nao_relacionado ? null : (live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0));
+                const st = statusLinha(l);
+                const stClass =
+                  st === "TOLERANCIA" ? "bg-success/15 text-success" :
+                  st === "DIV_NEG" || st === "DIV_POS" ? "bg-destructive/15 text-destructive" :
+                  st === "QUEBRA_FEFO" ? "bg-warning/25 text-warning-foreground" :
+                  "bg-muted text-muted-foreground";
+                const stLabel =
+                  st === "TOLERANCIA" ? "Tolerância" :
+                  st === "DIV_NEG" ? "Div. (−)" :
+                  st === "DIV_POS" ? "Div. (+)" :
+                  st === "QUEBRA_FEFO" ? "Quebra de FEFO" :
+                  "Pendente";
+                return (
+                  <>
+                    {isAdmin && saldo != null && (
+                      <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
+                        Saldo: <span className="font-semibold text-foreground">{formatNum(saldo)}</span>
+                      </span>
+                    )}
+                    <span className={cn("inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase whitespace-nowrap", stClass)}>
+                      {stLabel}
+                    </span>
+                  </>
+                );
+              })()}
+              <Button
+                type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 ml-auto"
+                onClick={() => removerLinha(l.key)} disabled={linhas.length === 1}
+                title="Remover linha"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          </div>
+        ))}
+
+        <div className="flex flex-wrap gap-1.5">
+          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={addLinha}>
+            <Plus className="size-3 mr-1" /> Adicionar lote
+          </Button>
+          <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={addLinhaManual}>
+            <Plus className="size-3 mr-1" /> Lote manual
+          </Button>
+        </div>
+
+        <div className="text-xs text-muted-foreground">
+          Total contado: <span className="tabular-nums font-semibold">{formatNum(totalContado)}</span>
+          {isAdmin && (
+            <>
+              {" · "}Total Sistema: <span className="tabular-nums font-semibold">{formatNum(totalSistemaLinhas)}</span>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${badge}`}>
+            {badgeLabel}
+          </span>
+          <Button size="sm" onClick={salvar} disabled={saving} className="h-9 px-5">
+            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <><Save className="size-3.5 mr-1" /> Salvar</>}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <TableRow className={destacar ? "bg-warning/10 hover:bg-warning/15" : undefined}>
       <TableCell className="font-mono text-xs align-top">
