@@ -182,17 +182,26 @@ function MissaoExecucaoPage() {
   const [filtroGrupo, setFiltroGrupo] = useState(FILTRO_TODOS);
   const [filtroFamilia, setFiltroFamilia] = useState(FILTRO_TODOS);
 
+  // Opções dos dropdowns restritas aos SKUs realmente presentes nesta missão (missoes_itens)
+  const codigosMissao = useMemo(
+    () => Array.from(new Set(itens.map((i) => i.codigo_produto).filter(Boolean))).sort(),
+    [itens],
+  );
   const { data: gruposOpcoes } = useQuery<string[]>({
-    queryKey: ["missoes-exec-grupos"],
+    queryKey: ["missoes-exec-grupos", id, codigosMissao],
+    enabled: codigosMissao.length > 0,
     queryFn: async () => {
-      const { data } = await (supabase as any).from("grupo_produtos").select("grupo");
+      const { data } = await (supabase as any).from("grupo_produtos")
+        .select("grupo").in("codigo_produto", codigosMissao);
       return Array.from(new Set<string>((data ?? []).map((r: any) => r.grupo as string))).filter(Boolean).sort();
     },
   });
   const { data: familiasOpcoes } = useQuery<string[]>({
-    queryKey: ["missoes-exec-familias"],
+    queryKey: ["missoes-exec-familias", id, codigosMissao],
+    enabled: codigosMissao.length > 0,
     queryFn: async () => {
-      const { data } = await (supabase as any).from("familias").select("familia");
+      const { data } = await (supabase as any).from("familias")
+        .select("familia").in("codigo_produto", codigosMissao);
       return Array.from(new Set<string>((data ?? []).map((r: any) => r.familia as string))).filter(Boolean).sort();
     },
   });
