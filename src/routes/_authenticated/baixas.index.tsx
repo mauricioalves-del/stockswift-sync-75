@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatBRL, formatNum } from "@/lib/inventory";
-import { CheckCircle2, XCircle, MessageSquareWarning, PackageMinus, Loader2, ScanBarcode, Check, ChevronsUpDown, List, Plus, Trash2, Mail, Download, Pencil, ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { CheckCircle2, XCircle, MessageSquareWarning, PackageMinus, Loader2, ScanBarcode, Check, ChevronsUpDown, List, Plus, Trash2, Mail, Download, Pencil, ArrowDown, ArrowUp, ArrowUpDown, Undo2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { BarcodeScanner } from "@/components/app/BarcodeScanner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -32,7 +32,7 @@ import { fetchAll } from "@/lib/fetch-all";
 import { readEdgeFunctionFailure } from "@/lib/edge-function-errors";
 import { useMyRoles } from "@/hooks/useMyRoles";
 import {
-  assinarBaixas, reprovarBaixas, statusAprovacao, assinaturaFeita, aguardandoAdmin,
+  assinarBaixas, reprovarBaixas, retornarParaFila, statusAprovacao, assinaturaFeita, aguardandoAdmin,
   aprovarComoAdministrador, ETAPA_LABEL, type Etapa,
 } from "@/lib/baixa-aprovacao";
 
@@ -1499,6 +1499,21 @@ function Historico() {
 
   const podeLimpar = busca || motivoFiltro !== "__all__" || almoxFiltro !== "__all__";
 
+  const [revertendo, setRevertendo] = useState<string | null>(null);
+  async function reverterReprovacao(b: any) {
+    setRevertendo(b.id);
+    try {
+      const user = (await supabase.auth.getUser()).data.user!;
+      await retornarParaFila(b, user.id);
+      toast.success("Baixa devolvida para a fila de aprovação");
+      qc.invalidateQueries({ queryKey: ["baixas"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao devolver para a fila");
+    } finally {
+      setRevertendo(null);
+    }
+  }
+
   async function exportarExcel() {
     if (filtrados.length === 0) return toast.error("Nenhum registro para exportar");
     const XLSX = await import("xlsx");
@@ -1656,15 +1671,29 @@ function Historico() {
                   </TableCell>
                   {isAdmin && (
                     <TableCell>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label="Editar baixa"
-                        title="Editar baixa aprovada"
-                        onClick={(e) => { e.stopPropagation(); setEditando(b); }}
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {b.status_fluxo === "REPROVADA" && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label="Devolver para a fila de aprovação"
+                            title="Reprovação por engano? Devolver para a fila de aprovação"
+                            disabled={revertendo === b.id}
+                            onClick={(e) => { e.stopPropagation(); reverterReprovacao(b); }}
+                          >
+                            {revertendo === b.id ? <Loader2 className="size-4 animate-spin" /> : <Undo2 className="size-4" />}
+                          </Button>
+                        )}
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label="Editar baixa"
+                          title="Editar baixa aprovada"
+                          onClick={(e) => { e.stopPropagation(); setEditando(b); }}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>

@@ -366,3 +366,21 @@ export async function reprovarBaixas(itens: any[], motivo: string, userId: strin
   );
   return ids.length;
 }
+
+export async function retornarParaFila(b: any, userId: string): Promise<void> {
+  const { error } = await (supabase as any).from("baixa_operacional").update({
+    status_fluxo: "PENDENTE",
+    motivo_reprovacao: null,
+    comentario_aprovacao: null,
+    aprovador_id: null,
+    data_aprovacao: null,
+    aprovado_diretor_operacoes_por: null,
+    aprovado_coordenador_financeiro_por: null,
+  }).eq("id", b.id);
+  if (error) throw error;
+  await (supabase as any).from("audit_logs").insert({
+    usuario: userId, acao: "BAIXA_REPROVACAO_REVERTIDA", entidade: "baixa_operacional",
+    entidade_id: String(b.id), payload: { codigo_produto: b.codigo_produto, lote: b.lote },
+  });
+}
+
