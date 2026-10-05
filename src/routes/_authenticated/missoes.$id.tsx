@@ -181,6 +181,7 @@ function MissaoExecucaoPage() {
   const FILTRO_TODOS = "__TODOS__";
   const [filtroGrupo, setFiltroGrupo] = useState(FILTRO_TODOS);
   const [filtroFamilia, setFiltroFamilia] = useState(FILTRO_TODOS);
+  const [filtroLote, setFiltroLote] = useState("");
 
   // Opções dos dropdowns restritas aos SKUs realmente presentes nesta missão (missoes_itens)
   const codigosMissao = useMemo(
@@ -226,17 +227,33 @@ function MissaoExecucaoPage() {
     const q = busca.trim().toLowerCase();
     const setG = filtroGrupo !== FILTRO_TODOS ? new Set(codigosGrupo ?? []) : null;
     const setF = filtroFamilia !== FILTRO_TODOS ? new Set(codigosFamilia ?? []) : null;
-    if (!q && !setG && !setF) return itens;
+    const loteQ = filtroLote.trim().toLowerCase();
+    if (!q && !setG && !setF && !loteQ) return itens;
+    const loteLinhas = new Map<string, string[]>();
+    if (loteQ) {
+      for (const r of linhasQ.data ? Array.from(linhasQ.data.values()).flat() : []) {
+        const textos = [String(r.lote ?? ""), String(r.lote_manual_texto ?? "")].filter(Boolean);
+        if (!textos.length) continue;
+        loteLinhas.set(r.item_missao_id, [...(loteLinhas.get(r.item_missao_id) ?? []), ...textos]);
+      }
+    }
     return itens.filter((i) => {
       if (setG && !setG.has(i.codigo_produto)) return false;
       if (setF && !setF.has(i.codigo_produto)) return false;
+      if (loteQ) {
+        const lotes = [
+          i.lote ?? "",
+          ...(loteLinhas.get(i.id) ?? []),
+        ];
+        if (!lotes.some((l) => l.toLowerCase().includes(loteQ))) return false;
+      }
       if (!q) return true;
       return (
         i.codigo_produto.toLowerCase().includes(q) ||
         (i.descricao ?? "").toLowerCase().includes(q)
       );
     });
-  }, [itens, busca, filtroGrupo, filtroFamilia, codigosGrupo, codigosFamilia]);
+  }, [itens, busca, filtroGrupo, filtroFamilia, filtroLote, codigosGrupo, codigosFamilia, linhasQ.data]);
 
 
   if (missaoQ.isLoading) return <div className="p-8 text-center text-muted-foreground">Carregando…</div>;
