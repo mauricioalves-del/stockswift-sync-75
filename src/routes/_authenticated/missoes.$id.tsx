@@ -269,63 +269,23 @@ function MissaoExecucaoPage() {
   };
 
   async function baixarExcel() {
-    const XLSX = await import("xlsx");
-    const linhasMap: Map<string, any[]> = linhasQ.data ?? new Map();
-    const resumo: any[] = [], skusDiv: any[] = [], lotesDiv: any[] = [], soLote: any[] = [];
-    for (const i of itens) {
-      const sis = Number(i.quantidade_prevista ?? 0);
-      const cont = Number(i.quantidade_contada ?? 0);
-      const conferido = i.status_item != null && CONCLUIDO_STATUSES.includes(i.status_item);
-      const { classe, percentual } = classificarFaixa(cont, sis);
-      const montanteDiv = conferido && classe !== "OK";
-      const linhas = linhasMap.get(i.id) ?? [];
-      const divLotes = linhas.filter((l) => {
-        const c = Number(l.quantidade_contada ?? 0), s = Number(l.saldo_sistemico_lote ?? 0);
-        return l.eh_nao_relacionado || Math.abs(c - s) > 0.0001;
-      });
-      const row = {
-        SKU: i.codigo_produto, Produto: i.descricao ?? "",
-        "Total Sistema": sis, "Total Contado": cont, "Diferença": cont - sis,
-        "Acuracidade %": conferido ? percentual : null,
-        "Status Montante": !conferido ? "Pendente" : montanteDiv ? "Divergente" : "Sem divergência",
-        "Lotes divergentes": divLotes.length,
-      };
-      resumo.push(row);
-      if (montanteDiv) skusDiv.push(row);
-      if (conferido && !montanteDiv && divLotes.length > 0) {
-        for (const l of divLotes) soLote.push({
-          SKU: i.codigo_produto, Produto: i.descricao ?? "",
-          "Lote": l.eh_nao_relacionado ? (l.lote_manual_texto ?? "") : (l.lote ?? ""),
-          "Lote não relacionado (manual)": l.eh_nao_relacionado ? "Sim" : "Não",
-          "Saldo Sistema Lote": Number(l.saldo_sistemico_lote ?? 0),
-          "Contado Lote": Number(l.quantidade_contada ?? 0),
-          "Diferença Lote": Number(l.quantidade_contada ?? 0) - Number(l.saldo_sistemico_lote ?? 0),
-          "Total Sistema SKU": sis, "Total Contado SKU": cont,
-        });
-      }
-      for (const l of divLotes) lotesDiv.push({
-        SKU: i.codigo_produto, Produto: i.descricao ?? "",
-        "Lote": l.eh_nao_relacionado ? (l.lote_manual_texto ?? "") : (l.lote ?? ""),
-        "Lote não relacionado (manual)": l.eh_nao_relacionado ? "Sim" : "Não",
-        "Validade manual": l.data_validade_manual ?? "",
-        "Saldo Sistema Lote": Number(l.saldo_sistemico_lote ?? 0),
-        "Contado Lote": Number(l.quantidade_contada ?? 0),
-        "Diferença Lote": Number(l.quantidade_contada ?? 0) - Number(l.saldo_sistemico_lote ?? 0),
-        "Status Montante SKU": row["Status Montante"],
-      });
+    if (!missao) return;
+    if (!lotesQ.data || !linhasQ.data) {
+      toast.info("Aguarde o carregamento dos dados da missão e tente novamente");
+      return;
     }
-    const wb = XLSX.utils.book_new();
-    const add = (rows: any[], nome: string) => {
-      const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ Info: "Nenhum item" }]);
-      XLSX.utils.book_append_sheet(wb, ws, nome);
-    };
-    add(resumo, "Resumo por produto");
-    add(skusDiv, "SKUs divergentes");
-    add(lotesDiv, "Lotes divergentes");
-    add(soLote, "Só correção de lote");
-    const nome = (missao?.titulo ?? "missao").replace(/[\\/:*?"<>|]/g, "-").slice(0, 120);
-    XLSX.writeFile(wb, `${nome}.xlsx`);
-    toast.success("Relatório gerado");
+    try {
+      // Carregamento sob demanda: a biblioteca de planilhas só é baixada ao gerar o relatório.
+      const { baixarRelatorioMissao } = await import("@/lib/missao-relatorio");
+      const r = baixarRelatorioMissao({
+        missao, itens, linhasPorItem: linhasQ.data, lotesPorSku: lotesQ.data,
+      });
+      toast.success(
+        `Relatório gerado — ${r.skusDivergentes} SKU(s) divergente(s), ${r.lotesDivergentes} lote(s) divergente(s), ${r.soCorrecaoLote} SKU(s) só de correção de lote`,
+      );
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao gerar o relatório");
+    }
   }
 
 
