@@ -1671,15 +1671,29 @@ function Historico() {
                   </TableCell>
                   {isAdmin && (
                     <TableCell>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label="Editar baixa"
-                        title="Editar baixa aprovada"
-                        onClick={(e) => { e.stopPropagation(); setEditando(b); }}
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {b.status_fluxo === "REPROVADA" && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label="Devolver para a fila de aprovação"
+                            title="Reprovação por engano? Devolver para a fila de aprovação"
+                            disabled={revertendo === b.id}
+                            onClick={(e) => { e.stopPropagation(); reverterReprovacao(b); }}
+                          >
+                            {revertendo === b.id ? <Loader2 className="size-4 animate-spin" /> : <Undo2 className="size-4" />}
+                          </Button>
+                        )}
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label="Editar baixa"
+                          title="Editar baixa aprovada"
+                          onClick={(e) => { e.stopPropagation(); setEditando(b); }}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>
