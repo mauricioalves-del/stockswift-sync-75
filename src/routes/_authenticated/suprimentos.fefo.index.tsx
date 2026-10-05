@@ -16,7 +16,7 @@ import {
   PieChart, Pie, Cell, LabelList,
 } from "recharts";
 import { AlertTriangle, CheckCircle2, RefreshCw, Upload, Settings2, Loader2, ArrowRightLeft, Download } from "lucide-react";
-import { exportarBIInterativo } from "@/lib/export-bi-interativo";
+import { exportarFefoHtml } from "@/lib/export-fefo-html";
 import { reprocessarFefoHoje } from "@/lib/fefo.functions";
 
 
@@ -261,9 +261,7 @@ function ControleFefoPage() {
 
   function exportarHtmlAtivo() {
     if (!auditadas.length) return;
-    exportarBIInterativo({
-      titulo: "Controle FEFO — Transferências",
-      subtitulo: "Banco embarcado e filtro cruzado entre todos os visuais",
+    exportarFefoHtml({
       linhas: auditadas.map((r) => ({
         data: r.data,
         id_produto: r.id_produto,
@@ -276,30 +274,9 @@ function ControleFefoPage() {
         status: r.status,
         situacao: r.quebra ? "Quebra de FEFO" : r.status.startsWith("OK") ? "OK" : "Inconclusivo",
         qtd: Number(r.qtd_movimentado) || 0,
-        quebra: r.quebra ? 1 : 0,
+        quebra: !!r.quebra,
       })),
-      dimensoes: [
-        { chave: "destino", rotulo: "Destino", pizza: true },
-        { chave: "grupo", rotulo: "Grupo" },
-        { chave: "id_produto", rotulo: "Produto", chaveRotulo: "descricao" },
-        { chave: "situacao", rotulo: "Situação" },
-      ],
-      medida: { chave: "quebra", rotulo: "Quebras de FEFO", formato: "num" },
-      medidaSecundaria: { chave: "qtd", rotulo: "Quantidade movimentada", formato: "num" },
-      serie: { chave: "data", rotulo: "Dia" },
-      colunas: [
-        { chave: "data", rotulo: "Data" },
-        { chave: "id_produto", rotulo: "Código" },
-        { chave: "descricao", rotulo: "Produto" },
-        { chave: "grupo", rotulo: "Grupo" },
-        { chave: "desc_movimento", rotulo: "Movimento" },
-        { chave: "destino", rotulo: "Destino" },
-        { chave: "lote_movimentado", rotulo: "Lote mov." },
-        { chave: "lote_mais_antigo", rotulo: "Lote mais antigo" },
-        { chave: "qtd", rotulo: "Qtd", formato: "num" },
-        { chave: "status", rotulo: "Status" },
-      ],
-      filtrosAtivos: [
+      filtros: [
         { label: "Período", valor: tudo ? "Todo o histórico" : `${ini} a ${fim}` },
         ...(destino !== "__all__" ? [{ label: "Destino", valor: destino }] : []),
         ...(grupo !== "__all__" ? [{ label: "Grupo", valor: grupo }] : []),
