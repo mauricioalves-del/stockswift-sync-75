@@ -284,6 +284,9 @@ function MissaoExecucaoPage() {
         </div>
         <div className="flex items-center gap-2">
           <Badge className="text-[10px]">{missao.status}</Badge>
+          <Button variant="outline" size="sm" onClick={baixarExcel} disabled={itens.length === 0}>
+            <FileDown className="size-4 mr-1.5" /> Baixar Excel
+          </Button>
           <Button asChild variant="outline" size="sm">
             <Link to="/scanner"><ScanLine className="size-4 mr-1.5" /> Scanner</Link>
           </Button>
