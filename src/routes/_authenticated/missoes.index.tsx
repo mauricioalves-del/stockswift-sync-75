@@ -305,6 +305,8 @@ function NovaMissao() {
         let q = (supabase as any).from("estoque_sistemico")
           .select("id_produto, descricao, lote, quantidade")
           .order("id_produto").range(f, t);
+        // Só lotes COM saldo no sistema (quantidade > 0), como o filtro "Apenas com saldo" do ERP.
+        q = q.gt("quantidade", 0);
         if (filtroOrigem) q = q.eq("origem", filtroOrigem);
         if (filtroSkusGrupo && filtroSkusGrupo.length) q = q.in("id_produto", filtroSkusGrupo);
         if (filtroSkusFamilia && filtroSkusFamilia.length) q = q.in("id_produto", filtroSkusFamilia);
