@@ -85,7 +85,7 @@ function MissaoExecucaoPage() {
     queryKey: ["missao-itens", id],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
-        .from("missoes_itens").select("*").eq("missao_id", id).order("codigo_produto");
+        .from("missoes_itens").select("*").eq("missao_id", id).order("codigo_produto").order("lote");
       if (error) throw error;
       return (data ?? []) as Item[];
     },
@@ -459,6 +459,18 @@ const LinhaItem = memo(function LinhaItem({
         }));
     }
 
+    // Cada item da missão já representa UM lote específico (SKU + lote): a linha nasce com o próprio lote.
+    if (item.lote) {
+      const proprio = lotesSist.find((l) => l.lote === item.lote);
+      return [{
+        key: crypto.randomUUID(),
+        lote: item.lote,
+        eh_nao_relacionado: false,
+        quantidade_contada: "",
+        saldo_sistemico_lote: proprio?.saldo ?? Number(item.quantidade_prevista ?? 0),
+      }];
+    }
+    // Item legado sem lote definido: mantém a sugestão FEFO com seletor.
     const fefo = lotesSist.find((l) => l.saldo > 0) ?? lotesSist[0];
     if (fefo) {
       return [{
@@ -496,6 +508,12 @@ const LinhaItem = memo(function LinhaItem({
   }, [linhasSalvasKey]);
 
   const totalSist = lotesSist.reduce((s, l) => s + (l.saldo || 0), 0);
+  // Item com lote próprio: a linha é fixa nesse lote (sem seletor) e o "Sistema" é o saldo desse lote.
+  const loteProprio = !!item.lote;
+  const saldoProprio = loteProprio
+    ? (lotesSist.find((l) => l.lote === item.lote)?.saldo ?? Number(item.quantidade_prevista ?? 0))
+    : 0;
+  const totalSistExibir = loteProprio ? saldoProprio : totalSist;
   const totalContado = linhas.reduce((s, l) => s + (Number(l.quantidade_contada.replace(",", ".")) || 0), 0);
   // "Total Sistema" (resumo do SKU) = soma do "Saldo Sistema" de cada linha do quadro.
   // Linha reconhecida → saldo do lote; linha manual (não relacionada) → 0 por definição.
@@ -841,8 +859,8 @@ const LinhaItem = memo(function LinhaItem({
           {isAdmin && (
             <div className="shrink-0 text-right">
               <div className="text-[10px] uppercase text-muted-foreground">Sistema</div>
-              <div className="text-sm font-semibold tabular-nums">{formatNum(totalSist)}</div>
-              {opcoesLote.length > 0 && (
+              <div className="text-sm font-semibold tabular-nums">{formatNum(totalSistExibir)}</div>
+              {!loteProprio && opcoesLote.length > 0 && (
                 <div className="text-[10px] text-muted-foreground">{opcoesLote.length} lote(s)</div>
               )}
             </div>
@@ -883,6 +901,8 @@ const LinhaItem = memo(function LinhaItem({
                   </PopoverContent>
                 </Popover>
               </>
+            ) : loteProprio ? (
+              <div className="h-9 flex items-center rounded-md border bg-muted/40 px-3 font-mono text-xs" title="Lote desta linha">{l.lote || "(sem lote)"}</div>
             ) : (
               <Select value={l.lote ?? ""} onValueChange={(v) => alterarLote(l.key, v)}>
                 <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Lote…" /></SelectTrigger>
@@ -951,9 +971,11 @@ const LinhaItem = memo(function LinhaItem({
         ))}
 
         <div className="flex flex-wrap gap-1.5">
-          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={addLinha}>
-            <Plus className="size-3 mr-1" /> Adicionar lote
-          </Button>
+          {!loteProprio && (
+            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={addLinha}>
+              <Plus className="size-3 mr-1" /> Adicionar lote
+            </Button>
+          )}
           <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={addLinhaManual}>
             <Plus className="size-3 mr-1" /> Lote manual
           </Button>
@@ -993,8 +1015,8 @@ const LinhaItem = memo(function LinhaItem({
       <TableCell className="max-w-xs truncate align-top">{item.descricao}</TableCell>
       {isAdmin && (
         <TableCell className="text-right tabular-nums align-top">
-          <div>{formatNum(totalSist)}</div>
-          {opcoesLote.length > 0 && (
+          <div>{formatNum(totalSistExibir)}</div>
+          {!loteProprio && opcoesLote.length > 0 && (
             <div className="text-[10px] text-muted-foreground">{opcoesLote.length} lote(s)</div>
           )}
         </TableCell>
@@ -1035,6 +1057,8 @@ const LinhaItem = memo(function LinhaItem({
                     </PopoverContent>
                   </Popover>
                 </>
+              ) : loteProprio ? (
+                <div className="h-8 flex-1 min-w-[160px] flex items-center rounded-md border bg-muted/40 px-2.5 font-mono text-xs" title="Lote desta linha">{l.lote || "(sem lote)"}</div>
               ) : (
                 <Select
                   value={l.lote ?? ""}
@@ -1108,9 +1132,11 @@ const LinhaItem = memo(function LinhaItem({
             </div>
           ))}
           <div className="flex flex-wrap gap-1">
-            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={addLinha}>
-              <Plus className="size-3 mr-1" /> Adicionar lote
-            </Button>
+            {!loteProprio && (
+              <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={addLinha}>
+                <Plus className="size-3 mr-1" /> Adicionar lote
+              </Button>
+            )}
             <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={addLinhaManual}>
               <Plus className="size-3 mr-1" /> Adicionar lote manual
             </Button>
@@ -1120,7 +1146,7 @@ const LinhaItem = memo(function LinhaItem({
             {isAdmin && (
               <>
                 {" · "}Total Sistema: <span className="tabular-nums font-semibold">{formatNum(totalSistemaLinhas)}</span>
-                {totalSistemaLinhas !== totalSist && (
+                {!loteProprio && totalSistemaLinhas !== totalSist && (
                   <span className="text-muted-foreground/70"> (SKU total: {formatNum(totalSist)})</span>
                 )}
               </>
