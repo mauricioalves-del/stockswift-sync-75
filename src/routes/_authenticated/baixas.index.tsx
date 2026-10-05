@@ -1499,6 +1499,21 @@ function Historico() {
 
   const podeLimpar = busca || motivoFiltro !== "__all__" || almoxFiltro !== "__all__";
 
+  const [revertendo, setRevertendo] = useState<string | null>(null);
+  async function reverterReprovacao(b: any) {
+    setRevertendo(b.id);
+    try {
+      const user = (await supabase.auth.getUser()).data.user!;
+      await retornarParaFila(b, user.id);
+      toast.success("Baixa devolvida para a fila de aprovação");
+      qc.invalidateQueries({ queryKey: ["baixas"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao devolver para a fila");
+    } finally {
+      setRevertendo(null);
+    }
+  }
+
   async function exportarExcel() {
     if (filtrados.length === 0) return toast.error("Nenhum registro para exportar");
     const XLSX = await import("xlsx");
