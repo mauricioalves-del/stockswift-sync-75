@@ -1043,6 +1043,13 @@ const LinhaItem = memo(function LinhaItem({
           )}
         </div>
 
+        <Input
+          value={observacao}
+          onChange={(e) => alterarObservacao(e.target.value)}
+          placeholder="Observação desta linha (opcional)…"
+          className="h-9 text-xs"
+        />
+
         <div className="flex items-center justify-between gap-2 pt-1">
           <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${badge}`}>
             {badgeLabel}
@@ -1205,6 +1212,12 @@ const LinhaItem = memo(function LinhaItem({
               </>
             )}
           </div>
+          <Input
+            value={observacao}
+            onChange={(e) => alterarObservacao(e.target.value)}
+            placeholder="Observação desta linha (opcional)…"
+            className="h-8 text-xs"
+          />
 
         </div>
       </TableCell>
