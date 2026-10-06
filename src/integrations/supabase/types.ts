@@ -1759,6 +1759,7 @@ export type Database = {
           id: string
           lote: string | null
           missao_id: string
+          observacao: string | null
           quantidade_contada: number | null
           quantidade_prevista: number | null
           recontagem_origem_id: string | null
@@ -1772,6 +1773,7 @@ export type Database = {
           id?: string
           lote?: string | null
           missao_id: string
+          observacao?: string | null
           quantidade_contada?: number | null
           quantidade_prevista?: number | null
           recontagem_origem_id?: string | null
@@ -1785,6 +1787,7 @@ export type Database = {
           id?: string
           lote?: string | null
           missao_id?: string
+          observacao?: string | null
           quantidade_contada?: number | null
           quantidade_prevista?: number | null
           recontagem_origem_id?: string | null

@@ -37,7 +37,7 @@ type Missao = {
 type Item = {
   id: string; missao_id: string; codigo_produto: string; descricao: string | null;
   lote: string | null; quantidade_prevista: number | null; quantidade_contada: number | null;
-  status_item: string | null; recontagem_origem_id: string | null;
+  status_item: string | null; recontagem_origem_id: string | null; observacao: string | null;
 };
 
 type LoteSist = {
@@ -539,7 +539,13 @@ const LinhaItem = memo(function LinhaItem({
 
   const [linhas, setLinhas] = useState<LinhaLote[]>(buildSeed);
   const [saving, setSaving] = useState(false);
+  const [observacao, setObservacao] = useState(item.observacao ?? "");
   const dirtyRef = useRef(false);
+
+  function alterarObservacao(valor: string) {
+    dirtyRef.current = true;
+    setObservacao(valor);
+  }
 
   // Ressincroniza quando as linhas salvas chegam depois (fix do seed vazio) —
   // mas só se o usuário ainda não tocou nesta linha.
@@ -720,7 +726,7 @@ const LinhaItem = memo(function LinhaItem({
 
     // Atualiza item da missão (mantém quantidade_contada agregada para compatibilidade)
     const { error: eUp } = await (supabase as any).from("missoes_itens")
-      .update({ quantidade_contada: totalContado, status_item }).eq("id", item.id);
+      .update({ quantidade_contada: totalContado, status_item, observacao: observacao.trim() || null }).eq("id", item.id);
     if (eUp) { toast.error(eUp.message); sounds.error(); setSaving(false); return; }
 
     // === Persistência de derivados ===
@@ -1037,6 +1043,13 @@ const LinhaItem = memo(function LinhaItem({
           )}
         </div>
 
+        <Input
+          value={observacao}
+          onChange={(e) => alterarObservacao(e.target.value)}
+          placeholder="Observação desta linha (opcional)…"
+          className="h-9 text-xs"
+        />
+
         <div className="flex items-center justify-between gap-2 pt-1">
           <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${badge}`}>
             {badgeLabel}
@@ -1199,6 +1212,12 @@ const LinhaItem = memo(function LinhaItem({
               </>
             )}
           </div>
+          <Input
+            value={observacao}
+            onChange={(e) => alterarObservacao(e.target.value)}
+            placeholder="Observação desta linha (opcional)…"
+            className="h-8 text-xs"
+          />
 
         </div>
       </TableCell>
