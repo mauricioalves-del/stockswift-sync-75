@@ -45,6 +45,7 @@ function EmailsPage() {
   const [addFinId, setAddFinId] = useState<string | null>(null);
   const [addFinSel, setAddFinSel] = useState<string[]>([]);
   const [addFinNova, setAddFinNova] = useState("");
+  const [filtroFinalidade, setFiltroFinalidade] = useState<string>("TODAS");
 
   const { data } = useQuery({
     queryKey: ["cadastro_emails"],
@@ -59,6 +60,11 @@ function EmailsPage() {
   const finalidadesExistentes = useMemo(
     () => Array.from(new Set((data ?? []).map((i) => i.finalidade))).sort(),
     [data],
+  );
+
+  const dadosFiltrados = useMemo(
+    () => (data ?? []).filter((i) => filtroFinalidade === "TODAS" || i.finalidade === filtroFinalidade),
+    [data, filtroFinalidade],
   );
 
   const finalidadesPorEmail = useMemo(() => {
