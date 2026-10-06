@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { Mail, Plus, Pencil, X, Check, ListPlus } from "lucide-react";
@@ -45,6 +46,7 @@ function EmailsPage() {
   const [addFinId, setAddFinId] = useState<string | null>(null);
   const [addFinSel, setAddFinSel] = useState<string[]>([]);
   const [addFinNova, setAddFinNova] = useState("");
+  const [filtroFinalidade, setFiltroFinalidade] = useState<string>("TODAS");
 
   const { data } = useQuery({
     queryKey: ["cadastro_emails"],
@@ -59,6 +61,11 @@ function EmailsPage() {
   const finalidadesExistentes = useMemo(
     () => Array.from(new Set((data ?? []).map((i) => i.finalidade))).sort(),
     [data],
+  );
+
+  const dadosFiltrados = useMemo(
+    () => (data ?? []).filter((i) => filtroFinalidade === "TODAS" || i.finalidade === filtroFinalidade),
+    [data, filtroFinalidade],
   );
 
   const finalidadesPorEmail = useMemo(() => {
@@ -184,6 +191,21 @@ function EmailsPage() {
       </Card>
 
       <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Label className="text-xs text-muted-foreground">Filtrar por finalidade:</Label>
+            <Select value={filtroFinalidade} onValueChange={setFiltroFinalidade}>
+              <SelectTrigger className="h-8 w-64 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value="TODAS">Todas as finalidades</SelectItem>
+                {finalidadesExistentes.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {dadosFiltrados.length} de {(data ?? []).length} destinatário(s)
+            </span>
+          </div>
+        </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader>
@@ -196,10 +218,12 @@ function EmailsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(data ?? []).length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">Nenhum e-mail cadastrado</TableCell></TableRow>
+              {dadosFiltrados.length === 0 && (
+                <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                  {(data ?? []).length === 0 ? "Nenhum e-mail cadastrado" : "Nenhum destinatário nesta finalidade"}
+                </TableCell></TableRow>
               )}
-              {(data ?? []).map((i) => (
+              {dadosFiltrados.map((i) => (
                 <TableRow key={i.id}>
                   <TableCell>
                     {editId === i.id
