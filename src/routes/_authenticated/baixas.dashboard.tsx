@@ -191,7 +191,8 @@ function BaixasDashboard() {
     });
 
     const almoxOptions = [...new Set(baixasRaw.map((b) => b.id_local ?? "—"))].sort();
-    const motivoOptions = [...new Set(baixasRaw.map((b) => b.motivo_baixa_id).filter(Boolean))] as string[];
+    const motivoOptions = ([...new Set(baixasRaw.map((b) => b.motivo_baixa_id).filter(Boolean))] as string[])
+      .filter((id) => !MOTIVOS_EXCLUIDOS.has(motivoNome.get(id) ?? ""));
 
 
     const motivoNome = new Map(motivos.map((m) => [m.id, m.descricao]));
