@@ -58,8 +58,10 @@ import { Route as AuthenticatedProducaoSolicitacaoMateriaisRouteImport } from '.
 import { Route as AuthenticatedProducaoTestesIndustriaisRouteImport } from './routes/_authenticated/producao.testes-industriais'
 import { Route as AuthenticatedShelfLifeAcoesRouteImport } from './routes/_authenticated/shelf-life.acoes'
 import { Route as AuthenticatedShelfLifeDashboardRouteImport } from './routes/_authenticated/shelf-life.dashboard'
+import { Route as AuthenticatedShelfLifeDoiRouteImport } from './routes/_authenticated/shelf-life.doi'
 import { Route as AuthenticatedShelfLifeFarolRouteImport } from './routes/_authenticated/shelf-life.farol'
 import { Route as AuthenticatedShelfLifePrecosRouteImport } from './routes/_authenticated/shelf-life.precos'
+import { Route as AuthenticatedShelfLifePremiumRouteImport } from './routes/_authenticated/shelf-life.premium'
 import { Route as AuthenticatedShelfLifeRiscoRouteImport } from './routes/_authenticated/shelf-life.risco'
 import { Route as AuthenticatedSuprimentosDashboardRouteImport } from './routes/_authenticated/suprimentos.dashboard'
 import { Route as AuthenticatedSuprimentosEstoqueRouteImport } from './routes/_authenticated/suprimentos.estoque'
@@ -356,6 +358,12 @@ const AuthenticatedShelfLifeDashboardRoute =
     path: '/shelf-life/dashboard',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedShelfLifeDoiRoute =
+  AuthenticatedShelfLifeDoiRouteImport.update({
+    id: '/shelf-life/doi',
+    path: '/shelf-life/doi',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedShelfLifeFarolRoute =
   AuthenticatedShelfLifeFarolRouteImport.update({
     id: '/shelf-life/farol',
@@ -366,6 +374,12 @@ const AuthenticatedShelfLifePrecosRoute =
   AuthenticatedShelfLifePrecosRouteImport.update({
     id: '/shelf-life/precos',
     path: '/shelf-life/precos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedShelfLifePremiumRoute =
+  AuthenticatedShelfLifePremiumRouteImport.update({
+    id: '/shelf-life/premium',
+    path: '/shelf-life/premium',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedShelfLifeRiscoRoute =
@@ -535,8 +549,10 @@ export interface FileRoutesByFullPath {
   '/producao/testes-industriais': typeof AuthenticatedProducaoTestesIndustriaisRoute
   '/shelf-life/acoes': typeof AuthenticatedShelfLifeAcoesRoute
   '/shelf-life/dashboard': typeof AuthenticatedShelfLifeDashboardRoute
+  '/shelf-life/doi': typeof AuthenticatedShelfLifeDoiRoute
   '/shelf-life/farol': typeof AuthenticatedShelfLifeFarolRoute
   '/shelf-life/precos': typeof AuthenticatedShelfLifePrecosRoute
+  '/shelf-life/premium': typeof AuthenticatedShelfLifePremiumRoute
   '/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
@@ -607,8 +623,10 @@ export interface FileRoutesByTo {
   '/producao/testes-industriais': typeof AuthenticatedProducaoTestesIndustriaisRoute
   '/shelf-life/acoes': typeof AuthenticatedShelfLifeAcoesRoute
   '/shelf-life/dashboard': typeof AuthenticatedShelfLifeDashboardRoute
+  '/shelf-life/doi': typeof AuthenticatedShelfLifeDoiRoute
   '/shelf-life/farol': typeof AuthenticatedShelfLifeFarolRoute
   '/shelf-life/precos': typeof AuthenticatedShelfLifePrecosRoute
+  '/shelf-life/premium': typeof AuthenticatedShelfLifePremiumRoute
   '/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
@@ -681,8 +699,10 @@ export interface FileRoutesById {
   '/_authenticated/producao/testes-industriais': typeof AuthenticatedProducaoTestesIndustriaisRoute
   '/_authenticated/shelf-life/acoes': typeof AuthenticatedShelfLifeAcoesRoute
   '/_authenticated/shelf-life/dashboard': typeof AuthenticatedShelfLifeDashboardRoute
+  '/_authenticated/shelf-life/doi': typeof AuthenticatedShelfLifeDoiRoute
   '/_authenticated/shelf-life/farol': typeof AuthenticatedShelfLifeFarolRoute
   '/_authenticated/shelf-life/precos': typeof AuthenticatedShelfLifePrecosRoute
+  '/_authenticated/shelf-life/premium': typeof AuthenticatedShelfLifePremiumRoute
   '/_authenticated/shelf-life/risco': typeof AuthenticatedShelfLifeRiscoRoute
   '/_authenticated/suprimentos/dashboard': typeof AuthenticatedSuprimentosDashboardRoute
   '/_authenticated/suprimentos/estoque': typeof AuthenticatedSuprimentosEstoqueRoute
@@ -755,8 +775,10 @@ export interface FileRouteTypes {
     | '/producao/testes-industriais'
     | '/shelf-life/acoes'
     | '/shelf-life/dashboard'
+    | '/shelf-life/doi'
     | '/shelf-life/farol'
     | '/shelf-life/precos'
+    | '/shelf-life/premium'
     | '/shelf-life/risco'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
@@ -827,8 +849,10 @@ export interface FileRouteTypes {
     | '/producao/testes-industriais'
     | '/shelf-life/acoes'
     | '/shelf-life/dashboard'
+    | '/shelf-life/doi'
     | '/shelf-life/farol'
     | '/shelf-life/precos'
+    | '/shelf-life/premium'
     | '/shelf-life/risco'
     | '/suprimentos/dashboard'
     | '/suprimentos/estoque'
@@ -900,8 +924,10 @@ export interface FileRouteTypes {
     | '/_authenticated/producao/testes-industriais'
     | '/_authenticated/shelf-life/acoes'
     | '/_authenticated/shelf-life/dashboard'
+    | '/_authenticated/shelf-life/doi'
     | '/_authenticated/shelf-life/farol'
     | '/_authenticated/shelf-life/precos'
+    | '/_authenticated/shelf-life/premium'
     | '/_authenticated/shelf-life/risco'
     | '/_authenticated/suprimentos/dashboard'
     | '/_authenticated/suprimentos/estoque'
@@ -1287,6 +1313,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShelfLifeDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/shelf-life/doi': {
+      id: '/_authenticated/shelf-life/doi'
+      path: '/shelf-life/doi'
+      fullPath: '/shelf-life/doi'
+      preLoaderRoute: typeof AuthenticatedShelfLifeDoiRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/shelf-life/farol': {
       id: '/_authenticated/shelf-life/farol'
       path: '/shelf-life/farol'
@@ -1299,6 +1332,13 @@ declare module '@tanstack/react-router' {
       path: '/shelf-life/precos'
       fullPath: '/shelf-life/precos'
       preLoaderRoute: typeof AuthenticatedShelfLifePrecosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/shelf-life/premium': {
+      id: '/_authenticated/shelf-life/premium'
+      path: '/shelf-life/premium'
+      fullPath: '/shelf-life/premium'
+      preLoaderRoute: typeof AuthenticatedShelfLifePremiumRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/shelf-life/risco': {
@@ -1502,8 +1542,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProducaoTestesIndustriaisRoute: typeof AuthenticatedProducaoTestesIndustriaisRoute
   AuthenticatedShelfLifeAcoesRoute: typeof AuthenticatedShelfLifeAcoesRoute
   AuthenticatedShelfLifeDashboardRoute: typeof AuthenticatedShelfLifeDashboardRoute
+  AuthenticatedShelfLifeDoiRoute: typeof AuthenticatedShelfLifeDoiRoute
   AuthenticatedShelfLifeFarolRoute: typeof AuthenticatedShelfLifeFarolRoute
   AuthenticatedShelfLifePrecosRoute: typeof AuthenticatedShelfLifePrecosRoute
+  AuthenticatedShelfLifePremiumRoute: typeof AuthenticatedShelfLifePremiumRoute
   AuthenticatedShelfLifeRiscoRoute: typeof AuthenticatedShelfLifeRiscoRoute
   AuthenticatedSuprimentosDashboardRoute: typeof AuthenticatedSuprimentosDashboardRoute
   AuthenticatedSuprimentosEstoqueRoute: typeof AuthenticatedSuprimentosEstoqueRoute
@@ -1572,8 +1614,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedProducaoTestesIndustriaisRoute,
   AuthenticatedShelfLifeAcoesRoute: AuthenticatedShelfLifeAcoesRoute,
   AuthenticatedShelfLifeDashboardRoute: AuthenticatedShelfLifeDashboardRoute,
+  AuthenticatedShelfLifeDoiRoute: AuthenticatedShelfLifeDoiRoute,
   AuthenticatedShelfLifeFarolRoute: AuthenticatedShelfLifeFarolRoute,
   AuthenticatedShelfLifePrecosRoute: AuthenticatedShelfLifePrecosRoute,
+  AuthenticatedShelfLifePremiumRoute: AuthenticatedShelfLifePremiumRoute,
   AuthenticatedShelfLifeRiscoRoute: AuthenticatedShelfLifeRiscoRoute,
   AuthenticatedSuprimentosDashboardRoute:
     AuthenticatedSuprimentosDashboardRoute,
