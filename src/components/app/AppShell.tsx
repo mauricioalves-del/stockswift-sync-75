@@ -7,7 +7,7 @@ import {
   Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp, Warehouse, Mail,
   Compass, Sparkles, Settings2, Boxes, Truck, AlertTriangle, PanelLeftClose, PanelLeftOpen,
   Factory, GitCompareArrows, CalendarClock, Bell, ArrowRightLeft, CalendarCheck, PackageX, Tags,
-  PackageCheck, Hourglass,
+  PackageCheck, Hourglass, Gem,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -83,6 +83,7 @@ const NAV: (NavItem | NavGroup)[] = [
     items: [
       { to: "/shelf-life/risco", label: "Mapeamento de Risco", icon: AlertTriangle, role: "gestor" },
       { to: "/shelf-life/precos", label: "Cadastro de Preço", icon: Target, role: "gestor" },
+      { to: "/shelf-life/premium", label: "Dashboard Premium", icon: Gem, role: "gestor" },
       { to: "/shelf-life/doi", label: "Cadastro de DOI", icon: Hourglass, role: "gestor" },
       { to: "/shelf-life/acoes", label: "Ações de Lote", icon: Target, role: "gestor" },
       { to: "/shelf-life/farol", label: "Farol de Shelf", icon: BarChart3, role: "gestor" },
