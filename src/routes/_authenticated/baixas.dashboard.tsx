@@ -496,6 +496,68 @@ function BaixasDashboard() {
         </div>
       </div>
 
+      {/* MoM — colunas de total + linha de variação % vs mês anterior */}
+      <BiPanel title="MoM — Mês vs Mês Anterior">
+        <ResponsiveContainer width="100%" height={360}>
+          <ComposedChart data={mom.data} margin={{ top: 26, left: 30, right: 40, bottom: 10 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
+            <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Mês", position: "insideBottom", offset: -4, fill: "#94a3b8", fontSize: 11 }} />
+            <YAxis yAxisId="left" tickFormatter={(v) => fmtMil(Number(v))} tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Total Baixas (R$ Mil)", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }} />
+            <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Variação % MoM", angle: 90, position: "insideRight", fill: "#94a3b8", fontSize: 11 }} />
+            <Tooltip
+              contentStyle={{ background: "#0f172a", border: "1px solid #334155" }}
+              formatter={(v: number, name: string) => {
+                if (name === "Variação %") return v == null ? ["—", name] : [`${v.toFixed(1)}%`, name];
+                if (!v) return [null as any, null as any];
+                return [formatBRL(v), name];
+              }}
+            />
+            <Legend wrapperStyle={{ fontSize: 11, color: "#cbd5e1" }} />
+            {mom.motivos.map((m, i) => (
+              <Bar
+                key={m.nome}
+                yAxisId="left"
+                dataKey={m.nome}
+                name={m.nome}
+                stackId="motivos"
+                fill={m.cor}
+                radius={i === mom.motivos.length - 1 ? [3, 3, 0, 0] : undefined}
+              >
+                {i === mom.motivos.length - 1 && (
+                  <LabelList dataKey="total" position="top" formatter={(v: number) => fmtMil(v)} style={{ fontSize: 10, fill: "#e2e8f0" }} />
+                )}
+              </Bar>
+            ))}
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="variacaoPct"
+              name="Variação %"
+              stroke="#FFB74D"
+              strokeWidth={2}
+              connectNulls
+              dot={(props: any) => {
+                const { cx, cy, payload } = props;
+                if (payload.variacaoPct == null) return <g />;
+                const up = payload.variacaoPct >= 0;
+                return <circle cx={cx} cy={cy} r={4} fill={up ? "#E57373" : "#81C784"} stroke="#0f172a" strokeWidth={1} />;
+              }}
+            >
+              <LabelList
+                dataKey="variacaoPct"
+                position="top"
+                formatter={(v: number) => (v == null ? "" : `${v >= 0 ? "▲" : "▼"} ${Math.abs(v).toFixed(1)}%`)}
+                style={{ fontSize: 10, fill: "#e2e8f0" }}
+              />
+            </Line>
+          </ComposedChart>
+        </ResponsiveContainer>
+        <p className="text-xs text-slate-400 mt-2">
+          Barras empilhadas por motivo de baixa. Linha indica evolução (▲ vermelho = aumento de baixas / involução) ou involução (▼ verde = redução / evolução positiva) em pontos percentuais vs mês anterior.
+        </p>
+      </BiPanel>
+
+
       {/* Resumo executivo — barra escura full width */}
       <div className="rounded-xl border border-border/40 bg-[hsl(220_18%_10%)] text-slate-100 px-5 py-4">
         <div className="text-xs uppercase tracking-wider text-slate-400 mb-1">Resumo Executivo</div>
@@ -748,66 +810,6 @@ function BaixasDashboard() {
         </BiPanel>
       </div>
 
-      {/* MoM — colunas de total + linha de variação % vs mês anterior */}
-      <BiPanel title="MoM — Mês vs Mês Anterior">
-        <ResponsiveContainer width="100%" height={360}>
-          <ComposedChart data={mom.data} margin={{ top: 26, left: 30, right: 40, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
-            <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Mês", position: "insideBottom", offset: -4, fill: "#94a3b8", fontSize: 11 }} />
-            <YAxis yAxisId="left" tickFormatter={(v) => fmtMil(Number(v))} tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Total Baixas (R$ Mil)", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }} />
-            <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11, fill: "#cbd5e1" }} label={{ value: "Variação % MoM", angle: 90, position: "insideRight", fill: "#94a3b8", fontSize: 11 }} />
-            <Tooltip
-              contentStyle={{ background: "#0f172a", border: "1px solid #334155" }}
-              formatter={(v: number, name: string) => {
-                if (name === "Variação %") return v == null ? ["—", name] : [`${v.toFixed(1)}%`, name];
-                if (!v) return [null as any, null as any];
-                return [formatBRL(v), name];
-              }}
-            />
-            <Legend wrapperStyle={{ fontSize: 11, color: "#cbd5e1" }} />
-            {mom.motivos.map((m, i) => (
-              <Bar
-                key={m.nome}
-                yAxisId="left"
-                dataKey={m.nome}
-                name={m.nome}
-                stackId="motivos"
-                fill={m.cor}
-                radius={i === mom.motivos.length - 1 ? [3, 3, 0, 0] : undefined}
-              >
-                {i === mom.motivos.length - 1 && (
-                  <LabelList dataKey="total" position="top" formatter={(v: number) => fmtMil(v)} style={{ fontSize: 10, fill: "#e2e8f0" }} />
-                )}
-              </Bar>
-            ))}
-            <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey="variacaoPct"
-              name="Variação %"
-              stroke="#FFB74D"
-              strokeWidth={2}
-              connectNulls
-              dot={(props: any) => {
-                const { cx, cy, payload } = props;
-                if (payload.variacaoPct == null) return <g />;
-                const up = payload.variacaoPct >= 0;
-                return <circle cx={cx} cy={cy} r={4} fill={up ? "#E57373" : "#81C784"} stroke="#0f172a" strokeWidth={1} />;
-              }}
-            >
-              <LabelList
-                dataKey="variacaoPct"
-                position="top"
-                formatter={(v: number) => (v == null ? "" : `${v >= 0 ? "▲" : "▼"} ${Math.abs(v).toFixed(1)}%`)}
-                style={{ fontSize: 10, fill: "#e2e8f0" }}
-              />
-            </Line>
-          </ComposedChart>
-        </ResponsiveContainer>
-        <p className="text-xs text-slate-400 mt-2">
-          Barras empilhadas por motivo de baixa. Linha indica evolução (▲ vermelho = aumento de baixas / involução) ou involução (▼ verde = redução / evolução positiva) em pontos percentuais vs mês anterior.
-        </p>
-      </BiPanel>
 
       <DetalheMotivoBaixasDialog ctx={detalheMotivo} onOpenChange={(o) => !o && setDetalheMotivo(null)} />
 
