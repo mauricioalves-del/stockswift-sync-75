@@ -1,8 +1,8 @@
 # Correção de grupos das Baixas Operacionais
 
 ## Destaque MoM e segurança
-- [ ] Mover a análise MoM para o topo do dashboard, preservando os cálculos existentes.
-- [ ] Validar a posição e a exibição do gráfico.
+- [x] Mover a análise MoM para o topo do dashboard, preservando os cálculos existentes.
+- [x] Validar a posição e a exibição do gráfico.
 - [ ] Definir com o usuário o acesso aos dados sinalizados pelo scan (aguarda decisão sobre permissões).
 
 - [x] Preencher os 115 códigos sem grupo a partir da planilha, preservando cadastros existentes.
