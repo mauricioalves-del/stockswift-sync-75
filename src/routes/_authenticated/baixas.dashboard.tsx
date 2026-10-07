@@ -178,10 +178,12 @@ function BaixasDashboard() {
     const profiles = profilesQ.data ?? [];
     const alertas = alertasQ.data ?? [];
     const grupoDe = new Map(grupos.map((g) => [g.codigo_produto, g.grupo]));
+    const motivoNome = new Map(motivos.map((m) => [m.id, m.descricao]));
 
     const baixas = baixasRaw.filter((b) => {
       const g = grupoDe.get(b.codigo_produto) || b.categoria || "Sem grupo";
       return (
+        !MOTIVOS_EXCLUIDOS.has(motivoNome.get(b.motivo_baixa_id) ?? "") &&
         (almoxFilter === "__all__" || (b.id_local ?? "—") === almoxFilter) &&
         (motivoFilter.length === 0 || (b.motivo_baixa_id && motivoFilter.includes(b.motivo_baixa_id))) &&
         (grupoFilter.length === 0 || grupoFilter.includes(g))
