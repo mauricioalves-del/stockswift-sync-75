@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Gem, Download, Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { enviarFarolPremiumAgora } from "@/lib/farol-premium.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { montarDadosHtml, gerarHtmlInterativo } from "@/lib/premium-html";
@@ -161,13 +163,13 @@ function DashboardPremiumPage() {
 
   // Gera um arquivo HTML único e interativo (filtros funcionam offline), com os filtros atuais como ponto de partida.
   const [enviando, setEnviando] = useState(false);
+  const enviarFn = useServerFn(enviarFarolPremiumAgora);
   async function enviarEmailAgora() {
     if (!confirm("Enviar agora o e-mail do Farol Premium para os destinatários cadastrados?")) return;
     setEnviando(true);
     try {
-      const { data, error } = await supabase.functions.invoke("farol-premium-semanal", { body: {} });
-      if (error) throw error;
-      if ((data as any)?.ok === false || (data as any)?.error) throw new Error((data as any)?.error ?? "Falha no envio");
+      const r = await enviarFn();
+      if (!r.ok) throw new Error(r.error ?? "Falha no envio");
       toast.success("E-mail enviado com sucesso");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao enviar e-mail");
