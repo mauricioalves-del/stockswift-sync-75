@@ -395,6 +395,12 @@ function MissaoExecucaoPage() {
               placeholder="Buscar lote (nº ou sequência)…"
               className="h-8 text-sm flex-1 min-w-0 sm:max-w-xs"
             />
+            <Input
+              value={filtroObs}
+              onChange={(e) => setFiltroObs(e.target.value)}
+              placeholder="Buscar observação…"
+              className="h-8 text-sm flex-1 min-w-0 sm:max-w-xs"
+            />
           </div>
         </CardHeader>
         <CardContent className="p-0">
