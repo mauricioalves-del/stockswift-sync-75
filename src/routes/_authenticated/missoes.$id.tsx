@@ -182,6 +182,7 @@ function MissaoExecucaoPage() {
   const [filtroGrupo, setFiltroGrupo] = useState(FILTRO_TODOS);
   const [filtroFamilia, setFiltroFamilia] = useState(FILTRO_TODOS);
   const [filtroLote, setFiltroLote] = useState("");
+  const [filtroObs, setFiltroObs] = useState("");
 
   // Opções dos dropdowns restritas aos SKUs realmente presentes nesta missão (missoes_itens)
   const codigosMissao = useMemo(
