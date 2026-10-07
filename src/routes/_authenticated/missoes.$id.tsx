@@ -229,7 +229,8 @@ function MissaoExecucaoPage() {
     const setG = filtroGrupo !== FILTRO_TODOS ? new Set(codigosGrupo ?? []) : null;
     const setF = filtroFamilia !== FILTRO_TODOS ? new Set(codigosFamilia ?? []) : null;
     const loteQ = filtroLote.trim().toLowerCase();
-    if (!q && !setG && !setF && !loteQ) return itens;
+    const obsQ = filtroObs.trim().toLowerCase();
+    if (!q && !setG && !setF && !loteQ && !obsQ) return itens;
     const loteLinhas = new Map<string, string[]>();
     if (loteQ) {
       for (const r of linhasQ.data ? Array.from(linhasQ.data.values()).flat() : []) {
@@ -248,13 +249,14 @@ function MissaoExecucaoPage() {
         ];
         if (!lotes.some((l) => l.toLowerCase().includes(loteQ))) return false;
       }
+      if (obsQ && !(i.observacao ?? "").toLowerCase().includes(obsQ)) return false;
       if (!q) return true;
       return (
         i.codigo_produto.toLowerCase().includes(q) ||
         (i.descricao ?? "").toLowerCase().includes(q)
       );
     });
-  }, [itens, busca, filtroGrupo, filtroFamilia, filtroLote, codigosGrupo, codigosFamilia, linhasQ.data]);
+  }, [itens, busca, filtroGrupo, filtroFamilia, filtroLote, filtroObs, codigosGrupo, codigosFamilia, linhasQ.data]);
 
 
   if (missaoQ.isLoading) return <div className="p-8 text-center text-muted-foreground">Carregando…</div>;
