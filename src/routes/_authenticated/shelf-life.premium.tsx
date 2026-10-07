@@ -187,12 +187,20 @@ function DashboardPremiumPage() {
             <p className="text-xs text-white/60">SKUs top de linha: estoque, custo, validade e Shelf por almoxarifado.</p>
           </div>
         </div>
-        <button
-          type="button" onClick={extrairHtml} disabled={carregando || prios.length === 0}
-          className="inline-flex items-center gap-2 rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-neutral-900 transition hover:bg-amber-200 disabled:opacity-50"
-        >
-          <Download className="size-4" /> Extrair HTML
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button" onClick={enviarEmailAgora} disabled={enviando}
+            className="inline-flex items-center gap-2 rounded-full border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-300 transition hover:bg-amber-300/10 disabled:opacity-50"
+          >
+            {enviando ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />} Enviar e-mail agora
+          </button>
+          <button
+            type="button" onClick={extrairHtml} disabled={carregando || prios.length === 0}
+            className="inline-flex items-center gap-2 rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-neutral-900 transition hover:bg-amber-200 disabled:opacity-50"
+          >
+            <Download className="size-4" /> Extrair HTML
+          </button>
+        </div>
       </div>
 
       {/* Linha de filtros e cartões (como a faixa superior do Power BI) */}
