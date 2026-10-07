@@ -366,6 +366,7 @@ function BaixasDashboard() {
     rows.forEach((r: any) => {
       const k = monthKey(String(r.data_solicitacao));
       const nome = (r.motivo_baixa_id ? nomeMotivo.get(r.motivo_baixa_id) : null) ?? "Sem motivo";
+      if (MOTIVOS_EXCLUIDOS.has(nome)) return;
       const v = Number(r.valor_total || 0);
       const m = porMes.get(k) ?? new Map<string, number>();
       m.set(nome, (m.get(nome) ?? 0) + v);
