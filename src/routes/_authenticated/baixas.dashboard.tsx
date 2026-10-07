@@ -183,7 +183,7 @@ function BaixasDashboard() {
     const baixas = baixasRaw.filter((b) => {
       const g = grupoDe.get(b.codigo_produto) || b.categoria || "Sem grupo";
       return (
-        !MOTIVOS_EXCLUIDOS.has(motivoNome.get(b.motivo_baixa_id) ?? "") &&
+        !MOTIVOS_EXCLUIDOS.has((b.motivo_baixa_id ? motivoNome.get(b.motivo_baixa_id) : null) ?? "") &&
         (almoxFilter === "__all__" || (b.id_local ?? "—") === almoxFilter) &&
         (motivoFilter.length === 0 || (b.motivo_baixa_id && motivoFilter.includes(b.motivo_baixa_id))) &&
         (grupoFilter.length === 0 || grupoFilter.includes(g))
