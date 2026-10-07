@@ -111,17 +111,16 @@ function BaixasDashboard() {
   const baixasQ = useQuery({
     queryKey: ["dash-baixas", from, to],
     queryFn: async () => {
-      const fromTs = new Date(from + "T00:00:00").toISOString();
-      const toTs = new Date(to + "T23:59:59").toISOString();
-      const { data, error } = await supabase
+      const fromTs = from + "T00:00:00Z";
+      const toTs = to + "T23:59:59.999Z";
+      return fetchAll<any>((a, b) => supabase
         .from("baixa_operacional")
         .select("id, codigo_produto, descricao, id_local, motivo_baixa_id, valor_total, quantidade, data_solicitacao, solicitante_id, categoria")
         .eq("status_fluxo", "APROVADA")
         .gte("data_solicitacao", fromTs)
         .lte("data_solicitacao", toTs)
-        .limit(20000);
-      if (error) throw error;
-      return data ?? [];
+        .order("id")
+        .range(a, b));
     },
   });
 
@@ -160,13 +159,13 @@ function BaixasDashboard() {
     queryKey: ["dash-baixas-mom"],
     queryFn: async () => {
       const desde = isoDaysAgo(365);
-      const { data } = await supabase
+      return fetchAll<any>((a, b) => supabase
         .from("baixa_operacional")
-        .select("valor_total, data_solicitacao, motivo_baixa_id")
+        .select("id, valor_total, data_solicitacao, motivo_baixa_id")
         .eq("status_fluxo", "APROVADA")
-        .gte("data_solicitacao", new Date(desde + "T00:00:00").toISOString())
-        .limit(50000);
-      return data ?? [];
+        .gte("data_solicitacao", desde.slice(0, 7) + "-01T00:00:00Z")
+        .order("id")
+        .range(a, b));
     },
   });
 
@@ -592,8 +591,8 @@ function BaixasDashboard() {
                     setDetalheMotivo({
                       motivoId: m.id,
                       motivoNome: m.nome,
-                      fromISO: new Date(from + "T00:00:00").toISOString(),
-                      toISO: new Date(to + "T23:59:59").toISOString(),
+                      fromISO: from + "T00:00:00Z",
+                      toISO: to + "T23:59:59.999Z",
                       almoxFilter,
                     })
                   }
