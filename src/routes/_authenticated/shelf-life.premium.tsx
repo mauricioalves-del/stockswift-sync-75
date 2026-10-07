@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Gem, Download } from "lucide-react";
+import { Gem, Download, Mail, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { montarDadosHtml, gerarHtmlInterativo } from "@/lib/premium-html";
@@ -159,6 +160,20 @@ function DashboardPremiumPage() {
   const carregando = priosQ.isLoading || estoqueQ.isLoading;
 
   // Gera um arquivo HTML único e interativo (filtros funcionam offline), com os filtros atuais como ponto de partida.
+  const [enviando, setEnviando] = useState(false);
+  async function enviarEmailAgora() {
+    if (!confirm("Enviar agora o e-mail do Farol Premium para os destinatários cadastrados?")) return;
+    setEnviando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("farol-premium-semanal", { body: {} });
+      if (error) throw error;
+      if ((data as any)?.ok === false || (data as any)?.error) throw new Error((data as any)?.error ?? "Falha no envio");
+      toast.success("E-mail enviado com sucesso");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao enviar e-mail");
+    } finally { setEnviando(false); }
+  }
+
   function extrairHtml() {
     const agora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
     const dados = montarDadosHtml(
@@ -187,12 +202,20 @@ function DashboardPremiumPage() {
             <p className="text-xs text-white/60">SKUs top de linha: estoque, custo, validade e Shelf por almoxarifado.</p>
           </div>
         </div>
-        <button
-          type="button" onClick={extrairHtml} disabled={carregando || prios.length === 0}
-          className="inline-flex items-center gap-2 rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-neutral-900 transition hover:bg-amber-200 disabled:opacity-50"
-        >
-          <Download className="size-4" /> Extrair HTML
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button" onClick={enviarEmailAgora} disabled={enviando}
+            className="inline-flex items-center gap-2 rounded-full border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-300 transition hover:bg-amber-300/10 disabled:opacity-50"
+          >
+            {enviando ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />} Enviar e-mail agora
+          </button>
+          <button
+            type="button" onClick={extrairHtml} disabled={carregando || prios.length === 0}
+            className="inline-flex items-center gap-2 rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-neutral-900 transition hover:bg-amber-200 disabled:opacity-50"
+          >
+            <Download className="size-4" /> Extrair HTML
+          </button>
+        </div>
       </div>
 
       {/* Linha de filtros e cartões (como a faixa superior do Power BI) */}
