@@ -47,6 +47,10 @@ const CLASSIF_TONE: Record<Classif, string> = {
   Investimento: "bg-info/15 text-info",
 };
 
+// Motivos tratados como investimento operacional em indicador próprio —
+// não entram no cálculo de prejuízo deste dashboard.
+const MOTIVOS_EXCLUIDOS = new Set(["Cortesia", "Degustação", "Uso e Consumo", "Sensorial/Inovações"]);
+
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 function isoDaysAgo(n: number) {
   const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10);
