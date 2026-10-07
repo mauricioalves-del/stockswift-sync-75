@@ -195,7 +195,6 @@ function BaixasDashboard() {
       .filter((id) => !MOTIVOS_EXCLUIDOS.has(motivoNome.get(id) ?? ""));
 
 
-    const motivoNome = new Map(motivos.map((m) => [m.id, m.descricao]));
     const motivoClassif = new Map(classifs.map((c) => [c.motivo_baixa_id, c.classificacao]));
     const nomeUsuario = new Map(profiles.map((p) => [p.id, p.nome || p.email || p.id.slice(0, 8)]));
 
