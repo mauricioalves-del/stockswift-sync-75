@@ -11,6 +11,7 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { fetchAll } from "@/lib/fetch-all";
 import { Button } from "@/components/ui/button";
 import { ListaObsoletosDialog } from "@/components/suprimentos/ListaObsoletosDialog";
+import { exportarObsoletosHtml } from "@/lib/export-obsoletos-html";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, LabelList, Cell, Legend,
 } from "recharts";
@@ -262,11 +263,44 @@ function RiscoObsoletos() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Risco Obsoletos</h1>
-        <p className="text-sm text-muted-foreground">
-          Itens em estoque sem movimentação sistêmica (entradas, transferências, consumo em produção ou conclusão de OP).
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Risco Obsoletos</h1>
+          <p className="text-sm text-muted-foreground">
+            Itens em estoque sem movimentação sistêmica (entradas, transferências, consumo em produção ou conclusão de OP).
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          disabled={!filtradas.length}
+          onClick={() =>
+            exportarObsoletosHtml({
+              filtros: [
+                ...(busca.trim() ? [{ label: "Busca", valor: busca.trim() }] : []),
+                { label: "Faixa", valor: faixaFilter === "todas" ? "Todas" : FAIXA_LABEL[faixaFilter] ?? faixaFilter },
+                { label: "Empresa", valor: empresa === "todas" ? "Todas" : empresa },
+                { label: "Almoxarifado", valor: almoxFilter === "todos" ? "Todos" : almoxFilter },
+                { label: "Grupo", valor: grupoFilter.length ? grupoFilter.join(", ") : "Todos" },
+              ],
+              linhas: filtradas
+                .filter((r) => (FAIXAS_RISCO as readonly string[]).includes(r.faixa))
+                .map((r) => ({
+                  id_produto: r.id_produto,
+                  descricao: r.descricao ?? "",
+                  almoxarifado: r.almoxarifado || "—",
+                  grupo: grupoDe(r.id_produto) || "Sem grupo",
+                  empresa: r.empresa,
+                  lote: r.lote ?? "",
+                  saldo: Number(r.saldo) || 0,
+                  valor: Number(r.valor) || 0,
+                  dias: r.dias_sem_mov,
+                  faixa: r.faixa,
+                })),
+            })
+          }
+        >
+          Extrair HTML
+        </Button>
       </div>
 
       <Card>
