@@ -47,6 +47,10 @@ const CLASSIF_TONE: Record<Classif, string> = {
   Investimento: "bg-info/15 text-info",
 };
 
+// Motivos tratados como investimento operacional em indicador próprio —
+// não entram no cálculo de prejuízo deste dashboard.
+const MOTIVOS_EXCLUIDOS = new Set(["Cortesia", "Degustação", "Uso e Consumo", "Sensorial/Inovações"]);
+
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 function isoDaysAgo(n: number) {
   const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10);
@@ -174,10 +178,12 @@ function BaixasDashboard() {
     const profiles = profilesQ.data ?? [];
     const alertas = alertasQ.data ?? [];
     const grupoDe = new Map(grupos.map((g) => [g.codigo_produto, g.grupo]));
+    const motivoNome = new Map(motivos.map((m) => [m.id, m.descricao]));
 
     const baixas = baixasRaw.filter((b) => {
       const g = grupoDe.get(b.codigo_produto) || b.categoria || "Sem grupo";
       return (
+        !MOTIVOS_EXCLUIDOS.has((b.motivo_baixa_id ? motivoNome.get(b.motivo_baixa_id) : null) ?? "") &&
         (almoxFilter === "__all__" || (b.id_local ?? "—") === almoxFilter) &&
         (motivoFilter.length === 0 || (b.motivo_baixa_id && motivoFilter.includes(b.motivo_baixa_id))) &&
         (grupoFilter.length === 0 || grupoFilter.includes(g))
@@ -185,10 +191,10 @@ function BaixasDashboard() {
     });
 
     const almoxOptions = [...new Set(baixasRaw.map((b) => b.id_local ?? "—"))].sort();
-    const motivoOptions = [...new Set(baixasRaw.map((b) => b.motivo_baixa_id).filter(Boolean))] as string[];
+    const motivoOptions = ([...new Set(baixasRaw.map((b) => b.motivo_baixa_id).filter(Boolean))] as string[])
+      .filter((id) => !MOTIVOS_EXCLUIDOS.has(motivoNome.get(id) ?? ""));
 
 
-    const motivoNome = new Map(motivos.map((m) => [m.id, m.descricao]));
     const motivoClassif = new Map(classifs.map((c) => [c.motivo_baixa_id, c.classificacao]));
     const nomeUsuario = new Map(profiles.map((p) => [p.id, p.nome || p.email || p.id.slice(0, 8)]));
 
@@ -362,6 +368,7 @@ function BaixasDashboard() {
     rows.forEach((r: any) => {
       const k = monthKey(String(r.data_solicitacao));
       const nome = (r.motivo_baixa_id ? nomeMotivo.get(r.motivo_baixa_id) : null) ?? "Sem motivo";
+      if (MOTIVOS_EXCLUIDOS.has(nome)) return;
       const v = Number(r.valor_total || 0);
       const m = porMes.get(k) ?? new Map<string, number>();
       m.set(nome, (m.get(nome) ?? 0) + v);
