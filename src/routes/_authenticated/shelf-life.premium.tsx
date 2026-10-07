@@ -2,9 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Gem } from "lucide-react";
+import { Gem, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { montarDadosHtml, gerarHtmlInterativo } from "@/lib/premium-html";
 
 export const Route = createFileRoute("/_authenticated/shelf-life/premium")({
   component: DashboardPremiumPage,
@@ -157,14 +158,41 @@ function DashboardPremiumPage() {
   );
   const carregando = priosQ.isLoading || estoqueQ.isLoading;
 
+  // Gera um arquivo HTML único e interativo (filtros funcionam offline), com os filtros atuais como ponto de partida.
+  function extrairHtml() {
+    const agora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    const dados = montarDadosHtml(
+      prios, estoqueQ.data ?? [], hoje, agora,
+      { amarelo: LIMITE_AMARELO, vermelho: LIMITE_VERMELHO }, { faixa, produtos },
+      window.location.origin + "/shelf-life/premium",
+    );
+    const html = gerarHtmlInterativo(dados);
+    const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "Dashboard_Premium_" + hoje + ".html";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
   return (
     <div className="rounded-2xl p-4 md:p-6 space-y-4 text-white bg-gradient-to-br from-neutral-950 via-neutral-800 to-stone-900">
-      <div className="flex items-center gap-2">
-        <Gem className="size-6 text-amber-300" />
-        <div>
-          <h1 className="text-2xl font-bold leading-tight">Dashboard Premium</h1>
-          <p className="text-xs text-white/60">SKUs top de linha: estoque, custo, validade e Shelf por almoxarifado.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Gem className="size-6 text-amber-300" />
+          <div>
+            <h1 className="text-2xl font-bold leading-tight">Dashboard Premium</h1>
+            <p className="text-xs text-white/60">SKUs top de linha: estoque, custo, validade e Shelf por almoxarifado.</p>
+          </div>
         </div>
+        <button
+          type="button" onClick={extrairHtml} disabled={carregando || prios.length === 0}
+          className="inline-flex items-center gap-2 rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-neutral-900 transition hover:bg-amber-200 disabled:opacity-50"
+        >
+          <Download className="size-4" /> Extrair HTML
+        </button>
       </div>
 
       {/* Linha de filtros e cartões (como a faixa superior do Power BI) */}
