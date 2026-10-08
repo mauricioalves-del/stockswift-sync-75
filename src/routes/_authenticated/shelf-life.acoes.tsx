@@ -20,7 +20,7 @@ import { useRole } from "@/hooks/useRole";
 import { Link2, MessageCircle, Pencil, Plus, RotateCw, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { WhatsAppFallbackDialog } from "@/components/shelf-life/WhatsAppFallbackDialog";
-import { copiarEAbrirWhatsApp, montarMensagemQueimaLote } from "@/lib/whatsapp-message";
+import { buscarFamiliasPorSku, copiarEAbrirWhatsApp, montarMensagemQueimaLote } from "@/lib/whatsapp-message";
 import { RecalcularValoresDialog } from "@/components/shelf-life/RecalcularValoresDialog";
 
 export const Route = createFileRoute("/_authenticated/shelf-life/acoes")({
@@ -116,6 +116,7 @@ function AcoesLote() {
 
   const enviarSelecao = async () => {
     if (!selecionadas.length) return;
+    const familias = await buscarFamiliasPorSku(supabase, selecionadas.map((c) => c.sku));
     const mensagem = montarMensagemQueimaLote(
       selecionadas.map((c) => ({
         descricao: c.descricao ?? c.sku,
@@ -126,6 +127,7 @@ function AcoesLote() {
         dataValidade: c.data_validade,
         sku: c.sku,
         lote: c.lote,
+        familia: familias.get(String(c.sku)) ?? null,
       })),
     );
     const copiado = await copiarEAbrirWhatsApp(mensagem);
