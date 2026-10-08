@@ -14,6 +14,89 @@ export type Database = {
   }
   public: {
     Tables: {
+      acoes_obsoleto: {
+        Row: {
+          almoxarifado: string | null
+          concluido_em: string | null
+          created_at: string
+          criado_por: string | null
+          custo_unitario: number
+          data_acao: string
+          descricao: string | null
+          dias_sem_mov: number | null
+          faixa: string | null
+          id: string
+          id_produto: string
+          lote: string | null
+          observacao: string | null
+          quantidade: number
+          responsavel_id: string | null
+          responsavel_label: string | null
+          saving_recuperado: number
+          status: string
+          tipo_acao_id: string | null
+          updated_at: string
+          valor_em_risco: number
+          valor_recuperado: number
+        }
+        Insert: {
+          almoxarifado?: string | null
+          concluido_em?: string | null
+          created_at?: string
+          criado_por?: string | null
+          custo_unitario?: number
+          data_acao?: string
+          descricao?: string | null
+          dias_sem_mov?: number | null
+          faixa?: string | null
+          id?: string
+          id_produto: string
+          lote?: string | null
+          observacao?: string | null
+          quantidade?: number
+          responsavel_id?: string | null
+          responsavel_label?: string | null
+          saving_recuperado?: number
+          status?: string
+          tipo_acao_id?: string | null
+          updated_at?: string
+          valor_em_risco?: number
+          valor_recuperado?: number
+        }
+        Update: {
+          almoxarifado?: string | null
+          concluido_em?: string | null
+          created_at?: string
+          criado_por?: string | null
+          custo_unitario?: number
+          data_acao?: string
+          descricao?: string | null
+          dias_sem_mov?: number | null
+          faixa?: string | null
+          id?: string
+          id_produto?: string
+          lote?: string | null
+          observacao?: string | null
+          quantidade?: number
+          responsavel_id?: string | null
+          responsavel_label?: string | null
+          saving_recuperado?: number
+          status?: string
+          tipo_acao_id?: string | null
+          updated_at?: string
+          valor_em_risco?: number
+          valor_recuperado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acoes_obsoleto_tipo_acao_id_fkey"
+            columns: ["tipo_acao_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_acao_obsoleto"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_config: {
         Row: {
           chave: string
@@ -3369,6 +3452,7 @@ export type Database = {
       }
       tarefas_operacionais: {
         Row: {
+          acao_obsoleto_id: string | null
           campanha_lote_id: string | null
           checklist_modelo_id: string | null
           concluido_em: string | null
@@ -3398,6 +3482,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          acao_obsoleto_id?: string | null
           campanha_lote_id?: string | null
           checklist_modelo_id?: string | null
           concluido_em?: string | null
@@ -3427,6 +3512,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          acao_obsoleto_id?: string | null
           campanha_lote_id?: string | null
           checklist_modelo_id?: string | null
           concluido_em?: string | null
@@ -3456,6 +3542,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tarefas_operacionais_acao_obsoleto_id_fkey"
+            columns: ["acao_obsoleto_id"]
+            isOneToOne: false
+            referencedRelation: "acoes_obsoleto"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tarefas_operacionais_campanha_lote_id_fkey"
             columns: ["campanha_lote_id"]
@@ -3492,6 +3585,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tipos_acao_obsoleto: {
+        Row: {
+          ativo: boolean
+          categoria: string
+          created_at: string
+          id: string
+          nome: string
+          ordem: number
+        }
+        Insert: {
+          ativo?: boolean
+          categoria?: string
+          created_at?: string
+          id?: string
+          nome: string
+          ordem?: number
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          ordem?: number
+        }
+        Relationships: []
       }
       tipos_acao_shelf_life: {
         Row: {
