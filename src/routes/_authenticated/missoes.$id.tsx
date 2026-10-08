@@ -523,7 +523,8 @@ const LinhaItem = memo(function LinhaItem({
         lote: item.lote,
         eh_nao_relacionado: false,
         quantidade_contada: "",
-        saldo_sistemico_lote: proprio?.saldo ?? Number(item.quantidade_prevista ?? 0),
+        // Saldo congelado na geração da missão (quantidade_prevista); o estoque ao vivo só entra se não houver.
+        saldo_sistemico_lote: item.quantidade_prevista != null ? Number(item.quantidade_prevista) : (proprio?.saldo ?? 0),
       }];
     }
     // Item legado sem lote definido: mantém a sugestão FEFO com seletor.
@@ -573,7 +574,9 @@ const LinhaItem = memo(function LinhaItem({
   // Item com lote próprio: a linha é fixa nesse lote (sem seletor) e o "Sistema" é o saldo desse lote.
   const loteProprio = !!item.lote;
   const saldoProprio = loteProprio
-    ? (lotesSist.find((l) => l.lote === item.lote)?.saldo ?? Number(item.quantidade_prevista ?? 0))
+    ? (item.quantidade_prevista != null
+        ? Number(item.quantidade_prevista)
+        : (lotesSist.find((l) => l.lote === item.lote)?.saldo ?? 0))
     : 0;
   const totalSistExibir = loteProprio ? saldoProprio : totalSist;
   const totalContado = linhas.reduce((s, l) => s + (Number(l.quantidade_contada.replace(",", ".")) || 0), 0);
@@ -581,17 +584,23 @@ const LinhaItem = memo(function LinhaItem({
   // Linha reconhecida → saldo do lote; linha manual (não relacionada) → 0 por definição.
   const totalSistemaLinhas = linhas.reduce((s, l) => {
     if (l.eh_nao_relacionado) return s;
-    const live = lotesSist.find((x) => x.lote === l.lote);
-    return s + (live ? live.saldo : (l.saldo_sistemico_lote ?? 0));
+    return s + saldoSistemaDoLote(l.lote, l.saldo_sistemico_lote);
   }, 0);
   // Motor de divergência agregado do SKU compara Total Contado × Total Sistema (faixa 95–105%).
   const sistemaParaDivergencia = totalSistemaLinhas;
 
   // Status por linha — vocabulário único (item 3 do spec).
   type StatusLinha = "PENDENTE" | "TOLERANCIA" | "DIV_NEG" | "DIV_POS" | "QUEBRA_FEFO";
+  // Saldo do sistema CONGELADO no momento em que a missão foi gerada: na linha do próprio lote do item vale
+  // a quantidade_prevista (foto do estoque na geração). O estoque ao vivo muda depois (vendas, ajustes,
+  // reimportação) e nunca pode alterar o resultado de uma contagem já feita.
+  function saldoSistemaDoLote(lote: string | null | undefined, salvo: number | null | undefined): number {
+    if (item.lote && lote === item.lote && item.quantidade_prevista != null) return Number(item.quantidade_prevista);
+    const live = lotesSist.find((x) => x.lote === lote);
+    return live ? live.saldo : Number(salvo ?? 0);
+  }
   function saldoDaLinha(l: LinhaLote): number {
-    const live = lotesSist.find((x) => x.lote === l.lote);
-    return live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0);
+    return saldoSistemaDoLote(l.lote, l.saldo_sistemico_lote);
   }
   function statusLinha(l: LinhaLote): StatusLinha {
     const q = Number((l.quantidade_contada ?? "").toString().replace(",", "."));
@@ -994,8 +1003,7 @@ const LinhaItem = memo(function LinhaItem({
                 placeholder="0"
               />
               {(() => {
-                const live = !l.eh_nao_relacionado && l.lote ? lotesSist.find((x) => x.lote === l.lote) : null;
-                const saldo = l.eh_nao_relacionado ? null : (live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0));
+                const saldo = l.eh_nao_relacionado ? null : saldoSistemaDoLote(l.lote, l.saldo_sistemico_lote);
                 const st = statusLinha(l);
                 const stClass =
                   st === "TOLERANCIA" ? "bg-success/15 text-success" :
@@ -1162,8 +1170,7 @@ const LinhaItem = memo(function LinhaItem({
                 title="Enter para salvar"
               />
               {(() => {
-                const live = !l.eh_nao_relacionado && l.lote ? lotesSist.find((x) => x.lote === l.lote) : null;
-                const saldo = l.eh_nao_relacionado ? null : (live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0));
+                const saldo = l.eh_nao_relacionado ? null : saldoSistemaDoLote(l.lote, l.saldo_sistemico_lote);
                 const st = statusLinha(l);
                 const stClass =
                   st === "TOLERANCIA" ? "bg-success/15 text-success" :
