@@ -7,6 +7,8 @@ export type MensagemQueimaInput = {
   dataValidade?: string | null;
   sku?: string | null;
   lote?: string | null;
+  /** Família do produto (tabela familias): define o emoji ao lado do nome. */
+  familia?: string | null;
 };
 
 export type AvisoInternoInput = {
@@ -39,14 +41,71 @@ function dataBR(iso?: string | null) {
   return `${d}/${m}/${a}`;
 }
 
-const CABECALHO = ["🍇ATENÇÃO COLABORADORES🍇", "", "🔥SUPER QUEIMA DE ESTOQUE🔥", "Confira:", ""];
+const CABECALHO = ["📢ATENÇÃO COLABORADORES📢", "", "🔥SUPER QUEIMA DE ESTOQUE🔥", "Confira:", ""];
 const RODAPE = ["", "Estoque limitado!", "Corra antes que acabe! 🏃💨"];
+
+function semAcento(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+// Emoji por FAMÍLIA do produto (comparação sem acento e por trecho, tolera "Povos Indiginas" etc.).
+// A primeira regra que combinar vence. Para mudar um emoji, é só editar esta lista.
+const EMOJI_POR_FAMILIA: [string, string][] = [
+  ["grane", "🍬"],                // Granéis / granel: bombons
+  ["flowpack", "🍬"],
+  ["encontro de sabores", "🍫"],  // barras
+  ["povos", "🍫"],                // Povos da Floresta e Povos Indígenas: barras
+  ["biscoito", "🍪"],
+  ["bolo", "🍰"],
+  ["caixa", "🎁"],                // Caixa de presente e Caixa - Língua de onça
+  ["embalagem", "📦"],
+  ["lua cheia", "🌕"],
+  ["polpa", "🍇"],
+  ["producao", "🏭"],
+  ["revenda", "🛒"],
+  ["sorvete", "🍦"],
+];
+
+// Plano B quando o SKU não tem família cadastrada: pelo nome do produto.
+const EMOJI_POR_NOME: [RegExp, string][] = [
+  [/\bmini ovos?\b/, "🐰"],
+  [/\bovos?\b/, "🍫"],
+  [/\bbomb(om|ons)\b/, "🍬"],
+  [/\bcaixa\b/, "🎁"],
+  [/\bbarra\b/, "🍫"],
+];
+
+/** Emoji que acompanha o nome do produto na mensagem. Padrão: 🍫. */
+export function emojiDoProduto(familia?: string | null, descricao?: string | null): string {
+  const f = semAcento(String(familia ?? ""));
+  for (const [chave, emoji] of EMOJI_POR_FAMILIA) if (f.includes(chave)) return emoji;
+  const d = semAcento(String(descricao ?? ""));
+  for (const [regra, emoji] of EMOJI_POR_NOME) if (regra.test(d)) return emoji;
+  return "🍫";
+}
+
+/** Busca a família de cada SKU (tabela familias). Em caso de falha, devolve vazio e o emoji sai pelo nome. */
+export async function buscarFamiliasPorSku(supabase: any, skus: (string | null | undefined)[]): Promise<Map<string, string>> {
+  const ids = [...new Set(skus.map((s) => String(s ?? "").trim()).filter(Boolean))];
+  const mapa = new Map<string, string>();
+  if (ids.length === 0) return mapa;
+  try {
+    const { data } = await supabase.from("familias").select("codigo_produto, familia").in("codigo_produto", ids);
+    for (const f of data ?? []) {
+      const k = String(f.codigo_produto);
+      if (f.familia && !mapa.has(k)) mapa.set(k, String(f.familia));
+    }
+  } catch {
+    /* sem família: usa o emoji pelo nome do produto */
+  }
+  return mapa;
+}
 
 /** §3.1 — Template individual para ações da categoria Vendas. */
 export function montarMensagemQueima(i: MensagemQueimaInput): string {
   return [
     ...CABECALHO,
-    `${i.descricao} 🍫`,
+    `${i.descricao} ${emojiDoProduto(i.familia, i.descricao)}`,
     ` -> De: R$ ${brl(i.precoVenda)}`,
     ` -> Por: R$ ${brl(i.precoComDesconto)}`,
     ` Estoque: ${qtd(i.quantidade, i.unidade)}`,
@@ -71,7 +130,7 @@ export function montarAvisoInterno(i: AvisoInternoInput): string {
 /** §3.3 — Template consolidado (envio em massa), só itens de categoria Vendas. */
 export function montarMensagemQueimaLote(itens: MensagemQueimaInput[]): string {
   const blocos = itens.flatMap((i, idx) => [
-    `${idx + 1}) ${i.descricao} 🍫`,
+    `${idx + 1}) ${i.descricao} ${emojiDoProduto(i.familia, i.descricao)}`,
     ` -> De: R$ ${brl(i.precoVenda)} / Por: R$ ${brl(i.precoComDesconto)}`,
     ` Estoque: ${qtd(i.quantidade, i.unidade)} · Validade: ${dataBR(i.dataValidade)}`,
     "",
