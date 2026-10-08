@@ -1,7 +1,7 @@
 // Motor de cálculo do módulo Shelf Life (controle de validade).
 // Funções puras — nenhuma dependência de rede — para facilitar ajuste de fórmulas.
 
-export type Faixa = "VENCIDO" | "30" | "60" | "90" | "PENDENTE";
+export type Faixa = "VENCIDO" | "30" | "60" | "90" | "PENDENTE" | "MAIS90";
 
 export const FAIXA_LABEL: Record<Faixa, string> = {
   VENCIDO: "Vencido",
@@ -9,6 +9,7 @@ export const FAIXA_LABEL: Record<Faixa, string> = {
   "60": "60 dias",
   "90": "90 dias",
   PENDENTE: "Pendente de Validade",
+  MAIS90: "+90 dias (fora do radar)",
 };
 
 export const FAIXA_TONE: Record<Faixa, string> = {
@@ -17,6 +18,7 @@ export const FAIXA_TONE: Record<Faixa, string> = {
   "60": "bg-warning/15 text-warning",
   "90": "bg-info/15 text-info",
   PENDENTE: "bg-muted text-muted-foreground",
+  MAIS90: "bg-secondary text-secondary-foreground",
 };
 
 export function diasParaVencer(validade: string | null | undefined, hoje = new Date()): number | null {

@@ -89,12 +89,13 @@ export type LoteRisco = {
 };
 
 /** Lotes com saldo > 0 dentro do radar de validade (<= 90 dias, vencidos ou sem validade). */
-export function useLotesRisco(opts?: { almoxAtivos?: string[]; somenteComSaldo?: boolean }) {
+export function useLotesRisco(opts?: { almoxAtivos?: string[]; somenteComSaldo?: boolean; incluirForaRadar?: boolean }) {
   const { almoxes: permitidos, loading } = useMeusAlmoxarifados();
   const almoxes = almoxEfetivos(permitidos, opts?.almoxAtivos ?? []);
   const somenteComSaldo = opts?.somenteComSaldo !== false;
+  const incluirFora = !!opts?.incluirForaRadar;
   return useQuery({
-    queryKey: ["shelf-lotes-risco", almoxes?.join(",") ?? "all", somenteComSaldo],
+    queryKey: ["shelf-lotes-risco", almoxes?.join(",") ?? "all", somenteComSaldo, incluirFora],
     enabled: !loading,
     // Fonte única e sempre atual: estoque_sistemico (atualizado pela Sincronização do Lote_Sistema).
     staleTime: 0,
@@ -128,7 +129,7 @@ export function useLotesRisco(opts?: { almoxAtivos?: string[]; somenteComSaldo?:
 
       const out: LoteRisco[] = [];
       for (const r of estoque) {
-        const faixa = faixaDeRisco(r.data_validade, hoje);
+        const faixa: Faixa | null = faixaDeRisco(r.data_validade, hoje) ?? (incluirFora ? "MAIS90" : null);
         if (!faixa) continue; // > 90 dias, fora do radar
         const qtd = Number(r.quantidade) || 0;
         const custo = Number(r.custo_unitario) || 0;

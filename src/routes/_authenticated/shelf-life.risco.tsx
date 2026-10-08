@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatBRL, formatNum } from "@/lib/inventory";
 import { FAIXA_LABEL, FAIXA_TONE, type Faixa } from "@/lib/shelf-life";
@@ -44,7 +45,8 @@ type SortKey = "dias" | "valor" | "quantidade" | "sku" | "descricao" | "lote" | 
 
 function MapeamentoRisco() {
   const { almoxAtivos, somenteComSaldo } = useShelfConfig();
-  const lotes = useLotesRisco({ almoxAtivos, somenteComSaldo });
+  const [incluirFora, setIncluirFora] = usePersistedState<boolean>("shelf-life:risco:incluir-fora", false);
+  const lotes = useLotesRisco({ almoxAtivos, somenteComSaldo, incluirForaRadar: incluirFora });
   const campanhas = useCampanhas();
   const [f, setF] = usePersistedState<FiltrosRisco>("shelf-life:risco:filtros", FILTROS_PADRAO);
   const [draft, setDraft] = useState<CampanhaDraft | null>(null);
@@ -171,12 +173,16 @@ function MapeamentoRisco() {
           <div>
             <Label className="text-xs">Faixa</Label>
             <MultiSelect
-              options={(["VENCIDO", "30", "60", "90", "PENDENTE"] as Faixa[]).map((x) => ({ value: x, label: FAIXA_LABEL[x] }))}
+              options={(["VENCIDO", "30", "60", "90", "PENDENTE", ...(incluirFora ? ["MAIS90"] : [])] as Faixa[]).map((x) => ({ value: x, label: FAIXA_LABEL[x] }))}
               value={f.faixas}
               onChange={(v) => set("faixas", v)}
               allLabel="Todas"
             />
           </div>
+          <label className="flex items-center gap-2 text-xs sm:col-span-3 lg:col-span-6 cursor-pointer">
+            <Switch checked={incluirFora} onCheckedChange={setIncluirFora} />
+            Incluir lotes fora do radar (mais de 90 dias) — para criar ações preventivas de risco de perda
+          </label>
           <div>
             <Label className="text-xs">Status de Ação</Label>
             <MultiSelect
