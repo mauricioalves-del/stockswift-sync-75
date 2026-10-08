@@ -1003,6 +1003,8 @@ export type Database = {
       estoque_sistemico: {
         Row: {
           cliente: string
+          custo_contabil: number | null
+          custo_padrao: number | null
           custo_unitario: number
           data_importacao: string
           data_validade: string | null
@@ -1014,11 +1016,14 @@ export type Database = {
           importado_por: string | null
           lote: string
           origem: string
+          origem_custo: string | null
           quantidade: number
           unidade: string
         }
         Insert: {
           cliente?: string
+          custo_contabil?: number | null
+          custo_padrao?: number | null
           custo_unitario?: number
           data_importacao?: string
           data_validade?: string | null
@@ -1030,11 +1035,14 @@ export type Database = {
           importado_por?: string | null
           lote?: string
           origem?: string
+          origem_custo?: string | null
           quantidade?: number
           unidade?: string
         }
         Update: {
           cliente?: string
+          custo_contabil?: number | null
+          custo_padrao?: number | null
           custo_unitario?: number
           data_importacao?: string
           data_validade?: string | null
@@ -1046,6 +1054,7 @@ export type Database = {
           importado_por?: string | null
           lote?: string
           origem?: string
+          origem_custo?: string | null
           quantidade?: number
           unidade?: string
         }
@@ -3810,6 +3819,7 @@ export type Database = {
     }
     Functions: {
       almoxarifados_permitidos: { Args: { _uid: string }; Returns: string[] }
+      atualizar_custos_contabeis: { Args: { p_linhas: Json }; Returns: Json }
       congelar_producao_consumo: { Args: never; Returns: number }
       executar_plano_contagem_ciclica: {
         Args: { _plano_id: string }
