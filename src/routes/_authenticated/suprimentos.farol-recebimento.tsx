@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Truck } from "lucide-react";
+import { ChevronDown, ChevronRight, Truck } from "lucide-react";
 import { diasUteisEntre } from "@/lib/recebimento-transferencias";
 import { ImportarRecebimentoDialog } from "@/components/suprimentos/ImportarRecebimentoDialog";
 
@@ -25,6 +25,9 @@ type LinhaDb = {
   estado: string | null;
   qtd: number;
   vt_total_item: number;
+  cod_prod: string | null;
+  desc_produto: string | null;
+  lote: string | null;
 };
 
 function fmtDataBR(iso: string) {
@@ -50,7 +53,7 @@ function FarolRecebimentoPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("notas_transferencia_recebimento")
-        .select("nr_nf, dt_emissao, empresa, almox, estado, qtd, vt_total_item")
+        .select("nr_nf, dt_emissao, empresa, almox, estado, qtd, vt_total_item, cod_prod, desc_produto, lote")
         .eq("recebimento", "Pendente")
         .or("nota_cancelada.is.null,nota_cancelada.neq.S")
         .order("dt_emissao", { ascending: true });
@@ -60,15 +63,17 @@ function FarolRecebimentoPage() {
   });
 
   const hoje = todayISO();
+  const [abertas, setAbertas] = useState<Record<string, boolean>>({});
 
   const porNF = useMemo(() => {
-    const m = new Map<string, { nr_nf: string; dt_emissao: string; empresa: string; almox: string; estado: string | null; itens: number; qtd: number; valor: number }>();
+    const m = new Map<string, { nr_nf: string; dt_emissao: string; empresa: string; almox: string; estado: string | null; itens: number; qtd: number; valor: number; produtos: LinhaDb[] }>();
     (pendentesQ.data ?? []).forEach((r) => {
       const cur = m.get(r.nr_nf) ?? {
         nr_nf: r.nr_nf, dt_emissao: r.dt_emissao, empresa: r.empresa, almox: r.almox, estado: r.estado,
-        itens: 0, qtd: 0, valor: 0,
+        itens: 0, qtd: 0, valor: 0, produtos: [],
       };
       cur.itens += 1;
+      cur.produtos.push(r);
       cur.qtd += Number(r.qtd) || 0;
       cur.valor += Number(r.vt_total_item) || 0;
       if (r.dt_emissao < cur.dt_emissao) cur.dt_emissao = r.dt_emissao;
@@ -131,6 +136,7 @@ function FarolRecebimentoPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8" />
                 <TableHead>Estado</TableHead>
                 <TableHead>NF</TableHead>
                 <TableHead>Dt. Emissão</TableHead>
@@ -144,7 +150,9 @@ function FarolRecebimentoPage() {
             </TableHeader>
             <TableBody>
               {porNF.map((r) => (
-                <TableRow key={r.nr_nf}>
+                <Fragment key={r.nr_nf}>
+                <TableRow className="cursor-pointer" onClick={() => setAbertas((a) => ({ ...a, [r.nr_nf]: !a[r.nr_nf] }))}>
+                  <TableCell>{abertas[r.nr_nf] ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}</TableCell>
                   <TableCell>{r.estado || "—"}</TableCell>
                   <TableCell className="font-mono text-xs">{r.nr_nf}</TableCell>
                   <TableCell>{fmtDataBR(r.dt_emissao)}</TableCell>
@@ -159,10 +167,39 @@ function FarolRecebimentoPage() {
                   <TableCell className="text-right">{fmtNum(r.qtd)}</TableCell>
                   <TableCell className="text-right font-medium">{fmtBRL(r.valor)}</TableCell>
                 </TableRow>
+                {abertas[r.nr_nf] && (
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableCell colSpan={10} className="p-3">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Código</TableHead>
+                            <TableHead>Produto</TableHead>
+                            <TableHead>Lote</TableHead>
+                            <TableHead className="text-right">Qtde</TableHead>
+                            <TableHead className="text-right">Valor</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {r.produtos.map((p, i) => (
+                            <TableRow key={i}>
+                              <TableCell className="font-mono text-xs">{p.cod_prod || "—"}</TableCell>
+                              <TableCell>{p.desc_produto || "—"}</TableCell>
+                              <TableCell className="font-mono text-xs">{p.lote || "—"}</TableCell>
+                              <TableCell className="text-right">{fmtNum(Number(p.qtd) || 0)}</TableCell>
+                              <TableCell className="text-right">{fmtBRL(Number(p.vt_total_item) || 0)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableCell>
+                  </TableRow>
+                )}
+                </Fragment>
               ))}
               {!porNF.length && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground py-6">
+                  <TableCell colSpan={10} className="text-center text-muted-foreground py-6">
                     {pendentesQ.isLoading ? "Carregando..." : "Nenhuma transferência pendente de recebimento."}
                   </TableCell>
                 </TableRow>
