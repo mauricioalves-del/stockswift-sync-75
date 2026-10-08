@@ -92,6 +92,14 @@ const NAV: (NavItem | NavGroup)[] = [
     ],
   },
   {
+    id: "obsoletos", label: "Obsoletos", icon: PackageX, role: "gestor",
+    items: [
+      { to: "/obsoletos/risco", label: "Mapeamento de Risco", icon: AlertTriangle, role: "gestor" },
+      { to: "/obsoletos/acoes", label: "Ações de Obsoletos", icon: Target, role: "gestor" },
+      { to: "/obsoletos/dashboard", label: "Dashboard de Recuperação", icon: BarChart3, role: "gestor" },
+    ],
+  },
+  {
     id: "gestao", label: "Gestão", icon: TrendingUp, role: "any",
     items: [
       { to: "/gestao/minhas-tarefas", label: "Minhas Tarefas", icon: ClipboardList, role: "any" },
