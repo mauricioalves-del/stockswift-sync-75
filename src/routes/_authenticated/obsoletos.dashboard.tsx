@@ -83,8 +83,8 @@ function DashboardObsoletos() {
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v: number) => fmtBRL(v)} />
                 <Legend />
-                <Bar dataKey="Enderecado" name="Endereçado" fill="var(--color-chart-2, hsl(var(--muted-foreground)))" />
-                <Bar dataKey="Recuperado" fill="var(--color-primary, hsl(var(--primary)))" />
+                <Bar dataKey="Enderecado" name="Endereçado" fill="var(--chart-2)" />
+                <Bar dataKey="Recuperado" fill="var(--primary)" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -99,8 +99,8 @@ function DashboardObsoletos() {
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v: number) => fmtBRL(v)} />
                 <Legend />
-                <Bar dataKey="Recuperado" fill="var(--color-chart-2, hsl(var(--muted-foreground)))" />
-                <Bar dataKey="Confirmado" name="Confirmado pela movimentação" fill="var(--color-primary, hsl(var(--primary)))" />
+                <Bar dataKey="Recuperado" fill="var(--chart-2)" />
+                <Bar dataKey="Confirmado" name="Confirmado pela movimentação" fill="var(--primary)" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
