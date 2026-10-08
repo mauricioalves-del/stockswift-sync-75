@@ -16,6 +16,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedAbcRouteImport } from './routes/_authenticated/abc'
 import { Route as AuthenticatedContarRouteImport } from './routes/_authenticated/contar'
 import { Route as AuthenticatedContextosBaixaRouteImport } from './routes/_authenticated/contextos-baixa'
+import { Route as AuthenticatedCustoContabilRouteImport } from './routes/_authenticated/custo-contabil'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedEmailsRouteImport } from './routes/_authenticated/emails'
 import { Route as AuthenticatedFechamentoMensalRouteImport } from './routes/_authenticated/fechamento-mensal'
@@ -70,6 +71,7 @@ import { Route as AuthenticatedSuprimentosRiscoObsoletosRouteImport } from './ro
 import { Route as ApiPublicAtlasExportarBaixasRouteImport } from './routes/api/public/atlas-exportar-baixas'
 import { Route as ApiPublicImportConsumoCmdRouteImport } from './routes/api/public/import-consumo-cmd'
 import { Route as ApiPublicImportConsumoOpRouteImport } from './routes/api/public/import-consumo-op'
+import { Route as ApiPublicImportCustoContabilRouteImport } from './routes/api/public/import-custo-contabil'
 import { Route as ApiPublicImportEstoqueSistemicoRouteImport } from './routes/api/public/import-estoque-sistemico'
 import { Route as ApiPublicImportFichaTecnicaBomRouteImport } from './routes/api/public/import-ficha-tecnica-bom'
 import { Route as ApiPublicImportMovimentacaoFefoRouteImport } from './routes/api/public/import-movimentacao-fefo'
@@ -116,6 +118,12 @@ const AuthenticatedContextosBaixaRoute =
   AuthenticatedContextosBaixaRouteImport.update({
     id: '/contextos-baixa',
     path: '/contextos-baixa',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCustoContabilRoute =
+  AuthenticatedCustoContabilRouteImport.update({
+    id: '/custo-contabil',
+    path: '/custo-contabil',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -430,6 +438,12 @@ const ApiPublicImportConsumoOpRoute =
     path: '/api/public/import-consumo-op',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicImportCustoContabilRoute =
+  ApiPublicImportCustoContabilRouteImport.update({
+    id: '/api/public/import-custo-contabil',
+    path: '/api/public/import-custo-contabil',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicImportEstoqueSistemicoRoute =
   ApiPublicImportEstoqueSistemicoRouteImport.update({
     id: '/api/public/import-estoque-sistemico',
@@ -510,6 +524,7 @@ export interface FileRoutesByFullPath {
   '/abc': typeof AuthenticatedAbcRoute
   '/contar': typeof AuthenticatedContarRoute
   '/contextos-baixa': typeof AuthenticatedContextosBaixaRoute
+  '/custo-contabil': typeof AuthenticatedCustoContabilRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/emails': typeof AuthenticatedEmailsRoute
   '/fechamento-mensal': typeof AuthenticatedFechamentoMensalRoute
@@ -561,6 +576,7 @@ export interface FileRoutesByFullPath {
   '/api/public/atlas-exportar-baixas': typeof ApiPublicAtlasExportarBaixasRoute
   '/api/public/import-consumo-cmd': typeof ApiPublicImportConsumoCmdRoute
   '/api/public/import-consumo-op': typeof ApiPublicImportConsumoOpRoute
+  '/api/public/import-custo-contabil': typeof ApiPublicImportCustoContabilRoute
   '/api/public/import-estoque-sistemico': typeof ApiPublicImportEstoqueSistemicoRoute
   '/api/public/import-ficha-tecnica-bom': typeof ApiPublicImportFichaTecnicaBomRoute
   '/api/public/import-movimentacao-fefo': typeof ApiPublicImportMovimentacaoFefoRoute
@@ -584,6 +600,7 @@ export interface FileRoutesByTo {
   '/abc': typeof AuthenticatedAbcRoute
   '/contar': typeof AuthenticatedContarRoute
   '/contextos-baixa': typeof AuthenticatedContextosBaixaRoute
+  '/custo-contabil': typeof AuthenticatedCustoContabilRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/emails': typeof AuthenticatedEmailsRoute
   '/fechamento-mensal': typeof AuthenticatedFechamentoMensalRoute
@@ -635,6 +652,7 @@ export interface FileRoutesByTo {
   '/api/public/atlas-exportar-baixas': typeof ApiPublicAtlasExportarBaixasRoute
   '/api/public/import-consumo-cmd': typeof ApiPublicImportConsumoCmdRoute
   '/api/public/import-consumo-op': typeof ApiPublicImportConsumoOpRoute
+  '/api/public/import-custo-contabil': typeof ApiPublicImportCustoContabilRoute
   '/api/public/import-estoque-sistemico': typeof ApiPublicImportEstoqueSistemicoRoute
   '/api/public/import-ficha-tecnica-bom': typeof ApiPublicImportFichaTecnicaBomRoute
   '/api/public/import-movimentacao-fefo': typeof ApiPublicImportMovimentacaoFefoRoute
@@ -660,6 +678,7 @@ export interface FileRoutesById {
   '/_authenticated/abc': typeof AuthenticatedAbcRoute
   '/_authenticated/contar': typeof AuthenticatedContarRoute
   '/_authenticated/contextos-baixa': typeof AuthenticatedContextosBaixaRoute
+  '/_authenticated/custo-contabil': typeof AuthenticatedCustoContabilRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/emails': typeof AuthenticatedEmailsRoute
   '/_authenticated/fechamento-mensal': typeof AuthenticatedFechamentoMensalRoute
@@ -711,6 +730,7 @@ export interface FileRoutesById {
   '/api/public/atlas-exportar-baixas': typeof ApiPublicAtlasExportarBaixasRoute
   '/api/public/import-consumo-cmd': typeof ApiPublicImportConsumoCmdRoute
   '/api/public/import-consumo-op': typeof ApiPublicImportConsumoOpRoute
+  '/api/public/import-custo-contabil': typeof ApiPublicImportCustoContabilRoute
   '/api/public/import-estoque-sistemico': typeof ApiPublicImportEstoqueSistemicoRoute
   '/api/public/import-ficha-tecnica-bom': typeof ApiPublicImportFichaTecnicaBomRoute
   '/api/public/import-movimentacao-fefo': typeof ApiPublicImportMovimentacaoFefoRoute
@@ -736,6 +756,7 @@ export interface FileRouteTypes {
     | '/abc'
     | '/contar'
     | '/contextos-baixa'
+    | '/custo-contabil'
     | '/dashboard'
     | '/emails'
     | '/fechamento-mensal'
@@ -787,6 +808,7 @@ export interface FileRouteTypes {
     | '/api/public/atlas-exportar-baixas'
     | '/api/public/import-consumo-cmd'
     | '/api/public/import-consumo-op'
+    | '/api/public/import-custo-contabil'
     | '/api/public/import-estoque-sistemico'
     | '/api/public/import-ficha-tecnica-bom'
     | '/api/public/import-movimentacao-fefo'
@@ -810,6 +832,7 @@ export interface FileRouteTypes {
     | '/abc'
     | '/contar'
     | '/contextos-baixa'
+    | '/custo-contabil'
     | '/dashboard'
     | '/emails'
     | '/fechamento-mensal'
@@ -861,6 +884,7 @@ export interface FileRouteTypes {
     | '/api/public/atlas-exportar-baixas'
     | '/api/public/import-consumo-cmd'
     | '/api/public/import-consumo-op'
+    | '/api/public/import-custo-contabil'
     | '/api/public/import-estoque-sistemico'
     | '/api/public/import-ficha-tecnica-bom'
     | '/api/public/import-movimentacao-fefo'
@@ -885,6 +909,7 @@ export interface FileRouteTypes {
     | '/_authenticated/abc'
     | '/_authenticated/contar'
     | '/_authenticated/contextos-baixa'
+    | '/_authenticated/custo-contabil'
     | '/_authenticated/dashboard'
     | '/_authenticated/emails'
     | '/_authenticated/fechamento-mensal'
@@ -936,6 +961,7 @@ export interface FileRouteTypes {
     | '/api/public/atlas-exportar-baixas'
     | '/api/public/import-consumo-cmd'
     | '/api/public/import-consumo-op'
+    | '/api/public/import-custo-contabil'
     | '/api/public/import-estoque-sistemico'
     | '/api/public/import-ficha-tecnica-bom'
     | '/api/public/import-movimentacao-fefo'
@@ -961,6 +987,7 @@ export interface RootRouteChildren {
   ApiPublicAtlasExportarBaixasRoute: typeof ApiPublicAtlasExportarBaixasRoute
   ApiPublicImportConsumoCmdRoute: typeof ApiPublicImportConsumoCmdRoute
   ApiPublicImportConsumoOpRoute: typeof ApiPublicImportConsumoOpRoute
+  ApiPublicImportCustoContabilRoute: typeof ApiPublicImportCustoContabilRoute
   ApiPublicImportEstoqueSistemicoRoute: typeof ApiPublicImportEstoqueSistemicoRoute
   ApiPublicImportFichaTecnicaBomRoute: typeof ApiPublicImportFichaTecnicaBomRoute
   ApiPublicImportMovimentacaoFefoRoute: typeof ApiPublicImportMovimentacaoFefoRoute
@@ -1017,6 +1044,13 @@ declare module '@tanstack/react-router' {
       path: '/contextos-baixa'
       fullPath: '/contextos-baixa'
       preLoaderRoute: typeof AuthenticatedContextosBaixaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/custo-contabil': {
+      id: '/_authenticated/custo-contabil'
+      path: '/custo-contabil'
+      fullPath: '/custo-contabil'
+      preLoaderRoute: typeof AuthenticatedCustoContabilRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
@@ -1397,6 +1431,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicImportConsumoOpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/import-custo-contabil': {
+      id: '/api/public/import-custo-contabil'
+      path: '/api/public/import-custo-contabil'
+      fullPath: '/api/public/import-custo-contabil'
+      preLoaderRoute: typeof ApiPublicImportCustoContabilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/import-estoque-sistemico': {
       id: '/api/public/import-estoque-sistemico'
       path: '/api/public/import-estoque-sistemico'
@@ -1503,6 +1544,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbcRoute: typeof AuthenticatedAbcRoute
   AuthenticatedContarRoute: typeof AuthenticatedContarRoute
   AuthenticatedContextosBaixaRoute: typeof AuthenticatedContextosBaixaRoute
+  AuthenticatedCustoContabilRoute: typeof AuthenticatedCustoContabilRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEmailsRoute: typeof AuthenticatedEmailsRoute
   AuthenticatedFechamentoMensalRoute: typeof AuthenticatedFechamentoMensalRoute
@@ -1566,6 +1608,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAbcRoute: AuthenticatedAbcRoute,
   AuthenticatedContarRoute: AuthenticatedContarRoute,
   AuthenticatedContextosBaixaRoute: AuthenticatedContextosBaixaRoute,
+  AuthenticatedCustoContabilRoute: AuthenticatedCustoContabilRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEmailsRoute: AuthenticatedEmailsRoute,
   AuthenticatedFechamentoMensalRoute: AuthenticatedFechamentoMensalRoute,
@@ -1654,6 +1697,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAtlasExportarBaixasRoute: ApiPublicAtlasExportarBaixasRoute,
   ApiPublicImportConsumoCmdRoute: ApiPublicImportConsumoCmdRoute,
   ApiPublicImportConsumoOpRoute: ApiPublicImportConsumoOpRoute,
+  ApiPublicImportCustoContabilRoute: ApiPublicImportCustoContabilRoute,
   ApiPublicImportEstoqueSistemicoRoute: ApiPublicImportEstoqueSistemicoRoute,
   ApiPublicImportFichaTecnicaBomRoute: ApiPublicImportFichaTecnicaBomRoute,
   ApiPublicImportMovimentacaoFefoRoute: ApiPublicImportMovimentacaoFefoRoute,
