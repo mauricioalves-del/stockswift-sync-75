@@ -9,6 +9,8 @@ type ItemMissao = {
   id: string;
   codigo_produto: string;
   descricao: string | null;
+  lote?: string | null;
+  quantidade_prevista?: number | null;
 };
 type LinhaSalva = {
   lote: string | null;
@@ -114,7 +116,9 @@ export function baixarRelatorioMissao(entrada: EntradaRelatorio) {
         continue;
       }
       const live = lotesSku.find((x) => x.lote === l.lote);
-      const saldo = live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0) || 0;
+      // Saldo congelado na geração da missão (quantidade_prevista) para a linha do próprio lote do item.
+      const congelado = !!item.lote && l.lote === item.lote && item.quantidade_prevista != null;
+      const saldo = congelado ? Number(item.quantidade_prevista) : (live ? live.saldo : Number(l.saldo_sistemico_lote ?? 0) || 0);
       const custo = live?.custo_unitario ?? 0;
       s.sistemaPorLote.set(l.lote ?? "", saldo); // por lote: não conta o mesmo saldo duas vezes
       s.contado += q;
