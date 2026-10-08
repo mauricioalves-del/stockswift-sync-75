@@ -51,6 +51,9 @@ import { Route as AuthenticatedGestaoModelosChecklistRouteImport } from './route
 import { Route as AuthenticatedGestaoPlanejamentoRouteImport } from './routes/_authenticated/gestao.planejamento'
 import { Route as AuthenticatedMissoesIndexRouteImport } from './routes/_authenticated/missoes.index'
 import { Route as AuthenticatedMissoesIdRouteImport } from './routes/_authenticated/missoes.$id'
+import { Route as AuthenticatedObsoletosAcoesRouteImport } from './routes/_authenticated/obsoletos.acoes'
+import { Route as AuthenticatedObsoletosDashboardRouteImport } from './routes/_authenticated/obsoletos.dashboard'
+import { Route as AuthenticatedObsoletosRiscoRouteImport } from './routes/_authenticated/obsoletos.risco'
 import { Route as AuthenticatedProducaoAuditoriaFtRouteImport } from './routes/_authenticated/producao.auditoria-ft'
 import { Route as AuthenticatedProducaoConfirmacaoRecebimentoRouteImport } from './routes/_authenticated/producao.confirmacao-recebimento'
 import { Route as AuthenticatedProducaoDispersaoRouteImport } from './routes/_authenticated/producao.dispersao'
@@ -318,6 +321,24 @@ const AuthenticatedMissoesIdRoute = AuthenticatedMissoesIdRouteImport.update({
   path: '/missoes/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedObsoletosAcoesRoute =
+  AuthenticatedObsoletosAcoesRouteImport.update({
+    id: '/obsoletos/acoes',
+    path: '/obsoletos/acoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedObsoletosDashboardRoute =
+  AuthenticatedObsoletosDashboardRouteImport.update({
+    id: '/obsoletos/dashboard',
+    path: '/obsoletos/dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedObsoletosRiscoRoute =
+  AuthenticatedObsoletosRiscoRouteImport.update({
+    id: '/obsoletos/risco',
+    path: '/obsoletos/risco',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProducaoAuditoriaFtRoute =
   AuthenticatedProducaoAuditoriaFtRouteImport.update({
     id: '/producao/auditoria-ft',
@@ -556,6 +577,9 @@ export interface FileRoutesByFullPath {
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
+  '/obsoletos/acoes': typeof AuthenticatedObsoletosAcoesRoute
+  '/obsoletos/dashboard': typeof AuthenticatedObsoletosDashboardRoute
+  '/obsoletos/risco': typeof AuthenticatedObsoletosRiscoRoute
   '/producao/auditoria-ft': typeof AuthenticatedProducaoAuditoriaFtRoute
   '/producao/confirmacao-recebimento': typeof AuthenticatedProducaoConfirmacaoRecebimentoRoute
   '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
@@ -632,6 +656,9 @@ export interface FileRoutesByTo {
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
+  '/obsoletos/acoes': typeof AuthenticatedObsoletosAcoesRoute
+  '/obsoletos/dashboard': typeof AuthenticatedObsoletosDashboardRoute
+  '/obsoletos/risco': typeof AuthenticatedObsoletosRiscoRoute
   '/producao/auditoria-ft': typeof AuthenticatedProducaoAuditoriaFtRoute
   '/producao/confirmacao-recebimento': typeof AuthenticatedProducaoConfirmacaoRecebimentoRoute
   '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
@@ -710,6 +737,9 @@ export interface FileRoutesById {
   '/_authenticated/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/_authenticated/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/_authenticated/missoes/$id': typeof AuthenticatedMissoesIdRoute
+  '/_authenticated/obsoletos/acoes': typeof AuthenticatedObsoletosAcoesRoute
+  '/_authenticated/obsoletos/dashboard': typeof AuthenticatedObsoletosDashboardRoute
+  '/_authenticated/obsoletos/risco': typeof AuthenticatedObsoletosRiscoRoute
   '/_authenticated/producao/auditoria-ft': typeof AuthenticatedProducaoAuditoriaFtRoute
   '/_authenticated/producao/confirmacao-recebimento': typeof AuthenticatedProducaoConfirmacaoRecebimentoRoute
   '/_authenticated/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
@@ -788,6 +818,9 @@ export interface FileRouteTypes {
     | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
     | '/missoes/$id'
+    | '/obsoletos/acoes'
+    | '/obsoletos/dashboard'
+    | '/obsoletos/risco'
     | '/producao/auditoria-ft'
     | '/producao/confirmacao-recebimento'
     | '/producao/dispersao'
@@ -864,6 +897,9 @@ export interface FileRouteTypes {
     | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
     | '/missoes/$id'
+    | '/obsoletos/acoes'
+    | '/obsoletos/dashboard'
+    | '/obsoletos/risco'
     | '/producao/auditoria-ft'
     | '/producao/confirmacao-recebimento'
     | '/producao/dispersao'
@@ -941,6 +977,9 @@ export interface FileRouteTypes {
     | '/_authenticated/gestao/modelos-checklist'
     | '/_authenticated/gestao/planejamento'
     | '/_authenticated/missoes/$id'
+    | '/_authenticated/obsoletos/acoes'
+    | '/_authenticated/obsoletos/dashboard'
+    | '/_authenticated/obsoletos/risco'
     | '/_authenticated/producao/auditoria-ft'
     | '/_authenticated/producao/confirmacao-recebimento'
     | '/_authenticated/producao/dispersao'
@@ -1291,6 +1330,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMissoesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/obsoletos/acoes': {
+      id: '/_authenticated/obsoletos/acoes'
+      path: '/obsoletos/acoes'
+      fullPath: '/obsoletos/acoes'
+      preLoaderRoute: typeof AuthenticatedObsoletosAcoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/obsoletos/dashboard': {
+      id: '/_authenticated/obsoletos/dashboard'
+      path: '/obsoletos/dashboard'
+      fullPath: '/obsoletos/dashboard'
+      preLoaderRoute: typeof AuthenticatedObsoletosDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/obsoletos/risco': {
+      id: '/_authenticated/obsoletos/risco'
+      path: '/obsoletos/risco'
+      fullPath: '/obsoletos/risco'
+      preLoaderRoute: typeof AuthenticatedObsoletosRiscoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/producao/auditoria-ft': {
       id: '/_authenticated/producao/auditoria-ft'
       path: '/producao/auditoria-ft'
@@ -1576,6 +1636,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGestaoModelosChecklistRoute: typeof AuthenticatedGestaoModelosChecklistRoute
   AuthenticatedGestaoPlanejamentoRoute: typeof AuthenticatedGestaoPlanejamentoRoute
   AuthenticatedMissoesIdRoute: typeof AuthenticatedMissoesIdRoute
+  AuthenticatedObsoletosAcoesRoute: typeof AuthenticatedObsoletosAcoesRoute
+  AuthenticatedObsoletosDashboardRoute: typeof AuthenticatedObsoletosDashboardRoute
+  AuthenticatedObsoletosRiscoRoute: typeof AuthenticatedObsoletosRiscoRoute
   AuthenticatedProducaoAuditoriaFtRoute: typeof AuthenticatedProducaoAuditoriaFtRoute
   AuthenticatedProducaoConfirmacaoRecebimentoRoute: typeof AuthenticatedProducaoConfirmacaoRecebimentoRoute
   AuthenticatedProducaoDispersaoRoute: typeof AuthenticatedProducaoDispersaoRoute
@@ -1646,6 +1709,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedGestaoModelosChecklistRoute,
   AuthenticatedGestaoPlanejamentoRoute: AuthenticatedGestaoPlanejamentoRoute,
   AuthenticatedMissoesIdRoute: AuthenticatedMissoesIdRoute,
+  AuthenticatedObsoletosAcoesRoute: AuthenticatedObsoletosAcoesRoute,
+  AuthenticatedObsoletosDashboardRoute: AuthenticatedObsoletosDashboardRoute,
+  AuthenticatedObsoletosRiscoRoute: AuthenticatedObsoletosRiscoRoute,
   AuthenticatedProducaoAuditoriaFtRoute: AuthenticatedProducaoAuditoriaFtRoute,
   AuthenticatedProducaoConfirmacaoRecebimentoRoute:
     AuthenticatedProducaoConfirmacaoRecebimentoRoute,
