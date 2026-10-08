@@ -7,7 +7,7 @@ import {
   Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp, Warehouse, Mail,
   Compass, Sparkles, Settings2, Boxes, Truck, AlertTriangle, PanelLeftClose, PanelLeftOpen,
   Factory, GitCompareArrows, CalendarClock, Bell, ArrowRightLeft, CalendarCheck, PackageX, Tags,
-  PackageCheck, Hourglass, Gem,
+  PackageCheck, Hourglass, Gem, SearchCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -36,6 +36,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/contextos-baixa", label: "Áreas e Operações de Baixa", icon: Tags, role: "write" },
       { to: "/emails", label: "E-mails", icon: Mail, role: "admin" },
       { to: "/importar", label: "Sincronização de Estoque", icon: RefreshCw, role: "write" },
+      { to: "/custo-contabil", label: "Investigação de Custo", icon: SearchCheck, role: "write" },
       { to: "/importar-familias", label: "Importador de Famílias", icon: Leaf, role: "write" },
       { to: "/grupos", label: "Importador de Grupos", icon: Layers, role: "write" },
 
