@@ -15,7 +15,7 @@ import { STATUS_CAMPANHA } from "@/lib/shelf-life";
 import { formatBRL } from "@/lib/inventory";
 import { usePrecoVendaPorSku, useParametroDesconto } from "@/hooks/usePrecosVenda";
 import { calcularPrecoComDesconto, chaveSku, ehDescontoColaborador } from "@/lib/precos-venda";
-import { copiarEAbrirWhatsApp, montarAvisoInterno, montarMensagemQueima } from "@/lib/whatsapp-message";
+import { buscarFamiliasPorSku, copiarEAbrirWhatsApp, montarAvisoInterno, montarMensagemQueima } from "@/lib/whatsapp-message";
 import { WhatsAppFallbackDialog } from "@/components/shelf-life/WhatsAppFallbackDialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MessageCircle } from "lucide-react";
@@ -384,6 +384,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
     qtdEnderecada > 0;
 
   const enviarWhatsApp = async () => {
+    const familias = isVendas ? await buscarFamiliasPorSku(supabase, [form.sku]) : new Map<string, string>();
     const mensagem = isVendas
       ? montarMensagemQueima({
           descricao: form.descricao || form.sku,
@@ -394,6 +395,7 @@ export function CampanhaDialog({ open, onOpenChange, draft }: Props) {
           dataValidade: form.data_validade || null,
           sku: form.sku,
           lote: form.lote,
+          familia: familias.get(String(form.sku ?? "").trim()) ?? null,
         })
       : montarAvisoInterno({
           tipoAcao: tipoSel?.nome ?? categoria,
