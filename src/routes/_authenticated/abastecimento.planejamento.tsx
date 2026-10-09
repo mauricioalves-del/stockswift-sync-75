@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Compass, Loader2, AlertTriangle, TrendingUp, FileText, FileSpreadsheet } from "lucide-react";
@@ -59,6 +60,8 @@ function PlanejamentoPage() {
   const [buscaF, setBuscaF] = useState("");
   const [grupoF, setGrupoF] = useState<string>("__all");
   const [metodo, setMetodo] = useState<Metodo>("AUTO");
+  const [ordenar, setOrdenar] = useState<"COBERTURA" | "SUGESTAO">("COBERTURA");
+  const [soComSugestao, setSoComSugestao] = useState(false);
 
 
   const paramsQ = useQuery({
@@ -419,16 +422,6 @@ function PlanejamentoPage() {
   }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data, prodRepQ.data, supplierStockQ.data, familiasQ.data, abcQ.data, gruposQ.data, sazonaisQ.data]);
 
 
-  const linhasFiltradas = linhas.filter((l) => {
-    if (origemF !== "__all" && l.origem !== origemF) return false;
-    if (skusDoGrupo && !skusDoGrupo.has(l.sku)) return false;
-    if (buscaF) {
-      const t = buscaF.toLowerCase();
-      if (!l.sku.toLowerCase().includes(t) && !l.produto.toLowerCase().includes(t)) return false;
-    }
-    return true;
-  });
-
   // Escolhe qual sugestão usar por linha, respeitando o modo global (COBERTURA/MINMAX)
   // ou o método efetivo por SKU (AUTO — ABC + override).
   const sugestaoDe = (l: Linha) => {
@@ -436,6 +429,24 @@ function PlanejamentoPage() {
     if (metodo === "MINMAX") return l.sugestao_minmax;
     return l.metodo_efetivo === "MIN_IDEAL_MAX" ? l.sugestao_minmax : l.sugestao;
   };
+
+  const linhasFiltradas = useMemo(() => {
+    const out = linhas.filter((l) => {
+      if (origemF !== "__all" && l.origem !== origemF) return false;
+      if (skusDoGrupo && !skusDoGrupo.has(l.sku)) return false;
+      if (soComSugestao && sugestaoDe(l) <= 0) return false;
+      if (buscaF) {
+        const t = buscaF.toLowerCase();
+        if (!l.sku.toLowerCase().includes(t) && !l.produto.toLowerCase().includes(t)) return false;
+      }
+      return true;
+    });
+    if (ordenar === "SUGESTAO") {
+      out.sort((a, b) => sugestaoDe(b) - sugestaoDe(a) || b.valor_reposicao - a.valor_reposicao);
+    }
+    return out;
+  }, [linhas, origemF, skusDoGrupo, buscaF, soComSugestao, ordenar, metodo]);
+
 
   const kpis = useMemo(() => {
     // Produtos Locais não têm saldo próprio de verdade — são montados na loja.
@@ -582,7 +593,7 @@ function PlanejamentoPage() {
         <CardHeader>
           <CardTitle className="text-base">Filtros</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <div>
             <Label className="text-xs">Origem</Label>
             <Select value={origemF} onValueChange={setOrigemF}>
@@ -607,6 +618,25 @@ function PlanejamentoPage() {
             <Label className="text-xs">Buscar SKU ou descrição</Label>
             <Input value={buscaF} onChange={(e) => setBuscaF(e.target.value)} placeholder="digite…" />
           </div>
+          <div>
+            <Label className="text-xs">Ordenar por</Label>
+            <Select value={ordenar} onValueChange={(v) => setOrdenar(v === "SUGESTAO" ? "SUGESTAO" : "COBERTURA")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="COBERTURA">Cobertura (mais críticos)</SelectItem>
+                <SelectItem value="SUGESTAO">Sugestão (maior → menor)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Sugestão de abastecimento</Label>
+            <div className="flex h-9 items-center gap-2 rounded-md border border-input px-3">
+              <Checkbox id="somente-com-sugestao" checked={soComSugestao} onCheckedChange={(v) => setSoComSugestao(v === true)} />
+              <Label htmlFor="somente-com-sugestao" className="text-xs font-normal cursor-pointer select-none">
+                Somente com sugestão
+              </Label>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -617,7 +647,7 @@ function PlanejamentoPage() {
             {metodo === "MINMAX" ? "Mín / Ideal / Máx por SKU" : metodo === "AUTO" ? "Cobertura por SKU (Auto ABC + Sazonalidade)" : "Cobertura por SKU"}
           </CardTitle>
           <CardDescription>
-            {metodo === "MINMAX" ? "Vermelho: abaixo do mínimo · Amarelo: entre mín e ideal · Verde: ok · Azul: excesso" : "Ordenado pelos mais críticos."}
+            {metodo === "MINMAX" ? "Vermelho: abaixo do mínimo · Amarelo: entre mín e ideal · Verde: ok · Azul: excesso" : ordenar === "SUGESTAO" ? "Ordenado da maior para a menor sugestão de abastecimento." : "Ordenado pelos mais críticos."}
           </CardDescription>
         </CardHeader>
         <CardContent>
