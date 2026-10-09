@@ -12,3 +12,8 @@
 ## Filtro de status na execução de missão
 - [x] Permitir selecionar mais de um status ao mesmo tempo (Pendente, Acurado, Divergente, Quebra de FEFO).
 - [x] Validar na tela: 24 (Acurado) → 42 (+Divergente) → 43 (+Quebra de FEFO), "Limpar" volta a 43.
+
+## Abastecimento: ordenar e filtrar por Sugestão
+- [x] Adicionar "Ordenar por: Sugestão (maior → menor)" na tela de Abastecimento.
+- [x] Adicionar filtro "Somente com sugestão" (traz apenas itens com sugestão de abastecimento).
+- [x] Validar na tela: 269 linhas → 43 com sugestão (mín. 1) e ordem 270, 47, 42, 36, 35… descendente.
