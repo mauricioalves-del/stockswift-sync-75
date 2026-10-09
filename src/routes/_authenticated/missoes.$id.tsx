@@ -183,7 +183,15 @@ function MissaoExecucaoPage() {
   const [filtroFamilia, setFiltroFamilia] = useState(FILTRO_TODOS);
   const [filtroLote, setFiltroLote] = useState("");
   const [filtroObs, setFiltroObs] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState(FILTRO_TODOS);
+  const [filtroStatus, setFiltroStatus] = useState<string[]>([]);
+  const STATUS_OPCOES: { v: string; l: string }[] = [
+    { v: "PENDENTE", l: "Pendente" },
+    { v: "ACURADO", l: "Acurado" },
+    { v: "DIVERGENTE", l: "Divergente" },
+    { v: "QUEBRA_FEFO", l: "Quebra de FEFO" },
+  ];
+  const alternarStatus = (v: string) =>
+    setFiltroStatus((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
 
   // Opções dos dropdowns restritas aos SKUs realmente presentes nesta missão (missoes_itens)
   const codigosMissao = useMemo(
@@ -237,8 +245,8 @@ function MissaoExecucaoPage() {
       if (s === "OK" || s === "CONTADO") return "ACURADO";
       return "DIVERGENTE";
     };
-    const stF = filtroStatus !== FILTRO_TODOS ? filtroStatus : null;
-    if (!q && !setG && !setF && !loteQ && !obsQ && !stF) return itens;
+    const sts = filtroStatus.length ? new Set(filtroStatus) : null;
+    if (!q && !setG && !setF && !loteQ && !obsQ && !sts) return itens;
     const loteLinhas = new Map<string, string[]>();
     if (loteQ) {
       for (const r of linhasQ.data ? Array.from(linhasQ.data.values()).flat() : []) {
@@ -248,7 +256,7 @@ function MissaoExecucaoPage() {
       }
     }
     return itens.filter((i) => {
-      if (stF && grupoStatus(i.status_item) !== stF) return false;
+      if (sts && !sts.has(grupoStatus(i.status_item))) return false;
       if (setG && !setG.has(i.codigo_produto)) return false;
       if (setF && !setF.has(i.codigo_produto)) return false;
       if (loteQ) {
@@ -410,16 +418,36 @@ function MissaoExecucaoPage() {
               placeholder="Buscar observação…"
               className="h-8 text-sm flex-1 min-w-0 sm:max-w-xs"
             />
-            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="h-8 text-sm w-full sm:w-48"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={FILTRO_TODOS}>Todos os status</SelectItem>
-                <SelectItem value="PENDENTE">Pendente</SelectItem>
-                <SelectItem value="ACURADO">Acurado</SelectItem>
-                <SelectItem value="DIVERGENTE">Divergente</SelectItem>
-                <SelectItem value="QUEBRA_FEFO">Quebra de FEFO</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">Status:</span>
+              {STATUS_OPCOES.map((o) => {
+                const ativo = filtroStatus.includes(o.v);
+                return (
+                  <Button
+                    key={o.v}
+                    type="button"
+                    variant={ativo ? "default" : "outline"}
+                    size="sm"
+                    aria-pressed={ativo}
+                    onClick={() => alternarStatus(o.v)}
+                    className="h-7 px-2.5 text-xs"
+                  >
+                    {o.l}
+                  </Button>
+                );
+              })}
+              {filtroStatus.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFiltroStatus([])}
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                >
+                  Limpar
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
