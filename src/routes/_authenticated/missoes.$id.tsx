@@ -418,16 +418,36 @@ function MissaoExecucaoPage() {
               placeholder="Buscar observação…"
               className="h-8 text-sm flex-1 min-w-0 sm:max-w-xs"
             />
-            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="h-8 text-sm w-full sm:w-48"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={FILTRO_TODOS}>Todos os status</SelectItem>
-                <SelectItem value="PENDENTE">Pendente</SelectItem>
-                <SelectItem value="ACURADO">Acurado</SelectItem>
-                <SelectItem value="DIVERGENTE">Divergente</SelectItem>
-                <SelectItem value="QUEBRA_FEFO">Quebra de FEFO</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">Status:</span>
+              {STATUS_OPCOES.map((o) => {
+                const ativo = filtroStatus.includes(o.v);
+                return (
+                  <Button
+                    key={o.v}
+                    type="button"
+                    variant={ativo ? "default" : "outline"}
+                    size="sm"
+                    aria-pressed={ativo}
+                    onClick={() => alternarStatus(o.v)}
+                    className="h-7 px-2.5 text-xs"
+                  >
+                    {o.l}
+                  </Button>
+                );
+              })}
+              {filtroStatus.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFiltroStatus([])}
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                >
+                  Limpar
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
