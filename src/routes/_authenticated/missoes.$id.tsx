@@ -183,6 +183,7 @@ function MissaoExecucaoPage() {
   const [filtroFamilia, setFiltroFamilia] = useState(FILTRO_TODOS);
   const [filtroLote, setFiltroLote] = useState("");
   const [filtroObs, setFiltroObs] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState(FILTRO_TODOS);
 
   // Opções dos dropdowns restritas aos SKUs realmente presentes nesta missão (missoes_itens)
   const codigosMissao = useMemo(
@@ -230,7 +231,14 @@ function MissaoExecucaoPage() {
     const setF = filtroFamilia !== FILTRO_TODOS ? new Set(codigosFamilia ?? []) : null;
     const loteQ = filtroLote.trim().toLowerCase();
     const obsQ = filtroObs.trim().toLowerCase();
-    if (!q && !setG && !setF && !loteQ && !obsQ) return itens;
+    const grupoStatus = (s: string | null | undefined) => {
+      if (!s || !CONCLUIDO_STATUSES.includes(s)) return "PENDENTE";
+      if (s === "QUEBRA_FEFO") return "QUEBRA_FEFO";
+      if (s === "OK" || s === "CONTADO") return "ACURADO";
+      return "DIVERGENTE";
+    };
+    const stF = filtroStatus !== FILTRO_TODOS ? filtroStatus : null;
+    if (!q && !setG && !setF && !loteQ && !obsQ && !stF) return itens;
     const loteLinhas = new Map<string, string[]>();
     if (loteQ) {
       for (const r of linhasQ.data ? Array.from(linhasQ.data.values()).flat() : []) {
@@ -240,6 +248,7 @@ function MissaoExecucaoPage() {
       }
     }
     return itens.filter((i) => {
+      if (stF && grupoStatus(i.status_item) !== stF) return false;
       if (setG && !setG.has(i.codigo_produto)) return false;
       if (setF && !setF.has(i.codigo_produto)) return false;
       if (loteQ) {
@@ -256,7 +265,7 @@ function MissaoExecucaoPage() {
         (i.descricao ?? "").toLowerCase().includes(q)
       );
     });
-  }, [itens, busca, filtroGrupo, filtroFamilia, filtroLote, filtroObs, codigosGrupo, codigosFamilia, linhasQ.data]);
+  }, [itens, busca, filtroGrupo, filtroFamilia, filtroLote, filtroObs, filtroStatus, codigosGrupo, codigosFamilia, linhasQ.data]);
 
 
   if (missaoQ.isLoading) return <div className="p-8 text-center text-muted-foreground">Carregando…</div>;
@@ -401,6 +410,16 @@ function MissaoExecucaoPage() {
               placeholder="Buscar observação…"
               className="h-8 text-sm flex-1 min-w-0 sm:max-w-xs"
             />
+            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+              <SelectTrigger className="h-8 text-sm w-full sm:w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={FILTRO_TODOS}>Todos os status</SelectItem>
+                <SelectItem value="PENDENTE">Pendente</SelectItem>
+                <SelectItem value="ACURADO">Acurado</SelectItem>
+                <SelectItem value="DIVERGENTE">Divergente</SelectItem>
+                <SelectItem value="QUEBRA_FEFO">Quebra de FEFO</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent className="p-0">
