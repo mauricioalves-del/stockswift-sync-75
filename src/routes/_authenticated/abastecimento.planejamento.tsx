@@ -593,7 +593,7 @@ function PlanejamentoPage() {
         <CardHeader>
           <CardTitle className="text-base">Filtros</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <div>
             <Label className="text-xs">Origem</Label>
             <Select value={origemF} onValueChange={setOrigemF}>
@@ -628,7 +628,7 @@ function PlanejamentoPage() {
             {metodo === "MINMAX" ? "Mín / Ideal / Máx por SKU" : metodo === "AUTO" ? "Cobertura por SKU (Auto ABC + Sazonalidade)" : "Cobertura por SKU"}
           </CardTitle>
           <CardDescription>
-            {metodo === "MINMAX" ? "Vermelho: abaixo do mínimo · Amarelo: entre mín e ideal · Verde: ok · Azul: excesso" : "Ordenado pelos mais críticos."}
+            {metodo === "MINMAX" ? "Vermelho: abaixo do mínimo · Amarelo: entre mín e ideal · Verde: ok · Azul: excesso" : ordenar === "SUGESTAO" ? "Ordenado da maior para a menor sugestão de abastecimento." : "Ordenado pelos mais críticos."}
           </CardDescription>
         </CardHeader>
         <CardContent>
