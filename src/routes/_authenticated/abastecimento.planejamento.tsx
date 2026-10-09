@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Compass, Loader2, AlertTriangle, TrendingUp, FileText, FileSpreadsheet } from "lucide-react";
@@ -59,6 +60,8 @@ function PlanejamentoPage() {
   const [buscaF, setBuscaF] = useState("");
   const [grupoF, setGrupoF] = useState<string>("__all");
   const [metodo, setMetodo] = useState<Metodo>("AUTO");
+  const [ordenar, setOrdenar] = useState<"COBERTURA" | "SUGESTAO">("COBERTURA");
+  const [soComSugestao, setSoComSugestao] = useState(false);
 
 
   const paramsQ = useQuery({
@@ -419,16 +422,6 @@ function PlanejamentoPage() {
   }, [paramsQ.data, estoqueQ.data, consumoQ.data, demandasQ.data, prodRepQ.data, supplierStockQ.data, familiasQ.data, abcQ.data, gruposQ.data, sazonaisQ.data]);
 
 
-  const linhasFiltradas = linhas.filter((l) => {
-    if (origemF !== "__all" && l.origem !== origemF) return false;
-    if (skusDoGrupo && !skusDoGrupo.has(l.sku)) return false;
-    if (buscaF) {
-      const t = buscaF.toLowerCase();
-      if (!l.sku.toLowerCase().includes(t) && !l.produto.toLowerCase().includes(t)) return false;
-    }
-    return true;
-  });
-
   // Escolhe qual sugestão usar por linha, respeitando o modo global (COBERTURA/MINMAX)
   // ou o método efetivo por SKU (AUTO — ABC + override).
   const sugestaoDe = (l: Linha) => {
@@ -436,6 +429,24 @@ function PlanejamentoPage() {
     if (metodo === "MINMAX") return l.sugestao_minmax;
     return l.metodo_efetivo === "MIN_IDEAL_MAX" ? l.sugestao_minmax : l.sugestao;
   };
+
+  const linhasFiltradas = useMemo(() => {
+    const out = linhas.filter((l) => {
+      if (origemF !== "__all" && l.origem !== origemF) return false;
+      if (skusDoGrupo && !skusDoGrupo.has(l.sku)) return false;
+      if (soComSugestao && sugestaoDe(l) <= 0) return false;
+      if (buscaF) {
+        const t = buscaF.toLowerCase();
+        if (!l.sku.toLowerCase().includes(t) && !l.produto.toLowerCase().includes(t)) return false;
+      }
+      return true;
+    });
+    if (ordenar === "SUGESTAO") {
+      out.sort((a, b) => sugestaoDe(b) - sugestaoDe(a) || b.valor_reposicao - a.valor_reposicao);
+    }
+    return out;
+  }, [linhas, origemF, skusDoGrupo, buscaF, soComSugestao, ordenar, metodo]);
+
 
   const kpis = useMemo(() => {
     // Produtos Locais não têm saldo próprio de verdade — são montados na loja.
