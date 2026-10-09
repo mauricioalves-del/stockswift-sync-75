@@ -618,6 +618,25 @@ function PlanejamentoPage() {
             <Label className="text-xs">Buscar SKU ou descrição</Label>
             <Input value={buscaF} onChange={(e) => setBuscaF(e.target.value)} placeholder="digite…" />
           </div>
+          <div>
+            <Label className="text-xs">Ordenar por</Label>
+            <Select value={ordenar} onValueChange={(v) => setOrdenar(v === "SUGESTAO" ? "SUGESTAO" : "COBERTURA")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="COBERTURA">Cobertura (mais críticos)</SelectItem>
+                <SelectItem value="SUGESTAO">Sugestão (maior → menor)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Sugestão de abastecimento</Label>
+            <div className="flex h-9 items-center gap-2 rounded-md border border-input px-3">
+              <Checkbox id="somente-com-sugestao" checked={soComSugestao} onCheckedChange={(v) => setSoComSugestao(v === true)} />
+              <Label htmlFor="somente-com-sugestao" className="text-xs font-normal cursor-pointer select-none">
+                Somente com sugestão
+              </Label>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
