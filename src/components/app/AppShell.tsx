@@ -57,7 +57,6 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/suprimentos/dashboard", label: "Dashboard Suprimentos", icon: LayoutDashboard, role: "any" },
       { to: "/suprimentos/estoque", label: "Posição de Estoque", icon: Boxes, role: "any" },
       { to: "/suprimentos/fefo", label: "Controle FEFO", icon: ArrowRightLeft, role: "any" },
-      { to: "/suprimentos/risco-obsoletos", label: "Risco Obsoletos", icon: PackageX, role: "any" },
       { to: "/suprimentos/requisicoes", label: "Requisições", icon: ClipboardList, role: "write" },
       { to: "/abastecimento/planejamento", label: "Abastecimento", icon: Compass, role: "write" },
       { to: "/abastecimento/demandas", label: "Demandas Extras", icon: Sparkles, role: "write" },
@@ -94,6 +93,7 @@ const NAV: (NavItem | NavGroup)[] = [
   {
     id: "obsoletos", label: "Obsoletos", icon: PackageX, role: "gestor",
     items: [
+      { to: "/suprimentos/risco-obsoletos", label: "Risco Obsoletos", icon: PackageX, role: "any" },
       { to: "/obsoletos/risco", label: "Mapeamento de Risco", icon: AlertTriangle, role: "gestor" },
       { to: "/obsoletos/acoes", label: "Ações de Obsoletos", icon: Target, role: "gestor" },
       { to: "/obsoletos/dashboard", label: "Dashboard de Recuperação", icon: BarChart3, role: "gestor" },
