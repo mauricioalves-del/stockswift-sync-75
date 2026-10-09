@@ -530,7 +530,7 @@ function PlanejamentoPage() {
 
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-4 lg:space-y-3 lg:h-[calc(100dvh-6.5rem)] lg:flex lg:flex-col">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><Compass className="size-6" /> Abastecimento</h1>
@@ -640,7 +640,7 @@ function PlanejamentoPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <TrendingUp className="size-4" />
@@ -650,11 +650,11 @@ function PlanejamentoPage() {
             {metodo === "MINMAX" ? "Vermelho: abaixo do mínimo · Amarelo: entre mín e ideal · Verde: ok · Azul: excesso" : ordenar === "SUGESTAO" ? "Ordenado da maior para a menor sugestão de abastecimento." : "Ordenado pelos mais críticos."}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="lg:flex-1 lg:min-h-0">
           {loading ? <Loader2 className="animate-spin" /> : metodo !== "MINMAX" ? (
-            <div className="overflow-x-auto">
+            <div className="max-h-[70vh] lg:max-h-none lg:h-full [&>div]:h-full [&>div]:max-h-[inherit]">
               <Table>
-                <TableHeader><TableRow>
+                <TableHeader className="sticky top-0 z-10 bg-card shadow-sm"><TableRow>
                   <TableHead>SKU</TableHead>
                   <TableHead>Produto</TableHead>
                   <TableHead>Destino</TableHead>
@@ -747,9 +747,9 @@ function PlanejamentoPage() {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="max-h-[70vh] lg:max-h-none lg:h-full [&>div]:h-full [&>div]:max-h-[inherit]">
               <Table>
-                <TableHeader><TableRow>
+                <TableHeader className="sticky top-0 z-10 bg-card shadow-sm"><TableRow>
                   <TableHead>SKU</TableHead>
                   <TableHead>Produto</TableHead>
                   <TableHead>Destino</TableHead>
