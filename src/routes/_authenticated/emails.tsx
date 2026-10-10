@@ -30,8 +30,8 @@ type Item = {
 };
 
 function EmailsPage() {
-  const { isAdmin, role } = useRole();
-  const podeGerir = isAdmin || role === "COORDENADOR_CONTROLE";
+  const { isAdmin } = useRole();
+  const podeGerir = isAdmin; // somente o administrador acessa o cadastro de e-mails
   const qc = useQueryClient();
 
   const [finalidades, setFinalidades] = useState<string[]>([]);
@@ -135,7 +135,7 @@ function EmailsPage() {
   }
 
   if (!podeGerir) {
-    return <div className="p-8 text-center text-muted-foreground">Acesso restrito a Administrador e Coordenador de Controle.</div>;
+    return <div className="p-8 text-center text-muted-foreground">Acesso restrito ao Administrador.</div>;
   }
 
   return (
