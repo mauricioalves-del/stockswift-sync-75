@@ -4,7 +4,8 @@
 //        colunas usadas: produto, categoria, linear_real (venda/dia), exposicao, pedido
 //  CAIXARIA                      chave: codigo   -> full_case (por código; se não bater, pela descrição exata)
 //  Sortimento_Alm_SP_Loja / _Loja_Patio / _Loja_Eldorado   chave: cod_sku -> ativo
-//  BASE VENDAS                   chave: codprod  -> qtd (últimos 30 dias, sem cancelados)
+//  BASE VENDAS                   chave: codprod  -> venda/dia = vendas dos últimos N dias ÷ N, calculada aqui
+//                                (mesma regra do Excel: Natureza = VENDAS, nota não cancelada, filial e vendedor da loja)
 //  (SALDO ESTOQUE SISTEMA não é lida: o estoque vem do próprio Stock Savvy.)
 import * as XLSX from "xlsx";
 
@@ -14,12 +15,31 @@ export type ProdutoLojaCarga = {
   loja: LojaCodigo; id_produto: string; ativo: boolean;
   venda_dia: number | null; exposicao: number | null; vendas_30d: number | null;
   categoria: string | null; tipo_produto: string | null; pedido: number | null;
+  venda_malha: number | null; // "Linear Malha" colado na planilha (a malha oficial vem do envio do consenso)
+};
+
+/** Como cada loja aparece nas vendas do ERP. O Itaim é a "Filial SP - Fabrica" filtrada por vendedor. */
+export type LojaCfg = { codigo: LojaCodigo; empresa_erp: string; vendedores: string[]; janela_dias: number };
+export const LOJAS_PADRAO: LojaCfg[] = [
+  { codigo: "JESUINO", empresa_erp: "Filial SP - Fabrica", vendedores: ["CPLUG*", "EYE*"], janela_dias: 30 },
+  { codigo: "PATIO", empresa_erp: "Filial Patio Paulista", vendedores: ["*"], janela_dias: 30 },
+  { codigo: "ELDORADO", empresa_erp: "Filial Eldorado", vendedores: ["*"], janela_dias: 19 },
+];
+
+export type CalculoVendas = {
+  usado: boolean;                       // a venda/dia foi recalculada a partir de BASE VENDAS
+  referencia: string | null;            // data de referência (última venda da base), AAAA-MM-DD
+  porLoja: Record<string, { empresa: string; janela: number; vendedores: string[]; linhasUsadas: number; skusComVenda: number }>;
+  comparados: number;                   // SKUs comparados com o "Linear Real" digitado/calculado na planilha
+  divergentes: number;
+  exemplos: { loja: string; sku: string; planilha: number | null; calculado: number }[];
 };
 export type ProdutoCarga = { id_produto: string; descricao: string | null; full_case: number | null };
 export type Pendencia = { aba: string; linha: number; campo: string; valor: string; motivo: string };
 
 export type ResultadoCarga = {
   produtoLoja: ProdutoLojaCarga[];
+  calculo: CalculoVendas;
   produtos: ProdutoCarga[];
   pendencias: Pendencia[];
   abasEncontradas: string[];
@@ -69,6 +89,30 @@ export function codigoSku(v: unknown, conhecidos: Set<string>): string {
   return s.length < 8 ? p : s;
 }
 
+/** Dia como número de série do Excel (inteiro), tolerando Date (leitura local) e número. */
+function diaSerial(v: unknown): number | null {
+  if (v instanceof Date && !isNaN(v.getTime())) return Math.floor(Date.UTC(v.getFullYear(), v.getMonth(), v.getDate()) / 86400000) + 25569;
+  if (typeof v === "number" && Number.isFinite(v)) return Math.floor(v);
+  if (typeof v === "string") {
+    const m = v.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000) + 25569;
+  }
+  return null;
+}
+function serialParaIso(n: number): string { return new Date((n - 25569) * 86400000).toISOString().slice(0, 10); }
+
+/** Critério de vendedor como o SUMIFS do Excel: "*" = qualquer texto não vazio; "ABC*" = começa com; sem curinga = igual. */
+export function casaVendedor(vend: unknown, padroes: string[]): boolean {
+  const s = String(vend ?? "").trim().toLowerCase();
+  if (s === "") return false;
+  return padroes.some((p) => {
+    const q = p.trim().toLowerCase();
+    if (q === "*") return true;
+    if (q.endsWith("*")) return s.startsWith(q.slice(0, -1));
+    return s === q;
+  });
+}
+
 type Linha = unknown[];
 
 /** Matriz da aba; células com erro do Excel viram "#ERR:#REF!" para virarem pendência (sem quebrar a carga). */
@@ -101,10 +145,11 @@ function indices(cab: Linha): Record<string, number> {
   return ix;
 }
 
-export function interpretarBases(wb: XLSX.WorkBook, conhecidos: Set<string> = new Set()): ResultadoCarga {
+export function interpretarBases(wb: XLSX.WorkBook, conhecidos: Set<string> = new Set(), lojasCfg: LojaCfg[] = LOJAS_PADRAO): ResultadoCarga {
   const res: ResultadoCarga = {
     produtoLoja: [], produtos: [], pendencias: [], abasEncontradas: [], abasFaltando: [],
     porLoja: {}, vendasForaDoCatalogo: 0, bloqueios: [],
+    calculo: { usado: false, referencia: null, porLoja: {}, comparados: 0, divergentes: 0, exemplos: [] },
   };
   const pend = (aba: string, linha: number, campo: string, valor: unknown, motivo: string) => {
     if (res.pendencias.length < 500) res.pendencias.push({ aba, linha, campo, valor: String(valor), motivo });
@@ -156,8 +201,9 @@ export function interpretarBases(wb: XLSX.WorkBook, conhecidos: Set<string> = ne
         exposicao: celula(a.nome, i + 1, "exposicao", row[ix["exposicao"]]),
         vendas_30d: null,
         categoria: ix["categoria"] !== undefined && row[ix["categoria"]] ? String(row[ix["categoria"]]).trim() : null,
-        tipo_produto: ix["tipo_produto"] !== undefined && row[ix["tipo_produto"]] ? String(row[ix["tipo_produto"]]).trim() : null,
+        tipo_produto: (() => { const k = ix["tipo_produto"] ?? ix["tipo_de_produto"]; return k !== undefined && row[k] ? String(row[k]).trim() : null; })(),
         pedido: ix["pedido"] !== undefined ? celula(a.nome, i + 1, "pedido", row[ix["pedido"]]) : null,
+        venda_malha: ix["linear_malha"] !== undefined ? numeroBr(row[ix["linear_malha"]]) : null,
       });
     }
   }
@@ -180,7 +226,7 @@ export function interpretarBases(wb: XLSX.WorkBook, conhecidos: Set<string> = ne
       const k = `${a.loja}|${sku}`;
       const atual = porChave.get(k);
       if (atual) atual.ativo = ativo;
-      else porChave.set(k, { loja: a.loja as LojaCodigo, id_produto: sku, ativo, venda_dia: null, exposicao: null, vendas_30d: null, categoria: null, tipo_produto: null, pedido: null });
+      else porChave.set(k, { loja: a.loja as LojaCodigo, id_produto: sku, ativo, venda_dia: null, exposicao: null, vendas_30d: null, categoria: null, tipo_produto: null, pedido: null, venda_malha: null });
     }
   }
   // Sem aba de sortimento para a loja: tudo que está na SOLICITAÇÃO daquela loja vale como ativo (avisa na auditoria).
@@ -213,7 +259,7 @@ export function interpretarBases(wb: XLSX.WorkBook, conhecidos: Set<string> = ne
     }
   }
 
-  // 4) BASE VENDAS: soma da quantidade por loja e SKU (sem cancelados)
+  // 4) BASE VENDAS: venda/dia calculada como o Excel (SUMIFS ÷ janela) e vendas dos últimos 30 dias
   if (vendas) {
     res.abasEncontradas.push(vendas.nome);
     const m = matriz(wb.Sheets[vendas.nome]);
@@ -221,25 +267,54 @@ export function interpretarBases(wb: XLSX.WorkBook, conhecidos: Set<string> = ne
     const ix = h >= 0 && m[h] ? indices(m[h]) : {};
     if (ix["codprod"] === undefined || ix["qtd"] === undefined || ix["empresa"] === undefined) {
       res.bloqueios.push(`Aba "${vendas.nome}": faltam colunas (codprod, empresa, qtd).`);
+    } else if (ix["dt_emissao"] === undefined) {
+      pend(vendas.nome, h + 1, "dt_emissao", "—", "coluna de data ausente: a venda/dia não pôde ser recalculada (vale a da planilha)");
     } else {
-      const canc = (v: unknown) => ehAtivo(v);
-      const soma = new Map<string, number>();
+      // referência = última data de venda da base (como o Excel: MAX(dt_emissao))
+      let ref = -1;
+      for (let i = h + 1; i < m.length; i++) { const d = diaSerial(m[i][ix["dt_emissao"]]); if (d !== null && d > ref) ref = d; }
+      res.calculo.usado = ref > 0;
+      res.calculo.referencia = ref > 0 ? serialParaIso(ref) : null;
+      const alvoEmpresa = lojasCfg.map((c) => ({ c, emp: norm(c.empresa_erp) }));
+      const somaJan = new Map<string, number>(), soma30 = new Map<string, number>();
+      for (const c of lojasCfg) res.calculo.porLoja[c.codigo] = { empresa: c.empresa_erp, janela: c.janela_dias, vendedores: c.vendedores, linhasUsadas: 0, skusComVenda: 0 };
       for (let i = h + 1; i < m.length; i++) {
         const row = m[i];
-        if (row[ix["codprod"]] === null || row[ix["codprod"]] === undefined) continue;
-        if (ix["pedido_cancelado"] !== undefined && canc(row[ix["pedido_cancelado"]])) continue;
-        if (ix["nota_cancelada"] !== undefined && canc(row[ix["nota_cancelada"]])) continue;
-        const loja = lojaDoTexto(row[ix["empresa"]]);
+        const cod = row[ix["codprod"]];
+        if (cod === null || cod === undefined || String(cod).trim() === "") continue;
+        if (ix["natureza"] !== undefined && norm(row[ix["natureza"]]) !== "vendas") continue;
+        if (ix["nota_cancelada"] !== undefined && ehAtivo(row[ix["nota_cancelada"]])) continue;
+        const dia = diaSerial(row[ix["dt_emissao"]]);
         const q = numeroBr(row[ix["qtd"]]);
-        if (!loja || q === null) continue;
-        const k = `${loja}|${codigoSku(row[ix["codprod"]], conhecidos)}`;
-        soma.set(k, (soma.get(k) ?? 0) + q);
+        if (dia === null || q === null || dia > ref) continue;
+        const emp = norm(row[ix["empresa"]]);
+        const sku = codigoSku(cod, conhecidos);
+        for (const { c, emp: e } of alvoEmpresa) {
+          if (emp !== e) continue;
+          if (ix["vendedor"] !== undefined ? !casaVendedor(row[ix["vendedor"]], c.vendedores) : !c.vendedores.includes("*")) continue;
+          if (dia <= ref - 30) continue;
+          const k = `${c.codigo}|${sku}`;
+          soma30.set(k, (soma30.get(k) ?? 0) + q);
+          if (dia > ref - c.janela_dias) { somaJan.set(k, (somaJan.get(k) ?? 0) + q); res.calculo.porLoja[c.codigo].linhasUsadas++; }
+        }
       }
-      for (const [k, q] of soma) {
-        const p = porChave.get(k);
-        if (p) p.vendas_30d = q;
-        else res.vendasForaDoCatalogo += 1; // vendas de códigos fora do catálogo: registradas à parte
+      const janelaDe = new Map(lojasCfg.map((c) => [c.codigo as string, c.janela_dias]));
+      for (const p of porChave.values()) {
+        const k = `${p.loja}|${p.id_produto}`;
+        const jan = janelaDe.get(p.loja) ?? 30;
+        const calc = (somaJan.get(k) ?? 0) / jan;
+        p.vendas_30d = soma30.get(k) ?? 0;
+        if (res.calculo.usado) {
+          res.calculo.comparados++;
+          if (p.venda_dia === null || Math.abs(p.venda_dia - calc) > 1e-6) {
+            res.calculo.divergentes++;
+            if (res.calculo.exemplos.length < 12) res.calculo.exemplos.push({ loja: p.loja, sku: p.id_produto, planilha: p.venda_dia, calculado: calc });
+          }
+          p.venda_dia = calc;
+          if (calc > 0) res.calculo.porLoja[p.loja].skusComVenda++;
+        }
       }
+      for (const k of [...soma30.keys()]) if (!porChave.has(k)) res.vendasForaDoCatalogo += 1; // vendas de códigos fora do catálogo: registradas à parte
     }
   }
 
