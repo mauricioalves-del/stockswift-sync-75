@@ -25,6 +25,7 @@ const COR: Record<StatusItem, string> = {
   conferir: "bg-orange-100 text-orange-700 border-orange-200", fora: "bg-slate-100 text-slate-500 border-slate-200",
 };
 const n1 = (v: number | null) => (v == null ? "—" : v.toLocaleString("pt-BR", { maximumFractionDigits: 1 }));
+const n2 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("pt-BR", { maximumFractionDigits: 2 }));
 
 function ReposicaoPage() {
   const { isAdmin, role } = useRole();
@@ -32,6 +33,7 @@ function ReposicaoPage() {
   const [lojaSel, setLojaSel] = useState("");
   const [filtro, setFiltro] = useState<StatusItem | "SUGESTAO" | "TODOS">("TODOS");
   const [busca, setBusca] = useState("");
+  const [demanda, setDemanda] = useState<"real" | "malha">("real");
 
   const base = useQuery({
     enabled: pode, queryKey: ["abast-base"], staleTime: 30_000,
@@ -81,11 +83,21 @@ function ReposicaoPage() {
       const custo = qL > 0 ? (valLoja.get(k) ?? 0) / qL : qC > 0 ? (valCd.get(k) ?? 0) / qC : null;
       return calcularItem({
         sku: k, descricao: info.get(k)?.descricao ?? nomeEst.get(k) ?? "", categoria: r.categoria, tipo: r.tipo_produto,
-        ativo: !!r.ativo_sortimento, estoque: qL, vendaDia: r.venda_dia, exposicao: r.exposicao, fullCase: info.get(k)?.full_case,
+        ativo: !!r.ativo_sortimento, estoque: qL, vendaDia: demanda === "malha" ? r.venda_malha : r.venda_dia, exposicao: r.exposicao, fullCase: info.get(k)?.full_case,
         custo, saldoCD: qC, emPedido: 0, vendas30: r.vendas_30d, masterPresente: master.has(k),
       }, base.data!.dias);
     });
-  }, [dados.data, loja, base.data]);
+  }, [dados.data, loja, base.data, demanda]);
+
+  const malhaMap = useMemo(() => new Map<string, number | null>((dados.data?.pl ?? []).map((r: any) => [String(r.id_produto), r.venda_malha == null ? null : Number(r.venda_malha)])), [dados.data]);
+  const infoMalha = useMemo(() => {
+    const pl: any[] = dados.data?.pl ?? [];
+    const comMalha = pl.filter((r) => r.venda_malha != null).length;
+    const meses = [...new Set(pl.filter((r) => r.malha_mes).map((r) => String(r.malha_mes)))].sort();
+    const mesAtual = new Date().toISOString().slice(0, 7);
+    const desatualizada = comMalha > 0 && (meses.length === 0 || meses[meses.length - 1] !== mesAtual);
+    return { comMalha, meses, mesAtual, desatualizada, total: pl.length };
+  }, [dados.data]);
 
   const resumo = useMemo(() => resumirLoja(itens), [itens]);
   const linhas = useMemo(() => {
@@ -99,11 +111,11 @@ function ReposicaoPage() {
   function exportar() {
     const f = (n: unknown) => (n == null ? "" : String(n).replace(".", ","));
     const esc = (s: unknown) => `"${String(s ?? "").replace(/"/g, '""')}"`;
-    const cab = ["SKU", "Produto", "Categoria", "Status", "Estoque loja", "Venda/dia", "Exposição", "Cobertura (dias)", "Mínimo", "Ideal", "Máximo", "Caixa", "Sugestão (un)", "Sugestão (caixas)", "Saldo CD", "Custo", "Valor sugestão"];
+    const cab = ["SKU", "Produto", "Categoria", "Status", "Estoque loja", demanda === "malha" ? "Demanda/dia (malha)" : "Venda/dia (real)", "Exposição", "Cobertura (dias)", "Mínimo", "Ideal", "Máximo", "Caixa", "Sugestão (un)", "Sugestão (caixas)", "Saldo CD", "Custo", "Valor sugestão"];
     const corpo = linhas.filter((i: any) => i.sugestao > 0).map((i: any) => [i.sku, i.descricao, i.categoria, STATUS[i.status as StatusItem].rotulo, f(i.estoque), f(i.vendaDia), f(i.exposicao),
       f(i.cobertura == null ? null : Math.round(i.cobertura * 10) / 10), f(i.minQ), f(i.idealQ), f(i.maxQ), f(i.caixa), f(i.sugestao), f(i.sugestao / i.caixa), f(i.saldoCD), f(i.custo), f(Math.round(i.sugestao * (i.custo || 0) * 100) / 100)].map(esc).join(";"));
     const url = URL.createObjectURL(new Blob(["\uFEFF" + [cab.map(esc).join(";"), ...corpo].join("\r\n")], { type: "text/csv;charset=utf-8" }));
-    const a = document.createElement("a"); a.href = url; a.download = `Reposicao_${loja?.codigo}_${new Date().toISOString().slice(0, 10)}.csv`;
+    const a = document.createElement("a"); a.href = url; a.download = `Reposicao_${loja?.codigo}_${demanda}_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
 
@@ -116,7 +128,7 @@ function ReposicaoPage() {
         <h1 className="text-2xl font-bold flex items-center gap-2"><Store className="size-6" /> Reposição de Lojas</h1>
         <p className="text-sm text-muted-foreground">
           Estoque do CD <strong>{base.data?.cd}</strong> para as lojas. Mínimo, ideal e máximo = exposição + venda/dia × {base.data?.dias.min}/{base.data?.dias.ideal}/{base.data?.dias.max} dias.
-          O estoque vem do Stock Savvy; venda/dia, exposição, sortimento e caixa vêm da carga da planilha.
+          O estoque vem do Stock Savvy; venda/dia, exposição, sortimento e caixa vêm da carga da planilha; a malha vem do consenso da diretoria. A sugestão é sempre em caixa fechada.
         </p>
       </div>
 
@@ -124,6 +136,17 @@ function ReposicaoPage() {
         {(base.data?.lojas ?? []).map((l) => (
           <Button key={l.codigo} size="sm" variant={loja?.codigo === l.codigo ? "default" : "outline"} onClick={() => { setLojaSel(l.codigo); setFiltro("TODOS"); }}>{l.nome}</Button>
         ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-muted-foreground">Base de venda:</span>
+        <Button size="sm" variant={demanda === "real" ? "default" : "outline"} onClick={() => setDemanda("real")}>Real (últimos dias)</Button>
+        <Button size="sm" variant={demanda === "malha" ? "default" : "outline"} onClick={() => setDemanda("malha")}>Malha (consenso da diretoria)</Button>
+        <span className={`text-xs ${infoMalha.desatualizada ? "text-amber-600 font-semibold" : "text-muted-foreground"}`}>
+          {infoMalha.comMalha === 0
+            ? "Sem malha nesta loja: envie o consenso em Carga de dados."
+            : `Malha: ${infoMalha.comMalha} de ${infoMalha.total} SKUs · ${infoMalha.meses.length ? "mês " + infoMalha.meses.join(", ") : "vinda da planilha, sem mês informado"}${infoMalha.desatualizada ? ` ⚠ desatualizada (mês atual: ${infoMalha.mesAtual})` : ""}`}
+        </span>
       </div>
 
       {semCarga && (
@@ -157,18 +180,18 @@ function ReposicaoPage() {
         <Table>
           <TableHeader><TableRow>
             <TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Status</TableHead>
-            <TableHead className="text-right">Estoque</TableHead><TableHead className="text-right">Venda/dia</TableHead><TableHead className="text-right">Expo.</TableHead>
+            <TableHead className="text-right">Estoque</TableHead><TableHead className="text-right">{demanda === "malha" ? "Demanda (malha)" : "Venda/dia"}</TableHead><TableHead className="text-right">Malha/dia</TableHead><TableHead className="text-right">Expo.</TableHead>
             <TableHead className="text-right">Cobert.</TableHead><TableHead className="text-right">Mín</TableHead><TableHead className="text-right">Ideal</TableHead><TableHead className="text-right">Máx</TableHead>
             <TableHead className="text-right">Sugestão</TableHead><TableHead className="text-right">Saldo CD</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {linhas.length === 0 && <TableRow><TableCell colSpan={12} className="py-10 text-center text-muted-foreground">{dados.isLoading ? "Carregando..." : "Nenhum item neste filtro."}</TableCell></TableRow>}
+            {linhas.length === 0 && <TableRow><TableCell colSpan={13} className="py-10 text-center text-muted-foreground">{dados.isLoading ? "Carregando..." : "Nenhum item neste filtro."}</TableCell></TableRow>}
             {linhas.slice(0, 600).map((i: any) => (
               <TableRow key={i.sku}>
                 <TableCell className="font-mono text-xs">{i.sku}</TableCell>
                 <TableCell className="max-w-[240px] truncate">{i.descricao || "—"}</TableCell>
                 <TableCell><span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${COR[i.status as StatusItem]}`}>{STATUS[i.status as StatusItem].rotulo}</span></TableCell>
-                <TableCell className="text-right">{n1(i.estoque)}</TableCell><TableCell className="text-right">{n1(i.vendaDia)}</TableCell><TableCell className="text-right">{n1(i.exposicao)}</TableCell>
+                <TableCell className="text-right">{n1(i.estoque)}</TableCell><TableCell className="text-right">{n2(i.vendaDia)}</TableCell><TableCell className="text-right text-muted-foreground">{n2(malhaMap.get(i.sku))}</TableCell><TableCell className="text-right">{n1(i.exposicao)}</TableCell>
                 <TableCell className="text-right">{n1(i.cobertura)}</TableCell><TableCell className="text-right">{n1(i.minQ)}</TableCell><TableCell className="text-right">{n1(i.idealQ)}</TableCell><TableCell className="text-right">{n1(i.maxQ)}</TableCell>
                 <TableCell className="text-right font-semibold">{i.sugestao > 0 ? `${i.sugestao}${i.caixa > 1 ? ` (${i.sugestao / i.caixa} cx)` : ""}` : "—"}</TableCell>
                 <TableCell className="text-right">{n1(i.saldoCD)}{i.sugestao > 0 && (i.saldoCD ?? 0) < i.sugestao && <AlertTriangle className="inline size-3 ml-1 text-amber-600" aria-label="CD não cobre a sugestão" />}</TableCell>
