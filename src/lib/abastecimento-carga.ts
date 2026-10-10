@@ -79,14 +79,36 @@ export function ehAtivo(v: unknown): boolean {
   return VERDADEIRO.has(norm(v));
 }
 
-/** Zeros à esquerda: "5304030" => "05304030" quando o cadastro conhece o código com zeros. */
+const semZeros = (s: string): string => s.replace(/^0+/, "");
+const cacheCanonicos = new WeakMap<Set<string>, Map<string, string>>();
+/** Para cada número (sem zeros à esquerda), o código mais completo conhecido: "5104020" => "05104020". */
+function canonicos(conhecidos: Set<string>): Map<string, string> {
+  let m = cacheCanonicos.get(conhecidos);
+  if (!m) {
+    m = new Map();
+    for (const id of conhecidos) {
+      if (!/^\d+$/.test(id)) continue;
+      const k = semZeros(id);
+      const atual = m.get(k);
+      if (!atual || id.length > atual.length) m.set(k, id);
+    }
+    cacheCanonicos.set(conhecidos, m);
+  }
+  return m;
+}
+
+/**
+ * Zeros à esquerda: compara pelo NÚMERO e devolve o código como o estoque o escreve.
+ * Sem registro conhecido: produto acabado tem 8 dígitos ("5304030" => "05304030") e embalagem/material 10 ("190213100" => "0190213100").
+ */
 export function codigoSku(v: unknown, conhecidos: Set<string>): string {
-  let s = String(v ?? "").trim().replace(/\.0+$/, "");
+  const s = String(v ?? "").trim().replace(/\.0+$/, "");
   if (!/^\d+$/.test(s)) return s;
-  if (conhecidos.has(s)) return s;
-  const p = s.padStart(8, "0");
-  if (conhecidos.has(p)) return p;
-  return s.length < 8 ? p : s;
+  const achado = canonicos(conhecidos).get(semZeros(s));
+  if (achado) return achado;
+  if (s.length < 8) return s.padStart(8, "0");
+  if (s.length === 9) return s.padStart(10, "0");
+  return s;
 }
 
 /** Dia como número de série do Excel (inteiro), tolerando Date (leitura local) e número. */
