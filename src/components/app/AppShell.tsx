@@ -7,7 +7,7 @@ import {
   Leaf, ChevronDown, ChevronRight, PackageMinus, Target, TrendingUp, Warehouse, Mail,
   Compass, Sparkles, Settings2, Boxes, Truck, AlertTriangle, PanelLeftClose, PanelLeftOpen,
   Factory, GitCompareArrows, CalendarClock, Bell, ArrowRightLeft, CalendarCheck, PackageX, Tags,
-  PackageCheck, Hourglass, Gem, SearchCheck,
+  PackageCheck, Hourglass, Gem, SearchCheck, Store, FileSpreadsheet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -65,6 +65,13 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/config/sazonalidade", label: "Sazonalidade", icon: Sparkles, role: "admin" },
       { to: "/producao/confirmacao-recebimento", label: "Confirmação de Recebimento", icon: PackageCheck, role: "any" },
       { to: "/suprimentos/farol-recebimento", label: "Farol de Recebimento Pendente", icon: Truck, role: "any" },
+    ],
+  },
+  {
+    id: "abastecimento", label: "Abastecimento", icon: Store, role: "gestor",
+    items: [
+      { to: "/abastecimento/reposicao", label: "Reposição de Lojas", icon: Store, role: "gestor" },
+      { to: "/abastecimento/carga", label: "Carga de dados", icon: FileSpreadsheet, role: "admin" },
     ],
   },
   {
