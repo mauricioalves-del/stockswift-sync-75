@@ -1,0 +1,127 @@
+// Camada de dados do módulo de Abastecimento v2 — monta, por loja, os itens de reposição a partir de:
+//   faturamento carregado (historico_consumo por almoxarifado da loja) → CMD; consenso → meta mensal; estoque de lote ao vivo;
+//   notas em trânsito + pedidos em aberto (sem duplicar pedido); cadastro de grupo/família; sazonalidade; exposição e caixa.
+// Universo: produto ACABADO com meta no consenso para a loja (embalagem, em processo, local e revenda ficam de fora).
+import { calcularItem2, alocarCD, PARAM2_PADRAO, type Item2, type Base2, type Param2 } from "./abastecimento-motor2";
+import { cmdPonderado, acompanhamentoMeta, type AcompMeta, type Denominador } from "./abastecimento-demanda";
+import { consensoMedioNaJanela } from "./abastecimento-consenso";
+import { indiceMedioNaJanela, type PeriodoSazonal } from "./sazonalidade";
+
+export const nk = (s: unknown): string => String(s ?? "").trim().replace(/^0+/, "");
+export const GRUPO_ACABADO = "Produto Acabado";
+
+export type Bruto = {
+  lojas: { codigo: string; nome: string; almoxarifado: string }[];
+  cd: string;
+  params: Param2;
+  consenso: { loja: string; id_produto: string; mes: string; unidades: number; tipo?: string | null; produto?: string | null; linha?: string | null }[];
+  grupos: { grupo: string; codigo_produto: string }[];
+  familias: { codigo_produto: string; familia: string }[];
+  abc: { codigo_produto: string; classe: string }[];
+  periodos: PeriodoSazonal[];
+  consumo: { origem: string; sku: string; data_movimento: string; quantidade: number }[];
+  estoque: { id_produto: string; descricao?: string | null; origem: string; quantidade: number; custo_unitario?: number | null }[];
+  notas: { cod_prod: string; almox: string; qtd: number }[];
+  pedidosAbertos: { loja: string; id_produto: string; qtd: number; status: string }[];
+  produtos: { id_produto: string; full_case: number | null }[];
+  exposicoes: { loja: string; id_produto: string; exposicao: number | null }[];
+};
+
+export type ItemRep = Item2 & {
+  loja: string; grupo: string; familia: string; linha: string; tipo: string;
+  cmd: number; tendencia: number; consensoDia: number | null; metaMes: number; realizadoMes: number; acomp: AcompMeta; refVendas: string | null; semExposicao: boolean;
+};
+
+export type Montagem = {
+  itens: Record<string, ItemRep[]>;
+  refPorLoja: Record<string, string | null>;
+  excluidos: { semGrupo: number; naoAcabado: number };
+  semFamilia: { loja: string; sku: string; descricao: string; linha: string }[];
+};
+
+const destinoNota = (s: string): string | null => {
+  const t = s.toLowerCase();
+  return t.includes("eldorado") ? "ELDORADO" : t.includes("patio") || t.includes("paulista") ? "PATIO" : t.includes("itaim") || t.includes("sp_loja") ? "JESUINO" : t.includes("fabrica") ? "CD" : null;
+};
+
+export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador; hojeIso: string; manuais?: Record<string, number | null> }): Montagem {
+  const grupoDe = new Map<string, string>(); for (const g of b.grupos) grupoDe.set(nk(g.codigo_produto), g.grupo);
+  const famDe = new Map<string, string>(); for (const f of b.familias) famDe.set(nk(f.codigo_produto), f.familia);
+  const abcDe = new Map<string, string>(); for (const a of b.abc) abcDe.set(nk(a.codigo_produto), a.classe);
+  const fcDe = new Map<string, number>(); for (const p of b.produtos) fcDe.set(nk(p.id_produto), Number(p.full_case) || 1);
+  const expoDe = new Map<string, number | null>(); for (const e of b.exposicoes) expoDe.set(`${e.loja}|${nk(e.id_produto)}`, e.exposicao == null ? null : Number(e.exposicao));
+  const almoxDe = new Map(b.lojas.map((l) => [l.codigo, l.almoxarifado])); const lojaDoAlmox = new Map(b.lojas.map((l) => [l.almoxarifado, l.codigo]));
+
+  // estoque ao vivo
+  const est = new Map<string, { lojas: Record<string, number>; cd: number; desc: string; custo: number; canon: string }>();
+  for (const e of b.estoque) {
+    const k = nk(e.id_produto), q = Number(e.quantidade) || 0;
+    const x = est.get(k) ?? { lojas: {}, cd: 0, desc: "", custo: 0, canon: String(e.id_produto) };
+    if (e.origem === b.cd) x.cd += q; else { const l = lojaDoAlmox.get(e.origem); if (l) x.lojas[l] = (x.lojas[l] ?? 0) + q; }
+    if (!x.desc && e.descricao) x.desc = e.descricao;
+    if (!x.custo && Number(e.custo_unitario) > 0) x.custo = Number(e.custo_unitario);
+    if (String(e.id_produto).length > x.canon.length) x.canon = String(e.id_produto);
+    est.set(k, x);
+  }
+  // trânsito (notas) e pedidos em aberto
+  const transito = new Map<string, number>(); for (const n of b.notas) { const d = destinoNota(String(n.almox ?? "")); if (d && d !== "CD") { const k = `${d}|${nk(n.cod_prod)}`; transito.set(k, (transito.get(k) ?? 0) + (Number(n.qtd) || 0)); } }
+  const pedAb = new Map<string, number>(); for (const p of b.pedidosAbertos) { const k = `${p.loja}|${nk(p.id_produto)}`; pedAb.set(k, (pedAb.get(k) ?? 0) + (Number(p.qtd) || 0)); }
+  // vendas por loja e SKU (por dia) e referência = último dia faturado de cada loja
+  const vendas = new Map<string, Map<string, number>>(); const refPorLoja: Record<string, string | null> = {}; const inicioPorLoja: Record<string, string | null> = {}; for (const l of b.lojas) { refPorLoja[l.codigo] = null; inicioPorLoja[l.codigo] = null; }
+  // Mesmo SKU escrito de dois jeitos (com e sem zero à esquerda) no mesmo dia é a MESMA venda: vale o maior valor, nunca a soma.
+  const porFormato = new Map<string, Map<string, number>>();
+  for (const c of b.consumo) {
+    const loja = lojaDoAlmox.get(c.origem); if (!loja) continue;
+    const dia = String(c.data_movimento).slice(0, 10);
+    if (!refPorLoja[loja] || dia > (refPorLoja[loja] as string)) refPorLoja[loja] = dia;
+    if (!inicioPorLoja[loja] || dia < (inicioPorLoja[loja] as string)) inicioPorLoja[loja] = dia;
+    const k = `${loja}|${nk(c.sku)}|${dia}`; const f = porFormato.get(k) ?? new Map<string, number>();
+    f.set(String(c.sku), (f.get(String(c.sku)) ?? 0) + (Number(c.quantidade) || 0)); porFormato.set(k, f);
+  }
+  for (const [k, f] of porFormato) {
+    const i = k.lastIndexOf("|"); const dia = k.slice(i + 1), chave = k.slice(0, i);
+    const m = vendas.get(chave) ?? new Map<string, number>(); m.set(dia, Math.max(...f.values())); vendas.set(chave, m);
+  }
+  // meta por loja e SKU
+  const metas = new Map<string, { porMes: Record<string, number>; tipo: string; produto: string; linha: string }>();
+  for (const c of b.consenso) { const k = `${c.loja}|${nk(c.id_produto)}`; const m = metas.get(k) ?? { porMes: {}, tipo: c.tipo ?? "", produto: c.produto ?? "", linha: c.linha ?? "" }; m.porMes[c.mes] = (m.porMes[c.mes] ?? 0) + (Number(c.unidades) || 0); if (!m.linha && c.linha) m.linha = c.linha; metas.set(k, m); }
+
+  const itens: Record<string, ItemRep[]> = {}; const ex = { semGrupo: 0, naoAcabado: 0 }; const semFamilia: Montagem["semFamilia"] = [];
+  const mesAtual = o.hojeIso.slice(0, 7);
+  for (const l of b.lojas) {
+    const lista: ItemRep[] = [];
+    for (const [k, m] of metas) {
+      if (!k.startsWith(l.codigo + "|")) continue;
+      if (!Object.values(m.porMes).some((v) => v > 0)) continue;       // só o que o consenso estima para vendas
+      const sku = k.slice(l.codigo.length + 1);
+      const grupo = grupoDe.get(sku);
+      if (!grupo) { ex.semGrupo++; continue; }
+      if (grupo !== GRUPO_ACABADO) { ex.naoAcabado++; continue; }      // embalagem, em processo, local, revenda...
+      const familia = famDe.get(sku) ?? "";
+      const e = est.get(sku);
+      const ref = refPorLoja[l.codigo] ?? o.hojeIso;
+      const r = cmdPonderado(vendas.get(k) ?? new Map(), ref, { denominador: o.denominador, inicioHistorico: inicioPorLoja[l.codigo] });
+      const idx = indiceMedioNaJanela(b.periodos, { sku: e?.canon ?? sku, grupo, familia }, Math.max(1, b.params.diasIdeal));
+      const cons = consensoMedioNaJanela(m.porMes, o.hojeIso, Math.max(1, b.params.diasIdeal));
+      const expo = expoDe.get(`${l.codigo}|${sku}`);
+      const mesAt = m.porMes[mesAtual] ?? 0;
+      let realizado = 0; const vm = vendas.get(k); if (vm) for (const [d, q] of vm) if (d.startsWith(mesAtual) && d <= ref) realizado += q;
+      const manual = o.manuais?.[`${l.codigo}|${sku}`];
+      const it = calcularItem2({
+        sku: e?.canon ?? sku, descricao: e?.desc || m.produto, categoria: familia, ativo: true, masterPresente: true,
+        estoque: e?.lojas[l.codigo] ?? 0, exposicao: expo ?? 0, vendaDiaReal: r.cmd, consensoDia: cons, indiceSazonal: idx,
+        classeAbc: abcDe.get(sku) ?? null, fullCase: fcDe.get(sku) ?? 1, custo: e?.custo ?? null, saldoCD: e?.cd ?? 0,
+        emTransito: transito.get(`${l.codigo}|${sku}`) ?? 0, pedidoAberto: pedAb.get(`${l.codigo}|${sku}`) ?? 0, pedidoManual: manual ?? null,
+      }, b.params, o.base);
+      if (!familia) semFamilia.push({ loja: l.codigo, sku: it.sku, descricao: it.descricao, linha: m.linha || m.tipo });
+      lista.push({ ...it, loja: l.codigo, grupo, familia, linha: m.linha, tipo: m.tipo, cmd: r.cmd, tendencia: r.tendencia, consensoDia: cons, metaMes: mesAt, realizadoMes: realizado,
+        acomp: acompanhamentoMeta(mesAt, realizado, ref), refVendas: refPorLoja[l.codigo], semExposicao: expo == null });
+    }
+    itens[l.codigo] = lista;
+  }
+  // limite pelo saldo do CD, entre todas as lojas
+  const cdPorSku = new Map<string, number>(); for (const [k, v] of est) cdPorSku.set(v.canon, v.cd);
+  alocarCD(Object.values(itens).flat(), cdPorSku);
+  return { itens, refPorLoja, excluidos: ex, semFamilia };
+}
+export { PARAM2_PADRAO };
