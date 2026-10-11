@@ -9,6 +9,7 @@ import {
   Factory, GitCompareArrows, CalendarClock, Bell, ArrowRightLeft, CalendarCheck, PackageX, Tags,
   PackageCheck, Hourglass, Gem, SearchCheck, Store, FileSpreadsheet,
  TrendingDown,
+ ReceiptText,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -74,6 +75,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/abastecimento/reposicao", label: "Reposição de Lojas", icon: Store, role: "gestor" },
       { to: "/abastecimento/projecao-cd", label: "Projeção do CD e Plano", icon: TrendingDown, role: "gestor" },
       { to: "/abastecimento/carga", label: "Carga de dados", icon: FileSpreadsheet, role: "admin" },
+      { to: "/abastecimento/faturamento", label: "Carga de faturamento", icon: ReceiptText, role: "admin" },
     ],
   },
   {
