@@ -19,7 +19,18 @@ export const Route = createFileRoute("/_authenticated/abastecimento/consumo")({
 
 type Row = { origem: string; sku: string; descricao: string; data_movimento: string; quantidade: number };
 
-const REQUIRED = ["Origem", "SKU", "Data", "Quantidade"];
+const REQUIRED = ["SKU", "Data", "Quantidade"]; // e mais: "Origem" OU "Loja"
+
+/** Ponto de venda (coluna "Loja") -> almoxarifado da loja. "Ativação" é evento e mantém Alm_PDV_Ativacao, como no histórico. */
+function origemDaLoja(loja: string): string {
+  const t = loja.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  if (!t) return "";
+  if (t.includes("itaim") || t.includes("jesuino") || t.includes("sp_loja")) return "Alm_SP_Loja";
+  if (t.includes("patio") || t.includes("paulista")) return "Alm_Paulista";
+  if (t.includes("eldorado")) return "Alm_Eldorado";
+  if (t.includes("ativacao")) return "Alm_PDV_Ativacao";
+  return "";
+}
 
 function pick(r: Record<string, unknown>, ...keys: string[]): string {
   return pickCI(r, ...keys);
@@ -80,17 +91,19 @@ function ConsumoPage() {
       if (data.length === 0) { setErrors(["Planilha vazia"]); return; }
       const headerKeys = new Set(Object.keys(data[0]).map((k) => k.trim().toLowerCase()));
       const missing = REQUIRED.filter((k) => !headerKeys.has(k.trim().toLowerCase()));
+      if (!headerKeys.has("origem") && !headerKeys.has("loja")) missing.push("Origem ou Loja");
       if (missing.length) { setErrors([`Colunas obrigatórias ausentes: ${missing.join(", ")}`]); return; }
 
 
       const errs: string[] = [];
       const parsed: Row[] = [];
       data.forEach((r, i) => {
-        const origem = pick(r, "Origem", "origem");
+        const lojaBruta = pick(r, "Loja", "loja");
+        const origem = pick(r, "Origem", "origem") || origemDaLoja(lojaBruta);
         const sku = pick(r, "SKU", "sku", "Id_produto", "Id_Produto");
         const dataMov = toIsoDate(pick(r, "Data", "data", "Data_Movimento"));
         const qtd = Number(String(r["Quantidade"] ?? r["quantidade"] ?? 0).replace(",", "."));
-        if (!origem) return errs.push(`Linha ${i + 2}: Origem vazia`);
+        if (!origem) return errs.push(`Linha ${i + 2}: ${lojaBruta ? `Loja "${lojaBruta}" não reconhecida` : "Origem e Loja vazias"}`);
         if (!sku) return errs.push(`Linha ${i + 2}: SKU vazio`);
         if (!dataMov) return errs.push(`Linha ${i + 2}: Data inválida`);
         if (Number.isNaN(qtd)) return errs.push(`Linha ${i + 2}: Quantidade inválida`);
@@ -155,7 +168,7 @@ function ConsumoPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><TrendingUp className="size-6" /> Importar Consumo</h1>
         <p className="text-sm text-muted-foreground">
-          Fonte do <b>CMD (Consumo Médio Diário)</b>. Colunas obrigatórias: <b>Origem, SKU, Data, Quantidade</b>. Opcional: Descricao.
+          Fonte do <b>CMD (Consumo Médio Diário)</b>. Colunas obrigatórias: <b>SKU, Data, Quantidade</b> e <b>Origem</b> ou <b>Loja</b> (o ponto de venda; sem Origem, vale a Loja). Opcional: Descricao.
         </p>
       </div>
 
@@ -174,7 +187,7 @@ function ConsumoPage() {
             <Upload className="size-10 text-primary" />
             <div className="text-center">
               <div className="font-medium">Selecione a planilha de consumo</div>
-              <div className="text-xs text-muted-foreground">.xlsx com Origem, SKU, Data, Quantidade</div>
+              <div className="text-xs text-muted-foreground">.xlsx com Origem (ou Loja), SKU, Data, Quantidade</div>
             </div>
             <input type="file" accept=".xlsx,.xls" className="hidden"
               onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
