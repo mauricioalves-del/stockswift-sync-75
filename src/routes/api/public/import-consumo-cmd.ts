@@ -10,6 +10,7 @@ const CHUNK = 500
 
 type LinhaEntrada = {
   origem?: unknown
+  loja?: unknown
   sku?: unknown
   descricao?: unknown
   data_movimento?: unknown
@@ -41,6 +42,18 @@ function toIsoDate(s: string): string {
     const y = m[3].length === 2 ? `20${m[3]}` : m[3]
     return `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
   }
+  return ''
+}
+
+// Ponto de venda (campo "loja") -> almoxarifado da loja. Vale quando "origem" vem vazia (faturamento novo).
+// "Ativação" é evento e mantém Alm_PDV_Ativacao, como no histórico.
+function origemDaLoja(loja: string): string {
+  const t = loja.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+  if (!t) return ''
+  if (t.includes('itaim') || t.includes('jesuino') || t.includes('sp_loja')) return 'Alm_SP_Loja'
+  if (t.includes('patio') || t.includes('paulista')) return 'Alm_Paulista'
+  if (t.includes('eldorado')) return 'Alm_Eldorado'
+  if (t.includes('ativacao')) return 'Alm_PDV_Ativacao'
   return ''
 }
 
@@ -80,11 +93,12 @@ export const Route = createFileRoute('/api/public/import-consumo-cmd')({
         const validas: Valida[] = []
 
         linhas.forEach((r, i) => {
-          const origem = txt(r.origem)
+          const lojaBruta = txt(r.loja)
+          const origem = txt(r.origem) || origemDaLoja(lojaBruta)
           const sku = txt(r.sku)
           const data_movimento = toIsoDate(txt(r.data_movimento))
           const quantidade = num(r.quantidade)
-          if (!origem) return erros.push({ linha: i + 1, erro: 'origem vazia' })
+          if (!origem) return erros.push({ linha: i + 1, erro: lojaBruta ? `loja "${lojaBruta}" não reconhecida` : 'origem e loja vazias' })
           if (!sku) return erros.push({ linha: i + 1, erro: 'sku vazio' })
           if (!data_movimento) return erros.push({ linha: i + 1, erro: 'data_movimento inválida' })
           if (Number.isNaN(quantidade)) return erros.push({ linha: i + 1, erro: 'quantidade inválida' })
