@@ -12,6 +12,8 @@ import { num } from "./abastecimento-motor";
 export type Base2 = "real" | "consenso" | "maior";
 export type Param2 = { diasMin: number; diasIdeal: number; diasMax: number; diasSeguranca: number };
 export const PARAM2_PADRAO: Param2 = { diasMin: 5, diasIdeal: 10, diasMax: 15, diasSeguranca: 0 };
+/** Acima disto (dias de cobertura depois do pedido) a linha recebe um AVISO; o pedido continua sugerido. */
+export const LIMITE_COBERTURA_AVISO = 20;
 
 export type Status2 = "ruptura" | "abaixo" | "ok" | "excesso" | "semdemanda" | "em_transito" | "cadastro" | "conferir" | "fora";
 export const STATUS2: Record<Status2, { rotulo: string; ordem: number }> = {
@@ -49,7 +51,7 @@ export type Item2 = {
   coberturaFisica: number | null; coberturaProjetada: number | null;
   caixa: number; sugestao: number; sugestaoCaixas: number;
   qtdPedido: number; pedidoOrigem: "SUGESTAO" | "MANUAL" | "NENHUM"; manualOriginal: number | null; manualAjustado: boolean;
-  qtdAtendida: number; faltaCD: number; caixasCD: number; cobPosPedido: number | null;
+  qtdAtendida: number; faltaCD: number; caixasCD: number; cobPosPedido: number | null; disponivelCD: number | null; fracionado: boolean; avisoCobertura: boolean;
   saldoCD: number | null; custo: number | null; valorPedido: number;
   status: Status2; alertas: string[];
 };
@@ -83,7 +85,7 @@ export function calcularItem2(e: Entrada2, p: Param2 = PARAM2_PADRAO, base: Base
     demandaDia, demandaReal, demandaConsenso, indiceSazonal: idx, baseUsada,
     seguranca: 0, minQ: null, idealQ: null, maxQ: null, coberturaFisica: null, coberturaProjetada: null,
     caixa, sugestao: 0, sugestaoCaixas: 0, qtdPedido: 0, pedidoOrigem: "NENHUM", manualOriginal: null, manualAjustado: false,
-    qtdAtendida: 0, faltaCD: 0, caixasCD: 0, cobPosPedido: null, saldoCD: num(e.saldoCD), custo, valorPedido: 0, status: "fora", alertas: [],
+    qtdAtendida: 0, faltaCD: 0, caixasCD: 0, cobPosPedido: null, disponivelCD: null, fracionado: false, avisoCobertura: false, saldoCD: num(e.saldoCD), custo, valorPedido: 0, status: "fora", alertas: [],
   };
   if (!e.ativo) return r;
   if (estoque === null || estoque < 0 || demandaDia === null || exposicao === null) { r.status = "conferir"; aplicarManual(r, e); return r; }
@@ -151,13 +153,27 @@ export function alocarCD(itens: Item2[], saldoCD: Map<string, number>): Item2[] 
     const saldoTotal = Math.max(0, saldoCD.get(sku) ?? 0);
     for (const it of ordenados) {
       const quer = it.qtdPedido;
-      // Sugestão: só em caixa fechada. Pedido MANUAL: a quantidade exata, limitada ao saldo do CD (o usuário aloca o que existe).
+      it.disponivelCD = restante;                       // o que sobra do CD para esta loja, depois das de maior prioridade
       const emCaixas = Math.floor(restante / it.caixa) * it.caixa;
-      const da = quer <= 0 ? 0 : it.pedidoOrigem === "MANUAL" ? Math.min(quer, restante) : Math.min(quer, emCaixas);
+      const urgente = it.status === "ruptura" || it.status === "abaixo";
+      let da = 0;
+      if (quer > 0) {
+        if (it.pedidoOrigem === "MANUAL") da = Math.min(quer, restante);   // decisão da gestão: a quantidade exata, até o saldo
+        else if (restante >= quer) da = quer;                              // o CD cobre a sugestão (já em caixas)
+        else if (urgente) da = restante;                                   // CD curto e a loja precisa: aloca o saldo que existe (solto)
+        else da = Math.min(quer, emCaixas);                                // sem urgência: só caixa fechada
+      }
       it.qtdAtendida = da; it.faltaCD = quer - da; it.saldoCD = saldoTotal; it.caixasCD = Math.floor(saldoTotal / it.caixa);
+      it.fracionado = da > 0 && it.pedidoOrigem !== "MANUAL" && it.caixa > 1 && da % it.caixa !== 0;
       restante -= da;
+      if (it.fracionado) it.alertas.push(`CD sem caixa fechada: enviando o saldo solto de ${da} un (caixa de ${it.caixa})`);
       if (it.faltaCD > 0) it.alertas.push(`CD não cobre: faltam ${it.faltaCD} un (saldo do CD: ${saldoTotal} un${it.caixa > 1 ? `, ${it.caixasCD} cx` : ""})`);
-      if (it.demandaDia !== null && it.demandaDia > 0 && it.estoque !== null && it.exposicao !== null) it.cobPosPedido = Math.max(0, (it.estoque + it.emTransito + it.pedidoAberto + da - it.exposicao)) / it.demandaDia;
+      if (it.demandaDia !== null && it.demandaDia > 0 && it.estoque !== null && it.exposicao !== null) {
+        it.cobPosPedido = Math.max(0, (it.estoque + it.emTransito + it.pedidoAberto + da - it.exposicao)) / it.demandaDia;
+        // Só avisa quando a CAIXA força o excesso (ou o pedido manual é grande); item solto (caixa 1) pedindo o mínimo de 1 un não é excesso.
+        it.avisoCobertura = da > 0 && it.cobPosPedido > LIMITE_COBERTURA_AVISO && (it.caixa > 1 || it.pedidoOrigem === "MANUAL");
+        if (it.avisoCobertura) it.alertas.push(`Cobertura de ${Math.round(it.cobPosPedido)} dias depois do pedido (acima de ${LIMITE_COBERTURA_AVISO})`);
+      }
     }
   }
   return itens;
