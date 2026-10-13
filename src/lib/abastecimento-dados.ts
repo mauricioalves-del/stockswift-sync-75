@@ -3,6 +3,7 @@
 //   notas em trânsito + pedidos em aberto (sem duplicar pedido); cadastro de grupo/família; sazonalidade; exposição e caixa.
 // Universo: produto ACABADO com meta no consenso para a loja (embalagem, em processo, local e revenda ficam de fora).
 import { calcularItem2, alocarCD, PARAM2_PADRAO, type Item2, type Base2, type Param2 } from "./abastecimento-motor2";
+import { resolverParam, type CoberturaRegra } from "./abastecimento-cobertura";
 import { cmdPonderado, acompanhamentoMeta, type AcompMeta, type Denominador } from "./abastecimento-demanda";
 import { consensoMedioNaJanela } from "./abastecimento-consenso";
 import { indiceMedioNaJanela, type PeriodoSazonal } from "./sazonalidade";
@@ -18,6 +19,7 @@ export type Bruto = {
   lojas: { codigo: string; nome: string; almoxarifado: string }[];
   cd: string;
   params: Param2;
+  coberturas?: CoberturaRegra[];          // regras de cobertura por loja/família (precedência: família > loja > padrão)
   consenso: { loja: string; id_produto: string; mes: string; unidades: number; tipo?: string | null; produto?: string | null; linha?: string | null }[];
   grupos: { grupo: string; codigo_produto: string }[];
   familias: { codigo_produto: string; familia: string }[];
@@ -33,7 +35,7 @@ export type Bruto = {
 
 export type ItemRep = Item2 & {
   loja: string; grupo: string; familia: string; linha: string; tipo: string;
-  cmd: number; tendencia: number; consensoDia: number | null; metaMes: number; realizadoMes: number; acomp: AcompMeta; refVendas: string | null; semExposicao: boolean; semCaixa: boolean; caixaCadastrada: boolean; solto: boolean; cdBruto: number; reservadoCD: number;
+  cmd: number; tendencia: number; consensoDia: number | null; metaMes: number; realizadoMes: number; acomp: AcompMeta; refVendas: string | null; semExposicao: boolean; semCaixa: boolean; caixaCadastrada: boolean; solto: boolean; cdBruto: number; reservadoCD: number; param: Param2; paramOrigem: string;
 };
 
 export type Montagem = {
@@ -106,11 +108,12 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       if (grupo !== GRUPO_ACABADO) { ex.naoAcabado++; continue; }      // embalagem, em processo, local, revenda...
       const familia = famDe.get(sku) ?? "";
       const solto = ehSolto(familia);
+      const rp = resolverParam(b.params, b.coberturas ?? [], l.codigo, familia);   // cobertura em dias deste item (padrão / loja / família)
       const e = est.get(sku);
       const ref = refPorLoja[l.codigo] ?? o.hojeIso;
       const r = cmdPonderado(vendas.get(k) ?? new Map(), ref, { denominador: o.denominador, inicioHistorico: inicioPorLoja[l.codigo] });
-      const idx = indiceMedioNaJanela(b.periodos, { sku: e?.canon ?? sku, grupo, familia }, Math.max(1, b.params.diasIdeal));
-      const cons = consensoMedioNaJanela(m.porMes, o.hojeIso, Math.max(1, b.params.diasIdeal));
+      const idx = indiceMedioNaJanela(b.periodos, { sku: e?.canon ?? sku, grupo, familia }, Math.max(1, rp.p.diasIdeal));
+      const cons = consensoMedioNaJanela(m.porMes, o.hojeIso, Math.max(1, rp.p.diasIdeal));
       const expo = expoDe.get(`${l.codigo}|${sku}`);
       const mesAt = m.porMes[mesAtual] ?? 0;
       let realizado = 0; const vm = vendas.get(k); if (vm) for (const [d, q] of vm) if (d.startsWith(mesAtual) && d <= ref) realizado += q;
@@ -122,10 +125,10 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
         estoque: e?.lojas[l.codigo] ?? 0, exposicao: expo ?? 0, vendaDiaReal: r.cmd, consensoDia: cons, indiceSazonal: idx.indice,
         classeAbc: abcDe.get(sku) ?? null, fullCase: fcDe.get(sku) ?? 1, custo: e?.custo ?? null, saldoCD: e?.cd ?? 0,
         emTransito: transito.get(`${l.codigo}|${sku}`) ?? 0, pedidoAberto: pedAb.get(`${l.codigo}|${sku}`) ?? 0, pedidoManual: manual ?? null,
-      }, b.params, o.base);
+      }, rp.p, o.base);
       if (!familia) semFamilia.push({ loja: l.codigo, sku: it.sku, descricao: it.descricao, linha: m.linha || m.tipo });
       lista.push({ ...it, loja: l.codigo, grupo, familia, linha: m.linha, tipo: m.tipo, cmd: r.cmd, tendencia: r.tendencia, consensoDia: cons, metaMes: mesAt, realizadoMes: realizado,
-        acomp: acompanhamentoMeta(mesAt, realizado, ref), refVendas: refPorLoja[l.codigo], semExposicao: expo == null, semCaixa: !fcDe.has(sku) && !solto, caixaCadastrada: fcDe.has(sku), solto, cdBruto: e?.cd ?? 0, reservadoCD: reservado.get(sku) ?? 0 });
+        acomp: acompanhamentoMeta(mesAt, realizado, ref), refVendas: refPorLoja[l.codigo], semExposicao: expo == null, semCaixa: !fcDe.has(sku) && !solto, caixaCadastrada: fcDe.has(sku), solto, cdBruto: e?.cd ?? 0, reservadoCD: reservado.get(sku) ?? 0, param: rp.p, paramOrigem: rp.origem });
     }
     itens[l.codigo] = lista;
   }
