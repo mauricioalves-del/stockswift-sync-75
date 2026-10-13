@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Store, Download, AlertTriangle, PackagePlus } from "lucide-react";
+import { Store, Download, AlertTriangle, PackagePlus, ArrowDown, ArrowUp, ArrowUpDown, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/inventory";
@@ -9,6 +10,7 @@ import { useRole } from "@/hooks/useRole";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { montarItens, nk, type ItemRep } from "@/lib/abastecimento-dados";
 import { STATUS2, resumirLoja2, type Status2, type Base2 } from "@/lib/abastecimento-motor2";
+import { passaFiltros, proximaOrdem, comparar, opcoesCategoria, filtroAtivo, type ColDef, type Filtro, type Ordem } from "@/lib/tabela-filtro";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -29,6 +31,24 @@ const n2 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleStri
 const dataBr = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
 const BASES: { v: Base2; r: string }[] = [{ v: "real", r: "Venda real (CMD × sazonalidade)" }, { v: "consenso", r: "Meta do consenso" }, { v: "maior", r: "A maior das duas" }];
 
+// Colunas da tabela: cada uma sabe ordenar e filtrar (clique no título; ícone de funil para filtrar).
+const COLS: ColDef<ItemRep>[] = [
+  { k: "sku", r: "SKU", t: "txt", v: (i) => i.sku },
+  { k: "produto", r: "Produto", t: "txt", v: (i) => i.descricao },
+  { k: "grupo", r: "Grupo", t: "cat", v: (i) => i.grupo },
+  { k: "familia", r: "Família", t: "cat", v: (i) => i.familia || "(sem família)" },
+  { k: "status", r: "Status", t: "cat", v: (i) => STATUS2[i.status].rotulo },
+  { k: "estoque", r: "Estoque", t: "num", al: "right", v: (i) => i.estoque },
+  { k: "expo", r: "Expo.", t: "num", al: "right", v: (i) => i.exposicao },
+  { k: "caminho", r: "A caminho", t: "num", al: "right", v: (i) => i.emTransito + i.pedidoAberto },
+  { k: "demanda", r: "Demanda/dia", t: "num", al: "right", v: (i) => i.demandaDia },
+  { k: "meta", r: "Meta mês", t: "num", al: "right", v: (i) => i.metaMes },
+  { k: "ideal", r: "Mín / Ideal", t: "num", al: "right", v: (i) => i.idealQ },
+  { k: "sugestao", r: "Sugestão", t: "num", al: "right", v: (i) => i.sugestao },
+  { k: "pedido", r: "Pedido", t: "num", al: "right", v: (i) => i.qtdPedido },
+  { k: "atende", r: "CD atende", t: "num", al: "right", v: (i) => i.qtdAtendida },
+];
+
 function ReposicaoPage() {
   const { isAdmin, role } = useRole();
   const pode = isAdmin || role === "GERENTE" || role === "COORDENADOR_CONTROLE";
@@ -44,6 +64,9 @@ function ReposicaoPage() {
   const [fora, setFora] = useState<Set<string>>(new Set());
   const [gerando, setGerando] = useState(false);
   const [famLinha, setFamLinha] = useState<Record<string, string>>({});
+  const [ordem, setOrdem] = useState<Ordem>(null);
+  const [filtros, setFiltros] = useState<Record<string, Filtro>>({});
+  const nFiltros = Object.values(filtros).filter((f) => filtroAtivo(f)).length;
 
   const manuais = useMemo(() => { const m: Record<string, number | null> = {}; for (const [k, v] of Object.entries(manuaisTxt)) { const n = Number(v.replace(",", ".")); if (v.trim() !== "" && Number.isFinite(n) && n >= 0) m[k] = n; } return m; }, [manuaisTxt]);
   const hojeIso = new Date().toLocaleDateString("en-CA");
@@ -52,11 +75,15 @@ function ReposicaoPage() {
   const itens: ItemRep[] = (mont && loja ? mont.itens[loja.codigo] : null) ?? [];
   const resumo = useMemo(() => resumirLoja2(itens), [itens]);
   const familias = useMemo(() => [...new Set(itens.map((i) => i.familia).filter(Boolean))].sort(), [itens]);
-  const linhas = useMemo(() => {
+  const baseLinhas = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return itens.filter((i) => (filtro === "TODOS" ? true : filtro === "PEDIDO" ? i.qtdPedido > 0 : i.status === filtro) && (!famFiltro || i.familia === famFiltro) && (!q || i.sku.includes(q) || i.descricao.toLowerCase().includes(q)))
-      .sort((a, b) => STATUS2[a.status].ordem - STATUS2[b.status].ordem || b.qtdPedido - a.qtdPedido);
+    return itens.filter((i) => (filtro === "TODOS" ? true : filtro === "PEDIDO" ? i.qtdPedido > 0 : i.status === filtro) && (!famFiltro || i.familia === famFiltro) && (!q || i.sku.includes(q) || i.descricao.toLowerCase().includes(q)));
   }, [itens, filtro, famFiltro, busca]);
+  const linhas = useMemo(() => {
+    const col = ordem ? COLS.find((c) => c.k === ordem.k) : undefined;
+    return baseLinhas.filter((i) => passaFiltros(i, COLS, filtros)).sort((a, b) =>
+      (col && ordem ? comparar(a, b, col, ordem.dir) : 0) || STATUS2[a.status].ordem - STATUS2[b.status].ordem || b.qtdPedido - a.qtdPedido);
+  }, [baseLinhas, filtros, ordem]);
   const ref = mont && loja ? mont.refPorLoja[loja.codigo] : null;
   const atraso = ref ? Math.round((Date.now() - new Date(ref + "T12:00:00").getTime()) / 86400000) : null;
   const paraPedido = useMemo(() => itens.filter((i) => i.qtdAtendida > 0 && !fora.has(`${i.loja}|${nk(i.sku)}`)), [itens, fora]);
@@ -146,12 +173,18 @@ function ReposicaoPage() {
         {gestor && <Button size="sm" className="gap-1" disabled={gerando || paraPedido.length === 0} onClick={gerarPedido}><PackagePlus className="size-4" /> {gerando ? "Gerando..." : `Gerar pedido (${paraPedido.length} itens · ${totalPedido.toLocaleString("pt-BR")} un)`}</Button>}
       </div>
 
-      <Card><CardContent className="p-0 overflow-x-auto"><Table>
-        <TableHeader><TableRow>
-          {gestor && <TableHead className="w-8" />}<TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Grupo</TableHead><TableHead>Família</TableHead><TableHead>Status</TableHead>
-          <TableHead className="text-right">Estoque</TableHead><TableHead className="text-right">Expo.</TableHead><TableHead className="text-right">A caminho</TableHead><TableHead className="text-right">Demanda/dia</TableHead>
-          <TableHead className="text-right">Meta mês</TableHead><TableHead className="text-right">Mín / Ideal</TableHead><TableHead className="text-right">Sugestão</TableHead><TableHead className="text-right w-24">Pedido</TableHead><TableHead className="text-right">CD atende</TableHead>
-        </TableRow></TableHeader>
+      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+        <span>Mostrando <strong>{linhas.length}</strong> de {itens.length} itens</span>
+        {(nFiltros > 0 || ordem) && <button className="rounded-full border px-3 py-1 hover:bg-muted" onClick={() => { setFiltros({}); setOrdem(null); }}>Limpar {nFiltros > 0 ? `filtros (${nFiltros})` : ""}{nFiltros > 0 && ordem ? " e " : ""}{ordem ? "ordem" : ""}</button>}
+        <span>Clique no título para ordenar (números: do maior para o menor) e no funil para filtrar.</span>
+      </div>
+      <Card><CardContent className="p-0"><div className="max-h-[68vh] overflow-auto"><table className="w-full caption-bottom text-sm">
+        <thead>
+          <tr className="border-b">
+            {gestor && <th className="sticky top-0 z-20 w-8 bg-card" />}
+            {COLS.map((c) => <CabCol key={c.k} col={c} ordem={ordem} onOrdem={() => setOrdem(proximaOrdem(ordem, c))} filtro={filtros[c.k]} onFiltro={(f) => setFiltros({ ...filtros, [c.k]: f })} opcoes={c.t === "cat" ? opcoesCategoria(baseLinhas, c) : []} />)}
+          </tr>
+        </thead>
         <TableBody>
           {linhas.length === 0 && <TableRow><TableCell colSpan={15} className="py-10 text-center text-muted-foreground">{bruto.isLoading ? "Carregando..." : "Nenhum item neste filtro."}</TableCell></TableRow>}
           {linhas.slice(0, 500).map((i) => {
@@ -174,7 +207,7 @@ function ReposicaoPage() {
               </TableRow>);
           })}
         </TableBody>
-      </Table></CardContent></Card>
+      </table></div></CardContent></Card>
       <p className="text-xs text-muted-foreground">Pedido manual: digite a quantidade (vira múltiplo da caixa) e ela substitui a sugestão; zero = não pedir. O pedido gerado usa o que o CD atende e passa a contar como "a caminho" até ser recebido.</p>
 
       {isAdmin && semFamPorLinha.length > 0 && (
@@ -188,6 +221,53 @@ function ReposicaoPage() {
             <datalist id="fam-lista">{famExistentes.map((f) => <option key={f} value={f} />)}</datalist></CardContent></Card>)}
     </div>
   );
+}
+
+function CabCol({ col, ordem, onOrdem, filtro, onFiltro, opcoes }: { col: ColDef<ItemRep>; ordem: Ordem; onOrdem: () => void; filtro: Filtro | undefined; onFiltro: (f: Filtro) => void; opcoes: { valor: string; n: number }[] }) {
+  const [aberto, setAberto] = useState(false);
+  const btn = useRef<HTMLButtonElement>(null);
+  const ativo = filtroAtivo(filtro);
+  const emOrdem = ordem?.k === col.k;
+  const Seta = !emOrdem ? ArrowUpDown : ordem!.dir === "desc" ? ArrowDown : ArrowUp;
+  return (
+    <th className={`sticky top-0 z-20 bg-card h-11 px-2 align-middle font-medium whitespace-nowrap ${col.al === "right" ? "text-right" : "text-left"} ${emOrdem ? "text-foreground" : "text-muted-foreground"}`}>
+      <span className="inline-flex items-center gap-1">
+        <button type="button" onClick={onOrdem} title={col.t === "num" ? "Ordenar (1º clique: maior → menor)" : "Ordenar (1º clique: A → Z)"} className="inline-flex items-center gap-1 hover:text-foreground">
+          <span>{col.r}</span><Seta className={`size-3.5 ${emOrdem ? "text-primary" : "opacity-40"}`} />
+        </button>
+        <button type="button" ref={btn} onClick={() => setAberto(!aberto)} title="Filtrar esta coluna" aria-label={`Filtrar ${col.r}`} className={`rounded p-0.5 hover:bg-muted ${ativo ? "text-primary" : "opacity-40 hover:opacity-100"}`}>
+          <Filter className="size-3.5" fill={ativo ? "currentColor" : "none"} />
+        </button>
+      </span>
+      {aberto && <PainelFiltro col={col} ancora={btn.current} filtro={filtro} opcoes={opcoes} onChange={onFiltro} onFechar={() => setAberto(false)} />}
+    </th>
+  );
+}
+
+function PainelFiltro({ col, ancora, filtro, opcoes, onChange, onFechar }: { col: ColDef<ItemRep>; ancora: HTMLButtonElement | null; filtro: Filtro | undefined; opcoes: { valor: string; n: number }[]; onChange: (f: Filtro) => void; onFechar: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const r = ancora?.getBoundingClientRect();
+  const esq = Math.max(8, Math.min((r?.left ?? 0) - 8, window.innerWidth - 268));
+  const topo = (r?.bottom ?? 0) + 6;
+  useEffect(() => {
+    const fora = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node) && !ancora?.contains(e.target as Node)) onFechar(); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onFechar(); };
+    document.addEventListener("mousedown", fora); document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", fora); document.removeEventListener("keydown", esc); };
+  }, [ancora, onFechar]);
+  const f = filtro ?? {};
+  const marcados = f.vals ?? opcoes.map((o) => o.valor);
+  const alternar = (v: string) => { const s = new Set(marcados); if (s.has(v)) s.delete(v); else s.add(v); onChange({ ...f, vals: s.size === opcoes.length ? undefined : [...s] }); };
+  return createPortal(
+    <div ref={ref} style={{ position: "fixed", left: esq, top: topo, width: 260 }} className="z-[100] rounded-md border bg-popover p-3 text-sm text-popover-foreground shadow-lg">
+      <div className="mb-2 flex items-center justify-between"><strong>{col.r}</strong><button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => onChange({})}>Limpar</button></div>
+      {col.t === "txt" && <Input autoFocus className="h-8" placeholder="contém…" value={f.txt ?? ""} onChange={(e) => onChange({ ...f, txt: e.target.value })} />}
+      {col.t === "num" && <div className="flex items-center gap-2"><Input autoFocus className="h-8" inputMode="decimal" placeholder="de (≥)" value={f.min ?? ""} onChange={(e) => onChange({ ...f, min: e.target.value })} /><Input className="h-8" inputMode="decimal" placeholder="até (≤)" value={f.max ?? ""} onChange={(e) => onChange({ ...f, max: e.target.value })} /></div>}
+      {col.t === "cat" && (<>
+        <div className="mb-1 flex gap-3 text-xs"><button className="text-primary hover:underline" onClick={() => onChange({ ...f, vals: undefined })}>Marcar todos</button><button className="text-primary hover:underline" onClick={() => onChange({ ...f, vals: [] })}>Desmarcar todos</button></div>
+        <div className="max-h-56 space-y-1 overflow-auto">{opcoes.map((o) => <label key={o.valor} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={marcados.includes(o.valor)} onChange={() => alternar(o.valor)} /><span className="flex-1 truncate">{o.valor || "(vazio)"}</span><span className="text-muted-foreground">{o.n}</span></label>)}</div>
+      </>)}
+    </div>, document.body);
 }
 
 function Kpi({ t, v, tom }: { t: string; v: string; tom?: string }) {
