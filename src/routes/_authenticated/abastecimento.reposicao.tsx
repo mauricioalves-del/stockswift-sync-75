@@ -9,7 +9,7 @@ import { formatBRL } from "@/lib/inventory";
 import { useRole } from "@/hooks/useRole";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { montarItens, nk, type ItemRep } from "@/lib/abastecimento-dados";
-import { STATUS2, resumirLoja2, type Status2, type Base2 } from "@/lib/abastecimento-motor2";
+import { STATUS2, LIMITE_COBERTURA_AVISO, resumirLoja2, type Status2, type Base2 } from "@/lib/abastecimento-motor2";
 import { passaFiltros, proximaOrdem, comparar, opcoesCategoria, filtroAtivo, type ColDef, type Filtro, type Ordem } from "@/lib/tabela-filtro";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -60,7 +60,7 @@ function ReposicaoPage() {
   const bruto = useAbastBruto(pode);
   const [lojaSel, setLojaSel] = useState("");
   const [base, setBase] = useState<Base2>("real");
-  const [filtro, setFiltro] = useState<Status2 | "PEDIDO" | "TODOS">("TODOS");
+  const [filtro, setFiltro] = useState<Status2 | "PEDIDO" | "COBALTA" | "TODOS">("TODOS");
   const [famFiltro, setFamFiltro] = useState("");
   const [busca, setBusca] = useState("");
   const [manuaisTxt, setManuaisTxt] = useState<Record<string, string>>({});
@@ -80,7 +80,7 @@ function ReposicaoPage() {
   const familias = useMemo(() => [...new Set(itens.map((i) => i.familia).filter(Boolean))].sort(), [itens]);
   const baseLinhas = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return itens.filter((i) => (filtro === "TODOS" ? true : filtro === "PEDIDO" ? i.qtdPedido > 0 : i.status === filtro) && (!famFiltro || i.familia === famFiltro) && (!q || i.sku.includes(q) || i.descricao.toLowerCase().includes(q)));
+    return itens.filter((i) => (filtro === "TODOS" ? true : filtro === "PEDIDO" ? i.qtdPedido > 0 : filtro === "COBALTA" ? i.avisoCobertura : i.status === filtro) && (!famFiltro || i.familia === famFiltro) && (!q || i.sku.includes(q) || i.descricao.toLowerCase().includes(q)));
   }, [itens, filtro, famFiltro, busca]);
   const linhas = useMemo(() => {
     const col = ordem ? COLS.find((c) => c.k === ordem.k) : undefined;
@@ -93,7 +93,7 @@ function ReposicaoPage() {
   const totalPedido = paraPedido.reduce((a, b) => a + b.qtdAtendida, 0);
 
   // Quanto o CD consegue mandar: em caixas fechadas quando há caixa; senão, o saldo todo.
-  const maxCD = (i: ItemRep) => ((i.saldoCD ?? 0) <= 0 ? 0 : i.caixa > 1 && (i.saldoCD as number) >= i.caixa ? Math.floor((i.saldoCD as number) / i.caixa) * i.caixa : (i.saldoCD as number));
+  const maxCD = (i: ItemRep) => { const d = i.disponivelCD ?? i.saldoCD ?? 0; return d <= 0 ? 0 : i.caixa > 1 && d >= i.caixa ? Math.floor(d / i.caixa) * i.caixa : d; };
   async function salvarExposicao(i: ItemRep, n: number) {
     const { error } = await (supabase as any).from("abast_produto_loja").upsert({ loja: i.loja, id_produto: i.sku, exposicao: n, atualizado_em: new Date().toISOString() }, { onConflict: "loja,id_produto" });
     if (error) toast.error("Não consegui salvar a exposição: " + error.message);
@@ -147,7 +147,7 @@ function ReposicaoPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><Store className="size-6" /> Reposição de Lojas</h1>
         <p className="text-sm text-muted-foreground">
-          Só <strong>produto acabado com meta no consenso</strong>. Demanda pelo faturamento carregado (CMD 7/30/90 dias × sazonalidade) ou pela meta; o estoque vem do lote, ao vivo. <strong>Trânsito e pedidos em aberto abatem a sugestão</strong> (sem pedido duplicado e sem falsa ruptura). A exposição não conta como vendável, a sugestão só aparece quando o item cai <strong>abaixo do mínimo</strong> e é em caixa fechada; o CD limita o atendimento e o <strong>saldo do CD</strong> aparece em cada linha.
+          Só <strong>produto acabado com meta no consenso</strong>. Demanda pelo faturamento carregado (CMD 7/30/90 dias × sazonalidade) ou pela meta; o estoque vem do lote, ao vivo. <strong>Trânsito e pedidos em aberto abatem a sugestão</strong> (sem pedido duplicado e sem falsa ruptura). A exposição não conta como vendável, a sugestão só aparece quando o item cai <strong>abaixo do mínimo</strong> e é em caixa fechada; o CD limita o atendimento e o <strong>saldo do CD</strong> aparece em cada linha. Sem caixa fechada no CD, a loja em ruptura ou abaixo do mínimo recebe o <strong>saldo solto</strong>; granéis (sem caixa) são pedidos por consumo médio × cobertura; a linha é avisada quando a cobertura depois do pedido passa de 20 dias.
         </p>
       </div>
 
@@ -179,9 +179,9 @@ function ReposicaoPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {(["TODOS", "PEDIDO", "ruptura", "abaixo", "em_transito", "ok", "excesso", "semdemanda"] as const).map((s) => (
+        {(["TODOS", "PEDIDO", "COBALTA", "ruptura", "abaixo", "em_transito", "ok", "excesso", "semdemanda"] as const).map((s) => (
           <button key={s} onClick={() => setFiltro(s)} className={`rounded-full border px-3 py-1 text-xs ${filtro === s ? "bg-primary text-primary-foreground border-primary font-semibold" : "hover:bg-muted"}`}>
-            {s === "TODOS" ? "Todos" : s === "PEDIDO" ? "Com pedido" : STATUS2[s].rotulo}{s !== "TODOS" && s !== "PEDIDO" ? ` (${resumo.contagem[s]})` : ""}
+            {s === "TODOS" ? "Todos" : s === "PEDIDO" ? "Com pedido" : s === "COBALTA" ? `Cobertura > ${LIMITE_COBERTURA_AVISO} dias (${itens.filter((i) => i.avisoCobertura).length})` : STATUS2[s].rotulo}{s !== "TODOS" && s !== "PEDIDO" && s !== "COBALTA" ? ` (${resumo.contagem[s]})` : ""}
           </button>))}
         <select className="h-8 rounded-md border bg-background px-2 text-xs" value={famFiltro} onChange={(e) => setFamFiltro(e.target.value)}><option value="">Todas as famílias</option>{familias.map((f) => <option key={f} value={f}>{f}</option>)}</select>
         <Input className="h-8 w-52" placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} />
@@ -209,7 +209,7 @@ function ReposicaoPage() {
               <TableRow key={k} title={i.alertas.join(" · ")} className={fora.has(k) ? "opacity-40" : ""}>
                 {gestor && <TableCell><input type="checkbox" disabled={i.qtdAtendida <= 0} checked={i.qtdAtendida > 0 && !fora.has(k)} onChange={() => { const n = new Set(fora); if (n.has(k)) n.delete(k); else n.add(k); setFora(n); }} /></TableCell>}
                 <TableCell className="font-mono text-xs">{i.sku}</TableCell>
-                <TableCell className="max-w-[220px] truncate">{i.descricao || "—"}{i.semExposicao && <span className="ml-1 text-[10px] text-amber-600">sem exposição</span>}{i.semCaixa && <span className="ml-1 text-[10px] text-amber-600">sem caixa</span>}</TableCell>
+                <TableCell className="max-w-[220px] truncate">{i.descricao || "—"}{i.semExposicao && <span className="ml-1 text-[10px] text-amber-600">sem exposição</span>}{i.semCaixa && <span className="ml-1 text-[10px] text-amber-600">sem caixa</span>}{i.solto && <span className="ml-1 text-[10px] text-muted-foreground">granel: sem caixa</span>}</TableCell>
                 <TableCell className="text-xs">{i.grupo}</TableCell><TableCell className="text-xs">{i.familia || <span className="text-amber-600">sem família</span>}</TableCell>
                 <TableCell><span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${COR[i.status]}`}>{STATUS2[i.status].rotulo}</span></TableCell>
                 <TableCell className="text-right">{n1(i.estoque)}</TableCell><TableCell className="text-right">{isAdmin ? <CelulaEdit valor={i.semExposicao ? null : i.exposicao} placeholder="0" titulo="Exposição: unidades que ficam na vitrine (não contam como vendável)" aoSalvar={(n) => salvarExposicao(i, n)} /> : n1(i.exposicao)}</TableCell>
@@ -219,10 +219,10 @@ function ReposicaoPage() {
                 <TableCell className="text-right text-xs">{n1(i.minQ)} / {n1(i.idealQ)}</TableCell>
                 <TableCell className="text-right font-semibold">{i.sugestao > 0 ? `${i.sugestao}${i.caixa > 1 ? ` (${i.sugestaoCaixas} cx)` : ""}` : "—"}</TableCell>
                 <TableCell className="text-right">{gestor ? <div className="flex flex-col items-end gap-0.5"><Input className="h-7 w-20 text-right" inputMode="numeric" placeholder={i.sugestao > 0 ? String(i.sugestao) : "0"} value={manuaisTxt[`${i.loja}|${nk(i.sku)}`] ?? ""} onChange={(e) => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: e.target.value })} />{maxCD(i) > 0 && <button type="button" className="text-[10px] text-primary hover:underline" title="Preenche o pedido com o máximo que o CD consegue mandar (em caixas fechadas quando há caixa)" onClick={() => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: String(maxCD(i)) })}>usar CD: {n1(maxCD(i))}</button>}</div> : n1(i.qtdPedido)}</TableCell>
-                <TableCell className="text-right">{i.qtdPedido > 0 ? <>{n1(i.qtdAtendida)}{i.faltaCD > 0 && <AlertTriangle className="inline size-3 ml-1 text-amber-600" aria-label="CD não cobre" />}</> : "—"}</TableCell>
-                <TableCell className="text-right text-xs">{i.saldoCD == null ? "—" : `${n1(i.saldoCD)}${i.caixa > 1 ? ` (${i.caixasCD} cx)` : ""}`}</TableCell>
+                <TableCell className="text-right">{i.qtdPedido > 0 ? <>{n1(i.qtdAtendida)}{i.faltaCD > 0 && <AlertTriangle className="inline size-3 ml-1 text-amber-600" aria-label="CD não cobre" />}{i.fracionado && <div className="text-[10px] text-primary" title="O CD não tem caixa fechada: enviando o saldo solto">solto</div>}{(i.saldoCD ?? 0) <= 0 && <div className="text-[10px] text-red-600" title="Sem saldo no CD: depende de produção (veja a Projeção do CD)">produzir</div>}</> : "—"}</TableCell>
+                <TableCell className="text-right text-xs">{i.saldoCD == null ? "—" : `${n1(i.saldoCD)}${i.caixa > 1 ? ` (${i.caixasCD} cx)` : ""}`}{i.reservadoCD > 0 && <div className="text-[10px] text-muted-foreground" title="Pedidos ABERTOS (ainda não expedidos) já reservam parte do saldo do CD">reservado: {n1(i.reservadoCD)}</div>}{i.qtdPedido > 0 && i.disponivelCD != null && i.saldoCD != null && i.disponivelCD < i.saldoCD && <div className="text-[10px] text-amber-600" title="O que sobra do CD para esta loja depois das lojas de maior prioridade">disp. p/ esta: {n1(i.disponivelCD)}</div>}</TableCell>
                 <TableCell className="text-right">{isAdmin ? <CelulaEdit valor={i.semCaixa ? null : i.caixa} placeholder="1" titulo="Unidades por caixa (caixa fechada)" aoSalvar={(n) => salvarCaixa(i, n)} /> : n1(i.caixa)}</TableCell>
-                <TableCell className={`text-right text-xs ${i.cobPosPedido != null && i.cobPosPedido > 45 ? "text-amber-600 font-semibold" : ""}`} title={i.cobPosPedido != null && i.cobPosPedido > 45 ? "Mais de 45 dias de cobertura depois do pedido (caixa grande para a venda)" : ""}>{i.cobPosPedido == null ? "—" : n1(i.cobPosPedido)}</TableCell>
+                <TableCell className={`text-right text-xs ${i.avisoCobertura ? "text-amber-600 font-semibold" : ""}`} title={i.avisoCobertura ? `Mais de ${LIMITE_COBERTURA_AVISO} dias de cobertura depois do pedido (aviso: o pedido continua sugerido)` : ""}>{i.avisoCobertura && <AlertTriangle className="inline size-3 mr-1" aria-label="Cobertura alta" />}{i.cobPosPedido == null ? "—" : n1(i.cobPosPedido)}</TableCell>
               </TableRow>);
           })}
         </TableBody>
