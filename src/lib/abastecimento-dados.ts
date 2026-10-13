@@ -9,6 +9,10 @@ import { indiceMedioNaJanela, type PeriodoSazonal } from "./sazonalidade";
 
 export const nk = (s: unknown): string => String(s ?? "").trim().replace(/^0+/, "");
 export const GRUPO_ACABADO = "Produto Acabado";
+/** Famílias vendidas soltas, sem padrão de caixaria: pedido por consumo médio × cobertura (sem arredondar em caixa e sem aviso "sem caixa"). */
+export const FAMILIAS_SEM_CAIXA = ["graneis"];
+const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+export const ehSolto = (familia: string) => FAMILIAS_SEM_CAIXA.includes(semAcento(familia));
 
 export type Bruto = {
   lojas: { codigo: string; nome: string; almoxarifado: string }[];
@@ -29,7 +33,7 @@ export type Bruto = {
 
 export type ItemRep = Item2 & {
   loja: string; grupo: string; familia: string; linha: string; tipo: string;
-  cmd: number; tendencia: number; consensoDia: number | null; metaMes: number; realizadoMes: number; acomp: AcompMeta; refVendas: string | null; semExposicao: boolean; semCaixa: boolean;
+  cmd: number; tendencia: number; consensoDia: number | null; metaMes: number; realizadoMes: number; acomp: AcompMeta; refVendas: string | null; semExposicao: boolean; semCaixa: boolean; solto: boolean; cdBruto: number; reservadoCD: number;
 };
 
 export type Montagem = {
@@ -66,6 +70,8 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
   // trânsito (notas) e pedidos em aberto
   const transito = new Map<string, number>(); for (const n of b.notas) { const d = destinoNota(String(n.almox ?? "")); if (d && d !== "CD") { const k = `${d}|${nk(n.cod_prod)}`; transito.set(k, (transito.get(k) ?? 0) + (Number(n.qtd) || 0)); } }
   const pedAb = new Map<string, number>(); for (const p of b.pedidosAbertos) { const k = `${p.loja}|${nk(p.id_produto)}`; pedAb.set(k, (pedAb.get(k) ?? 0) + (Number(p.qtd) || 0)); }
+  // Pedidos ABERTOS (ainda não expedidos) já reservam saldo do CD; os ENVIADOS já saíram do estoque do CD.
+  const reservado = new Map<string, number>(); for (const p of b.pedidosAbertos) if (p.status === "ABERTO") { const k = nk(p.id_produto); reservado.set(k, (reservado.get(k) ?? 0) + (Number(p.qtd) || 0)); }
   // vendas por loja e SKU (por dia) e referência = último dia faturado de cada loja
   const vendas = new Map<string, Map<string, number>>(); const refPorLoja: Record<string, string | null> = {}; const inicioPorLoja: Record<string, string | null> = {}; for (const l of b.lojas) { refPorLoja[l.codigo] = null; inicioPorLoja[l.codigo] = null; }
   // Mesmo SKU escrito de dois jeitos (com e sem zero à esquerda) no mesmo dia é a MESMA venda: vale o maior valor, nunca a soma.
@@ -98,6 +104,7 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       if (!grupo) { ex.semGrupo++; continue; }
       if (grupo !== GRUPO_ACABADO) { ex.naoAcabado++; continue; }      // embalagem, em processo, local, revenda...
       const familia = famDe.get(sku) ?? "";
+      const solto = ehSolto(familia);
       const e = est.get(sku);
       const ref = refPorLoja[l.codigo] ?? o.hojeIso;
       const r = cmdPonderado(vendas.get(k) ?? new Map(), ref, { denominador: o.denominador, inicioHistorico: inicioPorLoja[l.codigo] });
@@ -117,12 +124,12 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       }, b.params, o.base);
       if (!familia) semFamilia.push({ loja: l.codigo, sku: it.sku, descricao: it.descricao, linha: m.linha || m.tipo });
       lista.push({ ...it, loja: l.codigo, grupo, familia, linha: m.linha, tipo: m.tipo, cmd: r.cmd, tendencia: r.tendencia, consensoDia: cons, metaMes: mesAt, realizadoMes: realizado,
-        acomp: acompanhamentoMeta(mesAt, realizado, ref), refVendas: refPorLoja[l.codigo], semExposicao: expo == null, semCaixa: !fcDe.has(sku) });
+        acomp: acompanhamentoMeta(mesAt, realizado, ref), refVendas: refPorLoja[l.codigo], semExposicao: expo == null, semCaixa: !fcDe.has(sku) && !solto, solto, cdBruto: e?.cd ?? 0, reservadoCD: reservado.get(sku) ?? 0 });
     }
     itens[l.codigo] = lista;
   }
   // limite pelo saldo do CD, entre todas as lojas
-  const cdPorSku = new Map<string, number>(); for (const [k, v] of est) cdPorSku.set(v.canon, v.cd);
+  const cdPorSku = new Map<string, number>(); for (const [k, v] of est) cdPorSku.set(v.canon, Math.max(0, v.cd - (reservado.get(k) ?? 0)));
   alocarCD(Object.values(itens).flat(), cdPorSku);
   return { itens, refPorLoja, excluidos: ex, semFamilia };
 }
