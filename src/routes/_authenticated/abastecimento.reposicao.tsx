@@ -112,7 +112,7 @@ function ReposicaoPage() {
       const payload = paraPedido.map((i) => ({ id_produto: i.sku, descricao: i.descricao, qtd_sugerida: i.sugestao, qtd_pedida: i.qtdAtendida, caixa: i.caixa, origem: i.pedidoOrigem === "MANUAL" ? "MANUAL" : "SUGESTAO" }));
       const { data, error } = await (supabase as any).rpc("abast_criar_pedido", { p_loja: loja.codigo, p_base: base, p_obs: null, p_itens: payload });
       if (error) throw error;
-      toast.success(`Pedido nº ${data?.numero} criado: ${data?.itens} itens, ${totalPedido.toLocaleString("pt-BR")} un. Ele já abate as próximas sugestões.`);
+      toast.success(`Pedido nº ${data?.numero} criado: ${data?.itens} itens, ${totalPedido.toLocaleString("pt-BR")} un. Requisição ${data?.requisicao_numero ?? ""} enviada para separação (Suprimentos → Requisições). O pedido já abate as próximas sugestões.`);
       setManuaisTxt({}); setFora(new Set());
       qc.invalidateQueries({ queryKey: ["abast-v2"] });
     } catch (err: any) { toast.error("Não consegui criar o pedido: " + (err?.message ?? err)); }
