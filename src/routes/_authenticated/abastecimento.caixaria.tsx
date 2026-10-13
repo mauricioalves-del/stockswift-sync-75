@@ -37,19 +37,19 @@ function CaixariaPage() {
     { k: "sku", r: "SKU", t: "txt", v: (l) => l.id },
     { k: "produto", r: "Produto", t: "txt", v: (l) => l.descricao },
     { k: "familia", r: "Família", t: "cat", v: (l) => l.familia || "(sem família)" },
-    { k: "cadastro", r: "Cadastro", t: "cat", v: (l) => (l.caixa == null ? "Sem caixa" : l.noUniverso ? "Com caixa" : "Fora do universo") },
+    { k: "cadastro", r: "Cadastro", t: "cat", v: (l) => (l.caixa == null ? (l.solto ? "Solto (granel)" : "Sem caixa") : l.noUniverso ? "Com caixa" : "Fora do universo") },
     { k: "saldocd", r: "Saldo CD", t: "num", al: "right", v: (l) => l.saldoCD },
     { k: "caixa", r: "Unid./caixa", t: "num", al: "right", v: (l) => l.caixa },
     ...lojas.map((x) => ({ k: "expo_" + x.codigo, r: "Expo. " + x.nome.replace(/^Loja /, ""), t: "num" as const, al: "right" as const, v: (l: LinhaCaixaria) => l.expo[x.codigo]?.valor ?? null })),
   ], [lojas]);
 
-  const baseLinhas = useMemo(() => todas.filter((l) => quick === "TODOS" ? true : quick === "SEM_CAIXA" ? l.caixa == null : quick === "SEM_EXPO" ? lojas.some((x) => l.expo[x.codigo]?.valor == null) : !l.noUniverso), [todas, quick, lojas]);
+  const baseLinhas = useMemo(() => todas.filter((l) => quick === "TODOS" ? true : quick === "SEM_CAIXA" ? l.caixa == null && !l.solto : quick === "SEM_EXPO" ? lojas.some((x) => l.expo[x.codigo]?.valor == null) : !l.noUniverso), [todas, quick, lojas]);
   const linhas = useMemo(() => {
     const col = ordem ? cols.find((c) => c.k === ordem.k) : undefined;
     return baseLinhas.filter((l) => passaFiltros(l, cols, filtros)).sort((a, b) => (col && ordem ? comparar(a, b, col, ordem.dir) : 0));
   }, [baseLinhas, filtros, ordem, cols]);
   const nFiltros = Object.values(filtros).filter((f) => filtroAtivo(f)).length;
-  const semCaixa = todas.filter((l) => l.caixa == null).length;
+  const semCaixa = todas.filter((l) => l.caixa == null && !l.solto).length;
   const semExpo = todas.filter((l) => lojas.some((x) => l.expo[x.codigo]?.valor == null)).length;
   const fora = todas.filter((l) => !l.noUniverso).length;
 
@@ -87,7 +87,7 @@ function CaixariaPage() {
   function exportar() {
     const esc = (s: unknown) => `"${String(s ?? "").replace(/"/g, '""')}"`;
     const cab = ["SKU", "Produto", "Família", "Cadastro", "Saldo CD", "Unidades por caixa", ...lojas.map((x) => "Exposição " + x.nome)];
-    const corpo = linhas.map((l) => [l.id, l.descricao, l.familia, l.caixa == null ? "Sem caixa" : "Com caixa", String(l.saldoCD).replace(".", ","), l.caixa ?? "", ...lojas.map((x) => l.expo[x.codigo]?.valor ?? "")].map(esc).join(";"));
+    const corpo = linhas.map((l) => [l.id, l.descricao, l.familia, l.caixa == null ? (l.solto ? "Solto (granel)" : "Sem caixa") : "Com caixa", String(l.saldoCD).replace(".", ","), l.caixa ?? "", ...lojas.map((x) => l.expo[x.codigo]?.valor ?? "")].map(esc).join(";"));
     const url = URL.createObjectURL(new Blob(["\uFEFF" + [cab.map(esc).join(";"), ...corpo].join("\r\n")], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = "Caixaria_Exposicao.csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
@@ -138,7 +138,7 @@ function CaixariaPage() {
               <td className="p-2 font-mono text-xs">{l.id}</td>
               <td className="p-2 max-w-[260px] truncate" title={l.descricao}>{l.descricao || "—"}</td>
               <td className="p-2 text-xs">{l.familia || <span className="text-amber-600">sem família</span>}</td>
-              <td className="p-2"><span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold ${l.caixa == null ? "bg-amber-100 text-amber-800 border-amber-200" : l.noUniverso ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{l.caixa == null ? "Sem caixa" : l.noUniverso ? "Com caixa" : "Fora do universo"}</span></td>
+              <td className="p-2"><span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold ${l.caixa == null ? (l.solto ? "bg-slate-100 text-slate-600 border-slate-200" : "bg-amber-100 text-amber-800 border-amber-200") : l.noUniverso ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{l.caixa == null ? (l.solto ? "Solto (granel)" : "Sem caixa") : l.noUniverso ? "Com caixa" : "Fora do universo"}</span></td>
               <td className="p-2 text-right">{n1(l.saldoCD)}{l.caixa && l.caixa > 1 ? <span className="ml-1 text-[10px] text-muted-foreground">({Math.floor(l.saldoCD / l.caixa)} cx)</span> : null}</td>
               <td className="p-2 text-right">{isAdmin ? <CelulaNum valor={l.caixa} placeholder="1" titulo="Unidades por caixa fechada" aoSalvar={(n) => salvarCaixa(l, n)} /> : n1(l.caixa)}</td>
               {lojas.map((x) => <td key={x.codigo} className="p-2 text-right">{isAdmin ? <CelulaNum valor={l.expo[x.codigo]?.valor ?? null} placeholder="0" vazioLimpa titulo={`Exposição na loja ${x.nome} (vazio remove)`} aoSalvar={(n) => salvarExpo(l, x.codigo, n)} /> : n1(l.expo[x.codigo]?.valor ?? null)}</td>)}
@@ -146,7 +146,7 @@ function CaixariaPage() {
             </tr>))}
         </tbody>
       </table></div></CardContent></Card>
-      <p className="text-xs text-muted-foreground">Item sem caixa cadastrada é tratado como caixa de 1 unidade. Excluir a caixaria não apaga vendas, estoque nem a exposição.</p>
+      <p className="text-xs text-muted-foreground">Item sem caixa cadastrada é tratado como caixa de 1 unidade. Granéis são vendidos soltos: não têm padrão de caixa e são pedidos por consumo médio × cobertura. Excluir a caixaria não apaga vendas, estoque nem a exposição.</p>
     </div>
   );
 }
