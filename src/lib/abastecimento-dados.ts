@@ -29,7 +29,7 @@ export type Bruto = {
 
 export type ItemRep = Item2 & {
   loja: string; grupo: string; familia: string; linha: string; tipo: string;
-  cmd: number; tendencia: number; consensoDia: number | null; metaMes: number; realizadoMes: number; acomp: AcompMeta; refVendas: string | null; semExposicao: boolean;
+  cmd: number; tendencia: number; consensoDia: number | null; metaMes: number; realizadoMes: number; acomp: AcompMeta; refVendas: string | null; semExposicao: boolean; semCaixa: boolean;
 };
 
 export type Montagem = {
@@ -107,15 +107,17 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       const mesAt = m.porMes[mesAtual] ?? 0;
       let realizado = 0; const vm = vendas.get(k); if (vm) for (const [d, q] of vm) if (d.startsWith(mesAtual) && d <= ref) realizado += q;
       const manual = o.manuais?.[`${l.codigo}|${sku}`];
+      // Sem registro de estoque o código vem sem zeros (consenso): completa pelo padrão (8 dígitos; 9 viram 10).
+      const idCanon = e?.canon ?? (sku.length < 8 ? sku.padStart(8, "0") : sku.length === 9 ? sku.padStart(10, "0") : sku);
       const it = calcularItem2({
-        sku: e?.canon ?? sku, descricao: e?.desc || m.produto, categoria: familia, ativo: true, masterPresente: true,
+        sku: idCanon, descricao: e?.desc || m.produto, categoria: familia, ativo: true, masterPresente: true,
         estoque: e?.lojas[l.codigo] ?? 0, exposicao: expo ?? 0, vendaDiaReal: r.cmd, consensoDia: cons, indiceSazonal: idx,
         classeAbc: abcDe.get(sku) ?? null, fullCase: fcDe.get(sku) ?? 1, custo: e?.custo ?? null, saldoCD: e?.cd ?? 0,
         emTransito: transito.get(`${l.codigo}|${sku}`) ?? 0, pedidoAberto: pedAb.get(`${l.codigo}|${sku}`) ?? 0, pedidoManual: manual ?? null,
       }, b.params, o.base);
       if (!familia) semFamilia.push({ loja: l.codigo, sku: it.sku, descricao: it.descricao, linha: m.linha || m.tipo });
       lista.push({ ...it, loja: l.codigo, grupo, familia, linha: m.linha, tipo: m.tipo, cmd: r.cmd, tendencia: r.tendencia, consensoDia: cons, metaMes: mesAt, realizadoMes: realizado,
-        acomp: acompanhamentoMeta(mesAt, realizado, ref), refVendas: refPorLoja[l.codigo], semExposicao: expo == null });
+        acomp: acompanhamentoMeta(mesAt, realizado, ref), refVendas: refPorLoja[l.codigo], semExposicao: expo == null, semCaixa: !fcDe.has(sku) });
     }
     itens[l.codigo] = lista;
   }
