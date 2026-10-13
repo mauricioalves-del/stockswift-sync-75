@@ -14,6 +14,11 @@ export function useAbastBruto(habilitado: boolean) {
       const { data: lojas } = await sb.from("abast_lojas").select("codigo, nome, almoxarifado").eq("ativo", true).order("ordem");
       const { data: cfg } = await sb.from("abast_config").select("chave, valor");
       const c = Object.fromEntries((cfg ?? []).map((x: any) => [x.chave, x.valor]));
+      // Regras de cobertura por loja / família (tabela nova; se ainda não existir, segue só com o padrão)
+      const { data: cobRaw } = await sb.from("abast_param_cobertura").select("escopo, valor, dias_min, dias_ideal, dias_max, dias_seguranca");
+      const nulo = (v: any) => (v === null || v === undefined ? null : Number(v));
+      const coberturas = (cobRaw ?? []).map((x: any) => ({ escopo: x.escopo, valor: String(x.valor), dias_min: nulo(x.dias_min), dias_ideal: nulo(x.dias_ideal), dias_max: nulo(x.dias_max), dias_seguranca: nulo(x.dias_seguranca) }));
+      const dias = (v: any, padrao: number) => (v === undefined || v === null || v === "" || !Number.isFinite(Number(v)) ? padrao : Number(v));   // 0 é valor válido
       const almox = (lojas ?? []).map((l: any) => l.almoxarifado);
       const desde = new Date(Date.now() - 130 * 86400000).toISOString().slice(0, 10);
       const [consenso, grupos, familias, abcRaw, periodos, consumo, estoque, notasRaw, produtos, exposicoes, pedidos] = await Promise.all([
@@ -38,7 +43,7 @@ export function useAbastBruto(habilitado: boolean) {
       ]);
       return {
         lojas: (lojas ?? []) as Bruto["lojas"], cd: String(c.cd_almoxarifado || "Alm_SP_Fabrica"),
-        params: { diasMin: Number(c.dias_min) || 5, diasIdeal: Number(c.dias_ideal) || 10, diasMax: Number(c.dias_max) || 15, diasSeguranca: Number(c.dias_seguranca) || 0 },
+        params: { diasMin: dias(c.dias_min, 5), diasIdeal: Math.max(1, dias(c.dias_ideal, 10)), diasMax: dias(c.dias_max, 15), diasSeguranca: dias(c.dias_seguranca, 0) }, coberturas,
         consenso, grupos, familias, abc: abcRaw.map((x: any) => ({ codigo_produto: x.codigo_produto, classe: x.classe })), periodos: periodos as Bruto["periodos"],
         consumo, estoque, notas: notasRaw.filter((n: any) => n.nota_cancelada !== "S").map((n: any) => ({ cod_prod: n.cod_prod, almox: n.almox, qtd: Number(n.qtd) || 0 })),
         pedidosAbertos: pedidos, produtos, exposicoes,
