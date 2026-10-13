@@ -26,7 +26,7 @@ export type Bruto = {
   consumo: { origem: string; sku: string; data_movimento: string; quantidade: number }[];
   estoque: { id_produto: string; descricao?: string | null; origem: string; quantidade: number; custo_unitario?: number | null }[];
   notas: { cod_prod: string; almox: string; qtd: number }[];
-  pedidosAbertos: { loja: string; id_produto: string; qtd: number; status: string }[];
+  pedidosAbertos: { loja: string; id_produto: string; qtd: number; status: string; separada?: number }[];
   produtos: { id_produto: string; full_case: number | null }[];
   exposicoes: { loja: string; id_produto: string; exposicao: number | null }[];
 };
@@ -70,8 +70,9 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
   // trânsito (notas) e pedidos em aberto
   const transito = new Map<string, number>(); for (const n of b.notas) { const d = destinoNota(String(n.almox ?? "")); if (d && d !== "CD") { const k = `${d}|${nk(n.cod_prod)}`; transito.set(k, (transito.get(k) ?? 0) + (Number(n.qtd) || 0)); } }
   const pedAb = new Map<string, number>(); for (const p of b.pedidosAbertos) { const k = `${p.loja}|${nk(p.id_produto)}`; pedAb.set(k, (pedAb.get(k) ?? 0) + (Number(p.qtd) || 0)); }
-  // Pedidos ABERTOS (ainda não expedidos) já reservam saldo do CD; os ENVIADOS já saíram do estoque do CD.
-  const reservado = new Map<string, number>(); for (const p of b.pedidosAbertos) if (p.status === "ABERTO") { const k = nk(p.id_produto); reservado.set(k, (reservado.get(k) ?? 0) + (Number(p.qtd) || 0)); }
+  // Reservam saldo do CD os pedidos ABERTO e EM_SEPARACAO, só pelo que ainda NÃO foi separado: a separação (tela Requisições) já baixa o estoque do CD.
+  // SEPARADO e ENVIADO já saíram do estoque do CD, então não reservam.
+  const reservado = new Map<string, number>(); for (const p of b.pedidosAbertos) if (p.status === "ABERTO" || p.status === "EM_SEPARACAO") { const k = nk(p.id_produto); reservado.set(k, (reservado.get(k) ?? 0) + Math.max(0, (Number(p.qtd) || 0) - (Number(p.separada) || 0))); }
   // vendas por loja e SKU (por dia) e referência = último dia faturado de cada loja
   const vendas = new Map<string, Map<string, number>>(); const refPorLoja: Record<string, string | null> = {}; const inicioPorLoja: Record<string, string | null> = {}; for (const l of b.lojas) { refPorLoja[l.codigo] = null; inicioPorLoja[l.codigo] = null; }
   // Mesmo SKU escrito de dois jeitos (com e sem zero à esquerda) no mesmo dia é a MESMA venda: vale o maior valor, nunca a soma.
