@@ -47,6 +47,9 @@ const COLS: ColDef<ItemRep>[] = [
   { k: "sugestao", r: "Sugestão", t: "num", al: "right", v: (i) => i.sugestao },
   { k: "pedido", r: "Pedido", t: "num", al: "right", v: (i) => i.qtdPedido },
   { k: "atende", r: "CD atende", t: "num", al: "right", v: (i) => i.qtdAtendida },
+  { k: "saldocd", r: "Saldo CD", t: "num", al: "right", v: (i) => i.saldoCD },
+  { k: "caixa", r: "Caixa", t: "num", al: "right", v: (i) => i.caixa },
+  { k: "cobpos", r: "Cob. pós-pedido (dias)", t: "num", al: "right", v: (i) => i.cobPosPedido },
 ];
 
 function ReposicaoPage() {
@@ -88,6 +91,19 @@ function ReposicaoPage() {
   const atraso = ref ? Math.round((Date.now() - new Date(ref + "T12:00:00").getTime()) / 86400000) : null;
   const paraPedido = useMemo(() => itens.filter((i) => i.qtdAtendida > 0 && !fora.has(`${i.loja}|${nk(i.sku)}`)), [itens, fora]);
   const totalPedido = paraPedido.reduce((a, b) => a + b.qtdAtendida, 0);
+
+  // Quanto o CD consegue mandar: em caixas fechadas quando há caixa; senão, o saldo todo.
+  const maxCD = (i: ItemRep) => ((i.saldoCD ?? 0) <= 0 ? 0 : i.caixa > 1 && (i.saldoCD as number) >= i.caixa ? Math.floor((i.saldoCD as number) / i.caixa) * i.caixa : (i.saldoCD as number));
+  async function salvarExposicao(i: ItemRep, n: number) {
+    const { error } = await (supabase as any).from("abast_produto_loja").upsert({ loja: i.loja, id_produto: i.sku, exposicao: n, atualizado_em: new Date().toISOString() }, { onConflict: "loja,id_produto" });
+    if (error) toast.error("Não consegui salvar a exposição: " + error.message);
+    else { toast.success(`Exposição de ${i.sku} salva: ${n} un.`); qc.invalidateQueries({ queryKey: ["abast-v2"] }); }
+  }
+  async function salvarCaixa(i: ItemRep, n: number) {
+    const { error } = await (supabase as any).from("abast_produto").upsert({ id_produto: i.sku, descricao: i.descricao, full_case: n, atualizado_em: new Date().toISOString() }, { onConflict: "id_produto" });
+    if (error) toast.error("Não consegui salvar a caixa: " + error.message);
+    else { toast.success(`Caixa de ${i.sku} salva: ${n} un.`); qc.invalidateQueries({ queryKey: ["abast-v2"] }); }
+  }
 
   async function gerarPedido() {
     if (!loja || paraPedido.length === 0) return;
@@ -131,7 +147,7 @@ function ReposicaoPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><Store className="size-6" /> Reposição de Lojas</h1>
         <p className="text-sm text-muted-foreground">
-          Só <strong>produto acabado com meta no consenso</strong>. Demanda pelo faturamento carregado (CMD 7/30/90 dias × sazonalidade) ou pela meta; o estoque vem do lote, ao vivo. <strong>Trânsito e pedidos em aberto abatem a sugestão</strong> (sem pedido duplicado e sem falsa ruptura). A exposição não conta como vendável, a sugestão é em caixa fechada e o CD limita o atendimento.
+          Só <strong>produto acabado com meta no consenso</strong>. Demanda pelo faturamento carregado (CMD 7/30/90 dias × sazonalidade) ou pela meta; o estoque vem do lote, ao vivo. <strong>Trânsito e pedidos em aberto abatem a sugestão</strong> (sem pedido duplicado e sem falsa ruptura). A exposição não conta como vendável, a sugestão só aparece quando o item cai <strong>abaixo do mínimo</strong> e é em caixa fechada; o CD limita o atendimento e o <strong>saldo do CD</strong> aparece em cada linha.
         </p>
       </div>
 
@@ -186,29 +202,32 @@ function ReposicaoPage() {
           </tr>
         </thead>
         <TableBody>
-          {linhas.length === 0 && <TableRow><TableCell colSpan={15} className="py-10 text-center text-muted-foreground">{bruto.isLoading ? "Carregando..." : "Nenhum item neste filtro."}</TableCell></TableRow>}
+          {linhas.length === 0 && <TableRow><TableCell colSpan={18} className="py-10 text-center text-muted-foreground">{bruto.isLoading ? "Carregando..." : "Nenhum item neste filtro."}</TableCell></TableRow>}
           {linhas.slice(0, 500).map((i) => {
             const k = `${i.loja}|${nk(i.sku)}`;
             return (
               <TableRow key={k} title={i.alertas.join(" · ")} className={fora.has(k) ? "opacity-40" : ""}>
                 {gestor && <TableCell><input type="checkbox" disabled={i.qtdAtendida <= 0} checked={i.qtdAtendida > 0 && !fora.has(k)} onChange={() => { const n = new Set(fora); if (n.has(k)) n.delete(k); else n.add(k); setFora(n); }} /></TableCell>}
                 <TableCell className="font-mono text-xs">{i.sku}</TableCell>
-                <TableCell className="max-w-[220px] truncate">{i.descricao || "—"}{i.semExposicao && <span className="ml-1 text-[10px] text-amber-600">sem exposição</span>}</TableCell>
+                <TableCell className="max-w-[220px] truncate">{i.descricao || "—"}{i.semExposicao && <span className="ml-1 text-[10px] text-amber-600">sem exposição</span>}{i.semCaixa && <span className="ml-1 text-[10px] text-amber-600">sem caixa</span>}</TableCell>
                 <TableCell className="text-xs">{i.grupo}</TableCell><TableCell className="text-xs">{i.familia || <span className="text-amber-600">sem família</span>}</TableCell>
                 <TableCell><span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${COR[i.status]}`}>{STATUS2[i.status].rotulo}</span></TableCell>
-                <TableCell className="text-right">{n1(i.estoque)}</TableCell><TableCell className="text-right">{n1(i.exposicao)}</TableCell>
+                <TableCell className="text-right">{n1(i.estoque)}</TableCell><TableCell className="text-right">{isAdmin ? <CelulaEdit valor={i.semExposicao ? null : i.exposicao} placeholder="0" titulo="Exposição: unidades que ficam na vitrine (não contam como vendável)" aoSalvar={(n) => salvarExposicao(i, n)} /> : n1(i.exposicao)}</TableCell>
                 <TableCell className="text-right">{i.emTransito + i.pedidoAberto > 0 ? n1(i.emTransito + i.pedidoAberto) : "—"}</TableCell>
                 <TableCell className="text-right">{n2(i.demandaDia)}{i.indiceSazonal !== 1 && <span className="ml-1 text-[10px] text-muted-foreground">×{n2(i.indiceSazonal)}</span>}</TableCell>
                 <TableCell className="text-right text-xs">{i.metaMes > 0 ? `${n1(i.realizadoMes)} / ${n1(i.metaMes)}` : "—"}</TableCell>
                 <TableCell className="text-right text-xs">{n1(i.minQ)} / {n1(i.idealQ)}</TableCell>
                 <TableCell className="text-right font-semibold">{i.sugestao > 0 ? `${i.sugestao}${i.caixa > 1 ? ` (${i.sugestaoCaixas} cx)` : ""}` : "—"}</TableCell>
-                <TableCell className="text-right">{gestor ? <Input className="h-7 w-20 text-right ml-auto" inputMode="numeric" placeholder={i.sugestao > 0 ? String(i.sugestao) : "0"} value={manuaisTxt[`${i.loja}|${nk(i.sku)}`] ?? ""} onChange={(e) => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: e.target.value })} /> : n1(i.qtdPedido)}</TableCell>
+                <TableCell className="text-right">{gestor ? <div className="flex flex-col items-end gap-0.5"><Input className="h-7 w-20 text-right" inputMode="numeric" placeholder={i.sugestao > 0 ? String(i.sugestao) : "0"} value={manuaisTxt[`${i.loja}|${nk(i.sku)}`] ?? ""} onChange={(e) => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: e.target.value })} />{maxCD(i) > 0 && <button type="button" className="text-[10px] text-primary hover:underline" title="Preenche o pedido com o máximo que o CD consegue mandar (em caixas fechadas quando há caixa)" onClick={() => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: String(maxCD(i)) })}>usar CD: {n1(maxCD(i))}</button>}</div> : n1(i.qtdPedido)}</TableCell>
                 <TableCell className="text-right">{i.qtdPedido > 0 ? <>{n1(i.qtdAtendida)}{i.faltaCD > 0 && <AlertTriangle className="inline size-3 ml-1 text-amber-600" aria-label="CD não cobre" />}</> : "—"}</TableCell>
+                <TableCell className="text-right text-xs">{i.saldoCD == null ? "—" : `${n1(i.saldoCD)}${i.caixa > 1 ? ` (${i.caixasCD} cx)` : ""}`}</TableCell>
+                <TableCell className="text-right">{isAdmin ? <CelulaEdit valor={i.semCaixa ? null : i.caixa} placeholder="1" titulo="Unidades por caixa (caixa fechada)" aoSalvar={(n) => salvarCaixa(i, n)} /> : n1(i.caixa)}</TableCell>
+                <TableCell className={`text-right text-xs ${i.cobPosPedido != null && i.cobPosPedido > 45 ? "text-amber-600 font-semibold" : ""}`} title={i.cobPosPedido != null && i.cobPosPedido > 45 ? "Mais de 45 dias de cobertura depois do pedido (caixa grande para a venda)" : ""}>{i.cobPosPedido == null ? "—" : n1(i.cobPosPedido)}</TableCell>
               </TableRow>);
           })}
         </TableBody>
       </table></div></CardContent></Card>
-      <p className="text-xs text-muted-foreground">Pedido manual: digite a quantidade (vira múltiplo da caixa) e ela substitui a sugestão; zero = não pedir. O pedido gerado usa o que o CD atende e passa a contar como "a caminho" até ser recebido.</p>
+      <p className="text-xs text-muted-foreground">Pedido manual: digite a quantidade exata (ela substitui a sugestão; zero = não pedir) ou use "usar CD" para alocar o que o CD tem. O CD atende no máximo o seu saldo. O pedido gerado usa o que o CD atende e passa a contar como "a caminho" até ser recebido. Administradores podem corrigir Caixa e Expo. direto na tabela.</p>
 
       {isAdmin && semFamPorLinha.length > 0 && (
         <Card><CardHeader className="pb-2"><CardTitle className="text-base">Produtos sem família ({mont?.semFamilia.length})</CardTitle>
@@ -268,6 +287,21 @@ function PainelFiltro({ col, ancora, filtro, opcoes, onChange, onFechar }: { col
         <div className="max-h-56 space-y-1 overflow-auto">{opcoes.map((o) => <label key={o.valor} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={marcados.includes(o.valor)} onChange={() => alternar(o.valor)} /><span className="flex-1 truncate">{o.valor || "(vazio)"}</span><span className="text-muted-foreground">{o.n}</span></label>)}</div>
       </>)}
     </div>, document.body);
+}
+
+function CelulaEdit({ valor, aoSalvar, titulo, placeholder }: { valor: number | null; aoSalvar: (n: number) => Promise<void>; titulo: string; placeholder: string }) {
+  const [txt, setTxt] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const mostrado = txt ?? (valor == null ? "" : String(valor));
+  async function salvar() {
+    if (txt === null) return;
+    const n = Number(txt.replace(",", "."));
+    setTxt(null);
+    if (!Number.isFinite(n) || n < 0 || n === valor) return;
+    setSalvando(true);
+    try { await aoSalvar(n); } finally { setSalvando(false); }
+  }
+  return <Input className={`h-7 w-16 text-right ml-auto ${salvando ? "opacity-50" : ""}`} inputMode="decimal" title={titulo} placeholder={placeholder} value={mostrado} onChange={(e) => setTxt(e.target.value)} onBlur={salvar} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setTxt(null); }} />;
 }
 
 function Kpi({ t, v, tom }: { t: string; v: string; tom?: string }) {
