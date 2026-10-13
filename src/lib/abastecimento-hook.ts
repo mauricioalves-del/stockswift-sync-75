@@ -28,12 +28,12 @@ export function useAbastBruto(habilitado: boolean) {
         seguro(() => fetchAll<any>((f, t) => sb.from("abast_produto").select("id_produto, full_case").order("id_produto").range(f, t)), []),
         seguro(() => fetchAll<any>((f, t) => sb.from("abast_produto_loja").select("loja, id_produto, exposicao").order("loja").order("id_produto").range(f, t)), []),
         seguro(async () => {
-          const { data: ps, error } = await sb.from("abast_pedidos").select("id, loja, status").in("status", ["ABERTO", "ENVIADO"]);
+          const { data: ps, error } = await sb.from("abast_pedidos").select("id, loja, status").in("status", ["ABERTO", "EM_SEPARACAO", "SEPARADO", "ENVIADO"]);
           if (error) throw error;
           if (!ps?.length) return [] as any[];
-          const { data: its } = await sb.from("abast_pedido_itens").select("pedido_id, id_produto, qtd_pedida").in("pedido_id", ps.map((p: any) => p.id));
+          const { data: its } = await sb.from("abast_pedido_itens").select("pedido_id, id_produto, qtd_pedida, qtd_separada").in("pedido_id", ps.map((p: any) => p.id));
           const m = new Map<string, any>(ps.map((p: any) => [p.id, p]));
-          return (its ?? []).map((i: any) => ({ loja: m.get(i.pedido_id).loja, id_produto: i.id_produto, qtd: Number(i.qtd_pedida), status: m.get(i.pedido_id).status }));
+          return (its ?? []).map((i: any) => ({ loja: m.get(i.pedido_id).loja, id_produto: i.id_produto, qtd: Number(i.qtd_pedida), separada: Number(i.qtd_separada) || 0, status: m.get(i.pedido_id).status }));
         }, [] as any[]),
       ]);
       return {
