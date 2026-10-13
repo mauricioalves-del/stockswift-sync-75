@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import { useRole } from "@/hooks/useRole";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { montarItens, nk, type ItemRep } from "@/lib/abastecimento-dados";
 import { STATUS2, LIMITE_COBERTURA_AVISO, resumirLoja2, type Status2, type Base2 } from "@/lib/abastecimento-motor2";
+import { resolverParam } from "@/lib/abastecimento-cobertura";
 import { passaFiltros, proximaOrdem, comparar, opcoesCategoria, filtroAtivo, type ColDef, type Filtro, type Ordem } from "@/lib/tabela-filtro";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -162,6 +163,16 @@ function ReposicaoPage() {
           {ref ? `Última venda carregada: ${dataBr(ref)}${atraso != null && atraso > 3 ? ` ⚠ defasada há ${atraso} dias — carregue o faturamento` : ""}` : "Sem faturamento carregado para esta loja: a demanda real é zero. Carregue o faturamento ou use a meta do consenso."}
         </span>
       </div>
+
+      {bruto.data && loja && (() => {
+        const rp = resolverParam(bruto.data.params, bruto.data.coberturas ?? [], loja.codigo, "");
+        const nf = (bruto.data.coberturas ?? []).filter((c) => c.escopo === "FAMILIA").length;
+        return (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>Cobertura em uso ({loja.nome}): mínimo <strong>{rp.p.diasMin}</strong> · ideal <strong>{rp.p.diasIdeal}</strong> · máximo <strong>{rp.p.diasMax}</strong> · segurança <strong>{rp.p.diasSeguranca}</strong> dias{rp.origem === "loja" ? " (regra da loja)" : ""}{nf > 0 ? ` · ${nf} família(s) com cobertura própria` : ""}</span>
+            <Link to="/abastecimento/cobertura" className="text-primary hover:underline">{isAdmin ? "Alterar" : "Ver"} parâmetros de cobertura</Link>
+          </div>);
+      })()}
 
       {semDados && <Card className="border-amber-300 bg-amber-50"><CardContent className="pt-4 text-sm text-amber-900">Nenhum produto acabado com meta no consenso para esta loja. Envie o consenso em <strong>Projeção do CD</strong>.</CardContent></Card>}
 
