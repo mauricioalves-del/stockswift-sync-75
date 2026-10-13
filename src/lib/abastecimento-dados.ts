@@ -33,7 +33,7 @@ export type Bruto = {
 
 export type ItemRep = Item2 & {
   loja: string; grupo: string; familia: string; linha: string; tipo: string;
-  cmd: number; tendencia: number; consensoDia: number | null; metaMes: number; realizadoMes: number; acomp: AcompMeta; refVendas: string | null; semExposicao: boolean; semCaixa: boolean; solto: boolean; cdBruto: number; reservadoCD: number;
+  cmd: number; tendencia: number; consensoDia: number | null; metaMes: number; realizadoMes: number; acomp: AcompMeta; refVendas: string | null; semExposicao: boolean; semCaixa: boolean; caixaCadastrada: boolean; solto: boolean; cdBruto: number; reservadoCD: number;
 };
 
 export type Montagem = {
@@ -124,7 +124,7 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       }, b.params, o.base);
       if (!familia) semFamilia.push({ loja: l.codigo, sku: it.sku, descricao: it.descricao, linha: m.linha || m.tipo });
       lista.push({ ...it, loja: l.codigo, grupo, familia, linha: m.linha, tipo: m.tipo, cmd: r.cmd, tendencia: r.tendencia, consensoDia: cons, metaMes: mesAt, realizadoMes: realizado,
-        acomp: acompanhamentoMeta(mesAt, realizado, ref), refVendas: refPorLoja[l.codigo], semExposicao: expo == null, semCaixa: !fcDe.has(sku) && !solto, solto, cdBruto: e?.cd ?? 0, reservadoCD: reservado.get(sku) ?? 0 });
+        acomp: acompanhamentoMeta(mesAt, realizado, ref), refVendas: refPorLoja[l.codigo], semExposicao: expo == null, semCaixa: !fcDe.has(sku) && !solto, caixaCadastrada: fcDe.has(sku), solto, cdBruto: e?.cd ?? 0, reservadoCD: reservado.get(sku) ?? 0 });
     }
     itens[l.codigo] = lista;
   }
