@@ -118,7 +118,7 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       const idCanon = e?.canon ?? (sku.length < 8 ? sku.padStart(8, "0") : sku.length === 9 ? sku.padStart(10, "0") : sku);
       const it = calcularItem2({
         sku: idCanon, descricao: e?.desc || m.produto, categoria: familia, ativo: true, masterPresente: true,
-        estoque: e?.lojas[l.codigo] ?? 0, exposicao: expo ?? 0, vendaDiaReal: r.cmd, consensoDia: cons, indiceSazonal: idx,
+        estoque: e?.lojas[l.codigo] ?? 0, exposicao: expo ?? 0, vendaDiaReal: r.cmd, consensoDia: cons, indiceSazonal: idx.indice,
         classeAbc: abcDe.get(sku) ?? null, fullCase: fcDe.get(sku) ?? 1, custo: e?.custo ?? null, saldoCD: e?.cd ?? 0,
         emTransito: transito.get(`${l.codigo}|${sku}`) ?? 0, pedidoAberto: pedAb.get(`${l.codigo}|${sku}`) ?? 0, pedidoManual: manual ?? null,
       }, b.params, o.base);

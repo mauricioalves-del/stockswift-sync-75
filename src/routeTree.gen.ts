@@ -32,10 +32,17 @@ import { Route as AuthenticatedRecontagemRouteImport } from './routes/_authentic
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedScannerRouteImport } from './routes/_authenticated/scanner'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
+import { Route as AuthenticatedAbastecimentoCaixariaRouteImport } from './routes/_authenticated/abastecimento.caixaria'
+import { Route as AuthenticatedAbastecimentoCargaRouteImport } from './routes/_authenticated/abastecimento.carga'
 import { Route as AuthenticatedAbastecimentoConsumoRouteImport } from './routes/_authenticated/abastecimento.consumo'
 import { Route as AuthenticatedAbastecimentoDemandasRouteImport } from './routes/_authenticated/abastecimento.demandas'
+import { Route as AuthenticatedAbastecimentoFaturamentoRouteImport } from './routes/_authenticated/abastecimento.faturamento'
+import { Route as AuthenticatedAbastecimentoIndicadoresRouteImport } from './routes/_authenticated/abastecimento.indicadores'
 import { Route as AuthenticatedAbastecimentoParametrosRouteImport } from './routes/_authenticated/abastecimento.parametros'
+import { Route as AuthenticatedAbastecimentoPedidosRouteImport } from './routes/_authenticated/abastecimento.pedidos'
 import { Route as AuthenticatedAbastecimentoPlanejamentoRouteImport } from './routes/_authenticated/abastecimento.planejamento'
+import { Route as AuthenticatedAbastecimentoProjecaoCdRouteImport } from './routes/_authenticated/abastecimento.projecao-cd'
+import { Route as AuthenticatedAbastecimentoReposicaoRouteImport } from './routes/_authenticated/abastecimento.reposicao'
 import { Route as AuthenticatedBaixasIndexRouteImport } from './routes/_authenticated/baixas.index'
 import { Route as AuthenticatedBaixasDashboardRouteImport } from './routes/_authenticated/baixas.dashboard'
 import { Route as AuthenticatedBaixasInvestimentoOperacionalRouteImport } from './routes/_authenticated/baixas.investimento-operacional'
@@ -208,6 +215,18 @@ const AuthenticatedUsuariosRoute = AuthenticatedUsuariosRouteImport.update({
   path: '/usuarios',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAbastecimentoCaixariaRoute =
+  AuthenticatedAbastecimentoCaixariaRouteImport.update({
+    id: '/abastecimento/caixaria',
+    path: '/abastecimento/caixaria',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAbastecimentoCargaRoute =
+  AuthenticatedAbastecimentoCargaRouteImport.update({
+    id: '/abastecimento/carga',
+    path: '/abastecimento/carga',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAbastecimentoConsumoRoute =
   AuthenticatedAbastecimentoConsumoRouteImport.update({
     id: '/abastecimento/consumo',
@@ -220,16 +239,46 @@ const AuthenticatedAbastecimentoDemandasRoute =
     path: '/abastecimento/demandas',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAbastecimentoFaturamentoRoute =
+  AuthenticatedAbastecimentoFaturamentoRouteImport.update({
+    id: '/abastecimento/faturamento',
+    path: '/abastecimento/faturamento',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAbastecimentoIndicadoresRoute =
+  AuthenticatedAbastecimentoIndicadoresRouteImport.update({
+    id: '/abastecimento/indicadores',
+    path: '/abastecimento/indicadores',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAbastecimentoParametrosRoute =
   AuthenticatedAbastecimentoParametrosRouteImport.update({
     id: '/abastecimento/parametros',
     path: '/abastecimento/parametros',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAbastecimentoPedidosRoute =
+  AuthenticatedAbastecimentoPedidosRouteImport.update({
+    id: '/abastecimento/pedidos',
+    path: '/abastecimento/pedidos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAbastecimentoPlanejamentoRoute =
   AuthenticatedAbastecimentoPlanejamentoRouteImport.update({
     id: '/abastecimento/planejamento',
     path: '/abastecimento/planejamento',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAbastecimentoProjecaoCdRoute =
+  AuthenticatedAbastecimentoProjecaoCdRouteImport.update({
+    id: '/abastecimento/projecao-cd',
+    path: '/abastecimento/projecao-cd',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAbastecimentoReposicaoRoute =
+  AuthenticatedAbastecimentoReposicaoRouteImport.update({
+    id: '/abastecimento/reposicao',
+    path: '/abastecimento/reposicao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedBaixasIndexRoute =
@@ -561,10 +610,17 @@ export interface FileRoutesByFullPath {
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/scanner': typeof AuthenticatedScannerRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
+  '/abastecimento/caixaria': typeof AuthenticatedAbastecimentoCaixariaRoute
+  '/abastecimento/carga': typeof AuthenticatedAbastecimentoCargaRoute
   '/abastecimento/consumo': typeof AuthenticatedAbastecimentoConsumoRoute
   '/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
+  '/abastecimento/faturamento': typeof AuthenticatedAbastecimentoFaturamentoRoute
+  '/abastecimento/indicadores': typeof AuthenticatedAbastecimentoIndicadoresRoute
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
+  '/abastecimento/pedidos': typeof AuthenticatedAbastecimentoPedidosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  '/abastecimento/projecao-cd': typeof AuthenticatedAbastecimentoProjecaoCdRoute
+  '/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
   '/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
@@ -640,10 +696,17 @@ export interface FileRoutesByTo {
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/scanner': typeof AuthenticatedScannerRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
+  '/abastecimento/caixaria': typeof AuthenticatedAbastecimentoCaixariaRoute
+  '/abastecimento/carga': typeof AuthenticatedAbastecimentoCargaRoute
   '/abastecimento/consumo': typeof AuthenticatedAbastecimentoConsumoRoute
   '/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
+  '/abastecimento/faturamento': typeof AuthenticatedAbastecimentoFaturamentoRoute
+  '/abastecimento/indicadores': typeof AuthenticatedAbastecimentoIndicadoresRoute
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
+  '/abastecimento/pedidos': typeof AuthenticatedAbastecimentoPedidosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  '/abastecimento/projecao-cd': typeof AuthenticatedAbastecimentoProjecaoCdRoute
+  '/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
   '/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
@@ -721,10 +784,17 @@ export interface FileRoutesById {
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/scanner': typeof AuthenticatedScannerRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
+  '/_authenticated/abastecimento/caixaria': typeof AuthenticatedAbastecimentoCaixariaRoute
+  '/_authenticated/abastecimento/carga': typeof AuthenticatedAbastecimentoCargaRoute
   '/_authenticated/abastecimento/consumo': typeof AuthenticatedAbastecimentoConsumoRoute
   '/_authenticated/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
+  '/_authenticated/abastecimento/faturamento': typeof AuthenticatedAbastecimentoFaturamentoRoute
+  '/_authenticated/abastecimento/indicadores': typeof AuthenticatedAbastecimentoIndicadoresRoute
   '/_authenticated/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
+  '/_authenticated/abastecimento/pedidos': typeof AuthenticatedAbastecimentoPedidosRoute
   '/_authenticated/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  '/_authenticated/abastecimento/projecao-cd': typeof AuthenticatedAbastecimentoProjecaoCdRoute
+  '/_authenticated/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/_authenticated/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
   '/_authenticated/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/_authenticated/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
@@ -802,10 +872,17 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/scanner'
     | '/usuarios'
+    | '/abastecimento/caixaria'
+    | '/abastecimento/carga'
     | '/abastecimento/consumo'
     | '/abastecimento/demandas'
+    | '/abastecimento/faturamento'
+    | '/abastecimento/indicadores'
     | '/abastecimento/parametros'
+    | '/abastecimento/pedidos'
     | '/abastecimento/planejamento'
+    | '/abastecimento/projecao-cd'
+    | '/abastecimento/reposicao'
     | '/baixas/dashboard'
     | '/baixas/investimento-operacional'
     | '/config/aparencia'
@@ -881,10 +958,17 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/scanner'
     | '/usuarios'
+    | '/abastecimento/caixaria'
+    | '/abastecimento/carga'
     | '/abastecimento/consumo'
     | '/abastecimento/demandas'
+    | '/abastecimento/faturamento'
+    | '/abastecimento/indicadores'
     | '/abastecimento/parametros'
+    | '/abastecimento/pedidos'
     | '/abastecimento/planejamento'
+    | '/abastecimento/projecao-cd'
+    | '/abastecimento/reposicao'
     | '/baixas/dashboard'
     | '/baixas/investimento-operacional'
     | '/config/aparencia'
@@ -961,10 +1045,17 @@ export interface FileRouteTypes {
     | '/_authenticated/relatorios'
     | '/_authenticated/scanner'
     | '/_authenticated/usuarios'
+    | '/_authenticated/abastecimento/caixaria'
+    | '/_authenticated/abastecimento/carga'
     | '/_authenticated/abastecimento/consumo'
     | '/_authenticated/abastecimento/demandas'
+    | '/_authenticated/abastecimento/faturamento'
+    | '/_authenticated/abastecimento/indicadores'
     | '/_authenticated/abastecimento/parametros'
+    | '/_authenticated/abastecimento/pedidos'
     | '/_authenticated/abastecimento/planejamento'
+    | '/_authenticated/abastecimento/projecao-cd'
+    | '/_authenticated/abastecimento/reposicao'
     | '/_authenticated/baixas/dashboard'
     | '/_authenticated/baixas/investimento-operacional'
     | '/_authenticated/config/aparencia'
@@ -1197,6 +1288,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUsuariosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/abastecimento/caixaria': {
+      id: '/_authenticated/abastecimento/caixaria'
+      path: '/abastecimento/caixaria'
+      fullPath: '/abastecimento/caixaria'
+      preLoaderRoute: typeof AuthenticatedAbastecimentoCaixariaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/abastecimento/carga': {
+      id: '/_authenticated/abastecimento/carga'
+      path: '/abastecimento/carga'
+      fullPath: '/abastecimento/carga'
+      preLoaderRoute: typeof AuthenticatedAbastecimentoCargaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/abastecimento/consumo': {
       id: '/_authenticated/abastecimento/consumo'
       path: '/abastecimento/consumo'
@@ -1211,6 +1316,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAbastecimentoDemandasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/abastecimento/faturamento': {
+      id: '/_authenticated/abastecimento/faturamento'
+      path: '/abastecimento/faturamento'
+      fullPath: '/abastecimento/faturamento'
+      preLoaderRoute: typeof AuthenticatedAbastecimentoFaturamentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/abastecimento/indicadores': {
+      id: '/_authenticated/abastecimento/indicadores'
+      path: '/abastecimento/indicadores'
+      fullPath: '/abastecimento/indicadores'
+      preLoaderRoute: typeof AuthenticatedAbastecimentoIndicadoresRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/abastecimento/parametros': {
       id: '/_authenticated/abastecimento/parametros'
       path: '/abastecimento/parametros'
@@ -1218,11 +1337,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAbastecimentoParametrosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/abastecimento/pedidos': {
+      id: '/_authenticated/abastecimento/pedidos'
+      path: '/abastecimento/pedidos'
+      fullPath: '/abastecimento/pedidos'
+      preLoaderRoute: typeof AuthenticatedAbastecimentoPedidosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/abastecimento/planejamento': {
       id: '/_authenticated/abastecimento/planejamento'
       path: '/abastecimento/planejamento'
       fullPath: '/abastecimento/planejamento'
       preLoaderRoute: typeof AuthenticatedAbastecimentoPlanejamentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/abastecimento/projecao-cd': {
+      id: '/_authenticated/abastecimento/projecao-cd'
+      path: '/abastecimento/projecao-cd'
+      fullPath: '/abastecimento/projecao-cd'
+      preLoaderRoute: typeof AuthenticatedAbastecimentoProjecaoCdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/abastecimento/reposicao': {
+      id: '/_authenticated/abastecimento/reposicao'
+      path: '/abastecimento/reposicao'
+      fullPath: '/abastecimento/reposicao'
+      preLoaderRoute: typeof AuthenticatedAbastecimentoReposicaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/baixas/': {
@@ -1620,10 +1760,17 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedScannerRoute: typeof AuthenticatedScannerRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
+  AuthenticatedAbastecimentoCaixariaRoute: typeof AuthenticatedAbastecimentoCaixariaRoute
+  AuthenticatedAbastecimentoCargaRoute: typeof AuthenticatedAbastecimentoCargaRoute
   AuthenticatedAbastecimentoConsumoRoute: typeof AuthenticatedAbastecimentoConsumoRoute
   AuthenticatedAbastecimentoDemandasRoute: typeof AuthenticatedAbastecimentoDemandasRoute
+  AuthenticatedAbastecimentoFaturamentoRoute: typeof AuthenticatedAbastecimentoFaturamentoRoute
+  AuthenticatedAbastecimentoIndicadoresRoute: typeof AuthenticatedAbastecimentoIndicadoresRoute
   AuthenticatedAbastecimentoParametrosRoute: typeof AuthenticatedAbastecimentoParametrosRoute
+  AuthenticatedAbastecimentoPedidosRoute: typeof AuthenticatedAbastecimentoPedidosRoute
   AuthenticatedAbastecimentoPlanejamentoRoute: typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  AuthenticatedAbastecimentoProjecaoCdRoute: typeof AuthenticatedAbastecimentoProjecaoCdRoute
+  AuthenticatedAbastecimentoReposicaoRoute: typeof AuthenticatedAbastecimentoReposicaoRoute
   AuthenticatedBaixasDashboardRoute: typeof AuthenticatedBaixasDashboardRoute
   AuthenticatedBaixasInvestimentoOperacionalRoute: typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   AuthenticatedConfigAparenciaRoute: typeof AuthenticatedConfigAparenciaRoute
@@ -1687,14 +1834,27 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedScannerRoute: AuthenticatedScannerRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
+  AuthenticatedAbastecimentoCaixariaRoute:
+    AuthenticatedAbastecimentoCaixariaRoute,
+  AuthenticatedAbastecimentoCargaRoute: AuthenticatedAbastecimentoCargaRoute,
   AuthenticatedAbastecimentoConsumoRoute:
     AuthenticatedAbastecimentoConsumoRoute,
   AuthenticatedAbastecimentoDemandasRoute:
     AuthenticatedAbastecimentoDemandasRoute,
+  AuthenticatedAbastecimentoFaturamentoRoute:
+    AuthenticatedAbastecimentoFaturamentoRoute,
+  AuthenticatedAbastecimentoIndicadoresRoute:
+    AuthenticatedAbastecimentoIndicadoresRoute,
   AuthenticatedAbastecimentoParametrosRoute:
     AuthenticatedAbastecimentoParametrosRoute,
+  AuthenticatedAbastecimentoPedidosRoute:
+    AuthenticatedAbastecimentoPedidosRoute,
   AuthenticatedAbastecimentoPlanejamentoRoute:
     AuthenticatedAbastecimentoPlanejamentoRoute,
+  AuthenticatedAbastecimentoProjecaoCdRoute:
+    AuthenticatedAbastecimentoProjecaoCdRoute,
+  AuthenticatedAbastecimentoReposicaoRoute:
+    AuthenticatedAbastecimentoReposicaoRoute,
   AuthenticatedBaixasDashboardRoute: AuthenticatedBaixasDashboardRoute,
   AuthenticatedBaixasInvestimentoOperacionalRoute:
     AuthenticatedBaixasInvestimentoOperacionalRoute,

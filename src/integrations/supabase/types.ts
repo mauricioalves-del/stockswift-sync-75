@@ -14,6 +14,296 @@ export type Database = {
   }
   public: {
     Tables: {
+      abast_cargas: {
+        Row: {
+          arquivo: string | null
+          criado_em: string
+          id: string
+          payload: Json | null
+          resumo: Json | null
+          usuario: string | null
+        }
+        Insert: {
+          arquivo?: string | null
+          criado_em?: string
+          id?: string
+          payload?: Json | null
+          resumo?: Json | null
+          usuario?: string | null
+        }
+        Update: {
+          arquivo?: string | null
+          criado_em?: string
+          id?: string
+          payload?: Json | null
+          resumo?: Json | null
+          usuario?: string | null
+        }
+        Relationships: []
+      }
+      abast_config: {
+        Row: {
+          atualizado_em: string
+          chave: string
+          valor: string
+        }
+        Insert: {
+          atualizado_em?: string
+          chave: string
+          valor: string
+        }
+        Update: {
+          atualizado_em?: string
+          chave?: string
+          valor?: string
+        }
+        Relationships: []
+      }
+      abast_consenso: {
+        Row: {
+          arquivo: string | null
+          canal: string
+          carregado_em: string
+          id_produto: string
+          linha: string | null
+          loja: string
+          mes: string
+          produto: string | null
+          tipo: string | null
+          unidades: number
+        }
+        Insert: {
+          arquivo?: string | null
+          canal?: string
+          carregado_em?: string
+          id_produto: string
+          linha?: string | null
+          loja: string
+          mes: string
+          produto?: string | null
+          tipo?: string | null
+          unidades: number
+        }
+        Update: {
+          arquivo?: string | null
+          canal?: string
+          carregado_em?: string
+          id_produto?: string
+          linha?: string | null
+          loja?: string
+          mes?: string
+          produto?: string | null
+          tipo?: string | null
+          unidades?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abast_consenso_loja_fkey"
+            columns: ["loja"]
+            isOneToOne: false
+            referencedRelation: "abast_lojas"
+            referencedColumns: ["codigo"]
+          },
+        ]
+      }
+      abast_lojas: {
+        Row: {
+          almoxarifado: string
+          ativo: boolean
+          codigo: string
+          created_at: string
+          empresa_erp: string | null
+          janela_dias: number
+          nome: string
+          ordem: number
+          vendedores: string[]
+        }
+        Insert: {
+          almoxarifado: string
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          empresa_erp?: string | null
+          janela_dias?: number
+          nome: string
+          ordem?: number
+          vendedores?: string[]
+        }
+        Update: {
+          almoxarifado?: string
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          empresa_erp?: string | null
+          janela_dias?: number
+          nome?: string
+          ordem?: number
+          vendedores?: string[]
+        }
+        Relationships: []
+      }
+      abast_pedido_itens: {
+        Row: {
+          caixa: number | null
+          descricao: string | null
+          id: string
+          id_produto: string
+          origem: string
+          pedido_id: string
+          qtd_pedida: number
+          qtd_sugerida: number | null
+        }
+        Insert: {
+          caixa?: number | null
+          descricao?: string | null
+          id?: string
+          id_produto: string
+          origem?: string
+          pedido_id: string
+          qtd_pedida: number
+          qtd_sugerida?: number | null
+        }
+        Update: {
+          caixa?: number | null
+          descricao?: string | null
+          id?: string
+          id_produto?: string
+          origem?: string
+          pedido_id?: string
+          qtd_pedida?: number
+          qtd_sugerida?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abast_pedido_itens_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "abast_pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      abast_pedidos: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          base_demanda: string | null
+          criado_em: string
+          criado_por: string | null
+          id: string
+          loja: string
+          numero: number
+          observacao: string | null
+          status: string
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          base_demanda?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          loja: string
+          numero?: never
+          observacao?: string | null
+          status?: string
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          base_demanda?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          loja?: string
+          numero?: never
+          observacao?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abast_pedidos_loja_fkey"
+            columns: ["loja"]
+            isOneToOne: false
+            referencedRelation: "abast_lojas"
+            referencedColumns: ["codigo"]
+          },
+        ]
+      }
+      abast_produto: {
+        Row: {
+          atualizado_em: string
+          descricao: string | null
+          full_case: number | null
+          id_produto: string
+        }
+        Insert: {
+          atualizado_em?: string
+          descricao?: string | null
+          full_case?: number | null
+          id_produto: string
+        }
+        Update: {
+          atualizado_em?: string
+          descricao?: string | null
+          full_case?: number | null
+          id_produto?: string
+        }
+        Relationships: []
+      }
+      abast_produto_loja: {
+        Row: {
+          ativo_sortimento: boolean
+          atualizado_em: string
+          categoria: string | null
+          exposicao: number | null
+          id_produto: string
+          loja: string
+          malha_mes: string | null
+          pedido_planilha: number | null
+          tipo_produto: string | null
+          venda_dia: number | null
+          venda_malha: number | null
+          vendas_30d: number | null
+        }
+        Insert: {
+          ativo_sortimento?: boolean
+          atualizado_em?: string
+          categoria?: string | null
+          exposicao?: number | null
+          id_produto: string
+          loja: string
+          malha_mes?: string | null
+          pedido_planilha?: number | null
+          tipo_produto?: string | null
+          venda_dia?: number | null
+          venda_malha?: number | null
+          vendas_30d?: number | null
+        }
+        Update: {
+          ativo_sortimento?: boolean
+          atualizado_em?: string
+          categoria?: string | null
+          exposicao?: number | null
+          id_produto?: string
+          loja?: string
+          malha_mes?: string | null
+          pedido_planilha?: number | null
+          tipo_produto?: string | null
+          venda_dia?: number | null
+          venda_malha?: number | null
+          vendas_30d?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abast_produto_loja_loja_fkey"
+            columns: ["loja"]
+            isOneToOne: false
+            referencedRelation: "abast_lojas"
+            referencedColumns: ["codigo"]
+          },
+        ]
+      }
       acoes_obsoleto: {
         Row: {
           almoxarifado: string | null
@@ -3938,6 +4228,52 @@ export type Database = {
       }
     }
     Functions: {
+      abast__aplicar_carga: {
+        Args: { p_arquivo: string; p_payload: Json; p_uid: string }
+        Returns: Json
+      }
+      abast__aplicar_consenso: {
+        Args: { p_arquivo: string; p_itens: Json; p_uid: string }
+        Returns: Json
+      }
+      abast__aplicar_malha: {
+        Args: { p_arquivo: string; p_itens: Json; p_mes: string; p_uid: string }
+        Returns: Json
+      }
+      abast__atualizar_pedido: {
+        Args: { p_id: string; p_status: string; p_uid: string }
+        Returns: Json
+      }
+      abast__criar_pedido: {
+        Args: {
+          p_base: string
+          p_itens: Json
+          p_loja: string
+          p_obs: string
+          p_uid: string
+        }
+        Returns: Json
+      }
+      abast_aplicar_carga: {
+        Args: { p_arquivo: string; p_payload: Json }
+        Returns: Json
+      }
+      abast_aplicar_consenso: {
+        Args: { p_arquivo: string; p_itens: Json }
+        Returns: Json
+      }
+      abast_aplicar_malha: {
+        Args: { p_arquivo: string; p_itens: Json; p_mes: string }
+        Returns: Json
+      }
+      abast_atualizar_pedido: {
+        Args: { p_id: string; p_status: string }
+        Returns: Json
+      }
+      abast_criar_pedido: {
+        Args: { p_base: string; p_itens: Json; p_loja: string; p_obs: string }
+        Returns: Json
+      }
       almoxarifados_permitidos: { Args: { _uid: string }; Returns: string[] }
       atualizar_custos_contabeis: { Args: { p_linhas: Json }; Returns: Json }
       congelar_producao_consumo: { Args: never; Returns: number }
@@ -4065,6 +4401,7 @@ export type Database = {
         Args: { p_periodo_dias?: number }
         Returns: undefined
       }
+      usuario_aprovado: { Args: { _uid: string }; Returns: boolean }
     }
     Enums: {
       app_role:
