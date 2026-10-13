@@ -100,7 +100,7 @@ function ProjecaoCdPage() {
     const porSku = new Map<string, { desc: string; tipo: string; porLoja: Record<string, Record<string, number>> }>();
     for (const r of d.consenso) {
       const k = nk(r.id_produto);
-      const o = porSku.get(k) ?? { desc: r.produto ?? "", tipo: r.tipo ?? "", porLoja: {} };
+      const o = porSku.get(k) ?? { desc: r.produto ?? "", tipo: r.tipo ?? "", porLoja: {} as Record<string, Record<string, number>> };
       const pl = o.porLoja[r.loja] ?? (o.porLoja[r.loja] = {});
       pl[r.mes] = (pl[r.mes] ?? 0) + Number(r.unidades);
       porSku.set(k, o);
