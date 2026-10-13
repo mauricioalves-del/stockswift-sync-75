@@ -1,6 +1,6 @@
 // Cadastro de caixaria (unidades por caixa) e exposição por loja — monta a lista de itens que o módulo mostra.
 // Universo: produto ACABADO com meta no consenso (o mesmo da Reposição) + qualquer item que já tenha caixa cadastrada.
-import { nk, GRUPO_ACABADO, type Bruto } from "./abastecimento-dados";
+import { nk, GRUPO_ACABADO, ehSolto, type Bruto } from "./abastecimento-dados";
 
 export type LinhaCaixaria = {
   chave: string;                      // código sem zeros (identifica o item em qualquer formato)
@@ -11,6 +11,7 @@ export type LinhaCaixaria = {
   expo: Record<string, { valor: number | null; idDb: string | null }>;   // por loja
   saldoCD: number;
   noUniverso: boolean;                // false = tem caixa cadastrada, mas não é produto acabado com meta
+  solto: boolean;                     // família vendida solta (granéis): não tem padrão de caixa
 };
 
 /** Código canônico: o do estoque quando existe; senão, completa com zeros (8 dígitos; 9 viram 10). */
@@ -52,7 +53,7 @@ export function montarCaixaria(b: Bruto): LinhaCaixaria[] {
     linhas.push({
       chave: k, id: idCanonico(k, e?.canon), idCaixaDb: cx ? cx.id : null,
       descricao: e?.desc || nomeConsenso.get(k) || "", familia: famDe.get(k) ?? "", grupo: grupoDe.get(k) ?? "",
-      caixa: cx ? cx.fc : null, expo, saldoCD: e?.cd ?? 0, noUniverso: universo.has(k),
+      caixa: cx ? cx.fc : null, expo, saldoCD: e?.cd ?? 0, noUniverso: universo.has(k), solto: ehSolto(famDe.get(k) ?? ""),
     });
   }
   return linhas.sort((a, c) => a.descricao.localeCompare(c.descricao, "pt-BR", { sensitivity: "base" }) || a.chave.localeCompare(c.chave));
