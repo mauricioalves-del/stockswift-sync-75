@@ -33,6 +33,7 @@ export type Bruto = {
   exposicoes: { loja: string; id_produto: string; exposicao: number | null; ativo_sortimento?: boolean | null }[];
   /** SKUs (sem zeros à esquerda) do último portfólio validado pelo gestor, por loja. Quando existe, substitui o universo da loja. */
   portfolioAprovado?: Record<string, string[]>;
+  portfolioOrigem?: Record<string, { competencia: string; versao: number; aprovador: string }>;
 };
 
 export type ItemRep = Item2 & {
@@ -106,7 +107,7 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
   for (const l of b.lojas) {
     const lista: ItemRep[] = [];
     const porSortimento = o.universo === "sortimento";
-    const aprovado = b.portfolioAprovado ? (b.portfolioAprovado[l.codigo] ?? []) : undefined;   // sem validação do gestor = lista vazia
+    const aprovado = b.portfolioAprovado?.[l.codigo];   // último portfólio aprovado (validado ou herdado); sem aprovação = lista operacional padrão
     const chaves: [string, typeof META_VAZIA][] = aprovado
       ? aprovado.map((sku) => { const k = `${l.codigo}|${nk(sku)}`; return [k, metas.get(k) ?? META_VAZIA] as [string, typeof META_VAZIA]; })
       : porSortimento
