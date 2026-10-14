@@ -27,10 +27,10 @@ export type Bruto = {
   periodos: PeriodoSazonal[];
   consumo: { origem: string; sku: string; data_movimento: string; quantidade: number }[];
   estoque: { id_produto: string; descricao?: string | null; origem: string; quantidade: number; custo_unitario?: number | null }[];
-  notas: { cod_prod: string; almox: string; qtd: number }[];
+  notas: { cod_prod: string; almox: string; qtd: number; dt?: string | null }[];
   pedidosAbertos: { loja: string; id_produto: string; qtd: number; status: string; separada?: number }[];
   produtos: { id_produto: string; full_case: number | null }[];
-  exposicoes: { loja: string; id_produto: string; exposicao: number | null }[];
+  exposicoes: { loja: string; id_produto: string; exposicao: number | null; ativo_sortimento?: boolean | null }[];
 };
 
 export type ItemRep = Item2 & {
@@ -45,17 +45,21 @@ export type Montagem = {
   semFamilia: { loja: string; sku: string; descricao: string; linha: string }[];
 };
 
-const destinoNota = (s: string): string | null => {
+export const destinoNota = (s: string): string | null => {
   const t = s.toLowerCase();
   return t.includes("eldorado") ? "ELDORADO" : t.includes("patio") || t.includes("paulista") ? "PATIO" : t.includes("itaim") || t.includes("sp_loja") ? "JESUINO" : t.includes("fabrica") ? "CD" : null;
 };
 
-export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador; hojeIso: string; manuais?: Record<string, number | null> }): Montagem {
+export const GRUPO_REVENDA = "Mercadoria de Revenda";
+const META_VAZIA = { porMes: {} as Record<string, number>, tipo: "", produto: "", linha: "" };
+/** universo "meta" (padrão): produto acabado com meta no consenso (Reposição). "sortimento": sortimento ativo (abast_produto_loja.ativo_sortimento) de produto acabado + mercadoria de revenda (Dashboard de Disponibilidade). */
+export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador; hojeIso: string; manuais?: Record<string, number | null>; universo?: "meta" | "sortimento" }): Montagem {
   const grupoDe = new Map<string, string>(); for (const g of b.grupos) grupoDe.set(nk(g.codigo_produto), g.grupo);
   const famDe = new Map<string, string>(); for (const f of b.familias) famDe.set(nk(f.codigo_produto), f.familia);
   const abcDe = new Map<string, string>(); for (const a of b.abc) abcDe.set(nk(a.codigo_produto), a.classe);
   const fcDe = new Map<string, number>(); for (const p of b.produtos) fcDe.set(nk(p.id_produto), Number(p.full_case) || 1);
   const expoDe = new Map<string, number | null>(); for (const e of b.exposicoes) expoDe.set(`${e.loja}|${nk(e.id_produto)}`, e.exposicao == null ? null : Number(e.exposicao));
+  const sortimento = new Set<string>(); for (const e of b.exposicoes) if (e.ativo_sortimento) sortimento.add(`${e.loja}|${nk(e.id_produto)}`);
   const almoxDe = new Map(b.lojas.map((l) => [l.codigo, l.almoxarifado])); const lojaDoAlmox = new Map(b.lojas.map((l) => [l.almoxarifado, l.codigo]));
 
   // estoque ao vivo
@@ -99,13 +103,16 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
   const mesAtual = o.hojeIso.slice(0, 7);
   for (const l of b.lojas) {
     const lista: ItemRep[] = [];
-    for (const [k, m] of metas) {
-      if (!k.startsWith(l.codigo + "|")) continue;
-      if (!Object.values(m.porMes).some((v) => v > 0)) continue;       // só o que o consenso estima para vendas
+    const porSortimento = o.universo === "sortimento";
+    const chaves: [string, typeof META_VAZIA][] = porSortimento
+      ? [...sortimento].filter((k) => k.startsWith(l.codigo + "|")).map((k) => [k, metas.get(k) ?? META_VAZIA] as [string, typeof META_VAZIA])
+      : [...metas].filter(([k]) => k.startsWith(l.codigo + "|"));
+    for (const [k, m] of chaves) {
+      if (!porSortimento && !Object.values(m.porMes).some((v) => v > 0)) continue;       // só o que o consenso estima para vendas
       const sku = k.slice(l.codigo.length + 1);
       const grupo = grupoDe.get(sku);
       if (!grupo) { ex.semGrupo++; continue; }
-      if (grupo !== GRUPO_ACABADO) { ex.naoAcabado++; continue; }      // embalagem, em processo, local, revenda...
+      if (grupo !== GRUPO_ACABADO && !(porSortimento && grupo === GRUPO_REVENDA)) { ex.naoAcabado++; continue; }      // embalagem, em processo, local, revenda (fora do sortimento)...
       const familia = famDe.get(sku) ?? "";
       const solto = ehSolto(familia);
       const rp = resolverParam(b.params, b.coberturas ?? [], l.codigo, familia);   // cobertura em dias deste item (padrão / loja / família)
