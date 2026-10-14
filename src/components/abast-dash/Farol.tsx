@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { AlertTriangle, Search } from "lucide-react";
 import { CLUSTERS, estoqueNoDia, HORIZONTE_FAROL, resumirLocal, type Cluster, type DashLinha } from "@/lib/abastecimento-dash";
 import { somaDias } from "@/lib/abastecimento-dash-hist";
-import { CLUSTER_PILL, CLUSTER_ROTULO, Chip, LOJAS, NOME, Pill, Secao, Th, dm, dmy, escopoLocais, n0, n1, repTexto, type Escopo, type Filtro } from "@/components/abast-dash/comum";
+import { CLUSTER_PILL, CLUSTER_ROTULO, Chip, LOJAS, NOME, Pill, Secao, TabelaRolavel, Th, dm, dmy, escopoLocais, n0, n1, repTexto, type Escopo, type Filtro } from "@/components/abast-dash/comum";
 
 export type ChipG = "TODOS" | "SEMACAO" | Cluster;
 const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();

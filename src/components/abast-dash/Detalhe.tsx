@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Download, Search } from "lucide-react";
 import type { DashLinha } from "@/lib/abastecimento-dash";
-import { CLUSTER_PILL, CLUSTER_ROTULO, Chip, NOME, Pill, STATUS_PILL, Secao, Th, dm, escopoLocais, n0, n1, pct, type Filtro } from "@/components/abast-dash/comum";
+import { CLUSTER_PILL, CLUSTER_ROTULO, Chip, NOME, Pill, STATUS_PILL, Secao, TabelaRolavel, Th, dm, escopoLocais, n0, n1, pct, type Filtro } from "@/components/abast-dash/comum";
 
 export type ChipF = "TODOS" | "ruptura" | "stockout" | "ok" | "stockover" | "SEMACAO";
 const ORDEM: Record<string, number> = { ruptura: 0, stockout: 1, stockover: 2, ok: 3 };
