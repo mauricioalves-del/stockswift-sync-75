@@ -19,14 +19,14 @@ const sb = supabase as any;
 const validacaoQuery = queryOptions({
   queryKey: ["abast-validacao"],
   queryFn: async () => {
-    const [{ data: lojas }, sortimento, produtos, classes, vals] = await Promise.all([
+    const [{ data: lojas }, grupos, produtos, classes, vals] = await Promise.all([
       sb.from("abast_lojas").select("codigo, nome").eq("ativo", true).order("ordem"),
-      fetchAll<any>((f, t) => sb.from("abast_produto_loja").select("loja, id_produto, ativo_sortimento, categoria").order("loja").order("id_produto").range(f, t)),
+      fetchAll<any>((f, t) => sb.from("grupo_produtos").select("codigo_produto, grupo").order("codigo_produto").range(f, t)),
       fetchAll<any>((f, t) => sb.from("abast_produto").select("id_produto, descricao").order("id_produto").range(f, t)),
       fetchAll<ClassificacaoPortfolio>((f, t) => sb.from("abast_classificacoes_portfolio").select("*").order("registrado_em", { ascending: false }).order("id").range(f, t)),
       fetchAll<Validacao>((f, t) => sb.from("abast_validacoes_portfolio").select("*").order("aprovado_em", { ascending: false }).range(f, t)),
     ]);
-    return { lojas: (lojas ?? []) as { codigo: string; nome: string }[], sortimento, produtos, classes, vals };
+    return { lojas: (lojas ?? []) as { codigo: string; nome: string }[], grupos, produtos, classes, vals };
   },
 });
 
@@ -44,16 +44,18 @@ function ValidacaoPage() {
   const [loja, setLoja] = useState(data.lojas[0]?.codigo ?? "");
   const [busca, setBusca] = useState(""); const [obs, setObs] = useState(""); const [salvando, setSalvando] = useState(false);
   const nomeLoja = (c: string) => data.lojas.find((l) => l.codigo === c)?.nome ?? c;
-  const desc = useMemo(() => new Map(data.produtos.map((p: any) => [p.id_produto, p.descricao])), [data.produtos]);
+  const desc = useMemo(() => new Map(data.produtos.map((p: any) => [chaveSkuPortfolio(p.id_produto), p.descricao])), [data.produtos]);
+  const grupoDe = useMemo(() => new Map(data.grupos.map((g: any) => [chaveSkuPortfolio(g.codigo_produto), g.grupo])), [data.grupos]);
   const ref = `${competencia}-01` > hoje ? `${competencia}-01` : hoje;
   const cls = useMemo(() => ultimasClassificacoes(data.classes.filter((c) => c.vigencia <= ref)), [data.classes, ref]);
-  const itens = useMemo(() => data.sortimento.filter((s: any) => s.loja === loja).map((s: any) => {
-    const c = cls.get(chaveSkuPortfolio(s.id_produto));
-    const classe = c?.classe ?? "LINHA";
-    return { sku: s.id_produto as string, descricao: (desc.get(s.id_produto) ?? c?.descricao ?? "") as string, categoria: s.categoria as string | null, ativoAtual: !!s.ativo_sortimento, classe, semClasse: !c, elegivelClasse: elegivelPortfolio(classe, c?.inicio_inovacao ?? null, ref) };
-  }), [data.sortimento, loja, cls, desc, ref]);
+  // Lista de trabalho = planilha importada em Parâmetros › Portfólio e Classificação (classificação vigente)
+  const itens = useMemo(() => [...cls.values()].sort((a, b) => a.sku.localeCompare(b.sku)).map((c) => {
+    const k = chaveSkuPortfolio(c.sku);
+    return { sku: k, descricao: c.descricao || (desc.get(k) ?? "") as string, categoria: (grupoDe.get(k) ?? null) as string | null, ativoAtual: true, classe: c.classe, semClasse: false, elegivelClasse: elegivelPortfolio(c.classe, c.inicio_inovacao, ref) };
+  }), [cls, desc, grupoDe, ref]);
   const [sel, setSel] = useState<Set<string>>(new Set());
-  useEffect(() => { setSel(new Set(itens.filter((i) => i.ativoAtual).map((i) => i.sku))); }, [itens]);
+  const sit0 = situacaoCompetencia(data.vals, loja, competencia);
+  useEffect(() => { const v = sit0.validacao; setSel(new Set(v ? v.itens.filter((i) => i.ativo).map((i) => chaveSkuPortfolio(i.sku)).filter((k) => itens.some((x) => x.sku === k)) : itens.map((i) => i.sku))); }, [itens, sit0.validacao?.id]);
   const sit = situacaoCompetencia(data.vals, loja, competencia);
   const lista = itens.filter((i) => `${i.sku} ${i.descricao}`.toLowerCase().includes(busca.toLowerCase()));
   const ativos = itens.filter((i) => sel.has(i.sku));
@@ -103,19 +105,19 @@ function ValidacaoPage() {
 
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-semibold">Sortimento proposto · {nomeLoja(loja)}</h2>
+        <h2 className="font-semibold">Lista do portfólio (planilha de Parâmetros) · {nomeLoja(loja)}</h2>
         <div className="flex gap-2"><Input placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-64" />
           <Button variant="outline" size="sm" disabled={!gestor} onClick={() => setSel(new Set(itens.map((i) => i.sku)))}>Marcar todos</Button>
           <Button variant="outline" size="sm" disabled={!gestor} onClick={() => setSel(new Set())}>Desmarcar</Button></div>
       </div>
       <div className="max-h-[28rem] overflow-auto rounded-md border"><Table><TableHeader><TableRow><TableHead className="w-10">Ativo</TableHead><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Grupo</TableHead><TableHead>Classe</TableHead><TableHead>Meta OOS</TableHead></TableRow></TableHeader>
         <TableBody>{lista.map((i) => <TableRow key={i.sku}><TableCell><Checkbox aria-label={`Ativo ${i.sku}`} disabled={!gestor} checked={sel.has(i.sku)} onCheckedChange={(c) => setSel((s) => { const n = new Set(s); c ? n.add(i.sku) : n.delete(i.sku); return n; })} /></TableCell><TableCell>{i.sku}</TableCell><TableCell className="whitespace-normal text-xs">{i.descricao}</TableCell><TableCell className="text-xs">{i.categoria ?? "—"}</TableCell><TableCell>{CLASSES_PORTFOLIO[i.classe]}{i.semClasse && <span className="text-muted-foreground"> *</span>}</TableCell><TableCell className="text-xs">{!sel.has(i.sku) ? "Não ativo" : i.elegivelClasse ? "Elegível" : "Fora da meta"}</TableCell></TableRow>)}
-          {!lista.length && <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">Nenhum item no sortimento desta loja</TableCell></TableRow>}</TableBody></Table></div>
+          {!lista.length && <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">Nenhuma classificação vigente — importe a lista em Parâmetros › Portfólio e Classificação</TableCell></TableRow>}</TableBody></Table></div>
       <p className="text-xs text-muted-foreground">* Sem classificação registrada: tratado como Linha.</p>
       {gestor ? <div className="flex flex-wrap items-end gap-3 rounded-lg border p-4">
         <Textarea placeholder="Observação da aprovação (opcional)" value={obs} maxLength={1000} onChange={(e) => setObs(e.target.value)} className="min-h-10 max-w-xl" />
         <Button disabled={salvando || !itens.length} onClick={() => void assinar()}>{salvando ? <Loader2 className="size-4 animate-spin" /> : <FileSignature className="size-4" />}{sit.tipo === "VALIDADA" ? "Revalidar (nova versão)" : `Assinar e validar ${nomeMes(competencia)}`}</Button>
-        <span className="text-xs text-muted-foreground">Ao assinar, a lista de itens ativos da loja é atualizada para o planejamento e para o Dashboard de Disponibilidade, e o documento de aprovação é baixado.</span>
+        <span className="text-xs text-muted-foreground">Ao assinar, somente os itens marcados passam a compor o planejamento de abastecimento e os indicadores desta loja, e o documento de aprovação é baixado.</span>
       </div> : <p className="text-sm text-muted-foreground">Somente gestores (Administrador ou Gerente) podem assinar a validação.</p>}
     </section>
 
