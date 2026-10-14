@@ -147,6 +147,7 @@ function ReposicaoPage() {
     <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><Store className="size-6" /> Reposição de Lojas</h1>
+        {bruto.data && (() => { const sem = bruto.data.lojas.filter((l) => !bruto.data!.portfolioAprovado?.[l.codigo]); return sem.length ? <p className="my-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm"><strong>Portfólio não validado</strong> para {sem.map((l) => l.nome).join(", ")}: a lista dessas lojas só aparece depois da assinatura em Abastecimento › Validação do Gestor.</p> : null; })()}
         <p className="text-sm text-muted-foreground">
           Só <strong>produto acabado com meta no consenso</strong>. Demanda pelo faturamento carregado (CMD 7/30/90 dias × sazonalidade) ou pela meta; o estoque vem do lote, ao vivo. <strong>Trânsito e pedidos em aberto abatem a sugestão</strong> (sem pedido duplicado e sem falsa ruptura). A exposição não conta como vendável, a sugestão só aparece quando o item cai <strong>abaixo do mínimo</strong> e é em caixa fechada; o CD limita o atendimento e o <strong>saldo do CD</strong> aparece em cada linha. Sem caixa fechada no CD, a loja em ruptura ou abaixo do mínimo recebe o <strong>saldo solto</strong>; granéis (sem caixa) são pedidos por consumo médio × cobertura; a linha é avisada quando a cobertura depois do pedido passa de 20 dias.
         </p>
