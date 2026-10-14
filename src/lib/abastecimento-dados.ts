@@ -27,7 +27,7 @@ export type Bruto = {
   periodos: PeriodoSazonal[];
   consumo: { origem: string; sku: string; data_movimento: string; quantidade: number }[];
   estoque: { id_produto: string; descricao?: string | null; origem: string; quantidade: number; custo_unitario?: number | null }[];
-  notas: { cod_prod: string; almox: string; qtd: number; dt?: string | null }[];
+  notas: { cod_prod: string; almox: string; qtd: number; dt?: string | null; nf?: string | null; vt?: number; empresa?: string | null }[];
   pedidosAbertos: { loja: string; id_produto: string; qtd: number; status: string; separada?: number }[];
   produtos: { id_produto: string; full_case: number | null }[];
   exposicoes: { loja: string; id_produto: string; exposicao: number | null; ativo_sortimento?: boolean | null }[];
