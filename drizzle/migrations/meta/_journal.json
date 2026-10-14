@@ -43,6 +43,13 @@
       "when": 1792008406857,
       "tag": "0005_validacao_gestor_portfolio",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792008939594,
+      "tag": "0006_validacao_gestor_lista_portfolio",
+      "breakpoints": true
     }
   ]
 }
