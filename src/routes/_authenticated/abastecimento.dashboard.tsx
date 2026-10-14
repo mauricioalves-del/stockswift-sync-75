@@ -49,7 +49,11 @@ function DashboardPage() {
     queryFn: async () => fetchAll<any>((f, t) => (supabase as any).from("abast_classificacoes_portfolio").select("sku, classe, vigencia, registrado_em, inicio_inovacao").order("id").range(f, t)),
   });
   const elegivel = useMemo(() => criarElegibilidade(clsQ.data ?? []), [clsQ.data]);
-  const noPortfolio = useMemo(() => { const ap = bruto.data?.portfolioAprovado ?? {}; const sets = Object.fromEntries(Object.entries(ap).map(([l, a]) => [l, new Set(a)])); return (loja: string, sku: string) => !!sets[loja] && sets[loja].has(String(sku).replace(/^0+/, "")); }, [bruto.data]);
+  // Política: loja com portfólio validado (ou herdado do último aprovado) filtra pela lista aprovada;
+  // loja nunca validada usa a lista operacional padrão e é sinalizada como "Sem portfólio validado".
+  const noPortfolio = useMemo(() => { const ap = bruto.data?.portfolioAprovado ?? {}; const sets = Object.fromEntries(Object.entries(ap).map(([l, a]) => [l, new Set(a)])); return (loja: string, sku: string) => !sets[loja] || sets[loja].has(String(sku).replace(/^0+/, "")); }, [bruto.data]);
+  const lojasSemValidacao = useMemo(() => !bruto.data ? [] : bruto.data.lojas.filter((l) => !bruto.data!.portfolioAprovado?.[l.codigo]).map((l) => l.nome), [bruto.data]);
+  const lojasHerdadas = useMemo(() => !bruto.data ? [] : bruto.data.lojas.filter((l) => { const o = bruto.data!.portfolioOrigem?.[l.codigo]; return o && o.competencia !== hoje.slice(0, 7); }).map((l) => `${l.nome} (${nomeMes(bruto.data!.portfolioOrigem![l.codigo].competencia)} · v${bruto.data!.portfolioOrigem![l.codigo].versao})`), [bruto.data, hoje]);
   const todas = useMemo(() => (bruto.data ? montarDash(bruto.data, hoje) : []), [bruto.data, hoje]);
   const catOk = (c: string | null) => filtro.categoria === "AMBAS" || c === filtro.categoria;
   const linhas = useMemo(() => todas.filter((l: any) => catOk(l.categoria) && elegivel(l.sku, hoje)), [todas, filtro.categoria, elegivel]);
