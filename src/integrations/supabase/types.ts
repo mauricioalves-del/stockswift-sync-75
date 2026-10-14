@@ -1507,6 +1507,7 @@ export type Database = {
           origem_custo: string | null
           quantidade: number
           unidade: string
+          validade_manual_em: string | null
         }
         Insert: {
           cliente?: string
@@ -1526,6 +1527,7 @@ export type Database = {
           origem_custo?: string | null
           quantidade?: number
           unidade?: string
+          validade_manual_em?: string | null
         }
         Update: {
           cliente?: string
@@ -1545,6 +1547,7 @@ export type Database = {
           origem_custo?: string | null
           quantidade?: number
           unidade?: string
+          validade_manual_em?: string | null
         }
         Relationships: []
       }

@@ -44,6 +44,10 @@ function num(v: unknown): number {
 function toIsoDate(s: string): string {
   if (!s) return ''
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10)
+  const n = Number(s)
+  if (!Number.isNaN(n) && n > 30000 && n < 80000) {
+    return new Date(Date.UTC(1899, 11, 30) + n * 86400000).toISOString().slice(0, 10)
+  }
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/)
   if (m) {
     const y = m[3].length === 2 ? `20${m[3]}` : m[3]
@@ -168,17 +172,22 @@ export const Route = createFileRoute('/api/public/import-estoque-sistemico')({
 
           // 4. Novos x atualizados
           const skus = Array.from(new Set(payload.map((r) => r.id_produto)))
-          const jaExistem: { id_produto: string; lote: string | null; origem: string | null }[] = []
+          const jaExistem: { id_produto: string; lote: string | null; origem: string | null; data_validade: string | null; validade_manual_em: string | null }[] = []
           for (let i = 0; i < skus.length; i += CHUNK) {
             const { data } = await supabaseAdmin
               .from('estoque_sistemico')
-              .select('id_produto, lote, origem')
+              .select('id_produto, lote, origem, data_validade, validade_manual_em')
               .in('id_produto', skus.slice(i, i + CHUNK))
             if (data) jaExistem.push(...data)
           }
           const setJa = new Set(jaExistem.map((e) => `${e.id_produto}|${e.lote ?? ''}|${e.origem ?? ''}`))
           const novos = payload.filter((p) => !setJa.has(`${p.id_produto}|${p.lote}|${p.origem}`)).length
           const atualizados = payload.length - novos
+          // Validade enviada manualmente pela tela prevalece sobre a integração.
+          const validadeManual = new Map<string, string | null>()
+          for (const e of jaExistem) {
+            if (e.validade_manual_em) validadeManual.set(`${e.id_produto}|${e.lote ?? ''}|${e.origem ?? ''}`, e.data_validade)
+          }
 
           // 5. Upsert em chunks
           let ok = 0
@@ -194,8 +203,11 @@ export const Route = createFileRoute('/api/public/import-estoque-sistemico')({
               id_local: r.id_local,
               origem: r.origem,
               cliente: r.cliente,
-              data_validade: r.data_validade,
+              data_validade: validadeManual.has(`${r.id_produto}|${r.lote}|${r.origem}`)
+                ? validadeManual.get(`${r.id_produto}|${r.lote}|${r.origem}`) ?? r.data_validade
+                : r.data_validade,
               ean: r.ean,
+              data_importacao: new Date().toISOString(),
             }))
             const { error } = await supabaseAdmin
               .from('estoque_sistemico')
