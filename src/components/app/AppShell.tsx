@@ -81,6 +81,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/abastecimento/disponibilidade", label: "Disponibilidade e rupturas", icon: Activity, role: "gestor" },
       { to: "/abastecimento/pedidos", label: "Pedidos", icon: ClipboardList, role: "gestor" },
       { to: "/abastecimento/indicadores", label: "Indicadores", icon: Gauge, role: "gestor" },
+      { to: "/abastecimento/validacao", label: "Validação do Gestor", icon: Tags, role: "gestor" },
       { to: "/abastecimento/projecao-cd", label: "Projeção do CD e Plano", icon: TrendingDown, role: "gestor" },
       {
         id: "abastecimento-parametros", label: "Parâmetros",

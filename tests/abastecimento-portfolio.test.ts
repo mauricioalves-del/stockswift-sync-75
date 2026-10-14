@@ -19,3 +19,14 @@ test("Importação rejeita duplicados, inexistentes e Inovação sem início", (
   expect(p[1].erros).toContain("Informe início da Inovação válido, até a vigência");
   expect(p[2].erros).toContain("SKU não encontrado no cadastro");
 });
+import { situacaoCompetencia, criarElegibilidade } from "../src/lib/abastecimento-validacao";
+test("outubro sem validação herda setembro e fica pendente", () => {
+  const v: any = { loja: "JESUINO", status: "VALIDADA", competencia: "2026-09", aprovado_em: "2026-09-02T10:00:00Z" };
+  expect(situacaoCompetencia([v], "JESUINO", "2026-10").tipo).toBe("HERDADA");
+  expect(situacaoCompetencia([], "JESUINO", "2026-10").tipo).toBe("SEM");
+});
+test("SKU Linha em setembro e MTO em outubro mantém setembro elegível", () => {
+  const el = criarElegibilidade([{ sku: "5004147", classe: "LINHA", vigencia: "2026-09-01", registrado_em: "a", inicio_inovacao: null }, { sku: "5004147", classe: "MTO", vigencia: "2026-10-01", registrado_em: "b", inicio_inovacao: null }]);
+  expect(el("05004147", "2026-09-15")).toBe(true);
+  expect(el("05004147", "2026-10-15")).toBe(false);
+});

@@ -461,6 +461,63 @@ export type Database = {
           },
         ]
       }
+      abast_validacoes_portfolio: {
+        Row: {
+          aprovado_em: string
+          aprovador_id: string
+          aprovador_nome: string | null
+          competencia: string
+          desfeita_em: string | null
+          desfeita_por: string | null
+          diff: Json
+          id: string
+          itens: Json
+          loja: string
+          motivo_desfazer: string | null
+          observacao: string | null
+          origem_upload: Json
+          status: string
+          totais: Json
+          versao: number
+        }
+        Insert: {
+          aprovado_em?: string
+          aprovador_id: string
+          aprovador_nome?: string | null
+          competencia: string
+          desfeita_em?: string | null
+          desfeita_por?: string | null
+          diff?: Json
+          id?: string
+          itens: Json
+          loja: string
+          motivo_desfazer?: string | null
+          observacao?: string | null
+          origem_upload?: Json
+          status?: string
+          totais: Json
+          versao: number
+        }
+        Update: {
+          aprovado_em?: string
+          aprovador_id?: string
+          aprovador_nome?: string | null
+          competencia?: string
+          desfeita_em?: string | null
+          desfeita_por?: string | null
+          diff?: Json
+          id?: string
+          itens?: Json
+          loja?: string
+          motivo_desfazer?: string | null
+          observacao?: string | null
+          origem_upload?: Json
+          status?: string
+          totais?: Json
+          versao?: number
+        }
+        Relationships: []
+      }
       acoes_obsoleto: {
         Row: {
           almoxarifado: string | null
@@ -4438,12 +4495,25 @@ export type Database = {
         Args: { p_base: string; p_itens: Json; p_loja: string; p_obs: string }
         Returns: Json
       }
+      abast_desfazer_validacao: {
+        Args: { p_id: string; p_motivo: string }
+        Returns: undefined
+      }
       abast_importar_classificacoes: {
         Args: { p_arquivo: string; p_itens: Json }
         Returns: Json
       }
       abast_registrar_disponibilidade: {
         Args: { p_data?: string }
+        Returns: Json
+      }
+      abast_validar_portfolio: {
+        Args: {
+          p_competencia: string
+          p_loja: string
+          p_observacao: string
+          p_skus: string[]
+        }
         Returns: Json
       }
       almoxarifados_permitidos: { Args: { _uid: string }; Returns: string[] }
