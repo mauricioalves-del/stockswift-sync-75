@@ -33,7 +33,7 @@ export const dm = (iso: string | null | undefined) => (iso ? `${iso.slice(8, 10)
 export const dmy = (iso: string | null | undefined) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "—");
 
 export function repTexto(l: DashLinha): { t: string; c: string } {
-  const r: Reposicao = l.reposicao; const un = l.emTransito;
+  const r: Reposicao = l.reposicao; const un = l.entradaTotal;
   if (r === "enderecado") return { t: `✓ Endereçado · ${n0(un)} un chegam ${dm(l.chegaEm)}`, c: "bg-teal-50 text-teal-700" };
   if (r === "tarde") return { t: `⚠ Chega tarde · ${l.diasSemEstoque} d sem estoque`, c: "bg-orange-50 text-orange-700" };
   if (r === "sem_pedido") return { t: "✗ Sem pedido", c: "bg-red-50 text-red-700" };
