@@ -65,9 +65,13 @@ const NAV: (NavItem | NavGroup)[] = [
       // Ocultados do menu (solicitação de 14/10/2026) — rotas preservadas:
       // { to: "/abastecimento/planejamento", label: "Abastecimento", icon: Compass, role: "write" },
       // { to: "/abastecimento/demandas", label: "Demandas Extras", icon: Sparkles, role: "write" },
-      { to: "/abastecimento/consumo", label: "Importar Consumo", icon: TrendingUp, role: "write" },
-      // { to: "/abastecimento/parametros", label: "Parâmetros Abastecimento", icon: Settings2, role: "admin" },
-      { to: "/config/sazonalidade", label: "Sazonalidade", icon: Sparkles, role: "admin" },
+      {
+        id: "suprimentos-parametros", label: "Parâmetros",
+        items: [
+          { to: "/abastecimento/consumo", label: "Importar Consumo", icon: TrendingUp, role: "write" },
+          { to: "/config/sazonalidade", label: "Sazonalidade", icon: Sparkles, role: "admin" },
+        ],
+      },
       { to: "/producao/confirmacao-recebimento", label: "Confirmação de Recebimento", icon: PackageCheck, role: "any" },
       { to: "/suprimentos/farol-recebimento", label: "Farol de Recebimento Pendente", icon: Truck, role: "any" },
     ],
