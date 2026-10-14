@@ -2,13 +2,14 @@
 import { montarItens, nk, destinoNota, type Bruto } from "./abastecimento-dados";
 import { resolverParam } from "./abastecimento-cobertura";
 import { somaDias, diasEntre } from "./abastecimento-dash-hist";
+import { diasUteisEntre } from "./recebimento-transferencias";
 
 export const DIA_ENTREGA = 3;            // quarta-feira (0 = domingo): o CD entrega sempre na quarta
 export const HORIZONTE_FAROL = 15;       // dias olhados à frente
 export type StatusDash = "ruptura" | "stockout" | "ok" | "stockover";
 export type Cluster = "ruptura" | "critico" | "urgente" | "alerta" | "atencao" | "monitorar" | "ok";
 export type Reposicao = "enderecado" | "tarde" | "sem_pedido" | "fora";
-export type Entrada = { data: string; qtd: number; origem: "pedido" | "nota" };
+export type Entrada = { data: string; qtd: number; origem: "pedido" | "nota"; rs?: number };
 
 export const CLUSTERS: { k: Cluster; rotulo: string; faixa: string; cor: string }[] = [
   { k: "ruptura", rotulo: "Ruptura", faixa: "já zerado", cor: "#7f1d1d" },
@@ -24,7 +25,7 @@ export type DashLinha = {
   local: string; sku: string; produto: string; categoria: string; familia: string;
   estoque: number; exposicao: number; minimo: number | null; maximo: number | null; vbm: number; cobertura: number | null;
   custo: number | null; excessoUn: number; excessoRs: number; status: StatusDash;
-  emTransito: number; emTransitoRs: number; chegaEm: string | null; entradas: Entrada[];
+  emTransito: number; emTransitoRs: number; pedidoAceito: number; entradaTotal: number; chegaEm: string | null; chegaNotaEm: string | null; entradas: Entrada[];
   zeraEm: string | null; diasAteZerar: number | null; zeraSemTransito: string | null; cluster: Cluster;
   reposicao: Reposicao; diasSemEstoque: number; semAcao: boolean; alerta: boolean; sugestao: number;
 };
@@ -61,7 +62,7 @@ export function projetar(estoque: number, vbm: number, entradas: Entrada[], hoje
   return { zeraEm: null, dias: null };
 }
 
-/** Entradas por loja|sku: pedidos (aberto/separação/separado chegam na próxima quarta; enviado chega amanhã) e notas de transferência pendentes (D+1 da emissão). */
+/** Entradas por local|sku: pedidos aceitos (aberto/separação/separado chegam na próxima quarta; enviado chega amanhã) e notas de transferência pendentes (D+1 da emissão), inclusive as destinadas ao CD (compras/produção a receber). */
 export function construirEntradas(b: Bruto, hoje: string): Map<string, Entrada[]> {
   const m = new Map<string, Entrada[]>(); const add = (k: string, e: Entrada) => { if (e.qtd > 0) (m.get(k) ?? m.set(k, []).get(k)!).push(e); };
   for (const p of b.pedidosAbertos) {
@@ -70,9 +71,9 @@ export function construirEntradas(b: Bruto, hoje: string): Map<string, Entrada[]
     add(`${p.loja}|${nk(p.id_produto)}`, { data, qtd, origem: "pedido" });
   }
   for (const n of b.notas) {
-    const d = destinoNota(String(n.almox ?? "")); if (!d || d === "CD") continue;
+    const d = destinoNota(String(n.almox ?? "")); if (!d) continue;
     const prev = n.dt ? somaDias(String(n.dt), 1) : somaDias(hoje, 1); const data = prev < hoje ? hoje : prev;
-    add(`${d}|${nk(n.cod_prod)}`, { data, qtd: Number(n.qtd) || 0, origem: "nota" });
+    add(`${d}|${nk(n.cod_prod)}`, { data, qtd: Number(n.qtd) || 0, origem: "nota", rs: Number(n.vt) || 0 });
   }
   for (const v of m.values()) v.sort((a, b) => a.data.localeCompare(b.data));
   return m;
@@ -101,7 +102,7 @@ export function montarDash(b: Bruto, hoje: string): DashLinha[] {
   for (const o of por.values()) {
     const p = resolverParam(b.params, b.coberturas ?? [], "CD", o.fam).p;
     const min = Math.ceil(o.vbm * p.diasMin), max = Math.ceil(o.vbm * p.diasMax + o.vbm * p.diasSeguranca), ideal = Math.ceil(o.vbm * p.diasIdeal + o.vbm * p.diasSeguranca);
-    linhas.push(montarLinha("CD", o.sku, o.desc, o.grupo, o.fam, o.est, 0, o.vbm > 0 ? min : null, o.vbm > 0 ? max : null, o.vbm, o.custo, [], Math.max(0, ideal - o.est), hoje));
+    linhas.push(montarLinha("CD", o.sku, o.desc, o.grupo, o.fam, o.est, 0, o.vbm > 0 ? min : null, o.vbm > 0 ? max : null, o.vbm, o.custo, entradasDe.get(`CD|${nk(o.sku)}`) ?? [], Math.max(0, ideal - o.est), hoje));
   }
   return linhas;
 }
@@ -111,12 +112,12 @@ function montarLinha(local: string, sku: string, produto: string, categoria: str
   const exUn = max !== null && est > max ? est - max : 0;
   const com = projetar(est, vbm, ent, hoje); const sit = situacao(est, vbm, ent, hoje);
   const cluster = clusterDe(com.dias, est <= 0);
-  const emTr = ent.reduce((a, e) => a + e.qtd, 0);
+  const notas = ent.filter((e) => e.origem === "nota"), emTr = notas.reduce((a, e) => a + e.qtd, 0), emTrRs = notas.reduce((a, e) => a + (e.rs ?? 0), 0), ped = ent.filter((e) => e.origem === "pedido").reduce((a, e) => a + e.qtd, 0);
   const semAcao = cluster !== "ok" && sit.rep !== "enderecado";
   return {
     local, sku, produto, categoria, familia, estoque: est, exposicao: expo, minimo: min, maximo: max, vbm,
     cobertura: vbm > 0 ? Math.max(0, est - expo) / vbm : null, custo, excessoUn: exUn, excessoRs: custo ? exUn * custo : 0, status,
-    emTransito: emTr, emTransitoRs: custo ? emTr * custo : 0, chegaEm: ent[0]?.data ?? null, entradas: ent,
+    emTransito: emTr, emTransitoRs: emTrRs, pedidoAceito: ped, entradaTotal: emTr + ped, chegaEm: ent[0]?.data ?? null, chegaNotaEm: notas[0]?.data ?? null, entradas: ent,
     zeraEm: com.zeraEm, diasAteZerar: com.dias, zeraSemTransito: sit.zeraSem, cluster, reposicao: sit.rep, diasSemEstoque: sit.diasSem, semAcao,
     alerta: ["ruptura", "critico", "urgente"].includes(cluster) && (sit.rep === "sem_pedido" || sit.rep === "tarde"), sugestao,
   };
@@ -134,4 +135,19 @@ export function resumirLocal(ls: DashLinha[]): ResumoLocal {
 export function riscoEnderecado(ls: DashLinha[], hoje: string): { total: number; enderecados: number } {
   const pop = ls.filter((l) => l.estoque <= 0 || (l.zeraSemTransito !== null && diasEntre(hoje, l.zeraSemTransito) <= 7));
   return { total: pop.length, enderecados: pop.filter((l) => l.reposicao === "enderecado").length };
+}
+
+export type TransitoLocal = { un: number; rs: number; notas: number; maiorAtrasoDiasUteis: number };
+/** Em trânsito = notas de transferência pendentes de recebimento (mesma fonte e mesmo valor da tela "Farol de Recebimento Pendente"). categoria: só linhas daquele grupo; null = todas. */
+export function transitoPorLocal(b: Bruto, hoje: string, categoria: string | null = null): Record<string, TransitoLocal> {
+  const grupoDe = new Map<string, string>(); for (const g of b.grupos) grupoDe.set(nk(g.codigo_produto), g.grupo);
+  const out: Record<string, TransitoLocal> = {}; const nfs: Record<string, Set<string>> = {};
+  for (const n of b.notas) {
+    const d = destinoNota(String(n.almox ?? "")); if (!d) continue;
+    if (categoria && grupoDe.get(nk(n.cod_prod)) !== categoria) continue;
+    const o = out[d] ?? (out[d] = { un: 0, rs: 0, notas: 0, maiorAtrasoDiasUteis: 0 }); o.un += Number(n.qtd) || 0; o.rs += Number(n.vt) || 0;
+    const chave = `${n.nf ?? ""}|${n.dt ?? ""}|${n.empresa ?? ""}`; const set = nfs[d] ?? (nfs[d] = new Set()); if (!set.has(chave)) { set.add(chave); o.notas++; }
+    if (n.dt) o.maiorAtrasoDiasUteis = Math.max(o.maiorAtrasoDiasUteis, diasUteisEntre(String(n.dt), hoje));
+  }
+  return out;
 }
