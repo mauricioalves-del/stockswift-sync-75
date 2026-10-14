@@ -32,6 +32,8 @@ function CoberturaPage() {
   const qc = useQueryClient();
   const bruto = useAbastBruto(pode);
   const dados = bruto.data;
+  // Almox SP (CD): regra própria de cobertura, usada no Dashboard de Disponibilidade (mínimo/máximo do CD sobre a venda das lojas)
+  const lojasCfg = [...(lojasCfg), { codigo: "CD", nome: "Almox SP (CD)", almoxarifado: "Alm_SP_Fabrica" }];
   const [padrao, setPadrao] = useState<Campos>(VAZIO);
   const [lojasEd, setLojasEd] = useState<Record<string, Campos>>({});
   const [famEd, setFamEd] = useState<Record<string, Campos>>({});
@@ -64,7 +66,7 @@ function CoberturaPage() {
     };
     const p = campo("Padrão", padrao, true);
     const regras: CoberturaRegra[] = [];
-    for (const l of dados?.lojas ?? []) { const c = lojasEd[l.codigo]; if (!c || vazio(c)) continue; const n = campo(`Loja ${l.nome}`, c, false); if (n) regras.push({ escopo: "LOJA", valor: l.codigo, dias_min: n.min, dias_ideal: n.ideal, dias_max: n.max, dias_seguranca: n.seg }); }
+    for (const l of lojasCfg) { const c = lojasEd[l.codigo]; if (!c || vazio(c)) continue; const n = campo(`Loja ${l.nome}`, c, false); if (n) regras.push({ escopo: "LOJA", valor: l.codigo, dias_min: n.min, dias_ideal: n.ideal, dias_max: n.max, dias_seguranca: n.seg }); }
     for (const [f, c] of Object.entries(famEd)) { if (vazio(c)) continue; const n = campo(`Família ${f}`, c, false); if (n) regras.push({ escopo: "FAMILIA", valor: f, dias_min: n.min, dias_ideal: n.ideal, dias_max: n.max, dias_seguranca: n.seg }); }
     const params = p && p.min !== null && p.ideal !== null && p.max !== null && p.seg !== null ? { diasMin: p.min, diasIdeal: p.ideal, diasMax: p.max, diasSeguranca: p.seg } : null;
     return { erros, params, regras };
@@ -104,7 +106,7 @@ function CoberturaPage() {
   }
   function doModeloAntigo() {
     const novo = { ...lojasEd }; let n = 0;
-    for (const l of dados?.lojas ?? []) { const o = (antigoQ.data ?? []).find((x) => x.origem === l.almoxarifado); if (o) { novo[l.codigo] = { min: "", ideal: String(o.cobertura_dias), max: "", seg: String(o.dias_seguranca) }; n++; } }
+    for (const l of lojasCfg) { const o = (antigoQ.data ?? []).find((x) => x.origem === l.almoxarifado); if (o) { novo[l.codigo] = { min: "", ideal: String(o.cobertura_dias), max: "", seg: String(o.dias_seguranca) }; n++; } }
     setLojasEd(novo); toast.info(n ? `Preenchi ${n} loja(s) com a cobertura do modelo antigo. Confira a prévia e salve.` : "Não achei parâmetros do modelo antigo para as lojas.");
   }
 
@@ -133,10 +135,10 @@ function CoberturaPage() {
           {isAdmin && <Button variant="outline" size="sm" className="gap-1" onClick={() => setPadrao({ min: String(PARAM_SISTEMA.diasMin), ideal: String(PARAM_SISTEMA.diasIdeal), max: String(PARAM_SISTEMA.diasMax), seg: String(PARAM_SISTEMA.diasSeguranca) })}><RotateCcw className="size-4" /> Valores de partida</Button>}
         </CardContent></Card>
 
-      <Card><CardHeader className="pb-2"><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle className="text-base">Por loja</CardTitle><CardDescription>Deixe vazio para usar o padrão. A coluna "Em uso" mostra mínimo / ideal / máximo / segurança que a loja usa (antes das regras de família).</CardDescription></div>
+      <Card><CardHeader className="pb-2"><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle className="text-base">Por loja</CardTitle><CardDescription>Deixe vazio para usar o padrão. A coluna "Em uso" mostra mínimo / ideal / máximo / segurança que a loja usa (antes das regras de família). A linha do Almox SP (CD) vale só para o Dashboard de Disponibilidade (mínimo/máximo do CD sobre a venda das lojas); não altera a Reposição.</CardDescription></div>
         {isAdmin && <Button variant="outline" size="sm" className="gap-1" onClick={doModeloAntigo} disabled={antigoQ.isLoading}><History className="size-4" /> Preencher com o modelo antigo</Button>}</div></CardHeader>
         <CardContent className="p-0 overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-muted-foreground"><th className="p-2 text-left font-medium">Loja</th><th className="p-2 text-right font-medium">Mínimo</th><th className="p-2 text-right font-medium">Ideal</th><th className="p-2 text-right font-medium">Máximo</th><th className="p-2 text-right font-medium">Segurança</th><th className="p-2 text-right font-medium">Em uso</th></tr></thead>
-          <tbody>{(dados?.lojas ?? []).map((l) => { const e = efetivoLoja(l.codigo); return (<tr key={l.codigo} className="border-b"><td className="p-2">{l.nome}<div className="text-[10px] text-muted-foreground">{l.almoxarifado}</div></td>{linhaCampos(lojasEd[l.codigo] ?? VAZIO, (c) => setLojasEd({ ...lojasEd, [l.codigo]: c }), phPadrao)}<td className="p-2 text-right text-xs font-semibold">{e.diasMin} / {e.diasIdeal} / {e.diasMax} / {e.diasSeguranca}</td></tr>); })}</tbody></table></CardContent></Card>
+          <tbody>{(lojasCfg).map((l) => { const e = efetivoLoja(l.codigo); return (<tr key={l.codigo} className="border-b"><td className="p-2">{l.nome}<div className="text-[10px] text-muted-foreground">{l.almoxarifado}</div></td>{linhaCampos(lojasEd[l.codigo] ?? VAZIO, (c) => setLojasEd({ ...lojasEd, [l.codigo]: c }), phPadrao)}<td className="p-2 text-right text-xs font-semibold">{e.diasMin} / {e.diasIdeal} / {e.diasMax} / {e.diasSeguranca}</td></tr>); })}</tbody></table></CardContent></Card>
 
       <Card><CardHeader className="pb-2"><CardTitle className="text-base">Por família</CardTitle><CardDescription>Útil quando um tipo de produto gira diferente (ex.: granéis com cobertura menor, presentes com cobertura maior).</CardDescription></CardHeader>
         <CardContent className="p-0 overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-muted-foreground"><th className="p-2 text-left font-medium">Família</th><th className="p-2 text-right font-medium">Mínimo</th><th className="p-2 text-right font-medium">Ideal</th><th className="p-2 text-right font-medium">Máximo</th><th className="p-2 text-right font-medium">Segurança</th><th className="w-10" /></tr></thead>
