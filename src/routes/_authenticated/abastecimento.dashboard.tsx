@@ -51,7 +51,7 @@ function DashboardPage() {
   const elegivel = useMemo(() => criarElegibilidade(clsQ.data ?? []), [clsQ.data]);
   const todas = useMemo(() => (bruto.data ? montarDash(bruto.data, hoje) : []), [bruto.data, hoje]);
   const catOk = (c: string | null) => filtro.categoria === "AMBAS" || c === filtro.categoria;
-  const linhas = useMemo(() => todas.filter((l: any) => catOk(l.categoria) && elegivel(l.id_produto, hoje)), [todas, filtro.categoria, elegivel]);
+  const linhas = useMemo(() => todas.filter((l: any) => catOk(l.categoria) && elegivel(l.sku, hoje)), [todas, filtro.categoria, elegivel]);
   const hist = useMemo(() => (histQ.data ?? []).filter((h) => catOk(h.categoria) && elegivel(h.id_produto, h.data)), [histQ.data, filtro.categoria, elegivel]);
   const transito = useMemo(() => (bruto.data ? transitoPorLocal(bruto.data, hoje, filtro.categoria === "AMBAS" ? null : filtro.categoria) : {}), [bruto.data, hoje, filtro.categoria]);
   const irFarol = (c: Cluster | "SEMACAO") => { setChipG(c); document.getElementById("bloco-g")?.scrollIntoView({ behavior: "smooth", block: "start" }); };
