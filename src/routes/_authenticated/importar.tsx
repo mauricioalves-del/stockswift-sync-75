@@ -130,6 +130,7 @@ function ImportarPage() {
       id_produto: string; lote: string; descricao: string; unidade: string; quantidade: number;
       custo_unitario: number; id_local: string; origem: string; cliente: string;
       data_validade: string | null; importado_por: string | undefined; ean: string | null;
+      validade_manual_em: string; data_importacao: string;
     }>();
     for (const r of rows) {
       const key = `${r.id_produto}|${r.lote || ""}|${r.origem}`;
@@ -151,6 +152,8 @@ function ImportarPage() {
           data_validade: r.data_validade || null,
           importado_por: userId,
           ean: r.ean || null,
+          validade_manual_em: new Date().toISOString(),
+          data_importacao: new Date().toISOString(),
         });
       }
     }
