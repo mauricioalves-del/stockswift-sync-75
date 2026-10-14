@@ -33,6 +33,7 @@ export type Bruto = {
   exposicoes: { loja: string; id_produto: string; exposicao: number | null; ativo_sortimento?: boolean | null }[];
   /** SKUs (sem zeros à esquerda) do último portfólio validado pelo gestor, por loja. Quando existe, substitui o universo da loja. */
   portfolioAprovado?: Record<string, string[]>;
+  portfolioOrigem?: Record<string, { competencia: string; versao: number; aprovador: string }>;
 };
 
 export type ItemRep = Item2 & {
