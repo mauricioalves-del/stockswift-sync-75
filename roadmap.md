@@ -2,14 +2,15 @@
 
 ## Portfólio de Abastecimento conforme anexos
 - [ ] Apresentar diagnóstico e plano incremental antes de alterações estruturais.
-- [ ] Confirmar prazo de Inovação, vigência de aprovação atrasada e permissões pendentes.
+- [x] Confirmar Inovação por três meses, aprovação com vigência na data e leitura para equipe aprovada.
+- [ ] Identificar quem representa Cadastro Central e Comercial (aguarda definição; manter apenas Admin até lá).
 - [ ] Implementar fases de importação, classificação, sortimento, aprovação versionada e indicadores após aprovação do plano.
 - [ ] Validar regras e regressões de vendas, estoque e reposição.
 
 ## Destaque MoM e segurança
 - [x] Mover a análise MoM para o topo do dashboard, preservando os cálculos existentes.
 - [x] Validar a posição e a exibição do gráfico.
-- [ ] Definir com o usuário o acesso aos dados sinalizados pelo scan (aguarda decisão sobre permissões).
+- [x] Definir com o usuário leitura para equipe aprovada e aplicar proteção aos três dados sinalizados.
 
 - [x] Preencher os 115 códigos sem grupo a partir da planilha, preservando cadastros existentes.
 - [x] Carregar todos os grupos no dashboard e tratar falhas de consulta.

@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Access to write-off reasons, FEFO checks, and dispersion comments is bounded by a restrictive SELECT policy requiring an explicitly approved profile, so permissive sibling policies cannot bypass approval.
+- Hosted access regression tests use a locally minted approved session and never store or print its credentials.
