@@ -110,7 +110,7 @@ function CoberturaPage() {
 
   if (!pode) return <div className="p-8 text-center text-muted-foreground">Acesso restrito a gestores.</div>;
   const ro = !isAdmin;
-  const entrada = (v: string, on: (s: string) => void, ph: string) => <Input className="h-8 w-20 text-right" inputMode="decimal" disabled={ro} placeholder={ph} value={v} onChange={(e) => on(e.target.value)} />;
+  const entrada = (v: string, on: (s: string) => void, ph: string) => <Input className="h-8 w-20 text-right ml-auto" inputMode="decimal" disabled={ro} placeholder={ph} value={v} onChange={(e) => on(e.target.value)} />;
   const linhaCampos = (c: Campos, on: (c: Campos) => void, ph: { min: string; ideal: string; max: string; seg: string }) => (<>
     <td className="p-2 text-right">{entrada(c.min, (s) => on({ ...c, min: s }), ph.min)}</td><td className="p-2 text-right">{entrada(c.ideal, (s) => on({ ...c, ideal: s }), ph.ideal)}</td>
     <td className="p-2 text-right">{entrada(c.max, (s) => on({ ...c, max: s }), ph.max)}</td><td className="p-2 text-right">{entrada(c.seg, (s) => on({ ...c, seg: s }), ph.seg)}</td></>);
