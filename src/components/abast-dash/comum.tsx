@@ -55,4 +55,28 @@ export function Secao({ letra, titulo, children, acao }: { letra: string; titulo
     </section>
   );
 }
-export const Th = ({ c, d }: { c: string; d?: boolean }) => <th className={`px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground ${d ? "text-right" : "text-left"}`}>{c}</th>;
+export const Th = ({ c, d }: { c: string; d?: boolean }) => <th className={`bg-muted px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground ${d ? "text-right" : "text-left"}`}>{c}</th>;
+
+// Tabela com altura fixa e rolagem interna (cabeçalho fixo) + opção de maximizar em tela cheia.
+export function TabelaRolavel({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  const [max, setMax] = useState(false);
+  const botao = (
+    <button type="button" onClick={() => setMax(!max)} className="flex h-8 items-center gap-1 rounded-md border bg-background px-3 text-xs font-semibold hover:bg-muted">
+      {max ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />} {max ? "Restaurar" : "Maximizar"}
+    </button>
+  );
+  if (max) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-background p-4">
+        <div className="mb-2 flex items-center justify-between gap-2"><h3 className="text-sm font-bold">{titulo}</h3>{botao}</div>
+        <div className="min-h-0 flex-1 overflow-auto rounded-lg border">{children}</div>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <div className="mb-2 flex justify-end">{botao}</div>
+      <div className="max-h-[520px] overflow-auto rounded-lg border">{children}</div>
+    </div>
+  );
+}
