@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import type { Farol } from "@/lib/abastecimento-dash-hist";
 import type { Cluster, DashLinha, Reposicao } from "@/lib/abastecimento-dash";
 
