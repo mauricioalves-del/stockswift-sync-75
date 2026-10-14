@@ -33,7 +33,7 @@ function CoberturaPage() {
   const bruto = useAbastBruto(pode);
   const dados = bruto.data;
   // Almox SP (CD): regra própria de cobertura, usada no Dashboard de Disponibilidade (mínimo/máximo do CD sobre a venda das lojas)
-  const lojasCfg = [...(lojasCfg), { codigo: "CD", nome: "Almox SP (CD)", almoxarifado: "Alm_SP_Fabrica" }];
+  const lojasCfg = [...(dados?.lojas ?? []), { codigo: "CD", nome: "Almox SP (CD)", almoxarifado: "Alm_SP_Fabrica" }];
   const [padrao, setPadrao] = useState<Campos>(VAZIO);
   const [lojasEd, setLojasEd] = useState<Record<string, Campos>>({});
   const [famEd, setFamEd] = useState<Record<string, Campos>>({});
