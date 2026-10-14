@@ -1,7 +1,7 @@
 # Correção de grupos das Baixas Operacionais
 
 ## Portfólio de Abastecimento conforme anexos
-- [ ] Apresentar diagnóstico e plano incremental antes de alterações estruturais.
+- [x] Preparar diagnóstico e plano incremental antes de alterações estruturais.
 - [x] Confirmar Inovação por três meses, aprovação com vigência na data e leitura para equipe aprovada.
 - [ ] Identificar quem representa Cadastro Central e Comercial (aguarda definição; manter apenas Admin até lá).
 - [ ] Implementar fases de importação, classificação, sortimento, aprovação versionada e indicadores após aprovação do plano.
@@ -11,6 +11,7 @@
 - [x] Mover a análise MoM para o topo do dashboard, preservando os cálculos existentes.
 - [x] Validar a posição e a exibição do gráfico.
 - [x] Definir com o usuário leitura para equipe aprovada e aplicar proteção aos três dados sinalizados.
+- [x] Validar acesso real para equipe aprovada, bloquear perfil ausente e registrar correção dos três alertas.
 
 - [x] Preencher os 115 códigos sem grupo a partir da planilha, preservando cadastros existentes.
 - [x] Carregar todos os grupos no dashboard e tratar falhas de consulta.
