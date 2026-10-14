@@ -57,6 +57,13 @@
       "when": 1792010570380,
       "tag": "0007_leitura_aprovados_permissoes_missoes_dispersao",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792011336942,
+      "tag": "0008_leitura_aprovados_ops_dispersao_op_abc",
+      "breakpoints": true
     }
   ]
 }
