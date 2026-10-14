@@ -29,7 +29,8 @@ import { MobileBottomNav } from "@/components/app/MobileBottomNav";
 
 type Access = "any" | "write" | "admin" | "gestor";
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; role: Access };
-type NavGroup = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; items: NavItem[]; role?: Access };
+type NavSubGroup = { id: string; label: string; items: NavItem[] };
+type NavGroup = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; items: (NavItem | NavSubGroup)[]; role?: Access };
 
 const NAV: (NavItem | NavGroup)[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, role: "any" } as NavItem,
@@ -76,15 +77,20 @@ const NAV: (NavItem | NavGroup)[] = [
     id: "abastecimento", label: "Abastecimento", icon: Store, role: "gestor",
     items: [
       { to: "/abastecimento/reposicao", label: "Reposição de Lojas", icon: Store, role: "gestor" },
-      { to: "/abastecimento/caixaria", label: "Caixaria e Exposição", icon: Boxes, role: "gestor" },
-      { to: "/abastecimento/cobertura", label: "Cobertura e parâmetros", icon: SlidersHorizontal, role: "gestor" },
       { to: "/abastecimento/dashboard", label: "Dashboard de Disponibilidade", icon: LayoutDashboard, role: "gestor" },
       { to: "/abastecimento/disponibilidade", label: "Disponibilidade e rupturas", icon: Activity, role: "gestor" },
       { to: "/abastecimento/pedidos", label: "Pedidos", icon: ClipboardList, role: "gestor" },
       { to: "/abastecimento/indicadores", label: "Indicadores", icon: Gauge, role: "gestor" },
       { to: "/abastecimento/projecao-cd", label: "Projeção do CD e Plano", icon: TrendingDown, role: "gestor" },
-      { to: "/abastecimento/carga", label: "Carga de dados", icon: FileSpreadsheet, role: "admin" },
-      { to: "/abastecimento/faturamento", label: "Carga de faturamento", icon: ReceiptText, role: "admin" },
+      {
+        id: "abastecimento-parametros", label: "Parâmetros",
+        items: [
+          { to: "/abastecimento/caixaria", label: "Caixaria e Exposição", icon: Boxes, role: "gestor" },
+          { to: "/abastecimento/cobertura", label: "Cobertura e parâmetros", icon: SlidersHorizontal, role: "gestor" },
+          { to: "/abastecimento/carga", label: "Carga de dados", icon: FileSpreadsheet, role: "admin" },
+          { to: "/abastecimento/faturamento", label: "Carga de faturamento", icon: ReceiptText, role: "admin" },
+        ],
+      },
     ],
   },
   {
@@ -147,6 +153,9 @@ const NAV: (NavItem | NavGroup)[] = [
 ];
 
 function isGroup(n: NavItem | NavGroup): n is NavGroup { return (n as NavGroup).items !== undefined; }
+function isSubGroup(i: NavItem | NavSubGroup): i is NavSubGroup { return (i as NavSubGroup).items !== undefined; }
+const subTemAtivo = (i: NavItem | NavSubGroup, pathname: string) => isSubGroup(i) ? i.items.some((x) => pathname.startsWith(x.to)) : pathname.startsWith(i.to);
+const subPodeVer = (i: NavItem | NavSubGroup, canSee: (x: NavItem) => boolean) => isSubGroup(i) ? i.items.some(canSee) : canSee(i);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { role, isAdmin, canWrite } = useRole();
@@ -230,8 +239,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const visible = useMemo(() => NAV
-    .filter((n) => isGroup(n) ? n.items.some((i) => canSee(i)) : canSee(n))
-    .map((n) => isGroup(n) ? { ...n, items: n.items.filter((i) => canSee(i)) } : n),
+    .filter((n) => isGroup(n) ? n.items.some((i) => subPodeVer(i, canSee)) : canSee(n))
+    .map((n) => isGroup(n) ? {
+      ...n,
+      items: n.items
+        .map((i) => isSubGroup(i) ? { ...i, items: i.items.filter((x) => canSee(x)) } : i)
+        .filter((i) => subPodeVer(i, canSee)),
+    } : n),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [canWrite, isAdmin, isCoord, perms.loading, perms.canView]);
 
@@ -363,7 +377,7 @@ function SidebarContent({
   const initialOpen = useMemo(() => {
     const open: Record<string, boolean> = {};
     items.forEach((n) => {
-      if (isGroup(n) && n.items.some((i) => pathname.startsWith(i.to))) open[n.id] = true;
+      if (isGroup(n) && n.items.some((i) => subTemAtivo(i, pathname))) open[n.id] = true;
     });
     return open;
   }, [items, pathname]);
@@ -388,7 +402,7 @@ function SidebarContent({
           if (!isGroup(n)) return <NavLeaf key={n.to} item={n} pathname={pathname} onNavigate={onNavigate} collapsed={collapsed} />;
           const opened = openGroups[n.id] ?? false;
           const Icon = n.icon;
-          const anyActive = n.items.some((i) => pathname.startsWith(i.to));
+          const anyActive = n.items.some((i) => subTemAtivo(i, pathname));
           if (collapsed) {
             return (
               <button
@@ -412,7 +426,9 @@ function SidebarContent({
               </button>
               {opened && (
                 <div className="mx-2 ml-5 pl-3 border-l border-sidebar-border/60 space-y-0.5 mb-1">
-                  {n.items.map((i) => <NavLeaf key={i.to + i.label} item={i} pathname={pathname} onNavigate={onNavigate} compact />)}
+                  {n.items.map((i) => isSubGroup(i)
+                    ? <NavSubGroupBlock key={i.id} group={i} pathname={pathname} onNavigate={onNavigate} />
+                    : <NavLeaf key={i.to + i.label} item={i} pathname={pathname} onNavigate={onNavigate} compact />)}
                 </div>
               )}
             </div>
@@ -425,6 +441,27 @@ function SidebarContent({
         </div>
       )}
     </>
+  );
+}
+
+function NavSubGroupBlock({ group, pathname, onNavigate }: { group: NavSubGroup; pathname: string; onNavigate?: () => void }) {
+  const anyActive = group.items.some((i) => pathname.startsWith(i.to));
+  const [openSub, setOpenSub] = useState(anyActive);
+  return (
+    <div>
+      <button
+        onClick={() => setOpenSub((s) => !s)}
+        className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/55 hover:text-sidebar-foreground transition-colors"
+      >
+        <span className="flex-1 text-left">{group.label}</span>
+        {openSub ? <ChevronDown className="size-3 opacity-60" /> : <ChevronRight className="size-3 opacity-60" />}
+      </button>
+      {openSub && (
+        <div className="ml-3 pl-2 border-l border-sidebar-border/60 space-y-0.5">
+          {group.items.map((i) => <NavLeaf key={i.to + i.label} item={i} pathname={pathname} onNavigate={onNavigate} compact />)}
+        </div>
+      )}
+    </div>
   );
 }
 
