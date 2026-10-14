@@ -47,6 +47,7 @@ import { Route as AuthenticatedAbastecimentoPlanejamentoRouteImport } from './ro
 import { Route as AuthenticatedAbastecimentoPortfolioRouteImport } from './routes/_authenticated/abastecimento.portfolio'
 import { Route as AuthenticatedAbastecimentoProjecaoCdRouteImport } from './routes/_authenticated/abastecimento.projecao-cd'
 import { Route as AuthenticatedAbastecimentoReposicaoRouteImport } from './routes/_authenticated/abastecimento.reposicao'
+import { Route as AuthenticatedAbastecimentoValidacaoRouteImport } from './routes/_authenticated/abastecimento.validacao'
 import { Route as AuthenticatedBaixasIndexRouteImport } from './routes/_authenticated/baixas.index'
 import { Route as AuthenticatedBaixasDashboardRouteImport } from './routes/_authenticated/baixas.dashboard'
 import { Route as AuthenticatedBaixasInvestimentoOperacionalRouteImport } from './routes/_authenticated/baixas.investimento-operacional'
@@ -307,6 +308,12 @@ const AuthenticatedAbastecimentoReposicaoRoute =
   AuthenticatedAbastecimentoReposicaoRouteImport.update({
     id: '/abastecimento/reposicao',
     path: '/abastecimento/reposicao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAbastecimentoValidacaoRoute =
+  AuthenticatedAbastecimentoValidacaoRouteImport.update({
+    id: '/abastecimento/validacao',
+    path: '/abastecimento/validacao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedBaixasIndexRoute =
@@ -653,6 +660,7 @@ export interface FileRoutesByFullPath {
   '/abastecimento/portfolio': typeof AuthenticatedAbastecimentoPortfolioRoute
   '/abastecimento/projecao-cd': typeof AuthenticatedAbastecimentoProjecaoCdRoute
   '/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
+  '/abastecimento/validacao': typeof AuthenticatedAbastecimentoValidacaoRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
   '/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
@@ -743,6 +751,7 @@ export interface FileRoutesByTo {
   '/abastecimento/portfolio': typeof AuthenticatedAbastecimentoPortfolioRoute
   '/abastecimento/projecao-cd': typeof AuthenticatedAbastecimentoProjecaoCdRoute
   '/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
+  '/abastecimento/validacao': typeof AuthenticatedAbastecimentoValidacaoRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
   '/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
@@ -835,6 +844,7 @@ export interface FileRoutesById {
   '/_authenticated/abastecimento/portfolio': typeof AuthenticatedAbastecimentoPortfolioRoute
   '/_authenticated/abastecimento/projecao-cd': typeof AuthenticatedAbastecimentoProjecaoCdRoute
   '/_authenticated/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
+  '/_authenticated/abastecimento/validacao': typeof AuthenticatedAbastecimentoValidacaoRoute
   '/_authenticated/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
   '/_authenticated/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/_authenticated/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
@@ -927,6 +937,7 @@ export interface FileRouteTypes {
     | '/abastecimento/portfolio'
     | '/abastecimento/projecao-cd'
     | '/abastecimento/reposicao'
+    | '/abastecimento/validacao'
     | '/baixas/dashboard'
     | '/baixas/investimento-operacional'
     | '/config/aparencia'
@@ -1017,6 +1028,7 @@ export interface FileRouteTypes {
     | '/abastecimento/portfolio'
     | '/abastecimento/projecao-cd'
     | '/abastecimento/reposicao'
+    | '/abastecimento/validacao'
     | '/baixas/dashboard'
     | '/baixas/investimento-operacional'
     | '/config/aparencia'
@@ -1108,6 +1120,7 @@ export interface FileRouteTypes {
     | '/_authenticated/abastecimento/portfolio'
     | '/_authenticated/abastecimento/projecao-cd'
     | '/_authenticated/abastecimento/reposicao'
+    | '/_authenticated/abastecimento/validacao'
     | '/_authenticated/baixas/dashboard'
     | '/_authenticated/baixas/investimento-operacional'
     | '/_authenticated/config/aparencia'
@@ -1443,6 +1456,13 @@ declare module '@tanstack/react-router' {
       path: '/abastecimento/reposicao'
       fullPath: '/abastecimento/reposicao'
       preLoaderRoute: typeof AuthenticatedAbastecimentoReposicaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/abastecimento/validacao': {
+      id: '/_authenticated/abastecimento/validacao'
+      path: '/abastecimento/validacao'
+      fullPath: '/abastecimento/validacao'
+      preLoaderRoute: typeof AuthenticatedAbastecimentoValidacaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/baixas/': {
@@ -1855,6 +1875,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbastecimentoPortfolioRoute: typeof AuthenticatedAbastecimentoPortfolioRoute
   AuthenticatedAbastecimentoProjecaoCdRoute: typeof AuthenticatedAbastecimentoProjecaoCdRoute
   AuthenticatedAbastecimentoReposicaoRoute: typeof AuthenticatedAbastecimentoReposicaoRoute
+  AuthenticatedAbastecimentoValidacaoRoute: typeof AuthenticatedAbastecimentoValidacaoRoute
   AuthenticatedBaixasDashboardRoute: typeof AuthenticatedBaixasDashboardRoute
   AuthenticatedBaixasInvestimentoOperacionalRoute: typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   AuthenticatedConfigAparenciaRoute: typeof AuthenticatedConfigAparenciaRoute
@@ -1947,6 +1968,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedAbastecimentoProjecaoCdRoute,
   AuthenticatedAbastecimentoReposicaoRoute:
     AuthenticatedAbastecimentoReposicaoRoute,
+  AuthenticatedAbastecimentoValidacaoRoute:
+    AuthenticatedAbastecimentoValidacaoRoute,
   AuthenticatedBaixasDashboardRoute: AuthenticatedBaixasDashboardRoute,
   AuthenticatedBaixasInvestimentoOperacionalRoute:
     AuthenticatedBaixasInvestimentoOperacionalRoute,

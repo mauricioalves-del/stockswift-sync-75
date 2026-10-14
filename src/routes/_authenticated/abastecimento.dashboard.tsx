@@ -3,6 +3,8 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAll } from "@/lib/fetch-all";
+import { criarElegibilidade } from "@/lib/abastecimento-validacao";
 import { useRole } from "@/hooks/useRole";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { montarDash, transitoPorLocal, type Cluster } from "@/lib/abastecimento-dash";
@@ -41,10 +43,16 @@ function DashboardPage() {
     },
   });
 
+  // Meta OOS: só SKUs elegíveis pela classificação vigente na data (MTO, Decomplex e Inovação < 3 meses ficam fora)
+  const clsQ = useQuery({
+    enabled: pode, queryKey: ["abast-portfolio-cls"], staleTime: 60000,
+    queryFn: async () => fetchAll<any>((f, t) => (supabase as any).from("abast_classificacoes_portfolio").select("sku, classe, vigencia, registrado_em, inicio_inovacao").order("id").range(f, t)),
+  });
+  const elegivel = useMemo(() => criarElegibilidade(clsQ.data ?? []), [clsQ.data]);
   const todas = useMemo(() => (bruto.data ? montarDash(bruto.data, hoje) : []), [bruto.data, hoje]);
   const catOk = (c: string | null) => filtro.categoria === "AMBAS" || c === filtro.categoria;
-  const linhas = useMemo(() => todas.filter((l) => catOk(l.categoria)), [todas, filtro.categoria]);
-  const hist = useMemo(() => (histQ.data ?? []).filter((h) => catOk(h.categoria)), [histQ.data, filtro.categoria]);
+  const linhas = useMemo(() => todas.filter((l: any) => catOk(l.categoria) && elegivel(l.id_produto, hoje)), [todas, filtro.categoria, elegivel]);
+  const hist = useMemo(() => (histQ.data ?? []).filter((h) => catOk(h.categoria) && elegivel(h.id_produto, h.data)), [histQ.data, filtro.categoria, elegivel]);
   const transito = useMemo(() => (bruto.data ? transitoPorLocal(bruto.data, hoje, filtro.categoria === "AMBAS" ? null : filtro.categoria) : {}), [bruto.data, hoje, filtro.categoria]);
   const irFarol = (c: Cluster | "SEMACAO") => { setChipG(c); document.getElementById("bloco-g")?.scrollIntoView({ behavior: "smooth", block: "start" }); };
   const atualizado = bruto.dataUpdatedAt ? new Date(bruto.dataUpdatedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—";
