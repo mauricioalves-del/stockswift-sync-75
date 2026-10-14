@@ -78,6 +78,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/abastecimento/reposicao", label: "Reposição de Lojas", icon: Store, role: "gestor" },
       { to: "/abastecimento/caixaria", label: "Caixaria e Exposição", icon: Boxes, role: "gestor" },
       { to: "/abastecimento/cobertura", label: "Cobertura e parâmetros", icon: SlidersHorizontal, role: "gestor" },
+      { to: "/abastecimento/dashboard", label: "Dashboard de Disponibilidade", icon: LayoutDashboard, role: "gestor" },
       { to: "/abastecimento/disponibilidade", label: "Disponibilidade e rupturas", icon: Activity, role: "gestor" },
       { to: "/abastecimento/pedidos", label: "Pedidos", icon: ClipboardList, role: "gestor" },
       { to: "/abastecimento/indicadores", label: "Indicadores", icon: Gauge, role: "gestor" },
