@@ -153,6 +153,9 @@ const NAV: (NavItem | NavGroup)[] = [
 ];
 
 function isGroup(n: NavItem | NavGroup): n is NavGroup { return (n as NavGroup).items !== undefined; }
+function isSubGroup(i: NavItem | NavSubGroup): i is NavSubGroup { return (i as NavSubGroup).items !== undefined; }
+const subTemAtivo = (i: NavItem | NavSubGroup, pathname: string) => isSubGroup(i) ? i.items.some((x) => pathname.startsWith(x.to)) : pathname.startsWith(i.to);
+const subPodeVer = (i: NavItem | NavSubGroup, canSee: (x: NavItem) => boolean) => isSubGroup(i) ? i.items.some(canSee) : canSee(i);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { role, isAdmin, canWrite } = useRole();
@@ -236,8 +239,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const visible = useMemo(() => NAV
-    .filter((n) => isGroup(n) ? n.items.some((i) => canSee(i)) : canSee(n))
-    .map((n) => isGroup(n) ? { ...n, items: n.items.filter((i) => canSee(i)) } : n),
+    .filter((n) => isGroup(n) ? n.items.some((i) => subPodeVer(i, canSee)) : canSee(n))
+    .map((n) => isGroup(n) ? {
+      ...n,
+      items: n.items
+        .map((i) => isSubGroup(i) ? { ...i, items: i.items.filter((x) => canSee(x)) } : i)
+        .filter((i) => subPodeVer(i, canSee)),
+    } : n),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [canWrite, isAdmin, isCoord, perms.loading, perms.canView]);
 
