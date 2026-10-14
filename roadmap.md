@@ -1,5 +1,10 @@
 # Correção de grupos das Baixas Operacionais
 
+## Menu Abastecimento e segurança
+- [x] Ocultar Disponibilidade e rupturas e Indicadores do menu, preservando páginas e dados.
+- [x] Ordenar: Dashboard de Disponibilidade, Projeção do CD e Plano, Reposição de Lojas, Pedidos, Validação do Gestor e Parâmetros.
+- [ ] Verificar menu autenticado e corrigir os três alertas de leitura listados neste pedido.
+
 ## Portfólio de Abastecimento conforme anexos
 - [x] Preparar diagnóstico e plano incremental antes de alterações estruturais.
 - [x] Confirmar Inovação por três meses, aprovação com vigência na data e leitura para equipe aprovada.
