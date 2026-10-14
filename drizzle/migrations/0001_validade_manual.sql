@@ -1,0 +1,1 @@
+ALTER TABLE public.estoque_sistemico ADD COLUMN IF NOT EXISTS validade_manual_em timestamptz;
