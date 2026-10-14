@@ -1,5 +1,11 @@
 # Correção de grupos das Baixas Operacionais
 
+## Portfólio de Abastecimento conforme anexos
+- [ ] Apresentar diagnóstico e plano incremental antes de alterações estruturais.
+- [ ] Confirmar prazo de Inovação, vigência de aprovação atrasada e permissões pendentes.
+- [ ] Implementar fases de importação, classificação, sortimento, aprovação versionada e indicadores após aprovação do plano.
+- [ ] Validar regras e regressões de vendas, estoque e reposição.
+
 ## Destaque MoM e segurança
 - [x] Mover a análise MoM para o topo do dashboard, preservando os cálculos existentes.
 - [x] Validar a posição e a exibição do gráfico.
