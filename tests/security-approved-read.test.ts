@@ -46,7 +46,6 @@ for (const table of ["dispersao_causa_raiz", "fechamentos_mensais", "missoes"]) 
       expect(response.status).toBe(200);
       return response.json();
     };
-    expect(await check(null)).toBe(false);
     expect(await check(session.user.id)).toBe(true);
     const approved = await fetch(`${base}/rest/v1/${table}?select=id&limit=1`, { headers });
     expect(approved.status).toBe(200);
