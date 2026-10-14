@@ -29,7 +29,8 @@ import { MobileBottomNav } from "@/components/app/MobileBottomNav";
 
 type Access = "any" | "write" | "admin" | "gestor";
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; role: Access };
-type NavGroup = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; items: NavItem[]; role?: Access };
+type NavSubGroup = { id: string; label: string; items: NavItem[] };
+type NavGroup = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; items: (NavItem | NavSubGroup)[]; role?: Access };
 
 const NAV: (NavItem | NavGroup)[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, role: "any" } as NavItem,
@@ -76,15 +77,20 @@ const NAV: (NavItem | NavGroup)[] = [
     id: "abastecimento", label: "Abastecimento", icon: Store, role: "gestor",
     items: [
       { to: "/abastecimento/reposicao", label: "Reposição de Lojas", icon: Store, role: "gestor" },
-      { to: "/abastecimento/caixaria", label: "Caixaria e Exposição", icon: Boxes, role: "gestor" },
-      { to: "/abastecimento/cobertura", label: "Cobertura e parâmetros", icon: SlidersHorizontal, role: "gestor" },
       { to: "/abastecimento/dashboard", label: "Dashboard de Disponibilidade", icon: LayoutDashboard, role: "gestor" },
       { to: "/abastecimento/disponibilidade", label: "Disponibilidade e rupturas", icon: Activity, role: "gestor" },
       { to: "/abastecimento/pedidos", label: "Pedidos", icon: ClipboardList, role: "gestor" },
       { to: "/abastecimento/indicadores", label: "Indicadores", icon: Gauge, role: "gestor" },
       { to: "/abastecimento/projecao-cd", label: "Projeção do CD e Plano", icon: TrendingDown, role: "gestor" },
-      { to: "/abastecimento/carga", label: "Carga de dados", icon: FileSpreadsheet, role: "admin" },
-      { to: "/abastecimento/faturamento", label: "Carga de faturamento", icon: ReceiptText, role: "admin" },
+      {
+        id: "abastecimento-parametros", label: "Parâmetros",
+        items: [
+          { to: "/abastecimento/caixaria", label: "Caixaria e Exposição", icon: Boxes, role: "gestor" },
+          { to: "/abastecimento/cobertura", label: "Cobertura e parâmetros", icon: SlidersHorizontal, role: "gestor" },
+          { to: "/abastecimento/carga", label: "Carga de dados", icon: FileSpreadsheet, role: "admin" },
+          { to: "/abastecimento/faturamento", label: "Carga de faturamento", icon: ReceiptText, role: "admin" },
+        ],
+      },
     ],
   },
   {
