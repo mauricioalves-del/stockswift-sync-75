@@ -40,7 +40,7 @@ function DisponibilidadePage() {
       const ini = `${mes}-01`, fim = `${mes}-${String(new Date(a, m, 0).getDate()).padStart(2, "0")}`;
       const out: FotoLinha[] = [];
       for (let f = 0; ; f += 1000) {
-        const { data, error } = await sb.from("abast_disponibilidade_diaria").select("*").gte("data", ini).lte("data", fim).order("data").order("loja").order("id_produto").range(f, f + 999);
+        const { data, error } = await sb.from("abast_disponibilidade_diaria").select("*").gte("data", ini).lte("data", fim).neq("loja", "CD").order("data").order("loja").order("id_produto").range(f, f + 999);
         if (error) throw error; out.push(...((data ?? []) as FotoLinha[])); if (!data || data.length < 1000) break;
       }
       return out;
