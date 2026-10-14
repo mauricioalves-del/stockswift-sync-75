@@ -1,9 +1,10 @@
+import { Link } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
-import { riscoEnderecado, resumirLocal, type DashLinha } from "@/lib/abastecimento-dash";
+import { riscoEnderecado, resumirLocal, type DashLinha, type TransitoLocal } from "@/lib/abastecimento-dash";
 import { atingimento, farolRuptura, META_RUPTURA, resumoPeriodo, type HistLinha } from "@/lib/abastecimento-dash-hist";
 import { FAROL, LOJAS, NOME, Pill, Secao, Th, brl, dm, escopoLocais, escopoRotulo, n0, n1, pct, type Escopo, type Filtro } from "@/components/abast-dash/comum";
 
-type Props = { hoje: string; filtro: Filtro; setFiltro: (f: Filtro) => void; linhas: DashLinha[]; hist: HistLinha[] };
+type Props = { hoje: string; filtro: Filtro; setFiltro: (f: Filtro) => void; linhas: DashLinha[]; hist: HistLinha[]; transito?: Record<string, TransitoLocal> };
 const semaforo = (ruptura: number, stockout: number) => (ruptura > 0 ? [true, false, false] : stockout > 0 ? [false, true, false] : [false, false, true]);
 
 export function Kpis({ hoje, filtro, linhas, hist }: Omit<Props, "setFiltro">) {
@@ -43,7 +44,8 @@ function Card({ t, v, s, cor, vc = "" }: { t: string; v: string; s: string; cor:
   return <div className={`rounded-xl border border-l-4 bg-card p-3 shadow-sm ${cor}`}><div className="text-[11px] font-semibold uppercase text-muted-foreground">{t}</div><div className={`mt-1 text-2xl font-bold ${vc}`}>{v}</div><div className="mt-1 text-[11px] text-muted-foreground">{s}</div></div>;
 }
 
-export function ResumoLocais({ hoje, filtro, setFiltro, linhas, hist }: Props) {
+export function ResumoLocais({ hoje, filtro, setFiltro, linhas, hist, transito = {} }: Props) {
+  const trLocais = (locais: string[]) => locais.reduce((a, l) => { const x = transito[l]; return x ? { un: a.un + x.un, rs: a.rs + x.rs, notas: a.notas + x.notas, maior: Math.max(a.maior, x.maiorAtrasoDiasUteis) } : a; }, { un: 0, rs: 0, notas: 0, maior: 0 });
   const escolhe = (e: Escopo) => setFiltro({ ...filtro, escopo: filtro.escopo === e ? "LOJAS" : e });
   const fh = (locais: string[]) => ({ de: filtro.de, ate: filtro.ate, locais, categoria: null as string | null });
   const dados = (locais: string[]) => {
@@ -81,8 +83,8 @@ export function ResumoLocais({ hoje, filtro, setFiltro, linhas, hist }: Props) {
             <td className="px-2 py-2 font-medium">{t.nome}</td><td className="px-2 py-2 text-right">{n0(d.r.skus)}</td><td className="px-2 py-2 text-right"><Pl v={d.hoje} /></td><td className="px-2 py-2 text-right"><Pl v={d.periodo} /></td>
             <td className={`px-2 py-2 text-right font-semibold ${d.periodo === null ? "text-muted-foreground" : FAROL[farolRuptura(d.periodo)].texto}`}>{at === null ? "—" : `${(at * 100).toFixed(0)}%`}</td>
             <td className="px-2 py-2 text-right">{n0(d.r.stockout)}</td><td className="px-2 py-2 text-right">{n0(d.r.stockover)}</td><td className="px-2 py-2 text-right">{brl(d.r.excessoRs)}</td>
-            <td className="px-2 py-2 text-right text-teal-700">{t.locais.includes("CD") && t.locais.length === 1 ? <span className="text-muted-foreground" title="Sem fonte de compras/produção a receber">—</span> : `${n0(d.r.emTransitoUn)} un · ${brl(d.r.emTransitoRs)}`}</td><td className="px-2 py-2 text-right">{d.r.coberturaMedia === null ? "—" : `${n1(d.r.coberturaMedia)} d`}</td></tr>); })}</tbody></table></div>
-      <p className="mt-2 text-[11px] italic text-muted-foreground">Total lojas = base da meta (o saldo do Almox SP não entra no % das lojas). Em trânsito nas lojas = pedidos e notas de transferência do CD já expedidos; no Almox SP ainda não há fonte de compras/produção a receber.</p>
+            <td className="px-2 py-2 text-right text-teal-700">{(() => { const x = trLocais(t.locais); return x.notas ? <span className="whitespace-nowrap">{n0(x.un)} un · {brl(x.rs)} <span className="text-[10px] text-muted-foreground">· {x.notas} NF</span>{x.maior > 5 && <Pill cls="ml-1 bg-red-100 text-red-700">{x.maior} d úteis</Pill>}</span> : <span className="text-muted-foreground">—</span>; })()}</td><td className="px-2 py-2 text-right">{d.r.coberturaMedia === null ? "—" : `${n1(d.r.coberturaMedia)} d`}</td></tr>); })}</tbody></table></div>
+      <p className="mt-2 text-[11px] italic text-muted-foreground">Total lojas = base da meta (o saldo do Almox SP não entra no % das lojas). <b>Em trânsito</b> = notas de transferência pendentes de recebimento, a mesma fonte da tela <Link to="/suprimentos/farol-recebimento" className="font-semibold text-primary underline">Farol de Recebimento Pendente</Link>: nas lojas, transferências do CD já expedidas; no Almox SP, compras/produção a receber (notas para a Fábrica SP). Selo vermelho = nota aberta há mais de 5 dias úteis. Pedidos ainda não expedidos não entram no trânsito (aparecem na situação da reposição).</p>
     </Secao>
   );
 }
