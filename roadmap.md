@@ -33,3 +33,6 @@
 - [x] Adicionar "Ordenar por: Sugestão (maior → menor)" na tela de Abastecimento.
 - [x] Adicionar filtro "Somente com sugestão" (traz apenas itens com sugestão de abastecimento).
 - [x] Validar na tela: 269 linhas → 43 com sugestão (mín. 1) e ordem 270, 47, 42, 36, 35… descendente.
+
+## Parâmetros no pilar Abastecimento
+- [x] Desfazer o subgrupo "Parâmetros" criado em Suprimentos e mover Importar Consumo e Sazonalidade para o Parâmetros já existente em Abastecimento.
