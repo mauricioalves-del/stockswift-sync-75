@@ -41,6 +41,48 @@ export type Database = {
         }
         Relationships: []
       }
+      abast_classificacoes_portfolio: {
+        Row: {
+          arquivo: string | null
+          autor_id: string
+          classe: string
+          classe_anterior: string | null
+          descricao: string
+          id: string
+          importacao_id: string
+          inicio_inovacao: string | null
+          registrado_em: string
+          sku: string
+          vigencia: string
+        }
+        Insert: {
+          arquivo?: string | null
+          autor_id: string
+          classe: string
+          classe_anterior?: string | null
+          descricao: string
+          id?: string
+          importacao_id: string
+          inicio_inovacao?: string | null
+          registrado_em?: string
+          sku: string
+          vigencia: string
+        }
+        Update: {
+          arquivo?: string | null
+          autor_id?: string
+          classe?: string
+          classe_anterior?: string | null
+          descricao?: string
+          id?: string
+          importacao_id?: string
+          inicio_inovacao?: string | null
+          registrado_em?: string
+          sku?: string
+          vigencia?: string
+        }
+        Relationships: []
+      }
       abast_config: {
         Row: {
           atualizado_em: string
@@ -4394,6 +4436,10 @@ export type Database = {
       }
       abast_criar_pedido: {
         Args: { p_base: string; p_itens: Json; p_loja: string; p_obs: string }
+        Returns: Json
+      }
+      abast_importar_classificacoes: {
+        Args: { p_arquivo: string; p_itens: Json }
         Returns: Json
       }
       abast_registrar_disponibilidade: {

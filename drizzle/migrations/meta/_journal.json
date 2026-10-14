@@ -22,6 +22,20 @@
       "when": 1792005065693,
       "tag": "0002_restringir_leitura_equipe_aprovada",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792006324129,
+      "tag": "0003_classificacao_portfolio_versionada",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792006527298,
+      "tag": "0004_limitar_leitura_producao_sazonalidade_aprovados",
+      "breakpoints": true
     }
   ]
 }

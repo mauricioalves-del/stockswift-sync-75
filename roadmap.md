@@ -4,8 +4,11 @@
 - [x] Preparar diagnóstico e plano incremental antes de alterações estruturais.
 - [x] Confirmar Inovação por três meses, aprovação com vigência na data e leitura para equipe aprovada.
 - [ ] Identificar quem representa Cadastro Central e Comercial (aguarda definição; manter apenas Admin até lá).
-- [ ] Implementar fases de importação, classificação, sortimento, aprovação versionada e indicadores após aprovação do plano.
+- [x] Criar classificação versionada, importação e prévia; testar prévia dos 63 SKUs sem gravar o anexo.
+- [ ] Validar gravação real da importação (aguarda datas reais de início dos quatro SKUs de Inovação).
+- [ ] Implementar sortimento, aprovação versionada e indicadores (aguarda aprovação da próxima etapa).
 - [ ] Validar regras e regressões de vendas, estoque e reposição.
+- [x] Limitar leitura de fichas técnicas, períodos sazonais e necessidades de materiais à equipe aprovada; testes hosted passaram e três alertas foram marcados como corrigidos.
 
 ## Destaque MoM e segurança
 - [x] Mover a análise MoM para o topo do dashboard, preservando os cálculos existentes.
