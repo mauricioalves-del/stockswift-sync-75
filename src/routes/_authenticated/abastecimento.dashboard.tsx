@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
-import { criarElegibilidade } from "@/lib/abastecimento-validacao";
+import { criarElegibilidade, nomeMes } from "@/lib/abastecimento-validacao";
 import { useRole } from "@/hooks/useRole";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { montarDash, transitoPorLocal, type Cluster } from "@/lib/abastecimento-dash";
