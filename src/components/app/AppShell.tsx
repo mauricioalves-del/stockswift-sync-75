@@ -65,13 +65,6 @@ const NAV: (NavItem | NavGroup)[] = [
       // Ocultados do menu (solicitação de 14/10/2026) — rotas preservadas:
       // { to: "/abastecimento/planejamento", label: "Abastecimento", icon: Compass, role: "write" },
       // { to: "/abastecimento/demandas", label: "Demandas Extras", icon: Sparkles, role: "write" },
-      {
-        id: "suprimentos-parametros", label: "Parâmetros",
-        items: [
-          { to: "/abastecimento/consumo", label: "Importar Consumo", icon: TrendingUp, role: "write" },
-          { to: "/config/sazonalidade", label: "Sazonalidade", icon: Sparkles, role: "admin" },
-        ],
-      },
       { to: "/producao/confirmacao-recebimento", label: "Confirmação de Recebimento", icon: PackageCheck, role: "any" },
       { to: "/suprimentos/farol-recebimento", label: "Farol de Recebimento Pendente", icon: Truck, role: "any" },
     ],
@@ -92,6 +85,8 @@ const NAV: (NavItem | NavGroup)[] = [
           { to: "/abastecimento/cobertura", label: "Cobertura e parâmetros", icon: SlidersHorizontal, role: "gestor" },
           { to: "/abastecimento/carga", label: "Carga de dados", icon: FileSpreadsheet, role: "admin" },
           { to: "/abastecimento/faturamento", label: "Carga de faturamento", icon: ReceiptText, role: "admin" },
+          { to: "/abastecimento/consumo", label: "Importar Consumo", icon: TrendingUp, role: "write" },
+          { to: "/config/sazonalidade", label: "Sazonalidade", icon: Sparkles, role: "admin" },
         ],
       },
     ],
