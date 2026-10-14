@@ -65,7 +65,7 @@ function DashboardPage() {
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-2 rounded-xl bg-slate-900 px-5 py-4 text-white">
         <div><h1 className="text-xl font-bold">Disponibilidade de Estoque <span className="ml-2 text-sm font-normal text-slate-300">Out of Stock · Stockout · Stock Over</span></h1>
-          {bruto.data && bruto.data.lojas.some((l) => !bruto.data!.portfolioAprovado?.[l.codigo]) && <p className="mt-1 text-xs text-amber-300">Lojas sem portfólio validado ficam fora do indicador até a assinatura em Validação do Gestor: {bruto.data.lojas.filter((l) => !bruto.data!.portfolioAprovado?.[l.codigo]).map((l) => l.nome).join(", ")}.</p>}</div>
+          {bruto.data && bruto.data.lojas.some((l) => !bruto.data!.portfolioAprovado?.[l.codigo]) && <p className="mt-1 text-xs text-amber-300">Lojas sem portfólio validado — Sem portfólio validado (OOS N/A, sem base elegível fabricada): {bruto.data.lojas.filter((l) => !bruto.data!.portfolioAprovado?.[l.codigo]).map((l) => l.nome).join(", ")}.</p>}</div>
         <div className="text-xs text-slate-300">Leitura: {atualizado} · última foto diária: {histQ.data?.length ? histQ.data[histQ.data.length - 1].data.split("-").reverse().join("/") : "—"}</div>
       </div>
 
