@@ -15,6 +15,13 @@
       "when": 1792000374196,
       "tag": "0001_validade_manual",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792005065693,
+      "tag": "0002_restringir_leitura_equipe_aprovada",
+      "breakpoints": true
     }
   ]
 }
