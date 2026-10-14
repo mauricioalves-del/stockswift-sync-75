@@ -29,7 +29,7 @@ export function useAbastBruto(habilitado: boolean) {
         seguro(async () => ((await sb.from("periodos_sazonais").select("*").eq("ativo", true)).data ?? []) as any[], []),
         seguro(() => fetchAll<any>((f, t) => sb.from("historico_consumo").select("origem, sku, data_movimento, quantidade").in("origem", almox).gte("data_movimento", desde).order("origem").order("sku").order("data_movimento").range(f, t)), []),
         seguro(() => fetchAll<any>((f, t) => sb.from("estoque_sistemico").select("id_produto, descricao, origem, quantidade, custo_unitario").gt("quantidade", 0).order("id_produto").order("origem").order("lote").range(f, t)), []),
-        seguro(() => fetchAll<any>((f, t) => sb.from("notas_transferencia_recebimento").select("cod_prod, almox, qtd, nota_cancelada, dt_emissao").eq("recebimento", "Pendente").range(f, t)), []),
+        seguro(() => fetchAll<any>((f, t) => sb.from("notas_transferencia_recebimento").select("cod_prod, almox, qtd, nota_cancelada, dt_emissao, nr_nf, vt_total_item, empresa").eq("recebimento", "Pendente").range(f, t)), []),
         seguro(() => fetchAll<any>((f, t) => sb.from("abast_produto").select("id_produto, full_case").order("id_produto").range(f, t)), []),
         seguro(() => fetchAll<any>((f, t) => sb.from("abast_produto_loja").select("loja, id_produto, exposicao, ativo_sortimento").order("loja").order("id_produto").range(f, t)), []),
         seguro(async () => {
@@ -45,7 +45,7 @@ export function useAbastBruto(habilitado: boolean) {
         lojas: (lojas ?? []) as Bruto["lojas"], cd: String(c.cd_almoxarifado || "Alm_SP_Fabrica"),
         params: { diasMin: dias(c.dias_min, 5), diasIdeal: Math.max(1, dias(c.dias_ideal, 10)), diasMax: dias(c.dias_max, 15), diasSeguranca: dias(c.dias_seguranca, 0) }, coberturas,
         consenso, grupos, familias, abc: abcRaw.map((x: any) => ({ codigo_produto: x.codigo_produto, classe: x.classe })), periodos: periodos as Bruto["periodos"],
-        consumo, estoque, notas: notasRaw.filter((n: any) => n.nota_cancelada !== "S").map((n: any) => ({ cod_prod: n.cod_prod, almox: n.almox, qtd: Number(n.qtd) || 0, dt: n.dt_emissao ? String(n.dt_emissao).slice(0, 10) : null })),
+        consumo, estoque, notas: notasRaw.filter((n: any) => n.nota_cancelada !== "S").map((n: any) => ({ cod_prod: n.cod_prod, almox: n.almox, qtd: Number(n.qtd) || 0, dt: n.dt_emissao ? String(n.dt_emissao).slice(0, 10) : null, nf: n.nr_nf == null ? null : String(n.nr_nf), vt: Number(n.vt_total_item) || 0, empresa: n.empresa ?? null })),
         pedidosAbertos: pedidos, produtos, exposicoes,
       };
     },
