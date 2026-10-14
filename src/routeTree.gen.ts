@@ -44,6 +44,7 @@ import { Route as AuthenticatedAbastecimentoIndicadoresRouteImport } from './rou
 import { Route as AuthenticatedAbastecimentoParametrosRouteImport } from './routes/_authenticated/abastecimento.parametros'
 import { Route as AuthenticatedAbastecimentoPedidosRouteImport } from './routes/_authenticated/abastecimento.pedidos'
 import { Route as AuthenticatedAbastecimentoPlanejamentoRouteImport } from './routes/_authenticated/abastecimento.planejamento'
+import { Route as AuthenticatedAbastecimentoPortfolioRouteImport } from './routes/_authenticated/abastecimento.portfolio'
 import { Route as AuthenticatedAbastecimentoProjecaoCdRouteImport } from './routes/_authenticated/abastecimento.projecao-cd'
 import { Route as AuthenticatedAbastecimentoReposicaoRouteImport } from './routes/_authenticated/abastecimento.reposicao'
 import { Route as AuthenticatedBaixasIndexRouteImport } from './routes/_authenticated/baixas.index'
@@ -288,6 +289,12 @@ const AuthenticatedAbastecimentoPlanejamentoRoute =
   AuthenticatedAbastecimentoPlanejamentoRouteImport.update({
     id: '/abastecimento/planejamento',
     path: '/abastecimento/planejamento',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAbastecimentoPortfolioRoute =
+  AuthenticatedAbastecimentoPortfolioRouteImport.update({
+    id: '/abastecimento/portfolio',
+    path: '/abastecimento/portfolio',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAbastecimentoProjecaoCdRoute =
@@ -643,6 +650,7 @@ export interface FileRoutesByFullPath {
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/pedidos': typeof AuthenticatedAbastecimentoPedidosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  '/abastecimento/portfolio': typeof AuthenticatedAbastecimentoPortfolioRoute
   '/abastecimento/projecao-cd': typeof AuthenticatedAbastecimentoProjecaoCdRoute
   '/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
@@ -732,6 +740,7 @@ export interface FileRoutesByTo {
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/abastecimento/pedidos': typeof AuthenticatedAbastecimentoPedidosRoute
   '/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  '/abastecimento/portfolio': typeof AuthenticatedAbastecimentoPortfolioRoute
   '/abastecimento/projecao-cd': typeof AuthenticatedAbastecimentoProjecaoCdRoute
   '/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
@@ -823,6 +832,7 @@ export interface FileRoutesById {
   '/_authenticated/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
   '/_authenticated/abastecimento/pedidos': typeof AuthenticatedAbastecimentoPedidosRoute
   '/_authenticated/abastecimento/planejamento': typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  '/_authenticated/abastecimento/portfolio': typeof AuthenticatedAbastecimentoPortfolioRoute
   '/_authenticated/abastecimento/projecao-cd': typeof AuthenticatedAbastecimentoProjecaoCdRoute
   '/_authenticated/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/_authenticated/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
@@ -914,6 +924,7 @@ export interface FileRouteTypes {
     | '/abastecimento/parametros'
     | '/abastecimento/pedidos'
     | '/abastecimento/planejamento'
+    | '/abastecimento/portfolio'
     | '/abastecimento/projecao-cd'
     | '/abastecimento/reposicao'
     | '/baixas/dashboard'
@@ -1003,6 +1014,7 @@ export interface FileRouteTypes {
     | '/abastecimento/parametros'
     | '/abastecimento/pedidos'
     | '/abastecimento/planejamento'
+    | '/abastecimento/portfolio'
     | '/abastecimento/projecao-cd'
     | '/abastecimento/reposicao'
     | '/baixas/dashboard'
@@ -1093,6 +1105,7 @@ export interface FileRouteTypes {
     | '/_authenticated/abastecimento/parametros'
     | '/_authenticated/abastecimento/pedidos'
     | '/_authenticated/abastecimento/planejamento'
+    | '/_authenticated/abastecimento/portfolio'
     | '/_authenticated/abastecimento/projecao-cd'
     | '/_authenticated/abastecimento/reposicao'
     | '/_authenticated/baixas/dashboard'
@@ -1409,6 +1422,13 @@ declare module '@tanstack/react-router' {
       path: '/abastecimento/planejamento'
       fullPath: '/abastecimento/planejamento'
       preLoaderRoute: typeof AuthenticatedAbastecimentoPlanejamentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/abastecimento/portfolio': {
+      id: '/_authenticated/abastecimento/portfolio'
+      path: '/abastecimento/portfolio'
+      fullPath: '/abastecimento/portfolio'
+      preLoaderRoute: typeof AuthenticatedAbastecimentoPortfolioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/abastecimento/projecao-cd': {
@@ -1832,6 +1852,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbastecimentoParametrosRoute: typeof AuthenticatedAbastecimentoParametrosRoute
   AuthenticatedAbastecimentoPedidosRoute: typeof AuthenticatedAbastecimentoPedidosRoute
   AuthenticatedAbastecimentoPlanejamentoRoute: typeof AuthenticatedAbastecimentoPlanejamentoRoute
+  AuthenticatedAbastecimentoPortfolioRoute: typeof AuthenticatedAbastecimentoPortfolioRoute
   AuthenticatedAbastecimentoProjecaoCdRoute: typeof AuthenticatedAbastecimentoProjecaoCdRoute
   AuthenticatedAbastecimentoReposicaoRoute: typeof AuthenticatedAbastecimentoReposicaoRoute
   AuthenticatedBaixasDashboardRoute: typeof AuthenticatedBaixasDashboardRoute
@@ -1920,6 +1941,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedAbastecimentoPedidosRoute,
   AuthenticatedAbastecimentoPlanejamentoRoute:
     AuthenticatedAbastecimentoPlanejamentoRoute,
+  AuthenticatedAbastecimentoPortfolioRoute:
+    AuthenticatedAbastecimentoPortfolioRoute,
   AuthenticatedAbastecimentoProjecaoCdRoute:
     AuthenticatedAbastecimentoProjecaoCdRoute,
   AuthenticatedAbastecimentoReposicaoRoute:

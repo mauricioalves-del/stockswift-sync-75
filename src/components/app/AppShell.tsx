@@ -85,6 +85,7 @@ const NAV: (NavItem | NavGroup)[] = [
       {
         id: "abastecimento-parametros", label: "Parâmetros",
         items: [
+          { to: "/abastecimento/portfolio", label: "Portfólio e Classificação", icon: Tags, role: "gestor" },
           { to: "/abastecimento/caixaria", label: "Caixaria e Exposição", icon: Boxes, role: "gestor" },
           { to: "/abastecimento/cobertura", label: "Cobertura e parâmetros", icon: SlidersHorizontal, role: "gestor" },
           { to: "/abastecimento/carga", label: "Carga de dados", icon: FileSpreadsheet, role: "admin" },
