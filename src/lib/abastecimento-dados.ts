@@ -106,7 +106,7 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
   for (const l of b.lojas) {
     const lista: ItemRep[] = [];
     const porSortimento = o.universo === "sortimento";
-    const aprovado = b.portfolioAprovado?.[l.codigo];
+    const aprovado = b.portfolioAprovado ? (b.portfolioAprovado[l.codigo] ?? []) : undefined;   // sem validação do gestor = lista vazia
     const chaves: [string, typeof META_VAZIA][] = aprovado
       ? aprovado.map((sku) => { const k = `${l.codigo}|${nk(sku)}`; return [k, metas.get(k) ?? META_VAZIA] as [string, typeof META_VAZIA]; })
       : porSortimento
@@ -116,8 +116,8 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       if (!aprovado && !porSortimento && !Object.values(m.porMes).some((v) => v > 0)) continue;       // só o que o consenso estima para vendas
       const sku = k.slice(l.codigo.length + 1);
       const grupo = grupoDe.get(sku);
-      if (!grupo) { ex.semGrupo++; continue; }
-      if (grupo !== GRUPO_ACABADO && !((porSortimento || aprovado) && grupo === GRUPO_REVENDA)) { ex.naoAcabado++; continue; }      // embalagem, em processo, local, revenda (fora do sortimento)...
+      if (!grupo && !aprovado) { ex.semGrupo++; continue; }
+      if (!aprovado && grupo !== GRUPO_ACABADO && !(porSortimento && grupo === GRUPO_REVENDA)) { ex.naoAcabado++; continue; }      // embalagem, em processo, local, revenda (fora do sortimento)...
       const familia = famDe.get(sku) ?? "";
       const solto = ehSolto(familia);
       const rp = resolverParam(b.params, b.coberturas ?? [], l.codigo, familia);   // cobertura em dias deste item (padrão / loja / família)
