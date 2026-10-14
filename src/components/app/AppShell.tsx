@@ -444,6 +444,27 @@ function SidebarContent({
   );
 }
 
+function NavSubGroupBlock({ group, pathname, onNavigate }: { group: NavSubGroup; pathname: string; onNavigate?: () => void }) {
+  const anyActive = group.items.some((i) => pathname.startsWith(i.to));
+  const [openSub, setOpenSub] = useState(anyActive);
+  return (
+    <div>
+      <button
+        onClick={() => setOpenSub((s) => !s)}
+        className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/55 hover:text-sidebar-foreground transition-colors"
+      >
+        <span className="flex-1 text-left">{group.label}</span>
+        {openSub ? <ChevronDown className="size-3 opacity-60" /> : <ChevronRight className="size-3 opacity-60" />}
+      </button>
+      {openSub && (
+        <div className="ml-3 pl-2 border-l border-sidebar-border/60 space-y-0.5">
+          {group.items.map((i) => <NavLeaf key={i.to + i.label} item={i} pathname={pathname} onNavigate={onNavigate} compact />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NavLeaf({ item, pathname, onNavigate, compact, collapsed }: { item: NavItem; pathname: string; onNavigate?: () => void; compact?: boolean; collapsed?: boolean }) {
   const Icon = item.icon;
   const active = pathname === item.to || (item.to !== "/dashboard" && pathname.startsWith(item.to + "/"));
