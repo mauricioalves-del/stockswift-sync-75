@@ -4403,6 +4403,7 @@ export type Database = {
       almoxarifados_permitidos: { Args: { _uid: string }; Returns: string[] }
       atualizar_custos_contabeis: { Args: { p_linhas: Json }; Returns: Json }
       congelar_producao_consumo: { Args: never; Returns: number }
+      equipe_aprovada_para_leitura: { Args: { _uid: string }; Returns: boolean }
       executar_plano_contagem_ciclica: {
         Args: { _plano_id: string }
         Returns: Json
