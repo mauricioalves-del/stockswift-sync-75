@@ -377,7 +377,7 @@ function SidebarContent({
   const initialOpen = useMemo(() => {
     const open: Record<string, boolean> = {};
     items.forEach((n) => {
-      if (isGroup(n) && n.items.some((i) => pathname.startsWith(i.to))) open[n.id] = true;
+      if (isGroup(n) && n.items.some((i) => subTemAtivo(i, pathname))) open[n.id] = true;
     });
     return open;
   }, [items, pathname]);
@@ -402,7 +402,7 @@ function SidebarContent({
           if (!isGroup(n)) return <NavLeaf key={n.to} item={n} pathname={pathname} onNavigate={onNavigate} collapsed={collapsed} />;
           const opened = openGroups[n.id] ?? false;
           const Icon = n.icon;
-          const anyActive = n.items.some((i) => pathname.startsWith(i.to));
+          const anyActive = n.items.some((i) => subTemAtivo(i, pathname));
           if (collapsed) {
             return (
               <button
@@ -426,7 +426,9 @@ function SidebarContent({
               </button>
               {opened && (
                 <div className="mx-2 ml-5 pl-3 border-l border-sidebar-border/60 space-y-0.5 mb-1">
-                  {n.items.map((i) => <NavLeaf key={i.to + i.label} item={i} pathname={pathname} onNavigate={onNavigate} compact />)}
+                  {n.items.map((i) => isSubGroup(i)
+                    ? <NavSubGroupBlock key={i.id} group={i} pathname={pathname} onNavigate={onNavigate} />
+                    : <NavLeaf key={i.to + i.label} item={i} pathname={pathname} onNavigate={onNavigate} compact />)}
                 </div>
               )}
             </div>
