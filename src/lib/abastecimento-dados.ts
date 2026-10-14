@@ -115,7 +115,7 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
     for (const [k, m] of chaves) {
       if (!aprovado && !porSortimento && !Object.values(m.porMes).some((v) => v > 0)) continue;       // só o que o consenso estima para vendas
       const sku = k.slice(l.codigo.length + 1);
-      const grupo = grupoDe.get(sku);
+      const grupo = grupoDe.get(sku) ?? "";
       if (!grupo && !aprovado) { ex.semGrupo++; continue; }
       if (!aprovado && grupo !== GRUPO_ACABADO && !(porSortimento && grupo === GRUPO_REVENDA)) { ex.naoAcabado++; continue; }      // embalagem, em processo, local, revenda (fora do sortimento)...
       const familia = famDe.get(sku) ?? "";
