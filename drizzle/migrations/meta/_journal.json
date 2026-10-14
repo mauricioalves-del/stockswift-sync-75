@@ -64,6 +64,13 @@
       "when": 1792011336942,
       "tag": "0008_leitura_aprovados_ops_dispersao_op_abc",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792012374958,
+      "tag": "0009_leitura_aprovados_causa_raiz_fechamentos_missoes",
+      "breakpoints": true
     }
   ]
 }

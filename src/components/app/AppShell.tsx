@@ -10,9 +10,7 @@ import {
   PackageCheck, Hourglass, Gem, SearchCheck, Store, FileSpreadsheet,
  TrendingDown,
  ReceiptText,
- Gauge,
  SlidersHorizontal,
- Activity,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -76,13 +74,11 @@ const NAV: (NavItem | NavGroup)[] = [
   {
     id: "abastecimento", label: "Abastecimento", icon: Store, role: "gestor",
     items: [
-      { to: "/abastecimento/reposicao", label: "Reposição de Lojas", icon: Store, role: "gestor" },
       { to: "/abastecimento/dashboard", label: "Dashboard de Disponibilidade", icon: LayoutDashboard, role: "gestor" },
-      { to: "/abastecimento/disponibilidade", label: "Disponibilidade e rupturas", icon: Activity, role: "gestor" },
-      { to: "/abastecimento/pedidos", label: "Pedidos", icon: ClipboardList, role: "gestor" },
-      { to: "/abastecimento/indicadores", label: "Indicadores", icon: Gauge, role: "gestor" },
-      { to: "/abastecimento/validacao", label: "Validação do Gestor", icon: Tags, role: "gestor" },
       { to: "/abastecimento/projecao-cd", label: "Projeção do CD e Plano", icon: TrendingDown, role: "gestor" },
+      { to: "/abastecimento/reposicao", label: "Reposição de Lojas", icon: Store, role: "gestor" },
+      { to: "/abastecimento/pedidos", label: "Pedidos", icon: ClipboardList, role: "gestor" },
+      { to: "/abastecimento/validacao", label: "Validação do Gestor", icon: Tags, role: "gestor" },
       {
         id: "abastecimento-parametros", label: "Parâmetros",
         items: [
