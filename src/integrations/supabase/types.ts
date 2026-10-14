@@ -106,6 +106,75 @@ export type Database = {
           },
         ]
       }
+      abast_disponibilidade_diaria: {
+        Row: {
+          a_caminho: number | null
+          abaixo_exposicao: boolean
+          categoria: string | null
+          causa: string | null
+          classe: string | null
+          data: string
+          demanda_dia: number | null
+          descricao: string | null
+          em_ruptura: boolean
+          estoque: number
+          exposicao: number | null
+          familia: string | null
+          id_produto: string
+          loja: string
+          preco: number | null
+          registrado_em: string
+          saldo_cd: number | null
+          venda_perdida_rs: number | null
+          venda_perdida_un: number | null
+          vendas_dia: number | null
+        }
+        Insert: {
+          a_caminho?: number | null
+          abaixo_exposicao: boolean
+          categoria?: string | null
+          causa?: string | null
+          classe?: string | null
+          data: string
+          demanda_dia?: number | null
+          descricao?: string | null
+          em_ruptura: boolean
+          estoque: number
+          exposicao?: number | null
+          familia?: string | null
+          id_produto: string
+          loja: string
+          preco?: number | null
+          registrado_em?: string
+          saldo_cd?: number | null
+          venda_perdida_rs?: number | null
+          venda_perdida_un?: number | null
+          vendas_dia?: number | null
+        }
+        Update: {
+          a_caminho?: number | null
+          abaixo_exposicao?: boolean
+          categoria?: string | null
+          causa?: string | null
+          classe?: string | null
+          data?: string
+          demanda_dia?: number | null
+          descricao?: string | null
+          em_ruptura?: boolean
+          estoque?: number
+          exposicao?: number | null
+          familia?: string | null
+          id_produto?: string
+          loja?: string
+          preco?: number | null
+          registrado_em?: string
+          saldo_cd?: number | null
+          venda_perdida_rs?: number | null
+          venda_perdida_un?: number | null
+          vendas_dia?: number | null
+        }
+        Relationships: []
+      }
       abast_lojas: {
         Row: {
           almoxarifado: string
@@ -142,6 +211,36 @@ export type Database = {
         }
         Relationships: []
       }
+      abast_param_cobertura: {
+        Row: {
+          atualizado_em: string
+          dias_ideal: number | null
+          dias_max: number | null
+          dias_min: number | null
+          dias_seguranca: number | null
+          escopo: string
+          valor: string
+        }
+        Insert: {
+          atualizado_em?: string
+          dias_ideal?: number | null
+          dias_max?: number | null
+          dias_min?: number | null
+          dias_seguranca?: number | null
+          escopo: string
+          valor: string
+        }
+        Update: {
+          atualizado_em?: string
+          dias_ideal?: number | null
+          dias_max?: number | null
+          dias_min?: number | null
+          dias_seguranca?: number | null
+          escopo?: string
+          valor?: string
+        }
+        Relationships: []
+      }
       abast_pedido_itens: {
         Row: {
           caixa: number | null
@@ -151,6 +250,7 @@ export type Database = {
           origem: string
           pedido_id: string
           qtd_pedida: number
+          qtd_separada: number | null
           qtd_sugerida: number | null
         }
         Insert: {
@@ -161,6 +261,7 @@ export type Database = {
           origem?: string
           pedido_id: string
           qtd_pedida: number
+          qtd_separada?: number | null
           qtd_sugerida?: number | null
         }
         Update: {
@@ -171,6 +272,7 @@ export type Database = {
           origem?: string
           pedido_id?: string
           qtd_pedida?: number
+          qtd_separada?: number | null
           qtd_sugerida?: number | null
         }
         Relationships: [
@@ -194,6 +296,8 @@ export type Database = {
           loja: string
           numero: number
           observacao: string | null
+          requisicao_id: string | null
+          requisicao_numero: string | null
           status: string
         }
         Insert: {
@@ -206,6 +310,8 @@ export type Database = {
           loja: string
           numero?: never
           observacao?: string | null
+          requisicao_id?: string | null
+          requisicao_numero?: string | null
           status?: string
         }
         Update: {
@@ -218,6 +324,8 @@ export type Database = {
           loja?: string
           numero?: never
           observacao?: string | null
+          requisicao_id?: string | null
+          requisicao_numero?: string | null
           status?: string
         }
         Relationships: [
@@ -227,6 +335,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "abast_lojas"
             referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "abast_pedidos_requisicao_id_fkey"
+            columns: ["requisicao_id"]
+            isOneToOne: false
+            referencedRelation: "requisicoes"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -4254,6 +4369,10 @@ export type Database = {
         }
         Returns: Json
       }
+      abast__registrar_disponibilidade: {
+        Args: { p_data: string }
+        Returns: Json
+      }
       abast_aplicar_carga: {
         Args: { p_arquivo: string; p_payload: Json }
         Returns: Json
@@ -4272,6 +4391,10 @@ export type Database = {
       }
       abast_criar_pedido: {
         Args: { p_base: string; p_itens: Json; p_loja: string; p_obs: string }
+        Returns: Json
+      }
+      abast_registrar_disponibilidade: {
+        Args: { p_data?: string }
         Returns: Json
       }
       almoxarifados_permitidos: { Args: { _uid: string }; Returns: string[] }

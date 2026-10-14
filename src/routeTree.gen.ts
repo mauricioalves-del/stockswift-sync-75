@@ -34,8 +34,11 @@ import { Route as AuthenticatedScannerRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedAbastecimentoCaixariaRouteImport } from './routes/_authenticated/abastecimento.caixaria'
 import { Route as AuthenticatedAbastecimentoCargaRouteImport } from './routes/_authenticated/abastecimento.carga'
+import { Route as AuthenticatedAbastecimentoCoberturaRouteImport } from './routes/_authenticated/abastecimento.cobertura'
 import { Route as AuthenticatedAbastecimentoConsumoRouteImport } from './routes/_authenticated/abastecimento.consumo'
+import { Route as AuthenticatedAbastecimentoDashboardRouteImport } from './routes/_authenticated/abastecimento.dashboard'
 import { Route as AuthenticatedAbastecimentoDemandasRouteImport } from './routes/_authenticated/abastecimento.demandas'
+import { Route as AuthenticatedAbastecimentoDisponibilidadeRouteImport } from './routes/_authenticated/abastecimento.disponibilidade'
 import { Route as AuthenticatedAbastecimentoFaturamentoRouteImport } from './routes/_authenticated/abastecimento.faturamento'
 import { Route as AuthenticatedAbastecimentoIndicadoresRouteImport } from './routes/_authenticated/abastecimento.indicadores'
 import { Route as AuthenticatedAbastecimentoParametrosRouteImport } from './routes/_authenticated/abastecimento.parametros'
@@ -227,16 +230,34 @@ const AuthenticatedAbastecimentoCargaRoute =
     path: '/abastecimento/carga',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAbastecimentoCoberturaRoute =
+  AuthenticatedAbastecimentoCoberturaRouteImport.update({
+    id: '/abastecimento/cobertura',
+    path: '/abastecimento/cobertura',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAbastecimentoConsumoRoute =
   AuthenticatedAbastecimentoConsumoRouteImport.update({
     id: '/abastecimento/consumo',
     path: '/abastecimento/consumo',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAbastecimentoDashboardRoute =
+  AuthenticatedAbastecimentoDashboardRouteImport.update({
+    id: '/abastecimento/dashboard',
+    path: '/abastecimento/dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAbastecimentoDemandasRoute =
   AuthenticatedAbastecimentoDemandasRouteImport.update({
     id: '/abastecimento/demandas',
     path: '/abastecimento/demandas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAbastecimentoDisponibilidadeRoute =
+  AuthenticatedAbastecimentoDisponibilidadeRouteImport.update({
+    id: '/abastecimento/disponibilidade',
+    path: '/abastecimento/disponibilidade',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAbastecimentoFaturamentoRoute =
@@ -612,8 +633,11 @@ export interface FileRoutesByFullPath {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/abastecimento/caixaria': typeof AuthenticatedAbastecimentoCaixariaRoute
   '/abastecimento/carga': typeof AuthenticatedAbastecimentoCargaRoute
+  '/abastecimento/cobertura': typeof AuthenticatedAbastecimentoCoberturaRoute
   '/abastecimento/consumo': typeof AuthenticatedAbastecimentoConsumoRoute
+  '/abastecimento/dashboard': typeof AuthenticatedAbastecimentoDashboardRoute
   '/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
+  '/abastecimento/disponibilidade': typeof AuthenticatedAbastecimentoDisponibilidadeRoute
   '/abastecimento/faturamento': typeof AuthenticatedAbastecimentoFaturamentoRoute
   '/abastecimento/indicadores': typeof AuthenticatedAbastecimentoIndicadoresRoute
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
@@ -698,8 +722,11 @@ export interface FileRoutesByTo {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/abastecimento/caixaria': typeof AuthenticatedAbastecimentoCaixariaRoute
   '/abastecimento/carga': typeof AuthenticatedAbastecimentoCargaRoute
+  '/abastecimento/cobertura': typeof AuthenticatedAbastecimentoCoberturaRoute
   '/abastecimento/consumo': typeof AuthenticatedAbastecimentoConsumoRoute
+  '/abastecimento/dashboard': typeof AuthenticatedAbastecimentoDashboardRoute
   '/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
+  '/abastecimento/disponibilidade': typeof AuthenticatedAbastecimentoDisponibilidadeRoute
   '/abastecimento/faturamento': typeof AuthenticatedAbastecimentoFaturamentoRoute
   '/abastecimento/indicadores': typeof AuthenticatedAbastecimentoIndicadoresRoute
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
@@ -786,8 +813,11 @@ export interface FileRoutesById {
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/abastecimento/caixaria': typeof AuthenticatedAbastecimentoCaixariaRoute
   '/_authenticated/abastecimento/carga': typeof AuthenticatedAbastecimentoCargaRoute
+  '/_authenticated/abastecimento/cobertura': typeof AuthenticatedAbastecimentoCoberturaRoute
   '/_authenticated/abastecimento/consumo': typeof AuthenticatedAbastecimentoConsumoRoute
+  '/_authenticated/abastecimento/dashboard': typeof AuthenticatedAbastecimentoDashboardRoute
   '/_authenticated/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
+  '/_authenticated/abastecimento/disponibilidade': typeof AuthenticatedAbastecimentoDisponibilidadeRoute
   '/_authenticated/abastecimento/faturamento': typeof AuthenticatedAbastecimentoFaturamentoRoute
   '/_authenticated/abastecimento/indicadores': typeof AuthenticatedAbastecimentoIndicadoresRoute
   '/_authenticated/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
@@ -874,8 +904,11 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/abastecimento/caixaria'
     | '/abastecimento/carga'
+    | '/abastecimento/cobertura'
     | '/abastecimento/consumo'
+    | '/abastecimento/dashboard'
     | '/abastecimento/demandas'
+    | '/abastecimento/disponibilidade'
     | '/abastecimento/faturamento'
     | '/abastecimento/indicadores'
     | '/abastecimento/parametros'
@@ -960,8 +993,11 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/abastecimento/caixaria'
     | '/abastecimento/carga'
+    | '/abastecimento/cobertura'
     | '/abastecimento/consumo'
+    | '/abastecimento/dashboard'
     | '/abastecimento/demandas'
+    | '/abastecimento/disponibilidade'
     | '/abastecimento/faturamento'
     | '/abastecimento/indicadores'
     | '/abastecimento/parametros'
@@ -1047,8 +1083,11 @@ export interface FileRouteTypes {
     | '/_authenticated/usuarios'
     | '/_authenticated/abastecimento/caixaria'
     | '/_authenticated/abastecimento/carga'
+    | '/_authenticated/abastecimento/cobertura'
     | '/_authenticated/abastecimento/consumo'
+    | '/_authenticated/abastecimento/dashboard'
     | '/_authenticated/abastecimento/demandas'
+    | '/_authenticated/abastecimento/disponibilidade'
     | '/_authenticated/abastecimento/faturamento'
     | '/_authenticated/abastecimento/indicadores'
     | '/_authenticated/abastecimento/parametros'
@@ -1302,6 +1341,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAbastecimentoCargaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/abastecimento/cobertura': {
+      id: '/_authenticated/abastecimento/cobertura'
+      path: '/abastecimento/cobertura'
+      fullPath: '/abastecimento/cobertura'
+      preLoaderRoute: typeof AuthenticatedAbastecimentoCoberturaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/abastecimento/consumo': {
       id: '/_authenticated/abastecimento/consumo'
       path: '/abastecimento/consumo'
@@ -1309,11 +1355,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAbastecimentoConsumoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/abastecimento/dashboard': {
+      id: '/_authenticated/abastecimento/dashboard'
+      path: '/abastecimento/dashboard'
+      fullPath: '/abastecimento/dashboard'
+      preLoaderRoute: typeof AuthenticatedAbastecimentoDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/abastecimento/demandas': {
       id: '/_authenticated/abastecimento/demandas'
       path: '/abastecimento/demandas'
       fullPath: '/abastecimento/demandas'
       preLoaderRoute: typeof AuthenticatedAbastecimentoDemandasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/abastecimento/disponibilidade': {
+      id: '/_authenticated/abastecimento/disponibilidade'
+      path: '/abastecimento/disponibilidade'
+      fullPath: '/abastecimento/disponibilidade'
+      preLoaderRoute: typeof AuthenticatedAbastecimentoDisponibilidadeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/abastecimento/faturamento': {
@@ -1762,8 +1822,11 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
   AuthenticatedAbastecimentoCaixariaRoute: typeof AuthenticatedAbastecimentoCaixariaRoute
   AuthenticatedAbastecimentoCargaRoute: typeof AuthenticatedAbastecimentoCargaRoute
+  AuthenticatedAbastecimentoCoberturaRoute: typeof AuthenticatedAbastecimentoCoberturaRoute
   AuthenticatedAbastecimentoConsumoRoute: typeof AuthenticatedAbastecimentoConsumoRoute
+  AuthenticatedAbastecimentoDashboardRoute: typeof AuthenticatedAbastecimentoDashboardRoute
   AuthenticatedAbastecimentoDemandasRoute: typeof AuthenticatedAbastecimentoDemandasRoute
+  AuthenticatedAbastecimentoDisponibilidadeRoute: typeof AuthenticatedAbastecimentoDisponibilidadeRoute
   AuthenticatedAbastecimentoFaturamentoRoute: typeof AuthenticatedAbastecimentoFaturamentoRoute
   AuthenticatedAbastecimentoIndicadoresRoute: typeof AuthenticatedAbastecimentoIndicadoresRoute
   AuthenticatedAbastecimentoParametrosRoute: typeof AuthenticatedAbastecimentoParametrosRoute
@@ -1837,10 +1900,16 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAbastecimentoCaixariaRoute:
     AuthenticatedAbastecimentoCaixariaRoute,
   AuthenticatedAbastecimentoCargaRoute: AuthenticatedAbastecimentoCargaRoute,
+  AuthenticatedAbastecimentoCoberturaRoute:
+    AuthenticatedAbastecimentoCoberturaRoute,
   AuthenticatedAbastecimentoConsumoRoute:
     AuthenticatedAbastecimentoConsumoRoute,
+  AuthenticatedAbastecimentoDashboardRoute:
+    AuthenticatedAbastecimentoDashboardRoute,
   AuthenticatedAbastecimentoDemandasRoute:
     AuthenticatedAbastecimentoDemandasRoute,
+  AuthenticatedAbastecimentoDisponibilidadeRoute:
+    AuthenticatedAbastecimentoDisponibilidadeRoute,
   AuthenticatedAbastecimentoFaturamentoRoute:
     AuthenticatedAbastecimentoFaturamentoRoute,
   AuthenticatedAbastecimentoIndicadoresRoute:
