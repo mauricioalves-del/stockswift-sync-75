@@ -5,7 +5,7 @@ import { CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
-import { montarDash, type Cluster } from "@/lib/abastecimento-dash";
+import { montarDash, transitoPorLocal, type Cluster } from "@/lib/abastecimento-dash";
 import type { HistLinha } from "@/lib/abastecimento-dash-hist";
 import { Kpis, ResumoLocais } from "@/components/abast-dash/Resumo";
 import { Evolucao, Rankings } from "@/components/abast-dash/Evolucao";
@@ -45,6 +45,7 @@ function DashboardPage() {
   const catOk = (c: string | null) => filtro.categoria === "AMBAS" || c === filtro.categoria;
   const linhas = useMemo(() => todas.filter((l) => catOk(l.categoria)), [todas, filtro.categoria]);
   const hist = useMemo(() => (histQ.data ?? []).filter((h) => catOk(h.categoria)), [histQ.data, filtro.categoria]);
+  const transito = useMemo(() => (bruto.data ? transitoPorLocal(bruto.data, hoje, filtro.categoria === "AMBAS" ? null : filtro.categoria) : {}), [bruto.data, hoje, filtro.categoria]);
   const irFarol = (c: Cluster | "SEMACAO") => { setChipG(c); document.getElementById("bloco-g")?.scrollIntoView({ behavior: "smooth", block: "start" }); };
   const atualizado = bruto.dataUpdatedAt ? new Date(bruto.dataUpdatedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—";
 
@@ -72,7 +73,7 @@ function DashboardPage() {
 
       {bruto.isLoading ? <p className="py-10 text-center text-muted-foreground">Carregando a posição de estoque…</p> : bruto.error ? <p className="py-10 text-center text-red-600">Não consegui ler os dados de abastecimento.</p> : (<>
         <Secao letra="B" titulo="Indicadores do período"><Kpis hoje={hoje} filtro={filtro} linhas={linhas} hist={hist} /></Secao>
-        <ResumoLocais hoje={hoje} filtro={filtro} setFiltro={setFiltro} linhas={linhas} hist={hist} />
+        <ResumoLocais hoje={hoje} filtro={filtro} setFiltro={setFiltro} linhas={linhas} hist={hist} transito={transito} />
         <Evolucao hoje={hoje} filtro={filtro} setFiltro={setFiltro} hist={hist} />
         <Rankings filtro={filtro} linhas={linhas} irFarol={irFarol} />
         <Detalhe filtro={filtro} linhas={linhas} />
