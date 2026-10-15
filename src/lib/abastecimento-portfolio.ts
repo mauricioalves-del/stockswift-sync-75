@@ -21,8 +21,12 @@ export function elegivelPortfolio(classe: ClassePortfolio, inicio: string | null
   return data >= fim;
 }
 export function ultimasClassificacoes(rows: ClassificacaoPortfolio[]): Map<string, ClassificacaoPortfolio> {
-  const m = new Map<string, ClassificacaoPortfolio>();
-  for (const r of [...rows].sort((a,b) => b.vigencia.localeCompare(a.vigencia) || b.registrado_em.localeCompare(a.registrado_em))) if (!m.has(r.sku)) m.set(r.sku,r);
+  const m = new Map<string, ClassificacaoPortfolio>(); const removidos = new Set<string>();
+  for (const r of [...rows].sort((a,b) => b.vigencia.localeCompare(a.vigencia) || b.registrado_em.localeCompare(a.registrado_em))) {
+    if (m.has(r.sku) || removidos.has(r.sku)) continue;
+    if ((r.classe as string) === "REMOVIDO") { removidos.add(r.sku); continue; } // remoção manual tira o SKU da lista vigente, mantendo o histórico
+    m.set(r.sku,r);
+  }
   return m;
 }
 const dataValida = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d)) && new Date(d).toISOString().slice(0,10) === d;
