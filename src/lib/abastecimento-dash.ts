@@ -88,7 +88,7 @@ function situacao(estoque: number, vbm: number, entradas: Entrada[], hoje: strin
 }
 
 export function montarDash(b: Bruto, hoje: string): DashLinha[] {
-  const m = montarItens(b, { base: "real", denominador: "calendario", hojeIso: hoje, universo: "sortimento" });
+  const m = montarItens(b, { base: "ajustada", denominador: "calendario", hojeIso: hoje, universo: "sortimento" });
   const entradasDe = construirEntradas(b, hoje); const linhas: DashLinha[] = [];
   for (const l of b.lojas) for (const it of m.itens[l.codigo] ?? []) {
     const est = Math.max(0, it.estoque ?? 0), vbm = it.demandaDia ?? 0, expo = it.exposicao ?? 0, ent = entradasDe.get(`${l.codigo}|${nk(it.sku)}`) ?? [];
