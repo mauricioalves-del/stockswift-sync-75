@@ -7,7 +7,7 @@ export type EntradaMotor = {
   notasCD: { data: string; qtd: number }[];                       // notas pendentes destinadas ao CD (chegada prevista)
   estoqueLojas: number; emTransitoLojas: number;
   demandaMeta: number[];                                          // consenso das lojas, por dia, a partir de `inicio`
-  realDia: number | null; sigmaDia: number | null;                // venda real das lojas (un/dia) e desvio padrão diário
+  realizacao: number | null; sigmaDia: number | null;             // venda real ÷ malha do consenso no mesmo período (1 = em linha com a meta) · desvio padrão diário da venda
   baixasPendentes: number; taxaBaixaDia: number;                  // fila de aprovação no CD · baixas aprovadas por dia (histórico)
   custo?: number;
 };
@@ -18,7 +18,7 @@ export type ParamsMotor = {
 };
 export const PARAMS_PADRAO: ParamsMotor = {
   leadTimeDias: 7, diasQualidade: 2, diasProcesso: 3, atrasoEstresseDias: 2, shelfMinimoDespacho: 30, shelfPadraoDias: 180,
-  nivelServicoZ: 1.65, pesoMeta: 0.5, cicloProducaoDias: 7, coberturaMaximaDias: 60, probAprovBaixa: 0.9, fatorEstresse: 1.65, segurancaExtraDias: 0,
+  nivelServicoZ: 1.65, pesoMeta: 0, cicloProducaoDias: 7, coberturaMaximaDias: 60, probAprovBaixa: 0.9, fatorEstresse: 1.65, segurancaExtraDias: 0,
 };
 export type Zona = "vermelho" | "amarelo" | "verde" | "excesso";
 export type Severidade = "critica" | "alta" | "media" | "baixa" | "ok";
@@ -76,10 +76,9 @@ function simular(e: EntradaMotor, p: ParamsMotor, cen: Cen, ordens: { chegada: n
 export function planejarSku(e: EntradaMotor, inicio: string, pp: Partial<ParamsMotor> = {}): ResultadoMotor | null {
   const p = { ...PARAMS_PADRAO, ...pp }; const N = e.demandaMeta.length; if (N < 1 || soma(e.demandaMeta) <= 0) return null;
   const caixa = Math.max(1, e.caixa || 1); const dlt = p.leadTimeDias + p.diasQualidade;
-  // 1) demanda: consenso corrigido pelo viés observado (venda real ÷ meta)
-  const janela = Math.min(N, 28); const metaMedia = soma(e.demandaMeta.slice(0, janela)) / janela;
-  const rho = e.realDia !== null && metaMedia > 0 ? e.realDia / metaMedia : 1;
-  const fator = e.realDia !== null && metaMedia > 0 ? clamp(p.pesoMeta + (1 - p.pesoMeta) * rho, 0.6, 1.4) : 1;
+  // 1) demanda: malha linear do consenso (meta ÷ dias do mês, já com a sazonalidade da meta) × realização (venda real ÷ malha no mesmo período). Sem índice sazonal.
+  const janela = Math.min(N, 28);
+  const fator = e.realizacao === null ? 1 : clamp(p.pesoMeta + (1 - p.pesoMeta) * e.realizacao, 0.25, 2);
   const dem = e.demandaMeta.map((v) => v * fator); const adu = soma(dem.slice(0, janela)) / janela;
   const sigma = Math.max(e.sigmaDia ?? 0.5 * adu, 0.25 * adu);      // piso: CV mínimo de 25% (σ=0 costuma ser venda censurada por falta de estoque)
   const esp: Cen = { demanda: dem, baixas: e.baixasPendentes * p.probAprovBaixa, atraso: 0, taxaBaixa: e.taxaBaixaDia };
