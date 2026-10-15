@@ -44,6 +44,8 @@ function ValidacaoPage() {
   const [competencia, setCompetencia] = useState(hoje.slice(0, 7));
   const [loja, setLoja] = useState(data.lojas[0]?.codigo ?? "");
   const [busca, setBusca] = useState(""); const [obs, setObs] = useState(""); const [salvando, setSalvando] = useState(false);
+  const [filtroCard, setFiltroCard] = useState<string | null>(null);
+  const [filtroCardCD, setFiltroCardCD] = useState<string | null>(null);
   const ehCD = loja === LOJA_CD;
   const gestor = ehCD ? papeis.diretor_operacional : papeis.gerente_comercial;   // quem assina nesta tela
   const nomeLoja = (c: string) => (c === LOJA_CD ? NOME_CD : data.lojas.find((l) => l.codigo === c)?.nome ?? c);
@@ -60,7 +62,12 @@ function ValidacaoPage() {
   const sit0 = situacaoCompetencia(data.vals, loja, competencia);
   useEffect(() => { const v = sit0.validacao; setSel(new Set(v ? v.itens.filter((i) => i.ativo).map((i) => chaveSkuPortfolio(i.sku)).filter((k) => itens.some((x) => x.sku === k)) : itens.map((i) => i.sku))); }, [itens, sit0.validacao?.id]);
   const sit = situacaoCompetencia(data.vals, loja, competencia);
-  const lista = itens.filter((i) => `${i.sku} ${i.descricao}`.toLowerCase().includes(busca.toLowerCase()));
+  const lista = itens.filter((i) => `${i.sku} ${i.descricao}`.toLowerCase().includes(busca.toLowerCase())).filter((i) => {
+    if (!filtroCard || filtroCard === "Total") return true;
+    if (filtroCard === "Ativos") return sel.has(i.sku);
+    if (filtroCard === "Elegíveis OOS") return sel.has(i.sku) && i.elegivelClasse;
+    return i.classe === filtroCard;
+  });
   const ativos = itens.filter((i) => sel.has(i.sku));
   const cont = (k: string) => ativos.filter((i) => i.classe === k).length;
   const elegiveis = ativos.filter((i) => i.elegivelClasse).length;
@@ -68,7 +75,7 @@ function ValidacaoPage() {
   const codigosLojas = useMemo(() => data.lojas.map((l) => l.codigo), [data.lojas]);
   const itensCD = useMemo(() => uniaoCD(data.vals, codigosLojas), [data.vals, codigosLojas]);
   const sitCD = situacaoCD(data.vals, codigosLojas, competencia);
-  const listaCD = itensCD.filter((i) => `${i.sku} ${i.descricao}`.toLowerCase().includes(busca.toLowerCase()));
+  const listaCD = itensCD.filter((i) => `${i.sku} ${i.descricao}`.toLowerCase().includes(busca.toLowerCase())).filter((i) => !filtroCardCD || i.classe === filtroCardCD);
   const contCD = (k: string) => itensCD.filter((i) => i.classe === k).length;
   const uploads = useMemo(() => { const m = new Map<string, ClassificacaoPortfolio & { n: number }>(); for (const c of data.classes) { const o = m.get((c as any).importacao_id); if (o) o.n++; else m.set((c as any).importacao_id, { ...c, n: 1 }); } return [...m.values()].slice(0, 3); }, [data.classes]);
 
@@ -135,7 +142,9 @@ function ValidacaoPage() {
 
     {!ehCD ? <>
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
-      {[["Total", itens.length], ["Ativos", ativos.length], ["Elegíveis OOS", elegiveis], ...Object.entries(CLASSES_PORTFOLIO).map(([k, n]) => [n, cont(k)])].map(([k, n]) => <div key={k as string} className="rounded-lg border p-3"><div className="text-xs text-muted-foreground">{k}</div><div className="text-2xl font-bold">{n}</div></div>)}
+      {[{ id: "Total", rotulo: "Total", n: itens.length }, { id: "Ativos", rotulo: "Ativos", n: ativos.length }, { id: "Elegíveis OOS", rotulo: "Elegíveis OOS", n: elegiveis }, ...Object.entries(CLASSES_PORTFOLIO).map(([k, rotulo]) => ({ id: k, rotulo: String(rotulo), n: cont(k) }))].map((c) => (
+        <CardFiltro key={c.id} rotulo={c.rotulo} valor={c.n} ativo={filtroCard === c.id} onClick={() => setFiltroCard((f) => (f === c.id ? null : c.id))} />
+      ))}
     </div>
 
     <section className="space-y-3">
@@ -157,7 +166,9 @@ function ValidacaoPage() {
     </section>
     </> : <section className="space-y-3">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        {[["Itens a manter em estoque", itensCD.length], ...Object.entries(CLASSES_PORTFOLIO).map(([k, n]) => [n, contCD(k)]), ["Lojas com portfólio validado", new Set(data.vals.filter((v) => v.status === "VALIDADA" && codigosLojas.includes(v.loja)).map((v) => v.loja)).size + " de " + codigosLojas.length]].map(([k, n]) => <div key={k as string} className="rounded-lg border p-3"><div className="text-xs text-muted-foreground">{k}</div><div className="text-2xl font-bold">{n}</div></div>)}
+        {[{ id: "TOTAL", rotulo: "Itens a manter em estoque", n: itensCD.length }, ...Object.entries(CLASSES_PORTFOLIO).map(([k, rotulo]) => ({ id: k, rotulo: String(rotulo), n: contCD(k) })), { id: "LOJAS", rotulo: "Lojas com portfólio validado", n: new Set(data.vals.filter((v) => v.status === "VALIDADA" && codigosLojas.includes(v.loja)).map((v) => v.loja)).size + " de " + codigosLojas.length }].map((c) => (
+          <CardFiltro key={c.id} rotulo={c.rotulo} valor={c.n} ativo={filtroCardCD === c.id} onClick={() => setFiltroCardCD((f) => (f === c.id || c.id === "TOTAL" || c.id === "LOJAS" ? null : c.id))} />
+        ))}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-semibold">Itens aprovados pelo Gerente Comercial · o {NOME_CD} deve manter estoque</h2>
