@@ -99,6 +99,13 @@
       "when": 1792089964312,
       "tag": "0013_leitura_aprovados_lotes_missao_recontagem",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792094338459,
+      "tag": "0014_categorias_produto",
+      "breakpoints": true
     }
   ]
 }

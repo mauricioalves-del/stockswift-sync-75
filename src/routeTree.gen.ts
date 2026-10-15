@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedAbcRouteImport } from './routes/_authenticated/abc'
+import { Route as AuthenticatedCategoriasRouteImport } from './routes/_authenticated/categorias'
 import { Route as AuthenticatedContarRouteImport } from './routes/_authenticated/contar'
 import { Route as AuthenticatedContextosBaixaRouteImport } from './routes/_authenticated/contextos-baixa'
 import { Route as AuthenticatedCustoContabilRouteImport } from './routes/_authenticated/custo-contabil'
@@ -122,6 +123,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const AuthenticatedAbcRoute = AuthenticatedAbcRouteImport.update({
   id: '/abc',
   path: '/abc',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCategoriasRoute = AuthenticatedCategoriasRouteImport.update({
+  id: '/categorias',
+  path: '/categorias',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedContarRoute = AuthenticatedContarRouteImport.update({
@@ -627,6 +633,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/abc': typeof AuthenticatedAbcRoute
+  '/categorias': typeof AuthenticatedCategoriasRoute
   '/contar': typeof AuthenticatedContarRoute
   '/contextos-baixa': typeof AuthenticatedContextosBaixaRoute
   '/custo-contabil': typeof AuthenticatedCustoContabilRoute
@@ -718,6 +725,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/abc': typeof AuthenticatedAbcRoute
+  '/categorias': typeof AuthenticatedCategoriasRoute
   '/contar': typeof AuthenticatedContarRoute
   '/contextos-baixa': typeof AuthenticatedContextosBaixaRoute
   '/custo-contabil': typeof AuthenticatedCustoContabilRoute
@@ -811,6 +819,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/abc': typeof AuthenticatedAbcRoute
+  '/_authenticated/categorias': typeof AuthenticatedCategoriasRoute
   '/_authenticated/contar': typeof AuthenticatedContarRoute
   '/_authenticated/contextos-baixa': typeof AuthenticatedContextosBaixaRoute
   '/_authenticated/custo-contabil': typeof AuthenticatedCustoContabilRoute
@@ -904,6 +913,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/abc'
+    | '/categorias'
     | '/contar'
     | '/contextos-baixa'
     | '/custo-contabil'
@@ -995,6 +1005,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/abc'
+    | '/categorias'
     | '/contar'
     | '/contextos-baixa'
     | '/custo-contabil'
@@ -1087,6 +1098,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/abc'
+    | '/_authenticated/categorias'
     | '/_authenticated/contar'
     | '/_authenticated/contextos-baixa'
     | '/_authenticated/custo-contabil'
@@ -1225,6 +1237,13 @@ declare module '@tanstack/react-router' {
       path: '/abc'
       fullPath: '/abc'
       preLoaderRoute: typeof AuthenticatedAbcRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/categorias': {
+      id: '/_authenticated/categorias'
+      path: '/categorias'
+      fullPath: '/categorias'
+      preLoaderRoute: typeof AuthenticatedCategoriasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/contar': {
@@ -1842,6 +1861,7 @@ const AuthenticatedSuprimentosRequisicoesIdRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbcRoute: typeof AuthenticatedAbcRoute
+  AuthenticatedCategoriasRoute: typeof AuthenticatedCategoriasRoute
   AuthenticatedContarRoute: typeof AuthenticatedContarRoute
   AuthenticatedContextosBaixaRoute: typeof AuthenticatedContextosBaixaRoute
   AuthenticatedCustoContabilRoute: typeof AuthenticatedCustoContabilRoute
@@ -1921,6 +1941,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAbcRoute: AuthenticatedAbcRoute,
+  AuthenticatedCategoriasRoute: AuthenticatedCategoriasRoute,
   AuthenticatedContarRoute: AuthenticatedContarRoute,
   AuthenticatedContextosBaixaRoute: AuthenticatedContextosBaixaRoute,
   AuthenticatedCustoContabilRoute: AuthenticatedCustoContabilRoute,
