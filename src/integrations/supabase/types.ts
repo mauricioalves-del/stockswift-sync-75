@@ -158,6 +158,7 @@ export type Database = {
           data: string
           demanda_dia: number | null
           descricao: string | null
+          elegivel: boolean
           em_ruptura: boolean
           estoque: number
           exposicao: number | null
@@ -180,6 +181,7 @@ export type Database = {
           data: string
           demanda_dia?: number | null
           descricao?: string | null
+          elegivel?: boolean
           em_ruptura: boolean
           estoque: number
           exposicao?: number | null
@@ -202,6 +204,7 @@ export type Database = {
           data?: string
           demanda_dia?: number | null
           descricao?: string | null
+          elegivel?: boolean
           em_ruptura?: boolean
           estoque?: number
           exposicao?: number | null
