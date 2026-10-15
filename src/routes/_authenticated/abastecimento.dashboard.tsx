@@ -9,7 +9,7 @@ import { useRole } from "@/hooks/useRole";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { montarDash, transitoPorLocal, type Cluster } from "@/lib/abastecimento-dash";
 import type { HistLinha } from "@/lib/abastecimento-dash-hist";
-import { Kpis, ResumoLocais } from "@/components/abast-dash/Resumo";
+import { Kpis, ResumoLocais, ResumoLocaisTabela } from "@/components/abast-dash/Resumo";
 import { Evolucao, Rankings } from "@/components/abast-dash/Evolucao";
 import { Detalhe } from "@/components/abast-dash/Detalhe";
 import { Farol, type ChipG } from "@/components/abast-dash/Farol";
@@ -90,6 +90,7 @@ function DashboardPage() {
         <Secao letra="B" titulo="Indicadores do período"><Kpis hoje={hoje} filtro={filtro} linhas={linhas} hist={hist} /></Secao>
         <ResumoLocais hoje={hoje} filtro={filtro} setFiltro={setFiltro} linhas={linhas} hist={hist} transito={transito} />
         <Evolucao hoje={hoje} filtro={filtro} setFiltro={setFiltro} hist={hist} />
+        <ResumoLocaisTabela hoje={hoje} filtro={filtro} setFiltro={setFiltro} linhas={linhas} hist={hist} transito={transito} />
         <Rankings filtro={filtro} linhas={linhas} irFarol={irFarol} />
         <Detalhe filtro={filtro} linhas={linhas} />
         <div id="bloco-g"><Farol hoje={hoje} filtro={filtro} setFiltro={setFiltro} linhas={linhas} chip={chipG} setChip={setChipG} /></div>
