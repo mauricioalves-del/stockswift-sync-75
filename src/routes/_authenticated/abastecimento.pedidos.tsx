@@ -100,7 +100,7 @@ function PedidosPage() {
             const separando = p.status === "EM_SEPARACAO" || p.status === "SEPARADO";
             return (<Fragment key={p.id}>
               <TableRow className="cursor-pointer" onClick={() => setAberto(aberto === p.id ? null : p.id)}>
-                <TableCell className="font-semibold">{p.numero}</TableCell><TableCell>{p.loja}</TableCell>
+                <TableCell className="font-semibold">{p.numero}</TableCell><TableCell>{p.loja}{p.tipo === "TRANSFERENCIA" && <div className="text-[10px] text-primary">Transferência de {p.loja_origem}</div>}</TableCell>
                 <TableCell><span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${COR[p.status] ?? ""}`}>{(ROTULO[p.status] ?? p.status).toUpperCase()}</span></TableCell>
                 <TableCell><Etapas status={p.status} /></TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>{p.requisicao_id ? <Link to="/suprimentos/requisicoes/$id" params={{ id: p.requisicao_id }} className="text-xs font-mono text-primary hover:underline">{p.requisicao_numero}</Link> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
