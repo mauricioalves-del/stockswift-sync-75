@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/inventory";
 import { useRole } from "@/hooks/useRole";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
+import { CLASSES_PORTFOLIO } from "@/lib/abastecimento-portfolio";
+import { TabelaRolavel } from "@/components/abast-dash/comum";
 import { montarItens, nk, type ItemRep } from "@/lib/abastecimento-dados";
 import { STATUS2, LIMITE_COBERTURA_AVISO, resumirLoja2, type Status2, type Base2 } from "@/lib/abastecimento-motor2";
 import { resolverParam } from "@/lib/abastecimento-cobertura";
@@ -19,7 +21,7 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/abastecimento/reposicao")({
   component: ReposicaoPage,
-  head: () => ({ meta: [{ title: "Reposição de Lojas" }, { name: "description", content: "Reposição do CD para as lojas, com trânsito, pedido manual e limite pelo saldo do CD." }] }),
+  head: () => ({ meta: [{ title: "Reposição de Lojas — Abastecimento" }, { name: "description", content: "Planejamento de reposição por loja com classe do portfólio aprovado, pedidos e saldo do CD." }, { property: "og:title", content: "Reposição de Lojas — Abastecimento" }, { property: "og:description", content: "Planejamento por loja com classes validadas pelo gestor e atendimento pelo CD." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
 
 const COR: Record<Status2, string> = {
@@ -36,8 +38,6 @@ const BASES: { v: Base2; r: string }[] = [{ v: "real", r: "Venda real (CMD × sa
 const COLS: ColDef<ItemRep>[] = [
   { k: "sku", r: "SKU", t: "txt", v: (i) => i.sku },
   { k: "produto", r: "Produto", t: "txt", v: (i) => i.descricao },
-  { k: "grupo", r: "Grupo", t: "cat", v: (i) => i.grupo },
-  { k: "familia", r: "Família", t: "cat", v: (i) => i.familia || "(sem família)" },
   { k: "status", r: "Status", t: "cat", v: (i) => STATUS2[i.status].rotulo },
   { k: "estoque", r: "Estoque", t: "num", al: "right", v: (i) => i.estoque },
   { k: "expo", r: "Expo.", t: "num", al: "right", v: (i) => i.exposicao },
@@ -49,7 +49,6 @@ const COLS: ColDef<ItemRep>[] = [
   { k: "pedido", r: "Pedido", t: "num", al: "right", v: (i) => i.qtdPedido },
   { k: "atende", r: "CD atende", t: "num", al: "right", v: (i) => i.qtdAtendida },
   { k: "saldocd", r: "Saldo CD", t: "num", al: "right", v: (i) => i.saldoCD },
-  { k: "caixa", r: "Caixa", t: "num", al: "right", v: (i) => i.caixa },
   { k: "cobpos", r: "Cob. pós-pedido (dias)", t: "num", al: "right", v: (i) => i.cobPosPedido },
 ];
 
@@ -76,6 +75,9 @@ function ReposicaoPage() {
   const hojeIso = new Date().toLocaleDateString("en-CA");
   const mont = useMemo(() => (bruto.data ? montarItens(bruto.data, { base, denominador: "calendario", hojeIso, manuais }) : null), [bruto.data, base, manuais, hojeIso]);
   const loja = bruto.data?.lojas.find((l) => l.codigo === lojaSel) ?? bruto.data?.lojas[0];
+  const classes = bruto.data?.portfolioClasses?.[loja?.codigo ?? ""];
+  const classeDe = (i: ItemRep) => { const classe = classes?.[nk(i.sku)]; return classe ? CLASSES_PORTFOLIO[classe] : "Sem validação"; };
+  const cols: ColDef<ItemRep>[] = COLS.flatMap((c) => c.k === "produto" ? [c, { k: "classe", r: "Classe", t: "cat", v: classeDe }] : [c]);
   const itens: ItemRep[] = (mont && loja ? mont.itens[loja.codigo] : null) ?? [];
   const resumo = useMemo(() => resumirLoja2(itens), [itens]);
   const familias = useMemo(() => [...new Set(itens.map((i) => i.familia).filter(Boolean))].sort(), [itens]);
@@ -84,10 +86,10 @@ function ReposicaoPage() {
     return itens.filter((i) => (filtro === "TODOS" ? true : filtro === "PEDIDO" ? i.qtdPedido > 0 : filtro === "COBALTA" ? i.avisoCobertura : i.status === filtro) && (!famFiltro || i.familia === famFiltro) && (!q || i.sku.includes(q) || i.descricao.toLowerCase().includes(q)));
   }, [itens, filtro, famFiltro, busca]);
   const linhas = useMemo(() => {
-    const col = ordem ? COLS.find((c) => c.k === ordem.k) : undefined;
-    return baseLinhas.filter((i) => passaFiltros(i, COLS, filtros)).sort((a, b) =>
+    const col = ordem ? cols.find((c) => c.k === ordem.k) : undefined;
+    return baseLinhas.filter((i) => passaFiltros(i, cols, filtros)).sort((a, b) =>
       (col && ordem ? comparar(a, b, col, ordem.dir) : 0) || STATUS2[a.status].ordem - STATUS2[b.status].ordem || b.qtdPedido - a.qtdPedido);
-  }, [baseLinhas, filtros, ordem]);
+  }, [baseLinhas, filtros, ordem, classes]);
   const ref = mont && loja ? mont.refPorLoja[loja.codigo] : null;
   const atraso = ref ? Math.round((Date.now() - new Date(ref + "T12:00:00").getTime()) / 86400000) : null;
   const paraPedido = useMemo(() => itens.filter((i) => i.qtdAtendida > 0 && !fora.has(`${i.loja}|${nk(i.sku)}`)), [itens, fora]);
@@ -99,11 +101,6 @@ function ReposicaoPage() {
     const { error } = await (supabase as any).from("abast_produto_loja").upsert({ loja: i.loja, id_produto: i.sku, exposicao: n, atualizado_em: new Date().toISOString() }, { onConflict: "loja,id_produto" });
     if (error) toast.error("Não consegui salvar a exposição: " + error.message);
     else { toast.success(`Exposição de ${i.sku} salva: ${n} un.`); qc.invalidateQueries({ queryKey: ["abast-v2"] }); }
-  }
-  async function salvarCaixa(i: ItemRep, n: number) {
-    const { error } = await (supabase as any).from("abast_produto").upsert({ id_produto: i.sku, descricao: i.descricao, full_case: n, atualizado_em: new Date().toISOString() }, { onConflict: "id_produto" });
-    if (error) toast.error("Não consegui salvar a caixa: " + error.message);
-    else { toast.success(`Caixa de ${i.sku} salva: ${n} un.`); qc.invalidateQueries({ queryKey: ["abast-v2"] }); }
   }
 
   async function gerarPedido() {
@@ -123,8 +120,8 @@ function ReposicaoPage() {
   function exportar() {
     const f = (n: unknown) => (n == null ? "" : String(n).replace(".", ","));
     const esc = (s: unknown) => `"${String(s ?? "").replace(/"/g, '""')}"`;
-    const cab = ["SKU", "Produto", "Grupo", "Família", "Status", "Estoque", "Exposição", "Em trânsito", "Pedido em aberto", "Demanda/dia", "Meta do mês", "Realizado no mês", "Mínimo", "Ideal", "Máximo", "Caixa", "Sugestão (un)", "Pedido (un)", "CD atende (un)", "Falta no CD", "Saldo CD"];
-    const corpo = linhas.map((i) => [i.sku, i.descricao, i.grupo, i.familia, STATUS2[i.status].rotulo, f(i.estoque), f(i.exposicao), f(i.emTransito), f(i.pedidoAberto), f(i.demandaDia == null ? null : Math.round(i.demandaDia * 100) / 100), f(i.metaMes), f(i.realizadoMes), f(i.minQ), f(i.idealQ), f(i.maxQ), f(i.caixa), f(i.sugestao), f(i.qtdPedido), f(i.qtdAtendida), f(i.faltaCD), f(i.saldoCD)].map(esc).join(";"));
+    const cab = ["SKU", "Produto", "Classe", "Status", "Estoque", "Exposição", "Em trânsito", "Pedido em aberto", "Demanda/dia", "Meta do mês", "Realizado no mês", "Mínimo", "Ideal", "Máximo", "Sugestão (un)", "Pedido (un)", "CD atende (un)", "Falta no CD", "Saldo CD"];
+    const corpo = linhas.map((i) => [i.sku, i.descricao, classeDe(i), STATUS2[i.status].rotulo, f(i.estoque), f(i.exposicao), f(i.emTransito), f(i.pedidoAberto), f(i.demandaDia == null ? null : Math.round(i.demandaDia * 100) / 100), f(i.metaMes), f(i.realizadoMes), f(i.minQ), f(i.idealQ), f(i.maxQ), f(i.sugestao), f(i.qtdPedido), f(i.qtdAtendida), f(i.faltaCD), f(i.saldoCD)].map(esc).join(";"));
     const url = URL.createObjectURL(new Blob(["\uFEFF" + [cab.map(esc).join(";"), ...corpo].join("\r\n")], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = `Reposicao_${loja?.codigo}_${hojeIso}.csv`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
@@ -206,23 +203,23 @@ function ReposicaoPage() {
         {(nFiltros > 0 || ordem) && <button className="rounded-full border px-3 py-1 hover:bg-muted" onClick={() => { setFiltros({}); setOrdem(null); }}>Limpar {nFiltros > 0 ? `filtros (${nFiltros})` : ""}{nFiltros > 0 && ordem ? " e " : ""}{ordem ? "ordem" : ""}</button>}
         <span>Clique no título para ordenar (números: do maior para o menor) e no funil para filtrar.</span>
       </div>
-      <Card><CardContent className="p-0"><div className="max-h-[68vh] overflow-auto"><table className="w-full caption-bottom text-sm">
+      <TabelaRolavel titulo={`Reposição de Lojas · ${loja?.nome ?? ""} · ${linhas.length} itens`} altura="max-h-[68vh]"><table className="w-full caption-bottom text-sm">
         <thead>
           <tr className="border-b">
             {gestor && <th className="sticky top-0 z-20 w-8 bg-card" />}
-            {COLS.map((c) => <CabCol key={c.k} col={c} ordem={ordem} onOrdem={() => setOrdem(proximaOrdem(ordem, c))} filtro={filtros[c.k]} onFiltro={(f) => setFiltros({ ...filtros, [c.k]: f })} opcoes={c.t === "cat" ? opcoesCategoria(baseLinhas, c) : []} />)}
+            {cols.map((c) => <CabCol key={c.k} col={c} ordem={ordem} onOrdem={() => setOrdem(proximaOrdem(ordem, c))} filtro={filtros[c.k]} onFiltro={(f) => setFiltros({ ...filtros, [c.k]: f })} opcoes={c.t === "cat" ? opcoesCategoria(baseLinhas, c) : []} />)}
           </tr>
         </thead>
         <TableBody>
-          {linhas.length === 0 && <TableRow><TableCell colSpan={18} className="py-10 text-center text-muted-foreground">{bruto.isLoading ? "Carregando..." : "Nenhum item neste filtro."}</TableCell></TableRow>}
-          {linhas.slice(0, 500).map((i) => {
+          {linhas.length === 0 && <TableRow><TableCell colSpan={cols.length + (gestor ? 1 : 0)} className="py-10 text-center text-muted-foreground">{bruto.isLoading ? "Carregando..." : "Nenhum item neste filtro."}</TableCell></TableRow>}
+          {linhas.map((i) => {
             const k = `${i.loja}|${nk(i.sku)}`;
             return (
               <TableRow key={k} title={i.alertas.join(" · ")} className={fora.has(k) ? "opacity-40" : ""}>
                 {gestor && <TableCell><input type="checkbox" disabled={i.qtdAtendida <= 0} checked={i.qtdAtendida > 0 && !fora.has(k)} onChange={() => { const n = new Set(fora); if (n.has(k)) n.delete(k); else n.add(k); setFora(n); }} /></TableCell>}
                 <TableCell className="font-mono text-xs">{i.sku}</TableCell>
                 <TableCell className="min-w-[240px] text-xs leading-snug whitespace-normal break-words">{i.descricao || "—"}{i.semExposicao && <span className="ml-1 text-[10px] text-amber-600">sem exposição</span>}{i.semCaixa && <span className="ml-1 text-[10px] text-amber-600">sem caixa</span>}{i.solto && !i.caixaCadastrada && <span className="ml-1 text-[10px] text-muted-foreground">granel: sem caixa</span>}{i.solto && i.caixaCadastrada && <span className="ml-1 text-[10px] text-muted-foreground">granel</span>}</TableCell>
-                <TableCell className="text-xs">{i.grupo}</TableCell><TableCell className="text-xs">{i.familia || <span className="text-amber-600">sem família</span>}</TableCell>
+                <TableCell className="text-xs whitespace-nowrap">{classeDe(i)}</TableCell>
                 <TableCell><span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${COR[i.status]}`}>{STATUS2[i.status].rotulo}</span></TableCell>
                 <TableCell className="text-right">{n1(i.estoque)}</TableCell><TableCell className="text-right">{isAdmin ? <CelulaEdit valor={i.semExposicao ? null : i.exposicao} placeholder="0" titulo="Exposição: unidades que ficam na vitrine (não contam como vendável)" aoSalvar={(n) => salvarExposicao(i, n)} /> : n1(i.exposicao)}</TableCell>
                 <TableCell className="text-right">{i.emTransito + i.pedidoAberto > 0 ? n1(i.emTransito + i.pedidoAberto) : "—"}</TableCell>
@@ -233,13 +230,12 @@ function ReposicaoPage() {
                 <TableCell className="text-right">{gestor ? <div className="flex flex-col items-end gap-0.5"><Input className="h-7 w-20 text-right" inputMode="numeric" placeholder={i.sugestao > 0 ? String(i.sugestao) : "0"} value={manuaisTxt[`${i.loja}|${nk(i.sku)}`] ?? ""} onChange={(e) => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: e.target.value })} />{maxCD(i) > 0 && <button type="button" className="text-[10px] text-primary hover:underline" title="Preenche o pedido com o máximo que o CD consegue mandar (em caixas fechadas quando há caixa)" onClick={() => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: String(maxCD(i)) })}>usar CD: {n1(maxCD(i))}</button>}</div> : n1(i.qtdPedido)}</TableCell>
                 <TableCell className="text-right">{i.qtdPedido > 0 ? <>{n1(i.qtdAtendida)}{i.faltaCD > 0 && <AlertTriangle className="inline size-3 ml-1 text-amber-600" aria-label="CD não cobre" />}{i.fracionado && <div className="text-[10px] text-primary" title="O CD não tem caixa fechada: enviando o saldo solto">solto</div>}{(i.saldoCD ?? 0) <= 0 && <div className="text-[10px] text-red-600" title="Sem saldo no CD: depende de produção (veja a Projeção do CD)">produzir</div>}</> : "—"}</TableCell>
                 <TableCell className="text-right text-xs">{i.saldoCD == null ? "—" : `${n1(i.saldoCD)}${i.caixa > 1 ? ` (${i.caixasCD} cx)` : ""}`}{i.reservadoCD > 0 && <div className="text-[10px] text-muted-foreground" title="Pedidos ABERTOS (ainda não expedidos) já reservam parte do saldo do CD">reservado: {n1(i.reservadoCD)}</div>}{i.qtdPedido > 0 && i.disponivelCD != null && i.disponivelCD < i.qtdPedido && <div className="text-[10px] text-amber-600" title="O que sobra do CD para esta loja depois das lojas de maior prioridade">disp. p/ esta: {n1(i.disponivelCD)}</div>}</TableCell>
-                <TableCell className="text-right">{isAdmin ? <CelulaEdit valor={i.caixaCadastrada ? i.caixa : null} placeholder="1" titulo="Unidades por caixa (caixa fechada)" aoSalvar={(n) => salvarCaixa(i, n)} /> : n1(i.caixa)}</TableCell>
                 <TableCell className={`text-right text-xs ${i.avisoCobertura ? "text-amber-600 font-semibold" : ""}`} title={i.avisoCobertura ? `Mais de ${LIMITE_COBERTURA_AVISO} dias de cobertura depois do pedido (aviso: o pedido continua sugerido)` : ""}>{i.avisoCobertura && <AlertTriangle className="inline size-3 mr-1" aria-label="Cobertura alta" />}{i.cobPosPedido == null ? "—" : n1(i.cobPosPedido)}</TableCell>
               </TableRow>);
           })}
         </TableBody>
-      </table></div></CardContent></Card>
-      <p className="text-xs text-muted-foreground">Pedido manual: digite a quantidade exata (ela substitui a sugestão; zero = não pedir) ou use "usar CD" para alocar o que o CD tem. O CD atende no máximo o seu saldo. O pedido gerado usa o que o CD atende e passa a contar como "a caminho" até ser recebido. Administradores podem corrigir Caixa e Expo. direto na tabela.</p>
+      </table></TabelaRolavel>
+      <p className="text-xs text-muted-foreground">Pedido manual: digite a quantidade exata (ela substitui a sugestão; zero = não pedir) ou use "usar CD" para alocar o que o CD tem. O CD atende no máximo o seu saldo. O pedido gerado usa o que o CD atende e passa a contar como "a caminho" até ser recebido. Administradores podem corrigir Expo. direto na tabela.</p>
 
       {isAdmin && semFamPorLinha.length > 0 && (
         <Card><CardHeader className="pb-2"><CardTitle className="text-base">Produtos sem família ({mont?.semFamilia.length})</CardTitle>
@@ -259,7 +255,7 @@ function CabCol({ col, ordem, onOrdem, filtro, onFiltro, opcoes }: { col: ColDef
   const btn = useRef<HTMLButtonElement>(null);
   const ativo = filtroAtivo(filtro);
   const emOrdem = ordem?.k === col.k;
-  const Seta = !emOrdem ? ArrowUpDown : ordem!.dir === "desc" ? ArrowDown : ArrowUp;
+  const Seta = !emOrdem ? ArrowUpDown : ordem?.dir === "desc" ? ArrowDown : ArrowUp;
   return (
     <th className={`sticky top-0 z-20 bg-card h-11 px-2 align-middle font-medium whitespace-nowrap ${col.al === "right" ? "text-right" : "text-left"} ${emOrdem ? "text-foreground" : "text-muted-foreground"}`}>
       <span className="inline-flex items-center gap-1">

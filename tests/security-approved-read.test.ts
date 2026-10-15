@@ -32,7 +32,7 @@ test("Apenas perfis explicitamente aprovados podem consultar os três módulos",
   }
 });
 
-for (const table of ["dispersao_causa_raiz", "fechamentos_mensais", "missoes"]) {
+for (const table of ["dispersao_causa_raiz", "fechamentos_mensais", "missoes", "parametros_abastecimento", "parametros_desconto_colaborador", "notas_transferencia_recebimento"]) {
   test(`${table}: leitura preservada para equipe aprovada e ausente para acesso anônimo`, async () => {
     const session = testSession();
     const base = process.env.VITE_SUPABASE_URL;

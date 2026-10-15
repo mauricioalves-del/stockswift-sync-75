@@ -85,6 +85,13 @@
       "when": 1792068254994,
       "tag": "0011_leitura_aprovados_tarefas_excecoes_demanda",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792077131028,
+      "tag": "0012_parametros_recebimento_predicados_aprovados",
+      "breakpoints": true
     }
   ]
 }

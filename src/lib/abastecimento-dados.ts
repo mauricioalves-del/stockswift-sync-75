@@ -7,6 +7,7 @@ import { resolverParam, type CoberturaRegra } from "./abastecimento-cobertura";
 import { cmdPonderado, acompanhamentoMeta, type AcompMeta, type Denominador } from "./abastecimento-demanda";
 import { consensoMedioNaJanela } from "./abastecimento-consenso";
 import { indiceMedioNaJanela, type PeriodoSazonal } from "./sazonalidade";
+import type { ClassePortfolio } from "./abastecimento-portfolio";
 
 export const nk = (s: unknown): string => String(s ?? "").trim().replace(/^0+/, "");
 export const GRUPO_ACABADO = "Produto Acabado";
@@ -33,6 +34,7 @@ export type Bruto = {
   exposicoes: { loja: string; id_produto: string; exposicao: number | null; ativo_sortimento?: boolean | null }[];
   /** SKUs (sem zeros à esquerda) do último portfólio validado pelo gestor, por loja. Quando existe, substitui o universo da loja. */
   portfolioAprovado?: Record<string, string[]>;
+  portfolioClasses?: Record<string, Record<string, ClassePortfolio>>;
   portfolioOrigem?: Record<string, { competencia: string; versao: number; aprovador: string }>;
 };
 
