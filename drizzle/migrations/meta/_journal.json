@@ -78,6 +78,13 @@
       "when": 1792064296790,
       "tag": "0010_leitura_aprovados_producao_historico_confirmacoes",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792068254994,
+      "tag": "0011_leitura_aprovados_tarefas_excecoes_demanda",
+      "breakpoints": true
     }
   ]
 }
