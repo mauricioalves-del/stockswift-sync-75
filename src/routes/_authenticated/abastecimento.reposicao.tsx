@@ -75,6 +75,7 @@ function ReposicaoPage() {
   const [famLinha, setFamLinha] = useState<Record<string, string>>({});
   const [ordem, setOrdem] = useState<Ordem>(null);
   const [filtros, setFiltros] = useState<Record<string, Filtro>>({});
+  const [origemSel, setOrigemSel] = useState<Record<string, string>>({});
   const nFiltros = Object.values(filtros).filter((f) => filtroAtivo(f)).length;
 
   const manuais = useMemo(() => { const m: Record<string, number | null> = {}; for (const [k, v] of Object.entries(manuaisTxt)) { const n = Number(v.replace(",", ".")); if (v.trim() !== "" && Number.isFinite(n) && n >= 0) m[k] = n; } return m; }, [manuaisTxt]);
@@ -83,7 +84,21 @@ function ReposicaoPage() {
   const loja = bruto.data?.lojas.find((l) => l.codigo === lojaSel) ?? bruto.data?.lojas[0];
   const classes = bruto.data?.portfolioClasses?.[loja?.codigo ?? ""];
   const classeDe = (i: ItemRep) => { const classe = classes?.[nk(i.sku)]; return classe ? CLASSES_PORTFOLIO[classe] : "Sem validação"; };
-  const cols: ColDef<ItemRep>[] = COLS.flatMap((c) => c.k === "produto" ? [c, { k: "classe", r: "Classe", t: "cat", v: classeDe }] : [c]);
+  const nomeLoja = (c: string) => bruto.data?.lojas.find((l) => l.codigo === c)?.nome ?? c;
+  // Sobra de outras lojas para remanejamento: o que passa do Ideal (exposição + cobertura + segurança) de cada loja.
+  const sobras = useMemo(() => {
+    const m = new Map<string, { loja: string; sobra: number }[]>();
+    if (!mont || !loja) return m;
+    for (const [lc, lista] of Object.entries(mont.itens)) {
+      if (lc === loja.codigo) continue;
+      for (const o of lista) { const s = Math.floor(o.estoque - Math.max(0, o.idealQ)); if (s > 0) { const k = nk(o.sku); m.set(k, [...(m.get(k) ?? []), { loja: lc, sobra: s }]); } }
+    }
+    return m;
+  }, [mont, loja]);
+  const origemDe = (i: ItemRep) => origemSel[`${i.loja}|${nk(i.sku)}`] ?? "CD";
+  const sobraDe = (i: ItemRep, lc: string) => sobras.get(nk(i.sku))?.find((s) => s.loja === lc)?.sobra ?? 0;
+  const qtdEnvio = (i: ItemRep) => { const o = origemDe(i); return o === "CD" ? i.qtdAtendida : Math.min(i.qtdPedido, sobraDe(i, o)); };
+  const cols: ColDef<ItemRep>[] = COLS.flatMap((c) => c.k === "produto" ? [c, { k: "classe", r: "Classe", t: "cat", v: classeDe }] : c.k === "pedido" ? [c, { k: "origem", r: "Origem", t: "cat", v: (i: ItemRep) => origemDe(i) === "CD" ? "CD" : nomeLoja(origemDe(i)) }] : [c]);
   const itens: ItemRep[] = (mont && loja ? mont.itens[loja.codigo] : null) ?? [];
   const resumo = useMemo(() => resumirLoja2(itens), [itens]);
   const familias = useMemo(() => [...new Set(itens.map((i) => i.familia).filter(Boolean))].sort(), [itens]);
@@ -98,8 +113,8 @@ function ReposicaoPage() {
   }, [baseLinhas, filtros, ordem, classes]);
   const ref = mont && loja ? mont.refPorLoja[loja.codigo] : null;
   const atraso = ref ? Math.round((Date.now() - new Date(ref + "T12:00:00").getTime()) / 86400000) : null;
-  const paraPedido = useMemo(() => itens.filter((i) => i.qtdAtendida > 0 && !fora.has(`${i.loja}|${nk(i.sku)}`)), [itens, fora]);
-  const totalPedido = paraPedido.reduce((a, b) => a + b.qtdAtendida, 0);
+  const paraPedido = useMemo(() => itens.filter((i) => qtdEnvio(i) > 0 && !fora.has(`${i.loja}|${nk(i.sku)}`)), [itens, fora, origemSel, sobras]);
+  const totalPedido = paraPedido.reduce((a, b) => a + qtdEnvio(b), 0);
 
   // Quanto o CD consegue mandar: em caixas fechadas quando há caixa; senão, o saldo todo.
   const maxCD = (i: ItemRep) => { const d = i.disponivelCD ?? i.saldoCD ?? 0; return d <= 0 ? 0 : i.caixa > 1 && d >= i.caixa ? Math.floor(d / i.caixa) * i.caixa : d; };
@@ -112,14 +127,27 @@ function ReposicaoPage() {
   async function gerarPedido() {
     if (!loja || paraPedido.length === 0) return;
     setGerando(true);
+    const msgs: string[] = [];
     try {
-      const payload = paraPedido.map((i) => ({ id_produto: i.sku, descricao: i.descricao, qtd_sugerida: i.sugestao, qtd_pedida: i.qtdAtendida, caixa: i.caixa, origem: i.pedidoOrigem === "MANUAL" ? "MANUAL" : "SUGESTAO" }));
-      const { data, error } = await (supabase as any).rpc("abast_criar_pedido", { p_loja: loja.codigo, p_base: base, p_obs: null, p_itens: payload });
-      if (error) throw error;
-      toast.success(`Pedido nº ${data?.numero} criado: ${data?.itens} itens, ${totalPedido.toLocaleString("pt-BR")} un. Requisição ${data?.requisicao_numero ?? ""} enviada para separação (Suprimentos → Requisições). O pedido já abate as próximas sugestões.`);
-      setManuaisTxt({}); setFora(new Set());
+      const doCD = paraPedido.filter((i) => origemDe(i) === "CD");
+      if (doCD.length) {
+        const payload = doCD.map((i) => ({ id_produto: i.sku, descricao: i.descricao, qtd_sugerida: i.sugestao, qtd_pedida: i.qtdAtendida, caixa: i.caixa, origem: i.pedidoOrigem === "MANUAL" ? "MANUAL" : "SUGESTAO" }));
+        const { data, error } = await (supabase as any).rpc("abast_criar_pedido", { p_loja: loja.codigo, p_base: base, p_obs: null, p_itens: payload });
+        if (error) throw error;
+        msgs.push(`Pedido do CD nº ${data?.numero} (${data?.itens} itens, requisição ${data?.requisicao_numero ?? ""})`);
+      }
+      const porOrigem = new Map<string, ItemRep[]>();
+      for (const i of paraPedido) { const o = origemDe(i); if (o !== "CD") porOrigem.set(o, [...(porOrigem.get(o) ?? []), i]); }
+      for (const [o, lista] of porOrigem) {
+        const payload = lista.map((i) => ({ id_produto: i.sku, descricao: i.descricao, qtd_sugerida: i.sugestao, qtd_pedida: qtdEnvio(i), caixa: i.caixa }));
+        const { data, error } = await (supabase as any).rpc("abast_criar_transferencia", { p_loja: loja.codigo, p_loja_origem: o, p_base: base, p_obs: null, p_itens: payload });
+        if (error) throw error;
+        msgs.push(`Transferência nº ${data?.numero} de ${nomeLoja(o)} (${data?.itens} itens, requisição ${data?.requisicao_numero ?? ""})`);
+      }
+      toast.success(`${msgs.join(" · ")} criado(s). Separação em Suprimentos → Requisições.`);
+      setManuaisTxt({}); setFora(new Set()); setOrigemSel({});
       qc.invalidateQueries({ queryKey: ["abast-v2"] });
-    } catch (err: any) { toast.error("Não consegui criar o pedido: " + (err?.message ?? err)); }
+    } catch (err: any) { toast.error(`${msgs.length ? msgs.join(" · ") + " criado(s), mas " : ""}não consegui criar: ` + (err?.message ?? err)); if (msgs.length) qc.invalidateQueries({ queryKey: ["abast-v2"] }); }
     finally { setGerando(false); }
   }
 
