@@ -67,13 +67,18 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
 
   // estoque ao vivo
   const est = new Map<string, { lojas: Record<string, number>; cd: number; desc: string; custo: number; canon: string }>();
+  // Produtos locais que consomem o saldo de um produto acabado: o saldo do acabado vira o saldo oficial do local.
+  const SALDO_DE: Record<string, string> = { [nk("05104132")]: "05304043" };
   for (const e of b.estoque) {
-    const k = nk(e.id_produto), q = Number(e.quantidade) || 0;
-    const x = est.get(k) ?? { lojas: {}, cd: 0, desc: "", custo: 0, canon: String(e.id_produto) };
+    const q = Number(e.quantidade) || 0;
+    const alvo = SALDO_DE[nk(e.id_produto)];
+    const id = alvo ?? String(e.id_produto);
+    const k = nk(id);
+    const x = est.get(k) ?? { lojas: {}, cd: 0, desc: "", custo: 0, canon: id };
     if (e.origem === b.cd) x.cd += q; else { const l = lojaDoAlmox.get(e.origem); if (l) x.lojas[l] = (x.lojas[l] ?? 0) + q; }
-    if (!x.desc && e.descricao) x.desc = e.descricao;
+    if (!alvo && !x.desc && e.descricao) x.desc = e.descricao;
     if (!x.custo && Number(e.custo_unitario) > 0) x.custo = Number(e.custo_unitario);
-    if (String(e.id_produto).length > x.canon.length) x.canon = String(e.id_produto);
+    if (id.length > x.canon.length) x.canon = id;
     est.set(k, x);
   }
   // trânsito (notas) e pedidos em aberto
