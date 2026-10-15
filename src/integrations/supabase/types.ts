@@ -411,11 +411,13 @@ export type Database = {
           criado_por: string | null
           id: string
           loja: string
+          loja_origem: string | null
           numero: number
           observacao: string | null
           requisicao_id: string | null
           requisicao_numero: string | null
           status: string
+          tipo: string
         }
         Insert: {
           atualizado_em?: string
@@ -425,11 +427,13 @@ export type Database = {
           criado_por?: string | null
           id?: string
           loja: string
+          loja_origem?: string | null
           numero?: never
           observacao?: string | null
           requisicao_id?: string | null
           requisicao_numero?: string | null
           status?: string
+          tipo?: string
         }
         Update: {
           atualizado_em?: string
@@ -439,11 +443,13 @@ export type Database = {
           criado_por?: string | null
           id?: string
           loja?: string
+          loja_origem?: string | null
           numero?: never
           observacao?: string | null
           requisicao_id?: string | null
           requisicao_numero?: string | null
           status?: string
+          tipo?: string
         }
         Relationships: [
           {
@@ -4631,6 +4637,16 @@ export type Database = {
       }
       abast_criar_pedido: {
         Args: { p_base: string; p_itens: Json; p_loja: string; p_obs: string }
+        Returns: Json
+      }
+      abast_criar_transferencia: {
+        Args: {
+          p_base: string
+          p_itens: Json
+          p_loja: string
+          p_loja_origem: string
+          p_obs: string
+        }
         Returns: Json
       }
       abast_desfazer_validacao: {
