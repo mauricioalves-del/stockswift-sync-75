@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/abastecimento/pedidos")({
 });
 
 type Item = { id: string; id_produto: string; descricao: string | null; qtd_sugerida: number | null; qtd_pedida: number; qtd_separada: number | null; caixa: number | null; origem: string };
-type Pedido = { id: string; numero: number; loja: string; status: string; base_demanda: string | null; criado_em: string; atualizado_em: string; requisicao_id: string | null; requisicao_numero: string | null; itens: Item[] };
+type Pedido = { id: string; numero: number; loja: string; status: string; base_demanda: string | null; tipo?: string | null; loja_origem?: string | null; criado_em: string; atualizado_em: string; requisicao_id: string | null; requisicao_numero: string | null; itens: Item[] };
 
 // Etapas do acompanhamento. "Em separação" e "Separado" mudam sozinhas conforme a requisição na tela Requisições.
 const ETAPAS = [{ k: "ABERTO", r: "Aberto" }, { k: "EM_SEPARACAO", r: "Em separação" }, { k: "SEPARADO", r: "Separado" }, { k: "ENVIADO", r: "Enviado" }, { k: "RECEBIDO", r: "Recebido" }];
@@ -54,7 +54,7 @@ function PedidosPage() {
     enabled: pode, queryKey: ["abast-pedidos"], refetchInterval: 15000, refetchOnWindowFocus: true,
     queryFn: async () => {
       const sb = supabase as any;
-      const { data: ps, error } = await sb.from("abast_pedidos").select("id, numero, loja, status, base_demanda, criado_em, atualizado_em, requisicao_id, requisicao_numero").order("numero", { ascending: false }).limit(200);
+      const { data: ps, error } = await sb.from("abast_pedidos").select("id, numero, loja, status, base_demanda, criado_em, atualizado_em, requisicao_id, requisicao_numero, tipo, loja_origem").order("numero", { ascending: false }).limit(200);
       if (error) throw error;
       const ids = (ps ?? []).map((p: any) => p.id);
       const { data: its } = ids.length ? await sb.from("abast_pedido_itens").select("id, pedido_id, id_produto, descricao, qtd_sugerida, qtd_pedida, qtd_separada, caixa, origem").in("pedido_id", ids) : { data: [] };

@@ -91,7 +91,7 @@ function ReposicaoPage() {
     if (!mont || !loja) return m;
     for (const [lc, lista] of Object.entries(mont.itens)) {
       if (lc === loja.codigo) continue;
-      for (const o of lista) { const s = Math.floor(o.estoque - Math.max(0, o.idealQ)); if (s > 0) { const k = nk(o.sku); m.set(k, [...(m.get(k) ?? []), { loja: lc, sobra: s }]); } }
+      for (const o of lista) { const s = Math.floor((o.estoque ?? 0) - Math.max(0, o.idealQ ?? 0)); if (s > 0) { const k = nk(o.sku); m.set(k, [...(m.get(k) ?? []), { loja: lc, sobra: s }]); } }
     }
     return m;
   }, [mont, loja]);
