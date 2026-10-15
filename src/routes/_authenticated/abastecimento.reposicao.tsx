@@ -25,9 +25,15 @@ export const Route = createFileRoute("/_authenticated/abastecimento/reposicao")(
 });
 
 const COR: Record<Status2, string> = {
-  ruptura: "bg-red-100 text-red-700 border-red-200", abaixo: "bg-amber-100 text-amber-800 border-amber-200", em_transito: "bg-indigo-100 text-indigo-700 border-indigo-200",
-  ok: "bg-emerald-100 text-emerald-700 border-emerald-200", excesso: "bg-sky-100 text-sky-700 border-sky-200", semdemanda: "bg-slate-100 text-slate-600 border-slate-200",
-  cadastro: "bg-violet-100 text-violet-700 border-violet-200", conferir: "bg-orange-100 text-orange-700 border-orange-200", fora: "bg-slate-100 text-slate-500 border-slate-200",
+  ruptura: "bg-destructive/10 text-destructive border-destructive/20",
+  abaixo: "bg-warning/10 text-warning border-warning/20",
+  em_transito: "bg-info/10 text-info border-info/20",
+  ok: "bg-success/10 text-success border-success/20",
+  excesso: "bg-info/10 text-info border-info/20",
+  semdemanda: "bg-muted text-muted-foreground border-border",
+  cadastro: "bg-secondary/10 text-secondary border-secondary/20",
+  conferir: "bg-warning/10 text-warning border-warning/20",
+  fora: "bg-muted text-muted-foreground border-border",
 };
 const n1 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("pt-BR", { maximumFractionDigits: 1 }));
 const n2 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("pt-BR", { maximumFractionDigits: 2 }));
@@ -141,10 +147,10 @@ function ReposicaoPage() {
   const semDados = !bruto.isLoading && !!mont && itens.length === 0;
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full min-w-0 space-y-4">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><Store className="size-6" /> Reposição de Lojas</h1>
-        {bruto.data && (() => { const d = bruto.data; const mes = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(0, 7); const sem = d.lojas.filter((l) => !d.portfolioAprovado?.[l.codigo]); const herd = d.lojas.filter((l) => d.portfolioOrigem?.[l.codigo] && d.portfolioOrigem[l.codigo].competencia !== mes); return (sem.length || herd.length) ? <div className="my-2 space-y-1 rounded-md border border-warning/50 bg-warning/10 p-3 text-sm">{herd.map((l) => { const o = d.portfolioOrigem![l.codigo]; return <p key={l.codigo}><strong>{l.nome}: Pendente de validação — utilizando última versão aprovada</strong> ({o.competencia} v{o.versao}, aprovada por {o.aprovador}).</p>; })}{sem.length > 0 && <p><strong>Sem portfólio validado</strong> para {sem.map((l) => l.nome).join(", ")}: lista operacional padrão exibida; essas lojas ficam fora do indicador de disponibilidade até a primeira validação.</p>}</div> : null; })()}
+        {bruto.data && (() => { const d = bruto.data; const mes = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(0, 7); const sem = d.lojas.filter((l) => !d.portfolioAprovado?.[l.codigo]); const herd = d.lojas.filter((l) => d.portfolioOrigem?.[l.codigo] && d.portfolioOrigem[l.codigo].competencia !== mes); return (sem.length || herd.length) ? <div className="my-2 space-y-1 rounded-md border border-warning/50 bg-warning/10 p-3 text-sm">{herd.map((l) => { const o = d.portfolioOrigem?.[l.codigo]; return <p key={l.codigo}><strong>{l.nome}: Pendente de validação — utilizando última versão aprovada</strong> ({o?.competencia} v{o?.versao}, aprovada por {o?.aprovador}).</p>; })}{sem.length > 0 && <p><strong>Sem portfólio validado</strong> para {sem.map((l) => l.nome).join(", ")}: lista operacional padrão exibida; essas lojas ficam fora do indicador de disponibilidade até a primeira validação.</p>}</div> : null; })()}
         <p className="text-sm text-muted-foreground">
           Só <strong>produto acabado com meta no consenso</strong>. Demanda pela <strong>malha do consenso</strong> (meta do mês ÷ dias do mês, que já traz a sazonalidade) ajustada pelo realizado (venda real ÷ malha), ou pelo faturamento (CMD 7/30/90 dias) ou só pela meta; o estoque vem do lote, ao vivo. <strong>Trânsito e pedidos em aberto abatem a sugestão</strong> (sem pedido duplicado e sem falsa ruptura). A exposição não conta como vendável, a sugestão só aparece quando o item cai <strong>abaixo do mínimo</strong> e é em caixa fechada; o CD limita o atendimento e o <strong>saldo do CD</strong> aparece em cada linha. Sem caixa fechada no CD, a loja em ruptura ou abaixo do mínimo recebe o <strong>saldo solto</strong>; granéis (sem caixa) são pedidos por consumo médio × cobertura; a linha é avisada quando a cobertura depois do pedido passa de 20 dias.
         </p>
@@ -157,7 +163,7 @@ function ReposicaoPage() {
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="text-muted-foreground">Base de demanda:</span>
         {BASES.map((b) => <Button key={b.v} size="sm" variant={base === b.v ? "default" : "outline"} onClick={() => setBase(b.v)}>{b.r}</Button>)}
-        <span className={`text-xs ${atraso != null && atraso > 3 ? "text-red-600 font-semibold" : "text-muted-foreground"}`}>
+        <span className={`text-xs ${atraso != null && atraso > 3 ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
           {ref ? `Última venda carregada: ${dataBr(ref)}${atraso != null && atraso > 3 ? ` ⚠ defasada há ${atraso} dias — carregue o faturamento` : ""}` : "Sem faturamento carregado para esta loja: a demanda real é zero. Carregue o faturamento ou use a meta do consenso."}
         </span>
       </div>
@@ -172,26 +178,26 @@ function ReposicaoPage() {
           </div>);
       })()}
 
-      {semDados && <Card className="border-amber-300 bg-amber-50"><CardContent className="pt-4 text-sm text-amber-900">Nenhum produto acabado com meta no consenso para esta loja. Envie o consenso em <strong>Projeção do CD</strong>.</CardContent></Card>}
+      {semDados && <Card className="border-warning/30 bg-warning/10"><CardContent className="pt-4 text-sm text-foreground">Nenhum produto acabado com meta no consenso para esta loja. Envie o consenso em <strong>Projeção do CD</strong>.</CardContent></Card>}
 
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-5 xl:grid-cols-10">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5 2xl:grid-cols-10">
         <Kpi t="Disponibilidade" v={resumo.disponibilidade == null ? "—" : `${(resumo.disponibilidade * 100).toFixed(1)}%`} />
         <Kpi t="SKUs" v={String(resumo.ativos)} />
-        <Kpi t="Ruptura" v={String(resumo.contagem.ruptura)} tom="text-red-600" />
-        <Kpi t="Abaixo do mínimo" v={String(resumo.contagem.abaixo)} tom="text-amber-600" />
-        <Kpi t="A caminho" v={String(resumo.contagem.em_transito)} tom="text-indigo-600" />
-        <Kpi t="Excesso" v={String(resumo.contagem.excesso)} tom="text-sky-600" />
+        <Kpi t="Ruptura" v={String(resumo.contagem.ruptura)} tom="text-destructive" />
+        <Kpi t="Abaixo do mínimo" v={String(resumo.contagem.abaixo)} tom="text-warning" />
+        <Kpi t="A caminho" v={String(resumo.contagem.em_transito)} tom="text-info" />
+        <Kpi t="Excesso" v={String(resumo.contagem.excesso)} tom="text-info" />
         <Kpi t="A pedir" v={`${resumo.itensPedido} · ${resumo.unidadesPedido.toLocaleString("pt-BR")} un`} />
         <Kpi t="Valor a pedir" v={formatBRL(resumo.valorPedido)} />
         <Kpi t="Em trânsito" v={`${resumo.emTransito.toLocaleString("pt-BR")} un`} />
-        <Kpi t="Falta no CD" v={`${resumo.faltaCD.toLocaleString("pt-BR")} un`} tom={resumo.faltaCD > 0 ? "text-red-600" : ""} />
+        <Kpi t="Falta no CD" v={`${resumo.faltaCD.toLocaleString("pt-BR")} un`} tom={resumo.faltaCD > 0 ? "text-destructive" : ""} />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         {(["TODOS", "PEDIDO", "COBALTA", "ruptura", "abaixo", "em_transito", "ok", "excesso", "semdemanda"] as const).map((s) => (
-          <button key={s} onClick={() => setFiltro(s)} className={`rounded-full border px-3 py-1 text-xs ${filtro === s ? "bg-primary text-primary-foreground border-primary font-semibold" : "hover:bg-muted"}`}>
+          <Button key={s} type="button" size="sm" variant={filtro === s ? "default" : "outline"} aria-pressed={filtro === s} onClick={() => setFiltro(s)}>
             {s === "TODOS" ? "Todos" : s === "PEDIDO" ? "Com pedido" : s === "COBALTA" ? `Cobertura > ${LIMITE_COBERTURA_AVISO} dias (${itens.filter((i) => i.avisoCobertura).length})` : STATUS2[s].rotulo}{s !== "TODOS" && s !== "PEDIDO" && s !== "COBALTA" ? ` (${resumo.contagem[s]})` : ""}
-          </button>))}
+          </Button>))}
         <select className="h-8 rounded-md border bg-background px-2 text-xs" value={famFiltro} onChange={(e) => setFamFiltro(e.target.value)}><option value="">Todas as famílias</option>{familias.map((f) => <option key={f} value={f}>{f}</option>)}</select>
         <Input className="h-8 w-52" placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} />
         <Button size="sm" variant="outline" className="gap-1 ml-auto" onClick={exportar}><Download className="size-4" /> CSV</Button>
@@ -203,10 +209,10 @@ function ReposicaoPage() {
         {(nFiltros > 0 || ordem) && <button className="rounded-full border px-3 py-1 hover:bg-muted" onClick={() => { setFiltros({}); setOrdem(null); }}>Limpar {nFiltros > 0 ? `filtros (${nFiltros})` : ""}{nFiltros > 0 && ordem ? " e " : ""}{ordem ? "ordem" : ""}</button>}
         <span>Clique no título para ordenar (números: do maior para o menor) e no funil para filtrar.</span>
       </div>
-      <TabelaRolavel titulo={`Reposição de Lojas · ${loja?.nome ?? ""} · ${linhas.length} itens`} altura="max-h-[68vh]"><table className="w-full caption-bottom text-sm">
+      <TabelaRolavel titulo={`Reposição de Lojas · ${loja?.nome ?? ""} · ${linhas.length} itens`} altura="max-h-[68vh]"><table className="w-full caption-bottom bg-card text-sm text-card-foreground">
         <thead>
           <tr className="border-b">
-            {gestor && <th className="sticky top-0 z-20 w-8 bg-card" />}
+            {gestor && <th className="sticky top-0 z-20 w-8 bg-muted" />}
             {cols.map((c) => <CabCol key={c.k} col={c} ordem={ordem} onOrdem={() => setOrdem(proximaOrdem(ordem, c))} filtro={filtros[c.k]} onFiltro={(f) => setFiltros({ ...filtros, [c.k]: f })} opcoes={c.t === "cat" ? opcoesCategoria(baseLinhas, c) : []} />)}
           </tr>
         </thead>
@@ -218,7 +224,7 @@ function ReposicaoPage() {
               <TableRow key={k} title={i.alertas.join(" · ")} className={fora.has(k) ? "opacity-40" : ""}>
                 {gestor && <TableCell><input type="checkbox" disabled={i.qtdAtendida <= 0} checked={i.qtdAtendida > 0 && !fora.has(k)} onChange={() => { const n = new Set(fora); if (n.has(k)) n.delete(k); else n.add(k); setFora(n); }} /></TableCell>}
                 <TableCell className="font-mono text-xs">{i.sku}</TableCell>
-                <TableCell className="min-w-[240px] text-xs leading-snug whitespace-normal break-words">{i.descricao || "—"}{i.semExposicao && <span className="ml-1 text-[10px] text-amber-600">sem exposição</span>}{i.semCaixa && <span className="ml-1 text-[10px] text-amber-600">sem caixa</span>}{i.solto && !i.caixaCadastrada && <span className="ml-1 text-[10px] text-muted-foreground">granel: sem caixa</span>}{i.solto && i.caixaCadastrada && <span className="ml-1 text-[10px] text-muted-foreground">granel</span>}</TableCell>
+                <TableCell className="min-w-[240px] text-xs leading-snug whitespace-normal break-words">{i.descricao || "—"}{i.semExposicao && <span className="ml-1 text-[10px] text-warning">sem exposição</span>}{i.semCaixa && <span className="ml-1 text-[10px] text-warning">sem caixa</span>}{i.solto && !i.caixaCadastrada && <span className="ml-1 text-[10px] text-muted-foreground">granel: sem caixa</span>}{i.solto && i.caixaCadastrada && <span className="ml-1 text-[10px] text-muted-foreground">granel</span>}</TableCell>
                 <TableCell className="text-xs whitespace-nowrap">{classeDe(i)}</TableCell>
                 <TableCell><span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${COR[i.status]}`}>{STATUS2[i.status].rotulo}</span></TableCell>
                 <TableCell className="text-right">{n1(i.estoque)}</TableCell><TableCell className="text-right">{isAdmin ? <CelulaEdit valor={i.semExposicao ? null : i.exposicao} placeholder="0" titulo="Exposição: unidades que ficam na vitrine (não contam como vendável)" aoSalvar={(n) => salvarExposicao(i, n)} /> : n1(i.exposicao)}</TableCell>
@@ -228,9 +234,9 @@ function ReposicaoPage() {
                 <TableCell className="text-right text-xs">{n1(i.minQ)} / {n1(i.idealQ)}</TableCell>
                 <TableCell className="text-right font-semibold">{i.sugestao > 0 ? `${i.sugestao}${i.caixa > 1 ? ` (${i.sugestaoCaixas} cx)` : ""}` : "—"}</TableCell>
                 <TableCell className="text-right">{gestor ? <div className="flex flex-col items-end gap-0.5"><Input className="h-7 w-20 text-right" inputMode="numeric" placeholder={i.sugestao > 0 ? String(i.sugestao) : "0"} value={manuaisTxt[`${i.loja}|${nk(i.sku)}`] ?? ""} onChange={(e) => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: e.target.value })} />{maxCD(i) > 0 && <button type="button" className="text-[10px] text-primary hover:underline" title="Preenche o pedido com o máximo que o CD consegue mandar (em caixas fechadas quando há caixa)" onClick={() => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: String(maxCD(i)) })}>usar CD: {n1(maxCD(i))}</button>}</div> : n1(i.qtdPedido)}</TableCell>
-                <TableCell className="text-right">{i.qtdPedido > 0 ? <>{n1(i.qtdAtendida)}{i.faltaCD > 0 && <AlertTriangle className="inline size-3 ml-1 text-amber-600" aria-label="CD não cobre" />}{i.fracionado && <div className="text-[10px] text-primary" title="O CD não tem caixa fechada: enviando o saldo solto">solto</div>}{(i.saldoCD ?? 0) <= 0 && <div className="text-[10px] text-red-600" title="Sem saldo no CD: depende de produção (veja a Projeção do CD)">produzir</div>}</> : "—"}</TableCell>
-                <TableCell className="text-right text-xs">{i.saldoCD == null ? "—" : `${n1(i.saldoCD)}${i.caixa > 1 ? ` (${i.caixasCD} cx)` : ""}`}{i.reservadoCD > 0 && <div className="text-[10px] text-muted-foreground" title="Pedidos ABERTOS (ainda não expedidos) já reservam parte do saldo do CD">reservado: {n1(i.reservadoCD)}</div>}{i.qtdPedido > 0 && i.disponivelCD != null && i.disponivelCD < i.qtdPedido && <div className="text-[10px] text-amber-600" title="O que sobra do CD para esta loja depois das lojas de maior prioridade">disp. p/ esta: {n1(i.disponivelCD)}</div>}</TableCell>
-                <TableCell className={`text-right text-xs ${i.avisoCobertura ? "text-amber-600 font-semibold" : ""}`} title={i.avisoCobertura ? `Mais de ${LIMITE_COBERTURA_AVISO} dias de cobertura depois do pedido (aviso: o pedido continua sugerido)` : ""}>{i.avisoCobertura && <AlertTriangle className="inline size-3 mr-1" aria-label="Cobertura alta" />}{i.cobPosPedido == null ? "—" : n1(i.cobPosPedido)}</TableCell>
+                <TableCell className="text-right">{i.qtdPedido > 0 ? <>{n1(i.qtdAtendida)}{i.faltaCD > 0 && <AlertTriangle className="inline size-3 ml-1 text-warning" aria-label="CD não cobre" />}{i.fracionado && <div className="text-[10px] text-primary" title="O CD não tem caixa fechada: enviando o saldo solto">solto</div>}{(i.saldoCD ?? 0) <= 0 && <div className="text-[10px] text-destructive" title="Sem saldo no CD: depende de produção (veja a Projeção do CD)">produzir</div>}</> : "—"}</TableCell>
+                <TableCell className="text-right text-xs">{i.saldoCD == null ? "—" : `${n1(i.saldoCD)}${i.caixa > 1 ? ` (${i.caixasCD} cx)` : ""}`}{i.reservadoCD > 0 && <div className="text-[10px] text-muted-foreground" title="Pedidos ABERTOS (ainda não expedidos) já reservam parte do saldo do CD">reservado: {n1(i.reservadoCD)}</div>}{i.qtdPedido > 0 && i.disponivelCD != null && i.disponivelCD < i.qtdPedido && <div className="text-[10px] text-warning" title="O que sobra do CD para esta loja depois das lojas de maior prioridade">disp. p/ esta: {n1(i.disponivelCD)}</div>}</TableCell>
+                <TableCell className={`text-right text-xs ${i.avisoCobertura ? "text-warning font-semibold" : ""}`} title={i.avisoCobertura ? `Mais de ${LIMITE_COBERTURA_AVISO} dias de cobertura depois do pedido (aviso: o pedido continua sugerido)` : ""}>{i.avisoCobertura && <AlertTriangle className="inline size-3 mr-1" aria-label="Cobertura alta" />}{i.cobPosPedido == null ? "—" : n1(i.cobPosPedido)}</TableCell>
               </TableRow>);
           })}
         </TableBody>
@@ -257,7 +263,7 @@ function CabCol({ col, ordem, onOrdem, filtro, onFiltro, opcoes }: { col: ColDef
   const emOrdem = ordem?.k === col.k;
   const Seta = !emOrdem ? ArrowUpDown : ordem?.dir === "desc" ? ArrowDown : ArrowUp;
   return (
-    <th className={`sticky top-0 z-20 bg-card h-11 px-2 align-middle font-medium whitespace-nowrap ${col.al === "right" ? "text-right" : "text-left"} ${emOrdem ? "text-foreground" : "text-muted-foreground"}`}>
+    <th className={`sticky top-0 z-20 bg-muted h-11 px-2 align-middle font-medium whitespace-nowrap ${col.al === "right" ? "text-right" : "text-left"} ${emOrdem ? "text-foreground" : "text-muted-foreground"}`}>
       <span className="inline-flex items-center gap-1">
         <button type="button" onClick={onOrdem} title={col.t === "num" ? "Ordenar (1º clique: maior → menor)" : "Ordenar (1º clique: A → Z)"} className="inline-flex items-center gap-1 hover:text-foreground">
           <span>{col.r}</span><Seta className={`size-3.5 ${emOrdem ? "text-primary" : "opacity-40"}`} />
@@ -313,5 +319,5 @@ function CelulaEdit({ valor, aoSalvar, titulo, placeholder }: { valor: number | 
 }
 
 function Kpi({ t, v, tom }: { t: string; v: string; tom?: string }) {
-  return <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground truncate">{t}</div><div className={`text-base font-bold mt-1 ${tom ?? ""}`}>{v}</div></CardContent></Card>;
+  return <Card className="min-w-0"><CardContent className="p-4"><div className="min-h-8 text-xs text-muted-foreground">{t}</div><div className={`mt-1 break-words text-base font-bold tabular-nums ${tom ?? ""}`}>{v}</div></CardContent></Card>;
 }
