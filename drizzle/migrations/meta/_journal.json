@@ -92,6 +92,13 @@
       "when": 1792077131028,
       "tag": "0012_parametros_recebimento_predicados_aprovados",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792089964312,
+      "tag": "0013_leitura_aprovados_lotes_missao_recontagem",
+      "breakpoints": true
     }
   ]
 }
