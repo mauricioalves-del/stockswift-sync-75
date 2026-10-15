@@ -11,6 +11,7 @@ import { useRole } from "@/hooks/useRole";
 import { interpretarConsenso, aoaDaAbaConsenso, serieDiariaConsenso, type ResultadoConsenso } from "@/lib/abastecimento-consenso";
 import { projetarCD, planoProducao, paraPcp, type ResultadoProjecao, type Severidade, type LinhaPlano } from "@/lib/abastecimento-projecao";
 import { planejarSku, estimarDemandaReal, type ResultadoMotor, type Lote, type Zona } from "@/lib/abastecimento-cd-motor";
+import { somasRealizacao } from "@/lib/abastecimento-malha";
 import { carregarBomCompleta, explodirSimulacao, type BomLinha } from "@/lib/pcp-bom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -159,8 +160,12 @@ function ProjecaoCdPage() {
       for (const [lj, porMes] of Object.entries(o.porLoja)) { const s = serieDiariaConsenso(porMes, inicio, N); s.forEach((v, i) => (dem[i] += v)); metaLoja[lj] = s.slice(0, 28).reduce((a, b) => a + b, 0) / Math.min(28, N); }
       if (dem.reduce((a, b) => a + b, 0) <= 0) continue;
       const e = estPor.get(k); const ent = entradaCD.get(k) ?? 0; const est = estimarDemandaReal(vendas.get(k) ?? {}, primeira, metaLoja, inicio);
+      // realização = venda real ÷ malha linear do consenso (meta ÷ dias do mês), nos mesmos dias passados e só nas lojas com histórico
+      let sReal = 0, sMalha = 0; const ontem = somaDiasIso(inicio, -1);
+      for (const [lj, porMes] of Object.entries(o.porLoja)) { const s = somasRealizacao((vendas.get(k) ?? {})[lj] ?? {}, porMes, ontem, { janela: 28, inicioHistorico: primeira[lj] }); if (s.dias >= 7) { sReal += s.real; sMalha += s.malha; } }
+      const realizacao = sMalha > 0 ? sReal / sMalha : null;
       const r = planejarSku({ sku: canon.get(k) ?? k, descricao: e?.desc || o.desc, caixa: fc.get(k) ?? 1, lotesCD: lotes.cd.get(k) ?? [], processo: lotes.proc.get(k) ?? [], qualidade: lotes.qual.get(k) ?? [],
-        notasCD: ent > 0 ? [{ data: somaDiasIso(inicio, dTr), qtd: ent }] : [], estoqueLojas: e?.lojas ?? 0, emTransitoLojas: transitoLoja.get(k) ?? 0, demandaMeta: dem, realDia: est.realDia, sigmaDia: est.sigmaDia,
+        notasCD: ent > 0 ? [{ data: somaDiasIso(inicio, dTr), qtd: ent }] : [], estoqueLojas: e?.lojas ?? 0, emTransitoLojas: transitoLoja.get(k) ?? 0, demandaMeta: dem, realizacao, sigmaDia: est.sigmaDia,
         baixasPendentes: baixaPend.get(k) ?? 0, taxaBaixaDia: baixaTaxa.get(k) ?? 0, custo: e?.custo }, inicio, pm);
       if (r) motor.set(k, { ...r, tipo: o.tipo, custo: e?.custo ?? 0 });
     }
@@ -341,7 +346,7 @@ function ProjecaoCdPage() {
 
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Motor de reabastecimento do CD</CardTitle>
-            <CardDescription>Buffers por SKU (vermelho/amarelo/verde) sobre o fluxo líquido, com validade (FEFO e shelf mínimo), baixas e estoque em processo. <b>Ruptura em estresse</b> = demanda +σ, baixas pendentes aprovadas e atraso de produção: a ruptura que a previsão de consumo não enxerga. Aprovação de baixa assumida: {Math.round(calc.probAprov * 100)}% (histórico do CD).</CardDescription></CardHeader>
+            <CardDescription>Demanda = malha linear do consenso (meta ÷ dias do mês, que já traz a sazonalidade) × realização (venda real ÷ malha no mesmo período), sem índice sazonal. Buffers por SKU (vermelho/amarelo/verde) sobre o fluxo líquido, com validade (FEFO e shelf mínimo), baixas e estoque em processo. <b>Ruptura em estresse</b> = demanda +σ, baixas pendentes aprovadas e atraso de produção: a ruptura que a previsão de consumo não enxerga. Aprovação de baixa assumida: {Math.round(calc.probAprov * 100)}% (histórico do CD).</CardDescription></CardHeader>
           <CardContent className="p-0 overflow-x-auto">
             <div className="flex justify-end p-2"><Button size="sm" variant="outline" className="gap-1" onClick={() => csv(`Motor_CD_${calc.inicio}.csv`, ["SKU", "Produto", "Zona", "Fluxo líquido", "Vermelho", "Amarelo", "Topo", "Utilizável", "Bloqueado shelf", "Em processo", "Qualidade", "Notas ao CD", "Perda por validade", "Baixas pendentes", "Ruptura prevista", "Ruptura em estresse", "Risco fora da previsão", "Qtd proteção", "Próxima ordem (un)", "Liberar", "Chega"], motorLista.map((m) => [m.sku, m.descricao, ZONA_ROT[m.zona], Math.round(m.nfp), Math.round(m.red), Math.round(m.red + m.yellow), Math.round(m.tog), Math.round(m.usavelHoje), Math.round(m.bloqueadoShelf), Math.round(m.wip), Math.round(m.qualidade), Math.round(m.notas), Math.round(m.perdaVencimentoUn), Math.round(m.baixasPendentesEsperadas), m.dataRupturaCD ?? "", m.dataRupturaEstresse ?? "", m.riscoNaoPrevisto ? "sim" : "não", m.qtdProtecao, m.ordens[0]?.quantidade ?? "", m.ordens[0]?.liberar ?? "", m.ordens[0]?.chegada ?? ""]))}><Download className="size-4" /> CSV do motor</Button></div>
             <Table>
