@@ -26,7 +26,7 @@ function IndicadoresPage() {
   const bruto = useAbastBruto(pode);
   const [sit, setSit] = useState<"critico" | "atrasado" | "TODOS">("critico");
   const hojeIso = new Date().toLocaleDateString("en-CA");
-  const mont = useMemo(() => (bruto.data ? montarItens(bruto.data, { base: "real", denominador: "calendario", hojeIso }) : null), [bruto.data, hojeIso]);
+  const mont = useMemo(() => (bruto.data ? montarItens(bruto.data, { base: "ajustada", denominador: "calendario", hojeIso }) : null), [bruto.data, hojeIso]);
   const lojas = bruto.data?.lojas ?? [];
 
   const porLoja = useMemo(() => lojas.map((l) => {
