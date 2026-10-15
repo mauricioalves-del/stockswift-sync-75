@@ -461,6 +461,33 @@ export type Database = {
           },
         ]
       }
+      abast_signatarios: {
+        Row: {
+          ativo: boolean
+          designado_em: string
+          designado_por: string | null
+          funcao: string
+          nome: string | null
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          designado_em?: string
+          designado_por?: string | null
+          funcao: string
+          nome?: string | null
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          designado_em?: string
+          designado_por?: string | null
+          funcao?: string
+          nome?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       abast_validacoes_portfolio: {
         Row: {
           aprovado_em: string
@@ -4499,12 +4526,25 @@ export type Database = {
         Args: { p_id: string; p_motivo: string }
         Returns: undefined
       }
+      abast_designar_signatario: {
+        Args: { p_ativo?: boolean; p_funcao: string; p_user_id: string }
+        Returns: Json
+      }
+      abast_eh_signatario: {
+        Args: { _funcao: string; _uid: string }
+        Returns: boolean
+      }
       abast_importar_classificacoes: {
         Args: { p_arquivo: string; p_itens: Json }
         Returns: Json
       }
+      abast_papeis_validacao: { Args: never; Returns: Json }
       abast_registrar_disponibilidade: {
         Args: { p_data?: string }
+        Returns: Json
+      }
+      abast_validar_cd: {
+        Args: { p_competencia: string; p_observacao: string }
         Returns: Json
       }
       abast_validar_portfolio: {
