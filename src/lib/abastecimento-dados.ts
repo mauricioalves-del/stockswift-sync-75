@@ -7,7 +7,7 @@ import { resolverParam, type CoberturaRegra } from "./abastecimento-cobertura";
 import { cmdPonderado, acompanhamentoMeta, type AcompMeta, type Denominador } from "./abastecimento-demanda";
 import { consensoMedioNaJanela } from "./abastecimento-consenso";
 import type { PeriodoSazonal } from "./sazonalidade";
-import { fatorRealizacao } from "./abastecimento-malha";
+import { fatorRealizacao } from "./abastecimento-realizacao";
 import type { ClassePortfolio } from "./abastecimento-portfolio";
 
 export const nk = (s: unknown): string => String(s ?? "").trim().replace(/^0+/, "");
