@@ -9,7 +9,8 @@ import { fetchAll } from "@/lib/fetch-all";
 import { formatBRL } from "@/lib/inventory";
 import { useRole } from "@/hooks/useRole";
 import { interpretarConsenso, aoaDaAbaConsenso, serieDiariaConsenso, type ResultadoConsenso } from "@/lib/abastecimento-consenso";
-import { projetarCD, planoProducao, paraPcp, type ResultadoProjecao, type Severidade } from "@/lib/abastecimento-projecao";
+import { projetarCD, planoProducao, paraPcp, type ResultadoProjecao, type Severidade, type LinhaPlano } from "@/lib/abastecimento-projecao";
+import { planejarSku, estimarDemandaReal, type ResultadoMotor, type Lote, type Zona } from "@/lib/abastecimento-cd-motor";
 import { carregarBomCompleta, explodirSimulacao, type BomLinha } from "@/lib/pcp-bom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -24,6 +25,8 @@ export const Route = createFileRoute("/_authenticated/abastecimento/projecao-cd"
 const nk = (s: unknown) => String(s ?? "").replace(/^0+/, "");
 const ORIGENS_PROD = ["Alm_SP_Fabrica", "Alm_SP_Processo", "Alm_SP_Qualidade"]; // mesma regra do PCP para matéria-prima
 const COR: Record<Severidade, string> = { critica: "bg-red-100 text-red-700 border-red-200", alta: "bg-orange-100 text-orange-700 border-orange-200", media: "bg-amber-100 text-amber-800 border-amber-200", baixa: "bg-sky-100 text-sky-700 border-sky-200", ok: "bg-emerald-100 text-emerald-700 border-emerald-200" };
+const ZONA_COR: Record<Zona, string> = { vermelho: "bg-red-100 text-red-700 border-red-200", amarelo: "bg-amber-100 text-amber-800 border-amber-200", verde: "bg-emerald-100 text-emerald-700 border-emerald-200", excesso: "bg-violet-100 text-violet-700 border-violet-200" };
+const ZONA_ROT: Record<Zona, string> = { vermelho: "Vermelho", amarelo: "Amarelo", verde: "Verde", excesso: "Excesso" };
 const ROT: Record<Severidade, string> = { critica: "Crítica (≤14 dias)", alta: "Alta (≤30)", media: "Média (≤60)", baixa: "Baixa (>60)", ok: "Sem ruptura" };
 const un = (v: number) => Math.round(v).toLocaleString("pt-BR");
 const dataBr = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
@@ -44,6 +47,10 @@ function ProjecaoCdPage() {
   const [leadTime, setLeadTime] = useState("7");
   const [segCD, setSegCD] = useState("0");
   const [diasTransito, setDiasTransito] = useState("3");
+  const [diasQual, setDiasQual] = useState("2");
+  const [diasProc, setDiasProc] = useState("3");
+  const [shelfMin, setShelfMin] = useState("30");
+  const [zServ, setZServ] = useState("1.65");
   const [comCafe, setComCafe] = useState(false);
   const [filtro, setFiltro] = useState<Severidade | "TODOS">("TODOS");
   const [busca, setBusca] = useState("");
@@ -62,12 +69,18 @@ function ProjecaoCdPage() {
         sb.from("abast_lojas").select("codigo, nome, almoxarifado").eq("ativo", true),
         sb.from("abast_config").select("chave, valor"),
         fetchAll<any>((f, t) => sb.from("abast_consenso").select("loja, id_produto, mes, unidades, tipo, produto").range(f, t)),
-        fetchAll<any>((f, t) => sb.from("estoque_sistemico").select("id_produto, descricao, origem, quantidade, custo_unitario").gt("quantidade", 0).range(f, t)),
+        fetchAll<any>((f, t) => sb.from("estoque_sistemico").select("id_produto, descricao, origem, quantidade, custo_unitario, data_validade").gt("quantidade", 0).range(f, t)),
         fetchAll<any>((f, t) => sb.from("notas_transferencia_recebimento").select("cod_prod, almox, qtd, recebimento, nota_cancelada").eq("recebimento", "Pendente").range(f, t)),
         fetchAll<any>((f, t) => sb.from("abast_produto").select("id_produto, full_case").range(f, t)),
       ]);
       const c = Object.fromEntries((cfg ?? []).map((x: any) => [x.chave, x.valor]));
-      return { lojas: (lojas ?? []) as { codigo: string; nome: string; almoxarifado: string }[], cd: String(c.cd_almoxarifado || "Alm_SP_Fabrica"), consenso, est, notas: notas.filter((n: any) => n.nota_cancelada !== "S"), prod };
+      const cdAlmox = String(c.cd_almoxarifado || "Alm_SP_Fabrica");
+      const desde = new Date(Date.now() - 56 * 86400000).toISOString().slice(0, 10), desde90 = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+      const [hist, baixas] = await Promise.all([
+        fetchAll<any>((f, t) => sb.from("historico_consumo").select("origem, sku, data_movimento, quantidade").gte("data_movimento", desde).range(f, t)).catch(() => [] as any[]),
+        fetchAll<any>((f, t) => sb.from("baixa_operacional").select("codigo_produto, quantidade, status_fluxo, data_solicitacao").eq("id_local", cdAlmox).or(`status_fluxo.eq.PENDENTE,data_solicitacao.gte.${desde90}`).range(f, t)).catch(() => [] as any[]),
+      ]);
+      return { lojas: (lojas ?? []) as { codigo: string; nome: string; almoxarifado: string }[], cd: String(c.cd_almoxarifado || "Alm_SP_Fabrica"), consenso, est, notas: notas.filter((n: any) => n.nota_cancelada !== "S"), prod, hist, baixas };
     },
   });
 
@@ -117,9 +130,45 @@ function ProjecaoCdPage() {
       const p = projetarCD({ sku: canon.get(k) ?? k, descricao: e?.desc || o.desc, estoqueCD: e?.cd ?? 0, estoqueLojas: e?.lojas ?? 0, emTransito: transitoLoja.get(k) ?? 0, producao: ent > 0 ? [{ data: somaDiasIso(inicio, dTr), qtd: ent }] : [], demandaDia: dem }, inicio);
       projs.push({ ...p, tipo: o.tipo, semRegistro: !e, custo: e?.custo ?? 0, trLojas: transitoLoja.get(k) ?? 0, entCD: ent });
     }
-    const plano = planoProducao(projs, inicio, { leadTimeDias: lead, diasSegurancaCD: seg, multiplo: (s) => fc.get(nk(s)) ?? 1 });
-    return { vazio: false as const, inicio, N, ultimoMes, projs, plano, almoxDe };
-  }, [dados.data, leadTime, segCD, diasTransito, comCafe]);
+    // ───── Motor de reabastecimento: lotes com validade, venda real das lojas e baixas do CD ─────
+    const lotes = { cd: new Map<string, Lote[]>(), proc: new Map<string, Lote[]>(), qual: new Map<string, Lote[]>() };
+    for (const e of d.est) {
+      const q = Number(e.quantidade) || 0; if (q <= 0) continue; const k = nk(e.id_produto);
+      const alvo = e.origem === d.cd ? lotes.cd : e.origem === "Alm_SP_Processo" ? lotes.proc : e.origem === "Alm_SP_Qualidade" ? lotes.qual : null;
+      if (alvo) (alvo.get(k) ?? alvo.set(k, []).get(k)!).push({ qtd: q, validade: e.data_validade ? String(e.data_validade).slice(0, 10) : null });
+    }
+    const vendas = new Map<string, Record<string, Record<string, number>>>(), primeira: Record<string, string> = {};
+    for (const h of d.hist) {
+      const lj = lojaPorAlmox.get(h.origem); if (!lj) continue; const dia = String(h.data_movimento).slice(0, 10);
+      if (!primeira[lj] || dia < primeira[lj]) primeira[lj] = dia;
+      const k = nk(h.sku); const m = vendas.get(k) ?? vendas.set(k, {}).get(k)!; const o = m[lj] ?? (m[lj] = {}); o[dia] = (o[dia] ?? 0) + (Number(h.quantidade) || 0);
+    }
+    const baixaPend = new Map<string, number>(), baixaTaxa = new Map<string, number>(); let aprQ = 0, repQ = 0;
+    for (const b of d.baixas) {
+      const k = nk(b.codigo_produto), q = Number(b.quantidade) || 0, st = String(b.status_fluxo);
+      if (st === "PENDENTE") baixaPend.set(k, (baixaPend.get(k) ?? 0) + q);
+      else if (st === "APROVADA" || st === "EXECUTADA") { baixaTaxa.set(k, (baixaTaxa.get(k) ?? 0) + q / 90); aprQ += q; }
+      else if (st === "REPROVADA") repQ += q;
+    }
+    const probAprov = aprQ + repQ >= 50 ? Math.min(0.98, Math.max(0.5, aprQ / (aprQ + repQ))) : 0.9;
+    const motor = new Map<string, ResultadoMotor & { tipo: string; custo: number }>();
+    const pm = { leadTimeDias: lead, diasQualidade: Math.max(0, Number(diasQual) || 0), diasProcesso: Math.max(0, Number(diasProc) || 0), shelfMinimoDespacho: Math.max(0, Number(shelfMin) || 0), nivelServicoZ: Number(zServ) > 0 ? Number(zServ) : 1.65, segurancaExtraDias: seg, probAprovBaixa: probAprov };
+    for (const [k, o] of porSku) {
+      if (!comCafe && o.tipo.toLowerCase().includes("cafeteria")) continue;
+      const dem = new Array(N).fill(0); const metaLoja: Record<string, number> = {};
+      for (const [lj, porMes] of Object.entries(o.porLoja)) { const s = serieDiariaConsenso(porMes, inicio, N); s.forEach((v, i) => (dem[i] += v)); metaLoja[lj] = s.slice(0, 28).reduce((a, b) => a + b, 0) / Math.min(28, N); }
+      if (dem.reduce((a, b) => a + b, 0) <= 0) continue;
+      const e = estPor.get(k); const ent = entradaCD.get(k) ?? 0; const est = estimarDemandaReal(vendas.get(k) ?? {}, primeira, metaLoja, inicio);
+      const r = planejarSku({ sku: canon.get(k) ?? k, descricao: e?.desc || o.desc, caixa: fc.get(k) ?? 1, lotesCD: lotes.cd.get(k) ?? [], processo: lotes.proc.get(k) ?? [], qualidade: lotes.qual.get(k) ?? [],
+        notasCD: ent > 0 ? [{ data: somaDiasIso(inicio, dTr), qtd: ent }] : [], estoqueLojas: e?.lojas ?? 0, emTransitoLojas: transitoLoja.get(k) ?? 0, demandaMeta: dem, realDia: est.realDia, sigmaDia: est.sigmaDia,
+        baixasPendentes: baixaPend.get(k) ?? 0, taxaBaixaDia: baixaTaxa.get(k) ?? 0, custo: e?.custo }, inicio, pm);
+      if (r) motor.set(k, { ...r, tipo: o.tipo, custo: e?.custo ?? 0 });
+    }
+    const limite = somaDiasIso(inicio, 30); const plano: LinhaPlano[] = [];
+    for (const [k, m] of motor) for (const o of m.ordens) if (o.liberar <= limite) plano.push({ sku: canon.get(k) ?? k, descricao: m.descricao, quantidade: o.quantidade, produzirAte: o.liberar, dataRuptura: m.dataRupturaCD ?? o.chegada, urgente: o.urgente, severidade: m.severidade });
+    plano.sort((a, b) => a.produzirAte.localeCompare(b.produzirAte) || b.quantidade - a.quantidade);
+    return { vazio: false as const, inicio, N, ultimoMes, projs, plano, almoxDe, motor, probAprov };
+  }, [dados.data, leadTime, segCD, diasTransito, comCafe, diasQual, diasProc, shelfMin, zServ]);
 
   const projFiltradas = useMemo(() => {
     if (!calc || calc.vazio) return [];
@@ -132,8 +181,11 @@ function ProjecaoCdPage() {
   const kpi = useMemo(() => {
     if (!calc || calc.vazio) return null;
     const rompem = calc.projs.filter((p) => p.dataRupturaCD);
-    return { analisados: calc.projs.length, rompem: rompem.length, criticos: calc.projs.filter((p) => p.severidade === "critica").length, deficit: rompem.reduce((a, b) => a + b.deficit, 0), valor: rompem.reduce((a, b) => a + b.deficit * b.custo, 0), semRegistro: calc.projs.filter((p) => p.semRegistro).length };
+    return { analisados: calc.projs.length, rompem: rompem.length, criticos: calc.projs.filter((p) => p.severidade === "critica").length, deficit: rompem.reduce((a, b) => a + b.deficit, 0), valor: rompem.reduce((a, b) => a + b.deficit * b.custo, 0), semRegistro: calc.projs.filter((p) => p.semRegistro).length,
+      oculto: [...calc.motor.values()].filter((m) => m.riscoNaoPrevisto).length, perdaVenc: [...calc.motor.values()].reduce((a, m) => a + m.perdaVencimentoUn, 0), baixas: [...calc.motor.values()].reduce((a, m) => a + m.baixasPendentesEsperadas, 0),
+      ordensHoje: [...calc.motor.values()].filter((m) => m.ordens[0]?.urgente).length, vermelhos: [...calc.motor.values()].filter((m) => m.zona === "vermelho").length };
   }, [calc]);
+  const motorLista = useMemo(() => (calc && !calc.vazio ? projFiltradas.map((p) => calc.motor.get(nk(p.sku))).filter((m): m is NonNullable<typeof m> => !!m).sort((a, b) => a.prioridade - b.prioridade) : []), [calc, projFiltradas]);
 
   async function aoEscolher(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; if (!f) return;
@@ -242,11 +294,22 @@ function ProjecaoCdPage() {
           <Kpi t="Valor do déficit (custo)" v={formatBRL(kpi.valor)} />
           <Kpi t="Sem registro de estoque" v={String(kpi.semRegistro)} tom="text-amber-600" />
         </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <Kpi t="Zona vermelha (buffer)" v={String(kpi.vermelhos)} tom="text-red-600" />
+          <Kpi t="Ordens a liberar hoje" v={String(kpi.ordensHoje)} tom="text-red-600" />
+          <Kpi t="Risco fora da previsão (estresse)" v={String(kpi.oculto)} tom="text-orange-600" />
+          <Kpi t="Perda prevista por validade" v={`${un(kpi.perdaVenc)} un`} tom="text-violet-600" />
+          <Kpi t="Baixas pendentes esperadas" v={`${un(kpi.baixas)} un`} />
+        </div>
 
         <div className="flex flex-wrap items-end gap-3 text-sm">
           <div><div className="text-xs text-muted-foreground mb-1">Prazo de produção (dias)</div><Input className="w-28" inputMode="numeric" value={leadTime} onChange={(e) => setLeadTime(e.target.value)} /></div>
           <div><div className="text-xs text-muted-foreground mb-1">Segurança do CD (dias)</div><Input className="w-28" inputMode="numeric" value={segCD} onChange={(e) => setSegCD(e.target.value)} /></div>
           <div><div className="text-xs text-muted-foreground mb-1">Chegada das notas ao CD (dias)</div><Input className="w-28" inputMode="numeric" value={diasTransito} onChange={(e) => setDiasTransito(e.target.value)} /></div>
+          <div><div className="text-xs text-muted-foreground mb-1">Liberação da Qualidade (dias)</div><Input className="w-28" inputMode="numeric" value={diasQual} onChange={(e) => setDiasQual(e.target.value)} /></div>
+          <div><div className="text-xs text-muted-foreground mb-1">Processo → disponível (dias)</div><Input className="w-28" inputMode="numeric" value={diasProc} onChange={(e) => setDiasProc(e.target.value)} /></div>
+          <div><div className="text-xs text-muted-foreground mb-1">Shelf mínimo p/ despacho (dias)</div><Input className="w-28" inputMode="numeric" value={shelfMin} onChange={(e) => setShelfMin(e.target.value)} /></div>
+          <div><div className="text-xs text-muted-foreground mb-1">Nível de serviço (z)</div><Input className="w-28" inputMode="decimal" value={zServ} onChange={(e) => setZServ(e.target.value)} /></div>
           <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={comCafe} onChange={(e) => setComCafe(e.target.checked)} /> incluir cafeteria</label>
           <span className="text-xs text-muted-foreground">Horizonte: de {dataBr(calc.inicio)} até {dataBr(fimDoMes(calc.ultimoMes))} ({calc.N} dias)</span>
         </div>
@@ -275,8 +338,33 @@ function ProjecaoCdPage() {
           </TableBody></Table></CardContent></Card>
 
         <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Motor de reabastecimento do CD</CardTitle>
+            <CardDescription>Buffers por SKU (vermelho/amarelo/verde) sobre o fluxo líquido, com validade (FEFO e shelf mínimo), baixas e estoque em processo. <b>Ruptura em estresse</b> = demanda +σ, baixas pendentes aprovadas e atraso de produção: a ruptura que a previsão de consumo não enxerga. Aprovação de baixa assumida: {Math.round(calc.probAprov * 100)}% (histórico do CD).</CardDescription></CardHeader>
+          <CardContent className="p-0 overflow-x-auto">
+            <div className="flex justify-end p-2"><Button size="sm" variant="outline" className="gap-1" onClick={() => csv(`Motor_CD_${calc.inicio}.csv`, ["SKU", "Produto", "Zona", "Fluxo líquido", "Vermelho", "Amarelo", "Topo", "Utilizável", "Bloqueado shelf", "Em processo", "Qualidade", "Notas ao CD", "Perda por validade", "Baixas pendentes", "Ruptura prevista", "Ruptura em estresse", "Risco fora da previsão", "Qtd proteção", "Próxima ordem (un)", "Liberar", "Chega"], motorLista.map((m) => [m.sku, m.descricao, ZONA_ROT[m.zona], Math.round(m.nfp), Math.round(m.red), Math.round(m.red + m.yellow), Math.round(m.tog), Math.round(m.usavelHoje), Math.round(m.bloqueadoShelf), Math.round(m.wip), Math.round(m.qualidade), Math.round(m.notas), Math.round(m.perdaVencimentoUn), Math.round(m.baixasPendentesEsperadas), m.dataRupturaCD ?? "", m.dataRupturaEstresse ?? "", m.riscoNaoPrevisto ? "sim" : "não", m.qtdProtecao, m.ordens[0]?.quantidade ?? "", m.ordens[0]?.liberar ?? "", m.ordens[0]?.chegada ?? ""]))}><Download className="size-4" /> CSV do motor</Button></div>
+            <Table>
+              <TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Zona</TableHead><TableHead className="text-right">Fluxo líquido</TableHead><TableHead className="text-right">Verm. / Amar. / Topo</TableHead><TableHead className="text-right">Utilizável (shelf)</TableHead><TableHead className="text-right">A receber</TableHead><TableHead className="text-right">Perda validade</TableHead><TableHead className="text-right">Baixas pend.</TableHead><TableHead>Ruptura prevista</TableHead><TableHead>Em estresse</TableHead><TableHead>Próxima ordem</TableHead></TableRow></TableHeader>
+              <TableBody>{motorLista.map((m) => (
+                <TableRow key={m.sku}>
+                  <TableCell className="font-mono text-xs">{m.sku}</TableCell><TableCell className="max-w-[240px] truncate" title={m.descricao}>{m.descricao}</TableCell>
+                  <TableCell><span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${ZONA_COR[m.zona]}`}>{ZONA_ROT[m.zona]} · {Math.round(m.prioridade)}%</span></TableCell>
+                  <TableCell className="text-right">{un(m.nfp)}</TableCell><TableCell className="text-right text-xs text-muted-foreground">{un(m.red)} / {un(m.red + m.yellow)} / {un(m.tog)}</TableCell>
+                  <TableCell className="text-right">{un(m.usavelHoje)}{m.bloqueadoShelf > 0 && <span className="ml-1 text-[11px] text-violet-600" title="bloqueado por shelf mínimo">(+{un(m.bloqueadoShelf)} bloq.)</span>}</TableCell>
+                  <TableCell className="text-right">{un(m.wip + m.qualidade + m.notas)}</TableCell>
+                  <TableCell className={`text-right ${m.perdaVencimentoUn > 0 ? "font-semibold text-violet-600" : ""}`}>{m.perdaVencimentoUn > 0 ? un(m.perdaVencimentoUn) : "—"}</TableCell>
+                  <TableCell className={`text-right ${m.baixasPendentesEsperadas > 0 ? "font-semibold text-orange-600" : ""}`}>{m.baixasPendentesEsperadas > 0 ? un(m.baixasPendentesEsperadas) : "—"}</TableCell>
+                  <TableCell>{dataBr(m.dataRupturaCD)}</TableCell>
+                  <TableCell className={m.riscoNaoPrevisto ? "font-semibold text-orange-600" : ""}>{dataBr(m.dataRupturaEstresse)}{m.riscoNaoPrevisto && " ⚠"}</TableCell>
+                  <TableCell>{m.ordens[0] ? <span className={m.ordens[0].urgente ? "font-semibold text-red-600" : ""}>{un(m.ordens[0].quantidade)} un · liberar {dataBr(m.ordens[0].liberar)}{m.ordens[0].atrasoDias > 0 && ` (chega ${m.ordens[0].atrasoDias} d depois do necessário)`}</span> : "—"}</TableCell>
+                </TableRow>))}
+                {motorLista.length === 0 && <TableRow><TableCell colSpan={12} className="py-8 text-center text-muted-foreground">Nenhum SKU neste filtro.</TableCell></TableRow>}</TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Plano de produção sugerido</CardTitle>
-            <CardDescription>Quantidade = déficit até o fim da meta (em múltiplos da caixa); produzir até = data da ruptura − prazo de produção. Desmarque o que não quiser produzir e verifique a matéria-prima.</CardDescription></CardHeader>
+            <CardDescription>Ordens planejadas pelo motor: campanhas por ciclo de produção, liberadas com antecedência igual ao prazo (produção + qualidade), em múltiplos da caixa e limitadas à cobertura máxima. Mostra as liberações dos próximos 30 dias. Desmarque o que não quiser produzir e verifique a matéria-prima.</CardDescription></CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-wrap gap-2">
               <Button onClick={verificarMp} disabled={verificando || planoSel.length === 0} className="gap-2"><FlaskConical className="size-4" /> {verificando ? "Checando..." : `Verificar matéria-prima (${planoSel.length} SKUs)`}</Button>
