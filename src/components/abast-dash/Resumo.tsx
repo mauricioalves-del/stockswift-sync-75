@@ -1,3 +1,4 @@
+// ============= Resumo do Dashboard de Disponibilidade =============
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { riscoEnderecado, resumirLocal, type DashLinha, type TransitoLocal } from "@/lib/abastecimento-dash";
@@ -34,7 +35,7 @@ export function Kpis({ hoje, filtro, linhas, hist }: Omit<Props, "setFiltro">) {
         <Card t="Stock Over" v={n0(rs.stockover)} s={`${brl(rs.excessoRs)} em excesso`} cor="border-l-violet-500" vc="text-violet-600" />
         <Card t="Cobertura média" v={rs.coberturaMedia === null ? "—" : `${n1(rs.coberturaMedia)} d`} s="Estoque líquido ÷ VBM" cor="border-l-slate-700" />
         <Card t="Risco endereçado" v={`${risco.enderecados} de ${risco.total}`} s="zerados ou ≤ 7 d com reposição a caminho" cor="border-l-teal-600" vc="text-teal-700" />
-        <Card t="Dias com saldo" v={`${rp.diasComRegistro.length} de ${rp.diasPeriodo}`} s={`${n0(rp.itemDias)} de ${n0(possiveis)} item-dias${faltam ? ` · faltam ${faltam}` : ""}`} cor="border-l-orange-500" vc="text-orange-600" />
+        <Card t="Dias com saldo" v={`${rp.diasComRegistro.length} de ${rp.diasPeriodo}`} s={`${n0(rp.itemDias)} de ${n0(possiveis)} item-dias${faltam ? ` · faltam ${faltam}` : ""}`} cor="border-l-orange-500" vc="text-orange-500" />
       </div>
       <p className="text-right text-[10px] italic text-muted-foreground">Os indicadores consideram lojas + Almox SP (CD). Selecione um local, ou "Todas as lojas (meta)", para ver só o PDV. Trânsito não reduz a ruptura: só indica se o risco já está endereçado.</p>
     </div>
@@ -44,7 +45,9 @@ function Card({ t, v, s, cor, vc = "" }: { t: string; v: string; s: string; cor:
   return <div className={`rounded-xl border border-l-4 bg-card p-3 shadow-sm ${cor}`}><div className="text-[11px] font-semibold uppercase text-muted-foreground">{t}</div><div className={`mt-1 text-2xl font-bold ${vc}`}>{v}</div><div className="mt-1 text-[11px] text-muted-foreground">{s}</div></div>;
 }
 
-export function ResumoLocais({ hoje, filtro, setFiltro, linhas, hist, transito = {} }: Props) {
+// Cálculo compartilhado entre os cards de local (bloco C, acima do gráfico) e a tabela de posição
+// (bloco C, agora abaixo do gráfico + top itens). As duas partes usam exatamente os mesmos números.
+function calcularResumoLocais({ hoje, filtro, setFiltro, linhas, hist, transito = {} }: Props) {
   const trLocais = (locais: string[]) => locais.reduce((a, l) => { const x = transito[l]; return x ? { un: a.un + x.un, rs: a.rs + x.rs, notas: a.notas + x.notas, maior: Math.max(a.maior, x.maiorAtrasoDiasUteis) } : a; }, { un: 0, rs: 0, notas: 0, maior: 0 });
   const escolhe = (e: Escopo) => setFiltro({ ...filtro, escopo: filtro.escopo === e ? "TODOS" : e });
   const fh = (locais: string[]) => ({ de: filtro.de, ate: filtro.ate, locais, categoria: null as string | null });
@@ -59,13 +62,19 @@ export function ResumoLocais({ hoje, filtro, setFiltro, linhas, hist, transito =
     { e: "CD", nome: "Almox SP (CD)", locais: ["CD"] },
     { e: "TODOS", nome: "Total geral (lojas + CD)", locais: [...LOJAS, "CD"], total: true, forte: true },
   ];
-  const Pl = ({ v }: { v: number | null }) => v === null ? <span className="text-muted-foreground">—</span> : <Pill cls={FAROL[farolRuptura(v)].pill}>● {pct(v)}</Pill>;
+  return { trLocais, escolhe, dados, cards, linhasTab };
+}
+
+const Pl = ({ v }: { v: number | null }) => v === null ? <span className="text-muted-foreground">—</span> : <Pill cls={FAROL[farolRuptura(v)].pill}>● {pct(v)}</Pill>;
+
+export function ResumoLocais(props: Props) {
+  const { cards, dados, escolhe } = calcularResumoLocais(props);
   return (
     <Secao letra="C" titulo="Resumo por local">
-      <p className="mb-3 text-right text-xs font-semibold">Clique num card ou numa linha para filtrar a tela inteira</p>
-      <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <p className="mb-3 text-right text-xs font-semibold">Clique num card para filtrar a tela inteira</p>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-5">
         {cards.map((c) => {
-          const d = dados(c.locais); const [v, a, g] = semaforo(d.r.ruptura, d.r.stockout); const sel = filtro.escopo === c.e; const aler = d.r.alertas > 0;
+          const d = dados(c.locais); const [v, a, g] = semaforo(d.r.ruptura, d.r.stockout); const sel = filtroSel(props.filtro.escopo, c.e); const aler = d.r.alertas > 0;
           return (
             <button key={c.e} type="button" onClick={() => escolhe(c.e)} className={`flex flex-col gap-2 rounded-xl border p-3 text-left transition hover:shadow ${sel ? "border-2 border-slate-900 bg-slate-50 shadow" : "bg-card"}`}>
               <div className="flex items-start gap-3">
@@ -77,8 +86,18 @@ export function ResumoLocais({ hoje, filtro, setFiltro, linhas, hist, transito =
             </button>);
         })}
       </div>
+    </Secao>
+  );
+}
+const filtroSel = (escopo: Escopo, e: Escopo) => escopo === e;
+
+export function ResumoLocaisTabela(props: Props) {
+  const { trLocais, escolhe, dados, linhasTab } = calcularResumoLocais(props);
+  return (
+    <Secao letra="C" titulo="Resumo por local · posição detalhada">
+      <p className="mb-3 text-right text-xs font-semibold">Clique numa linha para filtrar a tela inteira</p>
       <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b bg-muted/40"><Th c="Local" /><Th c="SKUs ativos" d /><Th c="Ruptura hoje" d /><Th c="Ruptura período" d /><Th c="Ating. meta" d /><Th c="Stockout" d /><Th c="Stock Over" d /><Th c="Excesso R$" d /><Th c="Em trânsito" d /><Th c="Cobertura" d /></tr></thead>
-        <tbody>{linhasTab.map((t) => { const d = dados(t.locais); const at = d.periodo === null ? null : atingimento(d.periodo); const sel = t.e !== null && filtro.escopo === t.e;
+        <tbody>{linhasTab.map((t) => { const d = dados(t.locais); const at = d.periodo === null ? null : atingimento(d.periodo); const sel = t.e !== null && props.filtro.escopo === t.e;
           return (<tr key={t.nome} onClick={() => t.e && escolhe(t.e)} className={`cursor-pointer border-b hover:bg-muted/50 ${t.total ? "bg-muted/40 font-semibold" : ""} ${t.forte ? "border-t-2 border-t-slate-700 bg-slate-100" : ""} ${sel ? "outline outline-2 outline-slate-700" : ""}`}>
             <td className="px-2 py-2 font-medium">{t.nome}</td><td className="px-2 py-2 text-right">{n0(d.r.skus)}</td><td className="px-2 py-2 text-right"><Pl v={d.hoje} /></td><td className="px-2 py-2 text-right"><Pl v={d.periodo} /></td>
             <td className={`px-2 py-2 text-right font-semibold ${d.periodo === null ? "text-muted-foreground" : FAROL[farolRuptura(d.periodo)].texto}`}>{at === null ? "—" : `${(at * 100).toFixed(0)}%`}</td>
