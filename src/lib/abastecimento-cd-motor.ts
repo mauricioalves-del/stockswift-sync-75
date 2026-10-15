@@ -47,7 +47,7 @@ export function estatDemanda(serie: number[]): { media: number; sigma: number } 
 
 type Cen = { demanda: number[]; baixas: number; atraso: number; taxaBaixa: number };
 type LoteSim = { qtd: number; disp: number; val: number };
-type Sim = { fim: number[]; net: number[]; perda: number; primeiraPerda: number | null; ruptura: number | null; falta: number; bloq0: number };
+type Sim = { fim: number[]; net: number[]; faltaDia: number[]; perda: number; primeiraPerda: number | null; ruptura: number | null; falta: number; bloq0: number };
 
 function simular(e: EntradaMotor, p: ParamsMotor, cen: Cen, ordens: { chegada: number; qtd: number }[], inicio: string): Sim {
   const N = cen.demanda.length; const vi = (v: string | null) => (v ? idxDia(inicio, v) : Infinity);
@@ -60,17 +60,17 @@ function simular(e: EntradaMotor, p: ParamsMotor, cen: Cen, ordens: { chegada: n
   let resto = cen.baixas;                                           // baixas pendentes aprovadas: saem do que já está no CD (FEFO)
   for (const l of lotes.filter((x) => x.disp === 0).sort((a, b) => a.val - b.val)) { const t = Math.min(l.qtd, resto); l.qtd -= t; resto -= t; if (resto <= 0) break; }
   const cobre = e.estoqueLojas + e.emTransitoLojas; let cum = 0, prevSai = 0, perda = 0, primeiraPerda: number | null = null, ruptura: number | null = null, falta = 0, bloq0 = 0;
-  const fim: number[] = [], net: number[] = [];
+  const fim: number[] = [], net: number[] = [], faltaDia: number[] = [];
   const usavel = (l: LoteSim, d: number) => l.qtd > 0 && l.disp <= d && l.val - d >= p.shelfMinimoDespacho;
   for (let d = 0; d < N; d++) {
     for (const l of lotes) if (l.qtd > 0 && l.val < d) { perda += l.qtd; if (primeiraPerda === null) primeiraPerda = d; l.qtd = 0; }
     cum += cen.demanda[d]; const sai = Math.max(0, cum - cobre); let precisa = sai - prevSai + cen.taxaBaixa; prevSai = sai;
     for (const l of lotes.filter((x) => usavel(x, d)).sort((a, b) => a.val - b.val)) { const t = Math.min(l.qtd, precisa); l.qtd -= t; precisa -= t; if (precisa <= 1e-9) break; }
-    if (precisa > 1e-9) { falta += precisa; if (ruptura === null) ruptura = d; }
+    faltaDia.push(precisa > 1e-9 ? precisa : 0); if (precisa > 1e-9) { falta += precisa; if (ruptura === null) ruptura = d; }
     const f = soma(lotes.filter((x) => usavel(x, d)).map((x) => x.qtd)); fim.push(f); net.push(f - falta);
     if (d === 0) bloq0 = soma(lotes.filter((x) => x.qtd > 0 && x.disp <= 0 && x.val - 0 < p.shelfMinimoDespacho).map((x) => x.qtd));
   }
-  return { fim, net, perda, primeiraPerda, ruptura, falta, bloq0 };
+  return { fim, net, faltaDia, perda, primeiraPerda, ruptura, falta, bloq0 };
 }
 
 export function planejarSku(e: EntradaMotor, inicio: string, pp: Partial<ParamsMotor> = {}): ResultadoMotor | null {
@@ -81,7 +81,7 @@ export function planejarSku(e: EntradaMotor, inicio: string, pp: Partial<ParamsM
   const rho = e.realDia !== null && metaMedia > 0 ? e.realDia / metaMedia : 1;
   const fator = e.realDia !== null && metaMedia > 0 ? clamp(p.pesoMeta + (1 - p.pesoMeta) * rho, 0.6, 1.4) : 1;
   const dem = e.demandaMeta.map((v) => v * fator); const adu = soma(dem.slice(0, janela)) / janela;
-  const sigma = e.sigmaDia ?? 0.5 * adu;
+  const sigma = Math.max(e.sigmaDia ?? 0.5 * adu, 0.25 * adu);      // piso: CV mínimo de 25% (σ=0 costuma ser venda censurada por falta de estoque)
   const esp: Cen = { demanda: dem, baixas: e.baixasPendentes * p.probAprovBaixa, atraso: 0, taxaBaixa: e.taxaBaixaDia };
   const est: Cen = { demanda: dem.map((v) => Math.min(2 * v + 1e-9, v + p.fatorEstresse * sigma)), baixas: e.baixasPendentes, atraso: p.atrasoEstresseDias, taxaBaixa: e.taxaBaixaDia * 1.5 };
   // 2) buffers DDMRP (em unidades): vermelho = base + segurança estatística (+ baixa média no prazo); amarelo = ADU × DLT; verde = ciclo de produção
@@ -98,10 +98,10 @@ export function planejarSku(e: EntradaMotor, inicio: string, pp: Partial<ParamsM
   const capQtd = Math.ceil((adu * p.coberturaMaximaDias + seg) / caixa) * caixa; let ultimaChegada = -1;
   const semPerdas = simular(e, p, { ...esp, baixas: 0, taxaBaixa: 0 }, [], inicio);
   for (let it = 0; it < 8; it++) {
-    const s = simular(e, p, esp, ordens, inicio); const t = s.fim.findIndex((v, d) => d > ultimaChegada && v < seg - 1e-9); if (t < 0) break;
+    const s = simular(e, p, esp, ordens, inicio); const t = s.fim.findIndex((v, d) => d > ultimaChegada && (v < seg - 1e-9 || s.faltaDia[d] > 1e-9)); if (t < 0) break;
     const chegada = Math.max(t, dlt); if (chegada >= N || chegada <= ultimaChegada) break;
     const w = Math.min(N - 1, chegada + p.cicloProducaoDias - 1); const bruta = soma(dem.slice(chegada, w + 1));
-    const ok = (q: number) => { const r = simular(e, p, esp, [...ordens, { chegada, qtd: q }], inicio); return Math.min(...r.fim.slice(chegada, w + 1)) >= seg - 1e-9; };
+    const ok = (q: number) => { const r = simular(e, p, esp, [...ordens, { chegada, qtd: q }], inicio); return Math.min(...r.fim.slice(chegada, w + 1)) >= seg - 1e-9 && r.faltaDia.slice(chegada, w + 1).every((x) => x <= 1e-9); };
     let lo = 1, hi = Math.max(1, Math.ceil(((bruta + seg) * 1.5 + caixa) / caixa));
     while (lo < hi) { const mid = (lo + hi) >> 1; if (ok(mid * caixa)) hi = mid; else lo = mid + 1; }
     const q = Math.min(lo * caixa, capQtd);
