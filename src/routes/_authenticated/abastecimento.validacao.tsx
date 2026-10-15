@@ -112,7 +112,7 @@ function ValidacaoPage() {
       <h1 className="flex items-center gap-2 text-2xl font-bold"><BadgeCheck className="size-6" />Validação do Gestor</h1>
       <div className="flex flex-wrap gap-3">
         <label className="text-xs font-semibold text-muted-foreground">Competência<Input type="month" value={competencia} onChange={(e) => e.target.value && setCompetencia(e.target.value)} className="mt-1" /></label>
-        <label className="text-xs font-semibold text-muted-foreground">Loja<select value={loja} onChange={(e) => setLoja(e.target.value)} className="mt-1 block h-9 min-w-48 rounded-md border bg-background px-2 text-sm">{data.lojas.map((l) => <option key={l.codigo} value={l.codigo}>{l.nome}</option>)}<option value={LOJA_CD}>{NOME_CD}</option></select></label>
+        <label className="text-xs font-semibold text-muted-foreground">Loja<select value={loja} onChange={(e) => { setLoja(e.target.value); setFiltroCard(null); setFiltroCardCD(null); }} className="mt-1 block h-9 min-w-48 rounded-md border bg-background px-2 text-sm">{data.lojas.map((l) => <option key={l.codigo} value={l.codigo}>{l.nome}</option>)}<option value={LOJA_CD}>{NOME_CD}</option></select></label>
       </div>
     </header>
 
@@ -149,7 +149,7 @@ function ValidacaoPage() {
 
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-semibold">Lista do portfólio (planilha de Parâmetros) · {nomeLoja(loja)}</h2>
+        <h2 className="font-semibold">Lista do portfólio (planilha de Parâmetros) · {nomeLoja(loja)}{filtroCard && filtroCard !== "Total" && <span className="ml-2 text-xs font-normal text-muted-foreground">filtro: {rotuloFiltro(filtroCard)} <button type="button" className="underline" onClick={() => setFiltroCard(null)}>limpar</button></span>}</h2>
         <div className="flex gap-2"><Input placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-64" />
           <Button variant="outline" size="sm" disabled={!gestor} onClick={() => setSel(new Set(itens.map((i) => i.sku)))}>Marcar todos</Button>
           <Button variant="outline" size="sm" disabled={!gestor} onClick={() => setSel(new Set())}>Desmarcar</Button></div>
@@ -171,7 +171,7 @@ function ValidacaoPage() {
         ))}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-semibold">Itens aprovados pelo Gerente Comercial · o {NOME_CD} deve manter estoque</h2>
+        <h2 className="font-semibold">Itens aprovados pelo Gerente Comercial · o {NOME_CD} deve manter estoque{filtroCardCD && <span className="ml-2 text-xs font-normal text-muted-foreground">filtro: {String(CLASSES_PORTFOLIO[filtroCardCD] ?? filtroCardCD)} <button type="button" className="underline" onClick={() => setFiltroCardCD(null)}>limpar</button></span>}</h2>
         <Input placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-64" />
       </div>
       <div className="max-h-[28rem] overflow-auto rounded-md border"><Table><TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Grupo</TableHead><TableHead>Classe</TableHead><TableHead>Meta OOS</TableHead><TableHead>Aprovado nas lojas</TableHead></TableRow></TableHeader>
