@@ -36,7 +36,7 @@ export function Kpis({ hoje, filtro, linhas, hist }: Omit<Props, "setFiltro">) {
         <Card t="Risco endereçado" v={`${risco.enderecados} de ${risco.total}`} s="zerados ou ≤ 7 d com reposição a caminho" cor="border-l-teal-600" vc="text-teal-700" />
         <Card t="Dias com saldo" v={`${rp.diasComRegistro.length} de ${rp.diasPeriodo}`} s={`${n0(rp.itemDias)} de ${n0(possiveis)} item-dias${faltam ? ` · faltam ${faltam}` : ""}`} cor="border-l-orange-500" vc="text-orange-600" />
       </div>
-      <p className="text-right text-[10px] italic text-muted-foreground">KPIs da meta = lojas. Selecionar Almox SP ou "Todos (lojas + CD)" recalcula os cards. Trânsito não reduz a ruptura: só indica se o risco já está endereçado.</p>
+      <p className="text-right text-[10px] italic text-muted-foreground">Os indicadores consideram lojas + Almox SP (CD). Selecione um local, ou "Todas as lojas (meta)", para ver só o PDV. Trânsito não reduz a ruptura: só indica se o risco já está endereçado.</p>
     </div>
   );
 }
@@ -46,7 +46,7 @@ function Card({ t, v, s, cor, vc = "" }: { t: string; v: string; s: string; cor:
 
 export function ResumoLocais({ hoje, filtro, setFiltro, linhas, hist, transito = {} }: Props) {
   const trLocais = (locais: string[]) => locais.reduce((a, l) => { const x = transito[l]; return x ? { un: a.un + x.un, rs: a.rs + x.rs, notas: a.notas + x.notas, maior: Math.max(a.maior, x.maiorAtrasoDiasUteis) } : a; }, { un: 0, rs: 0, notas: 0, maior: 0 });
-  const escolhe = (e: Escopo) => setFiltro({ ...filtro, escopo: filtro.escopo === e ? "LOJAS" : e });
+  const escolhe = (e: Escopo) => setFiltro({ ...filtro, escopo: filtro.escopo === e ? "TODOS" : e });
   const fh = (locais: string[]) => ({ de: filtro.de, ate: filtro.ate, locais, categoria: null as string | null });
   const dados = (locais: string[]) => {
     const ls = linhas.filter((l) => locais.includes(l.local)); const r = resumirLocal(ls); const p = resumoPeriodo(hist, fh(locais), hoje);
