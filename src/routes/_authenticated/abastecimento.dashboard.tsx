@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/abastecimento/dashboard")(
 });
 
 const hojeBrt = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-const padrao = (hoje: string): Filtro => ({ de: `${hoje.slice(0, 7)}-01`, ate: hoje, escopo: "LOJAS", categoria: "AMBAS" });
+const padrao = (hoje: string): Filtro => ({ de: `${hoje.slice(0, 7)}-01`, ate: hoje, escopo: "TODOS", categoria: "AMBAS" });
 
 function DashboardPage() {
   const { isAdmin, role } = useRole();
@@ -80,7 +80,7 @@ function DashboardPage() {
             <label className="text-[11px] font-semibold text-muted-foreground">De<input type="date" value={filtro.de} max={filtro.ate} onChange={(e) => e.target.value && set({ de: e.target.value })} className="mt-1 block h-9 rounded-md border bg-background px-2 text-sm" /></label>
             <label className="text-[11px] font-semibold text-muted-foreground">Até<input type="date" value={filtro.ate} min={filtro.de} max={hoje} onChange={(e) => e.target.value && set({ ate: e.target.value })} className="mt-1 block h-9 rounded-md border bg-background px-2 text-sm" /></label></div>
           <div className="flex gap-1"><button type="button" onClick={() => set({ de: hoje, ate: hoje })} className={`h-9 rounded-md border px-3 text-xs font-semibold ${soHoje ? "bg-slate-900 text-white" : "bg-background hover:bg-muted"}`}>Hoje</button><button type="button" onClick={() => set({ de: `${hoje.slice(0, 7)}-01`, ate: hoje })} className={`h-9 rounded-md border px-3 text-xs font-semibold ${mesAtual ? "bg-slate-900 text-white" : "bg-background hover:bg-muted"}`}>Mês atual</button></div>
-          <label className="text-[11px] font-semibold text-muted-foreground">Local<select value={filtro.escopo} onChange={(e) => set({ escopo: e.target.value as Escopo })} className="mt-1 block h-9 min-w-[190px] rounded-md border bg-background px-2 text-sm"><option value="LOJAS">Todas as lojas (meta)</option><option value="ELDORADO">{NOME.ELDORADO}</option><option value="JESUINO">{NOME.JESUINO}</option><option value="PATIO">{NOME.PATIO}</option><option value="CD">{NOME.CD}</option><option value="TODOS">Todos (lojas + CD)</option></select></label>
+          <label className="text-[11px] font-semibold text-muted-foreground">Local<select value={filtro.escopo} onChange={(e) => set({ escopo: e.target.value as Escopo })} className="mt-1 block h-9 min-w-[190px] rounded-md border bg-background px-2 text-sm"><option value="TODOS">Todos (lojas + CD)</option><option value="LOJAS">Todas as lojas (meta)</option><option value="ELDORADO">{NOME.ELDORADO}</option><option value="JESUINO">{NOME.JESUINO}</option><option value="PATIO">{NOME.PATIO}</option><option value="CD">{NOME.CD}</option></select></label>
           <label className="text-[11px] font-semibold text-muted-foreground">Categoria<select value={filtro.categoria} onChange={(e) => set({ categoria: e.target.value as Categoria })} className="mt-1 block h-9 min-w-[210px] rounded-md border bg-background px-2 text-sm"><option value="AMBAS">Prod. Acabado + Revenda</option><option value="Produto Acabado">Produto Acabado</option><option value="Mercadoria de Revenda">Mercadoria de Revenda</option></select></label>
           <button type="button" onClick={() => setFiltro(padrao(hoje))} className="ml-auto h-9 rounded-md border bg-muted px-4 text-xs font-semibold hover:bg-muted/70">Limpar filtros</button>
         </div>
