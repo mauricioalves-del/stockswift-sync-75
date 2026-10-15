@@ -10,6 +10,7 @@ import { useRole } from "@/hooks/useRole";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { CLASSES_PORTFOLIO } from "@/lib/abastecimento-portfolio";
 import { TabelaRolavel } from "@/components/abast-dash/comum";
+import { nomeCurtoLoja } from "@/lib/abastecimento-nomes";
 import { montarItens, nk, type ItemRep } from "@/lib/abastecimento-dados";
 import { STATUS2, LIMITE_COBERTURA_AVISO, resumirLoja2, type Status2, type Base2 } from "@/lib/abastecimento-motor2";
 import { resolverParam } from "@/lib/abastecimento-cobertura";
@@ -47,15 +48,15 @@ const COLS: ColDef<ItemRep>[] = [
   { k: "status", r: "Status", t: "cat", v: (i) => STATUS2[i.status].rotulo },
   { k: "estoque", r: "Estoque", t: "num", al: "right", v: (i) => i.estoque },
   { k: "expo", r: "Expo.", t: "num", al: "right", v: (i) => i.exposicao },
-  { k: "caminho", r: "A caminho", t: "num", al: "right", v: (i) => i.emTransito + i.pedidoAberto },
-  { k: "demanda", r: "Demanda/dia", t: "num", al: "right", v: (i) => i.demandaDia },
+  { k: "caminho", r: "Transi", dica: "A caminho: unidades em trânsito + pedidos em aberto", t: "num", al: "right", v: (i) => i.emTransito + i.pedidoAberto },
+  { k: "demanda", r: "CMD", dica: "CMD: demanda média por dia (unidades por dia)", t: "num", al: "right", v: (i) => i.demandaDia },
   { k: "meta", r: "Meta mês", t: "num", al: "right", v: (i) => i.metaMes },
   { k: "ideal", r: "Mín / Ideal", t: "num", al: "right", v: (i) => i.idealQ },
   { k: "sugestao", r: "Sugestão", t: "num", al: "right", v: (i) => i.sugestao },
   { k: "pedido", r: "Pedido", t: "num", al: "right", v: (i) => i.qtdPedido },
   { k: "atende", r: "CD atende", t: "num", al: "right", v: (i) => i.qtdAtendida },
   { k: "saldocd", r: "Saldo CD", t: "num", al: "right", v: (i) => i.saldoCD },
-  { k: "cobpos", r: "Cob. pós-pedido (dias)", t: "num", al: "right", v: (i) => i.cobPosPedido },
+  { k: "cobpos", r: "Cobertura", dica: "Cobertura: dias de estoque depois do pedido", t: "num", al: "right", v: (i) => i.cobPosPedido },
 ];
 
 function ReposicaoPage() {
@@ -185,7 +186,7 @@ function ReposicaoPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {(bruto.data?.lojas ?? []).map((l) => <Button key={l.codigo} size="sm" variant={loja?.codigo === l.codigo ? "default" : "outline"} onClick={() => { setLojaSel(l.codigo); setFiltro("TODOS"); setFamFiltro(""); setFora(new Set()); }}>{l.nome}</Button>)}
+        {(bruto.data?.lojas ?? []).map((l) => <Button key={l.codigo} size="sm" title={l.nome} variant={loja?.codigo === l.codigo ? "default" : "outline"} onClick={() => { setLojaSel(l.codigo); setFiltro("TODOS"); setFamFiltro(""); setFora(new Set()); }}>{nomeCurtoLoja(l.codigo, l.nome)}</Button>)}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -237,7 +238,7 @@ function ReposicaoPage() {
         {(nFiltros > 0 || ordem) && <button className="rounded-full border px-3 py-1 hover:bg-muted" onClick={() => { setFiltros({}); setOrdem(null); }}>Limpar {nFiltros > 0 ? `filtros (${nFiltros})` : ""}{nFiltros > 0 && ordem ? " e " : ""}{ordem ? "ordem" : ""}</button>}
         <span>Clique no título para ordenar (números: do maior para o menor) e no funil para filtrar.</span>
       </div>
-      <TabelaRolavel titulo={`Reposição de Lojas · ${loja?.nome ?? ""} · ${linhas.length} itens`} altura="max-h-[68vh]"><table className="w-full caption-bottom bg-card text-sm text-card-foreground">
+      <TabelaRolavel titulo={`Reposição de Lojas · ${nomeCurtoLoja(loja?.codigo ?? "", loja?.nome)} · ${linhas.length} itens`} altura="max-h-[68vh]"><table className="w-full caption-bottom bg-card text-sm text-card-foreground">
         <thead>
           <tr className="border-b">
             {gestor && <th className="sticky top-0 z-20 w-8 bg-muted" />}
