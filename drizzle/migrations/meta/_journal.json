@@ -71,6 +71,13 @@
       "when": 1792012374958,
       "tag": "0009_leitura_aprovados_causa_raiz_fechamentos_missoes",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792064296790,
+      "tag": "0010_leitura_aprovados_producao_historico_confirmacoes",
+      "breakpoints": true
     }
   ]
 }
