@@ -1,9 +1,9 @@
 # Correção de grupos das Baixas Operacionais
 
 ## Reposição de Lojas: apresentação
-- [ ] Remover Grupo, Família e Caixa da lista; mostrar Classe do portfólio aprovado após Produto.
-- [ ] Permitir maximizar e restaurar a lista, preservando filtros e pedidos manuais.
-- [ ] Verificar a lista autenticada e tratar os três alertas de segurança listados.
+- [x] Remover Grupo, Família e Caixa da lista; mostrar Classe do portfólio aprovado após Produto.
+- [x] Permitir maximizar e restaurar a lista, preservando filtros e pedidos manuais.
+- [x] Verificar a lista autenticada e tratar os três alertas de segurança listados.
 
 ## Menu Abastecimento e segurança
 - [x] Ocultar Disponibilidade e rupturas e Indicadores do menu, preservando páginas e dados.
