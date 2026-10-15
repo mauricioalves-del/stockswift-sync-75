@@ -221,9 +221,11 @@ function ProjecaoCdPage() {
       const sb = supabase as any;
       const est = await fetchAll<any>((f, t) => sb.from("estoque_sistemico").select("id_produto, quantidade, origem").in("origem", ORIGENS_PROD).order("id_produto").range(f, t));
       for (const r of est) saldos[r.id_produto] = (saldos[r.id_produto] ?? 0) + Number(r.quantidade || 0);
-      const itens = explodirSimulacao(paraPcp(planoSel), bom, saldos);
+      // uma exigência de matéria-prima por SKU: soma das campanhas do plano (várias ordens por SKU estouravam a pilha na explosão)
+      const somaSku = new Map<string, LinhaPlano>(); for (const l of planoSel) { const a = somaSku.get(l.sku); if (a) a.quantidade += l.quantidade; else somaSku.set(l.sku, { ...l }); }
+      const itens = explodirSimulacao(paraPcp([...somaSku.values()]), bom, saldos);
       const agg = new Map<string, { id: string; item: string; um: string; tipo: string; necessidade: number; contribs: any[] }>();
-      for (const n of itens) { const a = agg.get(n.id_item) ?? { id: n.id_item, item: n.item ?? n.id_item, um: n.um ?? "", tipo: n.tipo, necessidade: 0, contribs: [] }; a.necessidade += n.necessidade; a.contribs.push(...n.contribs); agg.set(n.id_item, a); }
+      for (const n of itens) { const a = agg.get(n.id_item) ?? { id: n.id_item, item: n.item ?? n.id_item, um: n.um ?? "", tipo: n.tipo, necessidade: 0, contribs: [] }; a.necessidade += n.necessidade; for (const c of n.contribs) a.contribs.push(c); agg.set(n.id_item, a); }
       const faltas: { id: string; item: string; um: string; necessidade: number; saldo: number; usadoEm: string }[] = [];
       const bloqueados = new Map<string, number>(); const comBom = new Set<string>();
       for (const a of agg.values()) for (const c of a.contribs) comBom.add(c.id_produto);
@@ -236,7 +238,7 @@ function ProjecaoCdPage() {
         faltas.push({ id: a.id, item: a.item, um: a.um, necessidade: a.necessidade, saldo, usadoEm: prods.slice(0, 3).join(", ") + (prods.length > 3 ? "…" : "") });
       }
       faltas.sort((x, y) => (x.saldo - x.necessidade) - (y.saldo - y.necessidade));
-      setMp({ faltas, bloqueados, semBom: planoSel.filter((l) => !comBom.has(l.sku)).map((l) => l.sku), total: agg.size });
+      setMp({ faltas, bloqueados, semBom: [...new Set(planoSel.map((l) => l.sku))].filter((s) => !comBom.has(s)), total: agg.size });
     } catch (err: any) { toast.error("Não consegui checar a matéria-prima: " + (err?.message ?? err)); }
     finally { setVerificando(false); }
   }
@@ -367,7 +369,7 @@ function ProjecaoCdPage() {
             <CardDescription>Ordens planejadas pelo motor: campanhas por ciclo de produção, liberadas com antecedência igual ao prazo (produção + qualidade), em múltiplos da caixa e limitadas à cobertura máxima. Mostra as liberações dos próximos 30 dias. Desmarque o que não quiser produzir e verifique a matéria-prima.</CardDescription></CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-wrap gap-2">
-              <Button onClick={verificarMp} disabled={verificando || planoSel.length === 0} className="gap-2"><FlaskConical className="size-4" /> {verificando ? "Checando..." : `Verificar matéria-prima (${planoSel.length} SKUs)`}</Button>
+              <Button onClick={verificarMp} disabled={verificando || planoSel.length === 0} className="gap-2"><FlaskConical className="size-4" /> {verificando ? "Checando..." : `Verificar matéria-prima (${new Set(planoSel.map((l) => l.sku)).size} SKUs)`}</Button>
               <Button variant="outline" className="gap-1" onClick={() => csv(`Plano_Producao_${calc.inicio}.csv`, ["SKU", "Produto", "Quantidade", "Produzir até", "Ruptura prevista", "Urgente", "Matéria-prima insuficiente (itens)"], planoSel.map((l) => [l.sku, l.descricao, l.quantidade, l.produzirAte, l.dataRuptura, l.urgente ? "SIM" : "", mp ? (mp.bloqueados.get(l.sku) ?? 0) : ""]))}><Download className="size-4" /> CSV do plano</Button>
             </div>
             <Table><TableHeader><TableRow><TableHead className="w-8" /><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead className="text-right">Produzir</TableHead><TableHead className="text-right">Produzir até</TableHead><TableHead className="text-right">Ruptura</TableHead>{mp && <TableHead>Matéria-prima</TableHead>}</TableRow></TableHeader>
