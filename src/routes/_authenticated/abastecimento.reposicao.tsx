@@ -75,6 +75,7 @@ function ReposicaoPage() {
   const [famLinha, setFamLinha] = useState<Record<string, string>>({});
   const [ordem, setOrdem] = useState<Ordem>(null);
   const [filtros, setFiltros] = useState<Record<string, Filtro>>({});
+  const [origemSel, setOrigemSel] = useState<Record<string, string>>({});
   const nFiltros = Object.values(filtros).filter((f) => filtroAtivo(f)).length;
 
   const manuais = useMemo(() => { const m: Record<string, number | null> = {}; for (const [k, v] of Object.entries(manuaisTxt)) { const n = Number(v.replace(",", ".")); if (v.trim() !== "" && Number.isFinite(n) && n >= 0) m[k] = n; } return m; }, [manuaisTxt]);
@@ -83,7 +84,21 @@ function ReposicaoPage() {
   const loja = bruto.data?.lojas.find((l) => l.codigo === lojaSel) ?? bruto.data?.lojas[0];
   const classes = bruto.data?.portfolioClasses?.[loja?.codigo ?? ""];
   const classeDe = (i: ItemRep) => { const classe = classes?.[nk(i.sku)]; return classe ? CLASSES_PORTFOLIO[classe] : "Sem validação"; };
-  const cols: ColDef<ItemRep>[] = COLS.flatMap((c) => c.k === "produto" ? [c, { k: "classe", r: "Classe", t: "cat", v: classeDe }] : [c]);
+  const nomeLoja = (c: string) => bruto.data?.lojas.find((l) => l.codigo === c)?.nome ?? c;
+  // Sobra de outras lojas para remanejamento: o que passa do Ideal (exposição + cobertura + segurança) de cada loja.
+  const sobras = useMemo(() => {
+    const m = new Map<string, { loja: string; sobra: number }[]>();
+    if (!mont || !loja) return m;
+    for (const [lc, lista] of Object.entries(mont.itens)) {
+      if (lc === loja.codigo) continue;
+      for (const o of lista) { const s = Math.floor((o.estoque ?? 0) - Math.max(0, o.idealQ ?? 0)); if (s > 0) { const k = nk(o.sku); m.set(k, [...(m.get(k) ?? []), { loja: lc, sobra: s }]); } }
+    }
+    return m;
+  }, [mont, loja]);
+  const origemDe = (i: ItemRep) => origemSel[`${i.loja}|${nk(i.sku)}`] ?? "CD";
+  const sobraDe = (i: ItemRep, lc: string) => sobras.get(nk(i.sku))?.find((s) => s.loja === lc)?.sobra ?? 0;
+  const qtdEnvio = (i: ItemRep) => { const o = origemDe(i); return o === "CD" ? i.qtdAtendida : Math.min(i.qtdPedido, sobraDe(i, o)); };
+  const cols: ColDef<ItemRep>[] = COLS.flatMap((c) => c.k === "produto" ? [c, { k: "classe", r: "Classe", t: "cat", v: classeDe }] : c.k === "pedido" ? [c, { k: "origem", r: "Origem", t: "cat", v: (i: ItemRep) => origemDe(i) === "CD" ? "CD" : nomeLoja(origemDe(i)) }] : [c]);
   const itens: ItemRep[] = (mont && loja ? mont.itens[loja.codigo] : null) ?? [];
   const resumo = useMemo(() => resumirLoja2(itens), [itens]);
   const familias = useMemo(() => [...new Set(itens.map((i) => i.familia).filter(Boolean))].sort(), [itens]);
@@ -98,8 +113,8 @@ function ReposicaoPage() {
   }, [baseLinhas, filtros, ordem, classes]);
   const ref = mont && loja ? mont.refPorLoja[loja.codigo] : null;
   const atraso = ref ? Math.round((Date.now() - new Date(ref + "T12:00:00").getTime()) / 86400000) : null;
-  const paraPedido = useMemo(() => itens.filter((i) => i.qtdAtendida > 0 && !fora.has(`${i.loja}|${nk(i.sku)}`)), [itens, fora]);
-  const totalPedido = paraPedido.reduce((a, b) => a + b.qtdAtendida, 0);
+  const paraPedido = useMemo(() => itens.filter((i) => qtdEnvio(i) > 0 && !fora.has(`${i.loja}|${nk(i.sku)}`)), [itens, fora, origemSel, sobras]);
+  const totalPedido = paraPedido.reduce((a, b) => a + qtdEnvio(b), 0);
 
   // Quanto o CD consegue mandar: em caixas fechadas quando há caixa; senão, o saldo todo.
   const maxCD = (i: ItemRep) => { const d = i.disponivelCD ?? i.saldoCD ?? 0; return d <= 0 ? 0 : i.caixa > 1 && d >= i.caixa ? Math.floor(d / i.caixa) * i.caixa : d; };
@@ -112,14 +127,27 @@ function ReposicaoPage() {
   async function gerarPedido() {
     if (!loja || paraPedido.length === 0) return;
     setGerando(true);
+    const msgs: string[] = [];
     try {
-      const payload = paraPedido.map((i) => ({ id_produto: i.sku, descricao: i.descricao, qtd_sugerida: i.sugestao, qtd_pedida: i.qtdAtendida, caixa: i.caixa, origem: i.pedidoOrigem === "MANUAL" ? "MANUAL" : "SUGESTAO" }));
-      const { data, error } = await (supabase as any).rpc("abast_criar_pedido", { p_loja: loja.codigo, p_base: base, p_obs: null, p_itens: payload });
-      if (error) throw error;
-      toast.success(`Pedido nº ${data?.numero} criado: ${data?.itens} itens, ${totalPedido.toLocaleString("pt-BR")} un. Requisição ${data?.requisicao_numero ?? ""} enviada para separação (Suprimentos → Requisições). O pedido já abate as próximas sugestões.`);
-      setManuaisTxt({}); setFora(new Set());
+      const doCD = paraPedido.filter((i) => origemDe(i) === "CD");
+      if (doCD.length) {
+        const payload = doCD.map((i) => ({ id_produto: i.sku, descricao: i.descricao, qtd_sugerida: i.sugestao, qtd_pedida: i.qtdAtendida, caixa: i.caixa, origem: i.pedidoOrigem === "MANUAL" ? "MANUAL" : "SUGESTAO" }));
+        const { data, error } = await (supabase as any).rpc("abast_criar_pedido", { p_loja: loja.codigo, p_base: base, p_obs: null, p_itens: payload });
+        if (error) throw error;
+        msgs.push(`Pedido do CD nº ${data?.numero} (${data?.itens} itens, requisição ${data?.requisicao_numero ?? ""})`);
+      }
+      const porOrigem = new Map<string, ItemRep[]>();
+      for (const i of paraPedido) { const o = origemDe(i); if (o !== "CD") porOrigem.set(o, [...(porOrigem.get(o) ?? []), i]); }
+      for (const [o, lista] of porOrigem) {
+        const payload = lista.map((i) => ({ id_produto: i.sku, descricao: i.descricao, qtd_sugerida: i.sugestao, qtd_pedida: qtdEnvio(i), caixa: i.caixa }));
+        const { data, error } = await (supabase as any).rpc("abast_criar_transferencia", { p_loja: loja.codigo, p_loja_origem: o, p_base: base, p_obs: null, p_itens: payload });
+        if (error) throw error;
+        msgs.push(`Transferência nº ${data?.numero} de ${nomeLoja(o)} (${data?.itens} itens, requisição ${data?.requisicao_numero ?? ""})`);
+      }
+      toast.success(`${msgs.join(" · ")} criado(s). Separação em Suprimentos → Requisições.`);
+      setManuaisTxt({}); setFora(new Set()); setOrigemSel({});
       qc.invalidateQueries({ queryKey: ["abast-v2"] });
-    } catch (err: any) { toast.error("Não consegui criar o pedido: " + (err?.message ?? err)); }
+    } catch (err: any) { toast.error(`${msgs.length ? msgs.join(" · ") + " criado(s), mas " : ""}não consegui criar: ` + (err?.message ?? err)); if (msgs.length) qc.invalidateQueries({ queryKey: ["abast-v2"] }); }
     finally { setGerando(false); }
   }
 
@@ -222,7 +250,7 @@ function ReposicaoPage() {
             const k = `${i.loja}|${nk(i.sku)}`;
             return (
               <TableRow key={k} title={i.alertas.join(" · ")} className={fora.has(k) ? "opacity-40" : ""}>
-                {gestor && <TableCell><input type="checkbox" disabled={i.qtdAtendida <= 0} checked={i.qtdAtendida > 0 && !fora.has(k)} onChange={() => { const n = new Set(fora); if (n.has(k)) n.delete(k); else n.add(k); setFora(n); }} /></TableCell>}
+                {gestor && <TableCell><input type="checkbox" disabled={qtdEnvio(i) <= 0} checked={qtdEnvio(i) > 0 && !fora.has(k)} onChange={() => { const n = new Set(fora); if (n.has(k)) n.delete(k); else n.add(k); setFora(n); }} /></TableCell>}
                 <TableCell className="font-mono text-xs">{i.sku}</TableCell>
                 <TableCell className="min-w-[240px] text-xs leading-snug whitespace-normal break-words">{i.descricao || "—"}{i.semExposicao && <span className="ml-1 text-[10px] text-warning">sem exposição</span>}{i.semCaixa && <span className="ml-1 text-[10px] text-warning">sem caixa</span>}{i.solto && !i.caixaCadastrada && <span className="ml-1 text-[10px] text-muted-foreground">granel: sem caixa</span>}{i.solto && i.caixaCadastrada && <span className="ml-1 text-[10px] text-muted-foreground">granel</span>}</TableCell>
                 <TableCell className="text-xs whitespace-nowrap">{classeDe(i)}</TableCell>
@@ -234,6 +262,7 @@ function ReposicaoPage() {
                 <TableCell className="text-right text-xs">{n1(i.minQ)} / {n1(i.idealQ)}</TableCell>
                 <TableCell className="text-right font-semibold">{i.sugestao > 0 ? `${i.sugestao}${i.caixa > 1 ? ` (${i.sugestaoCaixas} cx)` : ""}` : "—"}</TableCell>
                 <TableCell className="text-right">{gestor ? <div className="flex flex-col items-end gap-0.5"><Input className="h-7 w-20 text-right" inputMode="numeric" placeholder={i.sugestao > 0 ? String(i.sugestao) : "0"} value={manuaisTxt[`${i.loja}|${nk(i.sku)}`] ?? ""} onChange={(e) => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: e.target.value })} />{maxCD(i) > 0 && <button type="button" className="text-[10px] text-primary hover:underline" title="Preenche o pedido com o máximo que o CD consegue mandar (em caixas fechadas quando há caixa)" onClick={() => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: String(maxCD(i)) })}>usar CD: {n1(maxCD(i))}</button>}</div> : n1(i.qtdPedido)}</TableCell>
+                <TableCell className="text-xs">{(() => { const op = sobras.get(nk(i.sku)) ?? []; const o = origemDe(i); if (!gestor || (op.length === 0 && o === "CD")) return <span className="text-muted-foreground">CD</span>; return <div className="flex flex-col gap-0.5"><select className="h-7 rounded-md border bg-background px-1 text-xs" title="De onde sai o estoque: CD (padrão) ou outra loja com sobra acima do Ideal" value={o} onChange={(e) => setOrigemSel({ ...origemSel, [k]: e.target.value })}><option value="CD">CD ({n1(i.saldoCD ?? 0)})</option>{op.map((s) => <option key={s.loja} value={s.loja}>{nomeLoja(s.loja)} (sobra {n1(s.sobra)})</option>)}</select>{o !== "CD" && <span className="text-[10px] text-primary">transferir {n1(qtdEnvio(i))}</span>}</div>; })()}</TableCell>
                 <TableCell className="text-right">{i.qtdPedido > 0 ? <>{n1(i.qtdAtendida)}{i.faltaCD > 0 && <AlertTriangle className="inline size-3 ml-1 text-warning" aria-label="CD não cobre" />}{i.fracionado && <div className="text-[10px] text-primary" title="O CD não tem caixa fechada: enviando o saldo solto">solto</div>}{(i.saldoCD ?? 0) <= 0 && <div className="text-[10px] text-destructive" title="Sem saldo no CD: depende de produção (veja a Projeção do CD)">produzir</div>}</> : "—"}</TableCell>
                 <TableCell className="text-right text-xs">{i.saldoCD == null ? "—" : `${n1(i.saldoCD)}${i.caixa > 1 ? ` (${i.caixasCD} cx)` : ""}`}{i.reservadoCD > 0 && <div className="text-[10px] text-muted-foreground" title="Pedidos ABERTOS (ainda não expedidos) já reservam parte do saldo do CD">reservado: {n1(i.reservadoCD)}</div>}{i.qtdPedido > 0 && i.disponivelCD != null && i.disponivelCD < i.qtdPedido && <div className="text-[10px] text-warning" title="O que sobra do CD para esta loja depois das lojas de maior prioridade">disp. p/ esta: {n1(i.disponivelCD)}</div>}</TableCell>
                 <TableCell className={`text-right text-xs ${i.avisoCobertura ? "text-warning font-semibold" : ""}`} title={i.avisoCobertura ? `Mais de ${LIMITE_COBERTURA_AVISO} dias de cobertura depois do pedido (aviso: o pedido continua sugerido)` : ""}>{i.avisoCobertura && <AlertTriangle className="inline size-3 mr-1" aria-label="Cobertura alta" />}{i.cobPosPedido == null ? "—" : n1(i.cobPosPedido)}</TableCell>
@@ -241,7 +270,7 @@ function ReposicaoPage() {
           })}
         </TableBody>
       </table></TabelaRolavel>
-      <p className="text-xs text-muted-foreground">Pedido manual: digite a quantidade exata (ela substitui a sugestão; zero = não pedir) ou use "usar CD" para alocar o que o CD tem. O CD atende no máximo o seu saldo. O pedido gerado usa o que o CD atende e passa a contar como "a caminho" até ser recebido. Administradores podem corrigir Expo. direto na tabela.</p>
+      <p className="text-xs text-muted-foreground">Origem: o CD é o padrão; quando ele não cobre, escolha outra loja com sobra (estoque acima do Ideal dela). Itens com outra origem viram um Pedido de Transferência entre Lojas separado. Pedido manual: digite a quantidade exata (ela substitui a sugestão; zero = não pedir) ou use "usar CD" para alocar o que o CD tem. O CD atende no máximo o seu saldo. O pedido gerado usa o que o CD atende e passa a contar como "a caminho" até ser recebido. Administradores podem corrigir Expo. direto na tabela.</p>
 
       {isAdmin && semFamPorLinha.length > 0 && (
         <Card><CardHeader className="pb-2"><CardTitle className="text-base">Produtos sem família ({mont?.semFamilia.length})</CardTitle>
