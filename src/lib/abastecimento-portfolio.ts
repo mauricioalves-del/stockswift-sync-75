@@ -6,6 +6,15 @@ export type ClassificacaoPortfolio = { id: string; sku: string; descricao: strin
 export type ProdutoPortfolio = { sku: string; descricao: string };
 export type PreviaPortfolio = { linha: number; sku: string; descricao: string; classe: ClassePortfolio | null; vigencia: string; inicio_inovacao: string; versao_anterior: string; anterior: string; erros: string[] };
 export const chaveSkuPortfolio = (v: unknown) => String(v ?? "").trim().replace(/^0+/, "");
+/** Classes do documento aprovado, nunca do cadastro vigente ou da classificação ABC. */
+export function classesDoPortfolioAprovado(itens: { sku: string; ativo: boolean; classe: string }[]): Record<string, ClassePortfolio> {
+  const classes: Record<string, ClassePortfolio> = {};
+  for (const item of itens) {
+    const classe = normalizarClassePortfolio(item.classe);
+    if (item.ativo && classe) classes[chaveSkuPortfolio(item.sku)] = classe;
+  }
+  return classes;
+}
 export function normalizarClassePortfolio(v: string): ClassePortfolio | null {
   const n = v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
   if (n === "REGULAR" || n === "LINHA") return "LINHA";

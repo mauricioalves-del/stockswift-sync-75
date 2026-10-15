@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
 import type { Bruto } from "@/lib/abastecimento-dados";
+import { classesDoPortfolioAprovado, type ClassePortfolio } from "@/lib/abastecimento-portfolio";
 
 async function seguro<T>(f: () => Promise<T>, vazio: T): Promise<T> { try { return await f(); } catch { return vazio; } }
 
@@ -44,10 +45,15 @@ export function useAbastBruto(habilitado: boolean) {
       // Portfólio validado pelo gestor (última validação ativa por loja): só esses SKUs entram no planejamento e nos indicadores
       const vals = await seguro(async () => ((await sb.from("abast_validacoes_portfolio").select("loja, itens, aprovado_em, competencia, versao, aprovador_nome").eq("status", "VALIDADA").order("aprovado_em", { ascending: false })).data ?? []) as any[], []);
       const portfolioAprovado: Record<string, string[]> = {};
+      const portfolioClasses: Record<string, Record<string, ClassePortfolio>> = {};
       const portfolioOrigem: Record<string, { competencia: string; versao: number; aprovador: string }> = {};
-      for (const v of vals) if (!portfolioAprovado[v.loja]) portfolioOrigem[v.loja] = { competencia: v.competencia, versao: v.versao, aprovador: v.aprovador_nome }, portfolioAprovado[v.loja] = (v.itens ?? []).filter((i: any) => i.ativo).map((i: any) => String(i.sku).replace(/^0+/, ""));
+      for (const v of vals) if (!portfolioAprovado[v.loja]) {
+        portfolioOrigem[v.loja] = { competencia: v.competencia, versao: v.versao, aprovador: v.aprovador_nome };
+        portfolioAprovado[v.loja] = (v.itens ?? []).filter((i: any) => i.ativo).map((i: any) => String(i.sku).replace(/^0+/, ""));
+        portfolioClasses[v.loja] = classesDoPortfolioAprovado(v.itens ?? []);
+      }
       return {
-        portfolioAprovado, portfolioOrigem,
+        portfolioAprovado, portfolioOrigem, portfolioClasses,
         lojas: (lojas ?? []) as Bruto["lojas"], cd: String(c.cd_almoxarifado || "Alm_SP_Fabrica"),
         params: { diasMin: dias(c.dias_min, 5), diasIdeal: Math.max(1, dias(c.dias_ideal, 10)), diasMax: dias(c.dias_max, 15), diasSeguranca: dias(c.dias_seguranca, 0) }, coberturas,
         consenso, grupos, familias, abc: abcRaw.map((x: any) => ({ codigo_produto: x.codigo_produto, classe: x.classe })), periodos: periodos as Bruto["periodos"],

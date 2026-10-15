@@ -1,5 +1,11 @@
 import { test, expect } from "bun:test";
-import { elegivelPortfolio, prepararPortfolio, normalizarClassePortfolio } from "../src/lib/abastecimento-portfolio";
+import { elegivelPortfolio, prepararPortfolio, normalizarClassePortfolio, classesDoPortfolioAprovado } from "../src/lib/abastecimento-portfolio";
+
+test("Reposição usa a Classe validada por SKU, normaliza códigos e não inclui itens inativos", () => {
+  const aprovado = [{ sku: "05304043", ativo: true, classe: "MTO" }, { sku: "05104132", ativo: false, classe: "LINHA" }];
+  expect(classesDoPortfolioAprovado(aprovado)).toEqual({ "5304043": "MTO" });
+  expect(classesDoPortfolioAprovado([])["5304043"]).toBeUndefined();
+});
 
 test("Inovação fica fora da meta durante três meses", () => {
   expect(elegivelPortfolio("INOVACAO","2026-10-14","2027-01-13")).toBe(false);

@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { Button } from "@/components/ui/button";
 import { Maximize2, Minimize2 } from "lucide-react";
 import type { Farol } from "@/lib/abastecimento-dash-hist";
 import type { Cluster, DashLinha, Reposicao } from "@/lib/abastecimento-dash";
@@ -58,25 +60,33 @@ export function Secao({ letra, titulo, children, acao }: { letra: string; titulo
 export const Th = ({ c, d }: { c: string; d?: boolean }) => <th className={`bg-muted px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground ${d ? "text-right" : "text-left"}`}>{c}</th>;
 
 // Tabela com altura fixa e rolagem interna (cabeçalho fixo) + opção de maximizar em tela cheia.
-export function TabelaRolavel({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+export function TabelaRolavel({ titulo, children, altura = "max-h-[520px]" }: { titulo: string; children: React.ReactNode; altura?: string }) {
   const [max, setMax] = useState(false);
+  useEffect(() => {
+    if (!max) return;
+    const anterior = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const fechar = (e: KeyboardEvent) => { if (e.key === "Escape") setMax(false); };
+    document.addEventListener("keydown", fechar);
+    return () => { document.body.style.overflow = anterior; document.removeEventListener("keydown", fechar); };
+  }, [max]);
   const botao = (
-    <button type="button" onClick={() => setMax(!max)} className="flex h-8 items-center gap-1 rounded-md border bg-background px-3 text-xs font-semibold hover:bg-muted">
+    <Button type="button" size="sm" variant="outline" onClick={() => setMax(!max)} aria-label={max ? "Restaurar lista" : "Maximizar lista"} title={max ? "Restaurar lista" : "Maximizar lista"} className="h-8 gap-1 text-xs">
       {max ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />} {max ? "Restaurar" : "Maximizar"}
-    </button>
+    </Button>
   );
   if (max) {
-    return (
+    return createPortal(
       <div className="fixed inset-0 z-50 flex flex-col bg-background p-4">
         <div className="mb-2 flex items-center justify-between gap-2"><h3 className="text-sm font-bold">{titulo}</h3>{botao}</div>
         <div className="min-h-0 flex-1 overflow-auto rounded-lg border">{children}</div>
-      </div>
+      </div>, document.body
     );
   }
   return (
     <div>
       <div className="mb-2 flex justify-end">{botao}</div>
-      <div className="max-h-[520px] overflow-auto rounded-lg border">{children}</div>
+      <div className={`${altura} overflow-auto rounded-lg border`}>{children}</div>
     </div>
   );
 }
