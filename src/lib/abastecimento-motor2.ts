@@ -1,7 +1,9 @@
 // Motor v2 de reposição de lojas — migra o motor de Suprimentos (sazonalidade, segurança, classe ABC, limite pelo CD)
 // e soma as regras de loja do portal (exposição, caixa fechada, pedido manual) e o ESTOQUE EM TRÂNSITO.
 //
-//   demanda/dia   = real × índice sazonal   |   consenso (já traz a sazonalidade da meta)   |   a maior das duas
+//   demanda/dia   = malha do consenso × realização (padrão)  |  venda real (CMD)  |  malha do consenso  |  a maior das duas
+//   malha = meta do mês ÷ dias do mês (a sazonalidade já está na meta: não há índice sazonal por cima);
+//   realização = venda real ÷ malha, nos mesmos dias (quanto a loja está vendendo em relação ao consenso)
 //   exposição     = estoque que fica na vitrine; NÃO conta como vendável
 //   mínimo/ideal/máximo = exposição + demanda × dias (+ segurança no ideal e no máximo)
 //   projetado     = estoque + em trânsito + pedido em aberto  (evita pedir em duplicidade e falsa ruptura)
@@ -9,7 +11,7 @@
 //                   Acima do mínimo não se pede (senão uma falta de 1 un viraria uma caixa inteira). Pedido manual substitui a sugestão.
 import { num } from "./abastecimento-motor";
 
-export type Base2 = "real" | "consenso" | "maior";
+export type Base2 = "ajustada" | "real" | "consenso" | "maior";
 export type Param2 = { diasMin: number; diasIdeal: number; diasMax: number; diasSeguranca: number };
 export const PARAM2_PADRAO: Param2 = { diasMin: 5, diasIdeal: 10, diasMax: 15, diasSeguranca: 0 };
 /** Acima disto (dias de cobertura depois do pedido) a linha recebe um AVISO; o pedido continua sugerido. */
@@ -34,7 +36,7 @@ export type Entrada2 = {
   estoque: unknown; exposicao: unknown;
   vendaDiaReal: unknown;            // venda/dia observada (Linear Real)
   consensoDia?: unknown;            // meta diária média do consenso na janela de cobertura
-  indiceSazonal?: number;           // multiplicador médio do período (1 = sem efeito)
+  fatorRealizacao?: number | null;  // venda real ÷ malha do consenso no mesmo período (1 = em linha com a meta); null = sem base
   classeAbc?: string | null;        // A/B reforçam o estoque de segurança (×1,5), como em Suprimentos
   fullCase?: unknown; custo?: unknown;
   saldoCD?: unknown;
@@ -46,7 +48,7 @@ export type Entrada2 = {
 export type Item2 = {
   sku: string; descricao: string; categoria: string; ativo: boolean; cadastroIncompleto: boolean;
   estoque: number | null; exposicao: number | null; emTransito: number; pedidoAberto: number; projetado: number | null;
-  demandaDia: number | null; demandaReal: number | null; demandaConsenso: number | null; indiceSazonal: number; baseUsada: "real" | "consenso" | null;
+  demandaDia: number | null; demandaReal: number | null; demandaConsenso: number | null; demandaAjustada: number | null; fatorRealizacao: number | null; baseUsada: "ajustada" | "real" | "consenso" | null;
   seguranca: number; minQ: number | null; idealQ: number | null; maxQ: number | null;
   coberturaFisica: number | null; coberturaProjetada: number | null;
   caixa: number; sugestao: number; sugestaoCaixas: number;
@@ -62,13 +64,15 @@ export function calcularItem2(e: Entrada2, p: Param2 = PARAM2_PADRAO, base: Base
   const estoque = num(e.estoque);
   const expo0 = num(e.exposicao);
   const exposicao = expo0 === null ? null : Math.max(0, expo0);
-  const idx = e.indiceSazonal && e.indiceSazonal > 0 ? e.indiceSazonal : 1;
   const vr = num(e.vendaDiaReal);
-  const demandaReal = vr === null ? null : Math.max(0, vr) * idx;
+  const demandaReal = vr === null ? null : Math.max(0, vr);
   const cd = num(e.consensoDia);
   const demandaConsenso = cd === null ? null : Math.max(0, cd);
-  let demandaDia: number | null = null; let baseUsada: "real" | "consenso" | null = null;
-  if (base === "real") { demandaDia = demandaReal; baseUsada = demandaReal === null ? null : "real"; }
+  const fr = num(e.fatorRealizacao); const fatorRealizacao = fr === null ? null : Math.max(0, fr);
+  const demandaAjustada = demandaConsenso !== null && demandaConsenso > 0 ? demandaConsenso * (fatorRealizacao ?? 1) : null;   // sem consenso para o item: cai para a venda real
+  let demandaDia: number | null = null; let baseUsada: "ajustada" | "real" | "consenso" | null = null;
+  if (base === "ajustada") { if (demandaAjustada !== null) { demandaDia = demandaAjustada; baseUsada = "ajustada"; } else if (demandaReal !== null) { demandaDia = demandaReal; baseUsada = "real"; } }
+  else if (base === "real") { demandaDia = demandaReal; baseUsada = demandaReal === null ? null : "real"; }
   else if (base === "consenso") { demandaDia = demandaConsenso; baseUsada = demandaConsenso === null ? null : "consenso"; }
   else if (demandaReal !== null && demandaConsenso !== null) { const consMaior = demandaConsenso > demandaReal; demandaDia = consMaior ? demandaConsenso : demandaReal; baseUsada = consMaior ? "consenso" : "real"; }
   else if (demandaReal !== null) { demandaDia = demandaReal; baseUsada = "real"; }
@@ -82,7 +86,7 @@ export function calcularItem2(e: Entrada2, p: Param2 = PARAM2_PADRAO, base: Base
   const r: Item2 = {
     sku: e.sku, descricao: e.descricao ?? "", categoria: e.categoria ?? "", ativo: e.ativo, cadastroIncompleto: !e.masterPresente,
     estoque, exposicao, emTransito, pedidoAberto, projetado: estoque === null ? null : estoque + emTransito + pedidoAberto,
-    demandaDia, demandaReal, demandaConsenso, indiceSazonal: idx, baseUsada,
+    demandaDia, demandaReal, demandaConsenso, demandaAjustada, fatorRealizacao, baseUsada,
     seguranca: 0, minQ: null, idealQ: null, maxQ: null, coberturaFisica: null, coberturaProjetada: null,
     caixa, sugestao: 0, sugestaoCaixas: 0, qtdPedido: 0, pedidoOrigem: "NENHUM", manualOriginal: null, manualAjustado: false,
     qtdAtendida: 0, faltaCD: 0, caixasCD: 0, cobPosPedido: null, disponivelCD: null, fracionado: false, avisoCobertura: false, saldoCD: num(e.saldoCD), custo, valorPedido: 0, status: "fora", alertas: [],
