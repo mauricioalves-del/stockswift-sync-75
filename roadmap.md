@@ -46,3 +46,9 @@
 - [x] Manter os cards de local logo abaixo dos indicadores e colocar o gráfico de evolução + Top itens em seguida.
 - [x] Mover a tabela de posição por local para abaixo do gráfico + Top itens.
 - [x] Validar na tela a nova ordem e o filtro por card e por linha.
+
+## Reposição de Lojas: nomes e títulos curtos
+- [x] Abreviar os botões de loja (CD, L. Jesu, L. Patio, L. Eldo) mantendo o nome completo no tooltip.
+- [x] Abreviar os títulos das colunas: A caminho → Transi, Demanda/dia → CMD, Cob. pós-pedido (dias) → Cobertura, com o significado no tooltip.
+- [x] Abreviar também as lojas na lista de Origem e no título da lista maximizada.
+- [x] Validar na tela: botões, cabeçalhos e opções de Origem com nomes curtos, sem erro de console.

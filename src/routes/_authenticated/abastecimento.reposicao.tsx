@@ -10,6 +10,7 @@ import { useRole } from "@/hooks/useRole";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { CLASSES_PORTFOLIO } from "@/lib/abastecimento-portfolio";
 import { TabelaRolavel } from "@/components/abast-dash/comum";
+import { nomeCurtoLoja } from "@/lib/abastecimento-nomes";
 import { montarItens, nk, type ItemRep } from "@/lib/abastecimento-dados";
 import { STATUS2, LIMITE_COBERTURA_AVISO, resumirLoja2, type Status2, type Base2 } from "@/lib/abastecimento-motor2";
 import { resolverParam } from "@/lib/abastecimento-cobertura";
@@ -47,15 +48,15 @@ const COLS: ColDef<ItemRep>[] = [
   { k: "status", r: "Status", t: "cat", v: (i) => STATUS2[i.status].rotulo },
   { k: "estoque", r: "Estoque", t: "num", al: "right", v: (i) => i.estoque },
   { k: "expo", r: "Expo.", t: "num", al: "right", v: (i) => i.exposicao },
-  { k: "caminho", r: "A caminho", t: "num", al: "right", v: (i) => i.emTransito + i.pedidoAberto },
-  { k: "demanda", r: "Demanda/dia", t: "num", al: "right", v: (i) => i.demandaDia },
+  { k: "caminho", r: "Transi", dica: "A caminho: unidades em trânsito + pedidos em aberto", t: "num", al: "right", v: (i) => i.emTransito + i.pedidoAberto },
+  { k: "demanda", r: "CMD", dica: "CMD: demanda média por dia (unidades por dia)", t: "num", al: "right", v: (i) => i.demandaDia },
   { k: "meta", r: "Meta mês", t: "num", al: "right", v: (i) => i.metaMes },
   { k: "ideal", r: "Mín / Ideal", t: "num", al: "right", v: (i) => i.idealQ },
   { k: "sugestao", r: "Sugestão", t: "num", al: "right", v: (i) => i.sugestao },
   { k: "pedido", r: "Pedido", t: "num", al: "right", v: (i) => i.qtdPedido },
   { k: "atende", r: "CD atende", t: "num", al: "right", v: (i) => i.qtdAtendida },
   { k: "saldocd", r: "Saldo CD", t: "num", al: "right", v: (i) => i.saldoCD },
-  { k: "cobpos", r: "Cob. pós-pedido (dias)", t: "num", al: "right", v: (i) => i.cobPosPedido },
+  { k: "cobpos", r: "Cobertura", dica: "Cobertura: dias de estoque depois do pedido", t: "num", al: "right", v: (i) => i.cobPosPedido },
 ];
 
 function ReposicaoPage() {
@@ -185,7 +186,7 @@ function ReposicaoPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {(bruto.data?.lojas ?? []).map((l) => <Button key={l.codigo} size="sm" variant={loja?.codigo === l.codigo ? "default" : "outline"} onClick={() => { setLojaSel(l.codigo); setFiltro("TODOS"); setFamFiltro(""); setFora(new Set()); }}>{l.nome}</Button>)}
+        {(bruto.data?.lojas ?? []).map((l) => <Button key={l.codigo} size="sm" title={l.nome} variant={loja?.codigo === l.codigo ? "default" : "outline"} onClick={() => { setLojaSel(l.codigo); setFiltro("TODOS"); setFamFiltro(""); setFora(new Set()); }}>{nomeCurtoLoja(l.codigo, l.nome)}</Button>)}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -237,7 +238,7 @@ function ReposicaoPage() {
         {(nFiltros > 0 || ordem) && <button className="rounded-full border px-3 py-1 hover:bg-muted" onClick={() => { setFiltros({}); setOrdem(null); }}>Limpar {nFiltros > 0 ? `filtros (${nFiltros})` : ""}{nFiltros > 0 && ordem ? " e " : ""}{ordem ? "ordem" : ""}</button>}
         <span>Clique no título para ordenar (números: do maior para o menor) e no funil para filtrar.</span>
       </div>
-      <TabelaRolavel titulo={`Reposição de Lojas · ${loja?.nome ?? ""} · ${linhas.length} itens`} altura="max-h-[68vh]"><table className="w-full caption-bottom bg-card text-sm text-card-foreground">
+      <TabelaRolavel titulo={`Reposição de Lojas · ${nomeCurtoLoja(loja?.codigo ?? "", loja?.nome)} · ${linhas.length} itens`} altura="max-h-[68vh]"><table className="w-full caption-bottom bg-card text-sm text-card-foreground">
         <thead>
           <tr className="border-b">
             {gestor && <th className="sticky top-0 z-20 w-8 bg-muted" />}
@@ -262,7 +263,7 @@ function ReposicaoPage() {
                 <TableCell className="text-right text-xs">{n1(i.minQ)} / {n1(i.idealQ)}</TableCell>
                 <TableCell className="text-right font-semibold">{i.sugestao > 0 ? `${i.sugestao}${i.caixa > 1 ? ` (${i.sugestaoCaixas} cx)` : ""}` : "—"}</TableCell>
                 <TableCell className="text-right">{gestor ? <div className="flex flex-col items-end gap-0.5"><Input className="h-7 w-20 text-right" inputMode="numeric" placeholder={i.sugestao > 0 ? String(i.sugestao) : "0"} value={manuaisTxt[`${i.loja}|${nk(i.sku)}`] ?? ""} onChange={(e) => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: e.target.value })} />{maxCD(i) > 0 && <button type="button" className="text-[10px] text-primary hover:underline" title="Preenche o pedido com o máximo que o CD consegue mandar (em caixas fechadas quando há caixa)" onClick={() => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: String(maxCD(i)) })}>usar CD: {n1(maxCD(i))}</button>}</div> : n1(i.qtdPedido)}</TableCell>
-                <TableCell className="text-xs">{(() => { const op = sobras.get(nk(i.sku)) ?? []; const o = origemDe(i); if (!gestor || (op.length === 0 && o === "CD")) return <span className="text-muted-foreground">CD</span>; return <div className="flex flex-col gap-0.5"><select className="h-7 rounded-md border bg-background px-1 text-xs" title="De onde sai o estoque: CD (padrão) ou outra loja com sobra acima do Ideal" value={o} onChange={(e) => setOrigemSel({ ...origemSel, [k]: e.target.value })}><option value="CD">CD ({n1(i.saldoCD ?? 0)})</option>{op.map((s) => <option key={s.loja} value={s.loja}>{nomeLoja(s.loja)} (sobra {n1(s.sobra)})</option>)}</select>{o !== "CD" && <span className="text-[10px] text-primary">transferir {n1(qtdEnvio(i))}</span>}</div>; })()}</TableCell>
+                <TableCell className="text-xs">{(() => { const op = sobras.get(nk(i.sku)) ?? []; const o = origemDe(i); if (!gestor || (op.length === 0 && o === "CD")) return <span className="text-muted-foreground">CD</span>; return <div className="flex flex-col gap-0.5"><select className="h-7 rounded-md border bg-background px-1 text-xs" title="De onde sai o estoque: CD (padrão) ou outra loja com sobra acima do Ideal" value={o} onChange={(e) => setOrigemSel({ ...origemSel, [k]: e.target.value })}><option value="CD">CD ({n1(i.saldoCD ?? 0)})</option>{op.map((s) => <option key={s.loja} value={s.loja} title={nomeLoja(s.loja)}>{nomeCurtoLoja(s.loja, nomeLoja(s.loja))} (sobra {n1(s.sobra)})</option>)}</select>{o !== "CD" && <span className="text-[10px] text-primary">transferir {n1(qtdEnvio(i))}</span>}</div>; })()}</TableCell>
                 <TableCell className="text-right">{i.qtdPedido > 0 ? <>{n1(i.qtdAtendida)}{i.faltaCD > 0 && <AlertTriangle className="inline size-3 ml-1 text-warning" aria-label="CD não cobre" />}{i.fracionado && <div className="text-[10px] text-primary" title="O CD não tem caixa fechada: enviando o saldo solto">solto</div>}{(i.saldoCD ?? 0) <= 0 && <div className="text-[10px] text-destructive" title="Sem saldo no CD: depende de produção (veja a Projeção do CD)">produzir</div>}</> : "—"}</TableCell>
                 <TableCell className="text-right text-xs">{i.saldoCD == null ? "—" : `${n1(i.saldoCD)}${i.caixa > 1 ? ` (${i.caixasCD} cx)` : ""}`}{i.reservadoCD > 0 && <div className="text-[10px] text-muted-foreground" title="Pedidos ABERTOS (ainda não expedidos) já reservam parte do saldo do CD">reservado: {n1(i.reservadoCD)}</div>}{i.qtdPedido > 0 && i.disponivelCD != null && i.disponivelCD < i.qtdPedido && <div className="text-[10px] text-warning" title="O que sobra do CD para esta loja depois das lojas de maior prioridade">disp. p/ esta: {n1(i.disponivelCD)}</div>}</TableCell>
                 <TableCell className={`text-right text-xs ${i.avisoCobertura ? "text-warning font-semibold" : ""}`} title={i.avisoCobertura ? `Mais de ${LIMITE_COBERTURA_AVISO} dias de cobertura depois do pedido (aviso: o pedido continua sugerido)` : ""}>{i.avisoCobertura && <AlertTriangle className="inline size-3 mr-1" aria-label="Cobertura alta" />}{i.cobPosPedido == null ? "—" : n1(i.cobPosPedido)}</TableCell>
@@ -292,7 +293,7 @@ function CabCol({ col, ordem, onOrdem, filtro, onFiltro, opcoes }: { col: ColDef
   const emOrdem = ordem?.k === col.k;
   const Seta = !emOrdem ? ArrowUpDown : ordem?.dir === "desc" ? ArrowDown : ArrowUp;
   return (
-    <th className={`sticky top-0 z-20 bg-muted h-11 px-2 align-middle font-medium whitespace-nowrap ${col.al === "right" ? "text-right" : "text-left"} ${emOrdem ? "text-foreground" : "text-muted-foreground"}`}>
+    <th title={col.dica ?? col.r} className={`sticky top-0 z-20 bg-muted h-11 px-2 align-middle font-medium whitespace-nowrap ${col.al === "right" ? "text-right" : "text-left"} ${emOrdem ? "text-foreground" : "text-muted-foreground"}`}>
       <span className="inline-flex items-center gap-1">
         <button type="button" onClick={onOrdem} title={col.t === "num" ? "Ordenar (1º clique: maior → menor)" : "Ordenar (1º clique: A → Z)"} className="inline-flex items-center gap-1 hover:text-foreground">
           <span>{col.r}</span><Seta className={`size-3.5 ${emOrdem ? "text-primary" : "opacity-40"}`} />

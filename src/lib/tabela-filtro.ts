@@ -6,7 +6,7 @@
 export type TipoCol = "txt" | "cat" | "num";
 export type Filtro = { txt?: string; vals?: string[]; min?: string; max?: string };
 export type Ordem = { k: string; dir: "asc" | "desc" } | null;
-export type ColDef<T> = { k: string; r: string; t: TipoCol; v: (x: T) => string | number | null | undefined; al?: "right" };
+export type ColDef<T> = { k: string; r: string; dica?: string; t: TipoCol; v: (x: T) => string | number | null | undefined; al?: "right" };
 
 export function numero(s: string | undefined): number | null {
   if (s === undefined || s.trim() === "") return null;
