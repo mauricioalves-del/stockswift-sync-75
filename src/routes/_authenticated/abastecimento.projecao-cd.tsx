@@ -11,7 +11,7 @@ import { useRole } from "@/hooks/useRole";
 import { interpretarConsenso, aoaDaAbaConsenso, serieDiariaConsenso, type ResultadoConsenso } from "@/lib/abastecimento-consenso";
 import { projetarCD, planoProducao, paraPcp, type ResultadoProjecao, type Severidade, type LinhaPlano } from "@/lib/abastecimento-projecao";
 import { planejarSku, estimarDemandaReal, type ResultadoMotor, type Lote, type Zona } from "@/lib/abastecimento-cd-motor";
-import { somasRealizacao } from "@/lib/abastecimento-malha";
+import { somasRealizacao } from "@/lib/abastecimento-realizacao";
 import { carregarBomCompleta, explodirSimulacao, type BomLinha } from "@/lib/pcp-bom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
