@@ -17,7 +17,7 @@ export function Farol({ hoje, filtro, setFiltro, linhas, chip, setChip }: { hoje
     .sort((a, b) => (a.diasAteZerar ?? 99) - (b.diasAteZerar ?? 99) || b.vbm - a.vbm), [base, chip, q]);
   const alerta = base.filter((l) => l.alerta).sort((a, b) => (a.diasAteZerar ?? 0) - (b.diasAteZerar ?? 0))[0]; const enderec = base.filter((l) => l.status === "ruptura" && l.reposicao === "enderecado").length;
   const atalhos = [0, 3, 5, 7, 10, 15];
-  const escolhe = (e: Escopo) => setFiltro({ ...filtro, escopo: filtro.escopo === e ? "LOJAS" : e });
+  const escolhe = (e: Escopo) => setFiltro({ ...filtro, escopo: filtro.escopo === e ? "TODOS" : e });
   return (
     <Secao letra="G" titulo="Farol de ruptura futura">
       <p className="mb-3 text-xs text-muted-foreground">Estoque projetado no dia escolhido, considerando o que está em trânsito. Clique num local para filtrar a tabela.</p>
