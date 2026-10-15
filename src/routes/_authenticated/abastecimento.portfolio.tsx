@@ -46,6 +46,8 @@ function PortfolioPage(){
   const hoje=new Date().toLocaleDateString("en-CA",{timeZone:"America/Sao_Paulo"});
   const [vigencia,setVigencia]=useState(hoje); const [busca,setBusca]=useState(""); const [classe,setClasse]=useState("TODOS");
   const [rows,setRows]=useState<Record<string,unknown>[]|null>(null); const [arquivo,setArquivo]=useState(""); const [salvando,setSalvando]=useState(false); const [historico,setHistorico]=useState(false);
+  type Edicao={sku:string;descricao:string;classe:string;vigencia:string;inicio_inovacao:string;versao_anterior:string};
+  const [editando,setEditando]=useState<Edicao|null>(null);
   const file=useRef<HTMLInputElement>(null);
   const previa=useMemo(()=>rows ? prepararPortfolio(rows,data.produtos,data.historico,vigencia,hoje) : [],[rows,data,vigencia,hoje]);
   const atuais=[...ultimasClassificacoes(data.historico).values()];
@@ -69,6 +71,18 @@ function PortfolioPage(){
   function modelo(){const w=XLSX.utils.book_new(); const rs=atuais.length ? atuais.map(r=>({"SKU Sistema":data.produtos.find(p=>chaveSkuPortfolio(p.sku)===r.sku)?.sku ?? r.sku,Produto:r.descricao,Cluster:CLASSES_PORTFOLIO[r.classe],Vigência:vigencia,"Início Inovação":r.inicio_inovacao ?? ""})) : [{"SKU Sistema":"",Produto:"",Cluster:"",Vigência:vigencia,"Início Inovação":""}];
     const s=XLSX.utils.json_to_sheet(rs);s["!cols"]=[{wch:16},{wch:65},{wch:18},{wch:14},{wch:20}];XLSX.utils.book_append_sheet(w,s,"Classificação");XLSX.writeFile(w,"Modelo_Classificacao_Portfolio.xlsx");}
   function mudarInicio(r:PreviaPortfolio,v:string){setRows(old=>old?.map((x,i)=>i===r.linha-2 ? {...x,"Início Inovação":v}:x) ?? null);}
+  async function salvarEdicao(){
+    if(!editando)return; setSalvando(true);
+    try{const {error}=await supabase.rpc("abast_importar_classificacoes",{p_arquivo:"Edição manual",p_itens:[{sku:editando.sku,descricao:editando.descricao,classe:editando.classe,vigencia:editando.vigencia,inicio_inovacao:editando.classe==="INOVACAO" ? editando.inicio_inovacao||null : null,versao_anterior:editando.versao_anterior}]});if(error)throw error;
+      await qc.invalidateQueries({queryKey:["abast-portfolio"]});setEditando(null);toast.success("Classificação atualizada");
+    }catch(e){toast.error(e instanceof Error ? e.message : "Não foi possível salvar a edição");}finally{setSalvando(false);}
+  }
+  async function remover(r:ClassificacaoPortfolio){
+    if(!window.confirm(`Remover ${r.sku} da lista do portfólio? O item sai da lista vigente e o histórico é mantido.`))return; setSalvando(true);
+    try{const {error}=await supabase.rpc("abast_importar_classificacoes",{p_arquivo:"Remoção manual",p_itens:[{sku:r.sku,descricao:r.descricao,classe:"REMOVIDO",vigencia:hoje,versao_anterior:r.id}]});if(error)throw error;
+      await qc.invalidateQueries({queryKey:["abast-portfolio"]});toast.success(`${r.sku} removido da lista`);
+    }catch(e){toast.error(e instanceof Error ? e.message : "Não foi possível remover");}finally{setSalvando(false);}
+  }
   return <div className="space-y-6">
     <header className="flex flex-wrap justify-between items-center gap-3"><h1 className="text-2xl font-bold flex gap-2 items-center"><Tags className="size-6"/>Portfólio e Classificação</h1><Button variant="outline" onClick={()=>setHistorico(s=>!s)}><History className="size-4"/>{historico ? "Classificações atuais" : "Histórico"}</Button></header>
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">{["TODOS",...Object.keys(CLASSES_PORTFOLIO)].map(c=><Button key={c} variant={classe===c ? "secondary":"outline"} className="h-auto items-start flex-col p-3" onClick={()=>setClasse(c)}><span className="text-xs text-muted-foreground">{c==="TODOS" ? "Todos":CLASSES_PORTFOLIO[c as keyof typeof CLASSES_PORTFOLIO]}</span><span className="text-2xl font-bold">{atuais.filter(r=>c==="TODOS" || r.classe===c).length}</span></Button>)}</div>
