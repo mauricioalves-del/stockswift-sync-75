@@ -222,3 +222,18 @@ function Signatarios() {
     </div>
   </section>;
 }
+
+function rotuloFiltro(id: string) {
+  if (id === "Ativos" || id === "Elegíveis OOS") return id;
+  return String(CLASSES_PORTFOLIO[id] ?? id);
+}
+
+function CardFiltro({ rotulo, valor, ativo, onClick }: { rotulo: string; valor: string | number; ativo: boolean; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={ativo} title={ativo ? "Clique para limpar o filtro" : "Clique para filtrar a lista"}
+      className={`rounded-lg border p-3 text-left transition hover:border-primary/60 ${ativo ? "border-primary bg-primary/10 ring-1 ring-primary" : ""}`}>
+      <div className="text-xs text-muted-foreground">{rotulo}</div>
+      <div className="text-2xl font-bold">{valor}</div>
+    </button>
+  );
+}
