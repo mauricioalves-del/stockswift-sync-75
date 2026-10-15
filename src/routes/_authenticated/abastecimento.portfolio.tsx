@@ -46,7 +46,7 @@ function PortfolioPage(){
   const hoje=new Date().toLocaleDateString("en-CA",{timeZone:"America/Sao_Paulo"});
   const [vigencia,setVigencia]=useState(hoje); const [busca,setBusca]=useState(""); const [classe,setClasse]=useState("TODOS");
   const [rows,setRows]=useState<Record<string,unknown>[]|null>(null); const [arquivo,setArquivo]=useState(""); const [salvando,setSalvando]=useState(false); const [historico,setHistorico]=useState(false);
-  type Edicao={sku:string;descricao:string;classe:string;vigencia:string;inicio_inovacao:string;versao_anterior:string};
+  type Edicao={sku:string;skuOriginal:string;descricao:string;classe:string;vigencia:string;inicio_inovacao:string;versao_anterior:string};
   const [editando,setEditando]=useState<Edicao|null>(null);
   const file=useRef<HTMLInputElement>(null);
   const previa=useMemo(()=>rows ? prepararPortfolio(rows,data.produtos,data.historico,vigencia,hoje) : [],[rows,data,vigencia,hoje]);
@@ -73,7 +73,11 @@ function PortfolioPage(){
   function mudarInicio(r:PreviaPortfolio,v:string){setRows(old=>old?.map((x,i)=>i===r.linha-2 ? {...x,"Início Inovação":v}:x) ?? null);}
   async function salvarEdicao(){
     if(!editando)return; setSalvando(true);
-    try{const {error}=await supabase.rpc("abast_importar_classificacoes",{p_arquivo:"Edição manual",p_itens:[{sku:editando.sku,descricao:editando.descricao,classe:editando.classe,vigencia:editando.vigencia,inicio_inovacao:editando.classe==="INOVACAO" ? editando.inicio_inovacao||null : null,versao_anterior:editando.versao_anterior}]});if(error)throw error;
+    try{
+      const skuNovo=chaveSkuPortfolio(editando.sku); if(!skuNovo)throw new Error("Informe o código do produto");
+      const itens=[{sku:skuNovo,descricao:editando.descricao,classe:editando.classe,vigencia:editando.vigencia,inicio_inovacao:editando.classe==="INOVACAO" ? editando.inicio_inovacao||null : null,versao_anterior:editando.versao_anterior}];
+      if(skuNovo!==editando.skuOriginal)itens.push({sku:editando.skuOriginal,descricao:editando.descricao,classe:"REMOVIDO",vigencia:hoje,inicio_inovacao:null,versao_anterior:editando.versao_anterior});
+      const {error}=await supabase.rpc("abast_importar_classificacoes",{p_arquivo:"Edição manual",p_itens:itens});if(error)throw error;
       await qc.invalidateQueries({queryKey:["abast-portfolio"]});setEditando(null);toast.success("Classificação atualizada");
     }catch(e){toast.error(e instanceof Error ? e.message : "Não foi possível salvar a edição");}finally{setSalvando(false);}
   }
