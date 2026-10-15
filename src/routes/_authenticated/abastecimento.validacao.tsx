@@ -8,6 +8,7 @@ import { fetchAll } from "@/lib/fetch-all";
 import { CLASSES_PORTFOLIO, chaveSkuPortfolio, elegivelPortfolio, ultimasClassificacoes, type ClassificacaoPortfolio } from "@/lib/abastecimento-portfolio";
 import { situacaoCompetencia, nomeMes, baixarDocumento, uniaoCD, situacaoCD, LOJA_CD, NOME_CD, type PapeisValidacao, type Validacao } from "@/lib/abastecimento-validacao";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -107,9 +108,9 @@ function ValidacaoPage() {
     toast.success("Validação desfeita — o registro continua no histórico"); qc.invalidateQueries({ queryKey: ["abast-validacao"] });
   }
 
-  return <div className="space-y-6">
-    <header className="flex flex-wrap items-end justify-between gap-3">
-      <h1 className="flex items-center gap-2 text-2xl font-bold"><BadgeCheck className="size-6" />Validação do Gestor</h1>
+  return <div className="w-full min-w-0 space-y-4">
+    <header className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+      <h1 className="flex min-w-0 items-center gap-2 text-2xl font-bold"><BadgeCheck className="size-6" />Validação do Gestor</h1>
       <div className="flex flex-wrap gap-3">
         <label className="text-xs font-semibold text-muted-foreground">Competência<Input type="month" value={competencia} onChange={(e) => e.target.value && setCompetencia(e.target.value)} className="mt-1" /></label>
         <label className="text-xs font-semibold text-muted-foreground">Loja<select value={loja} onChange={(e) => { setLoja(e.target.value); setFiltroCard(null); setFiltroCardCD(null); }} className="mt-1 block h-9 min-w-48 rounded-md border bg-background px-2 text-sm">{data.lojas.map((l) => <option key={l.codigo} value={l.codigo}>{l.nome}</option>)}<option value={LOJA_CD}>{NOME_CD}</option></select></label>
@@ -120,23 +121,23 @@ function ValidacaoPage() {
       {[...data.lojas.map((l) => ({ codigo: l.codigo, nome: l.nome })), { codigo: LOJA_CD, nome: NOME_CD }].map((l) => {
         const cd = l.codigo === LOJA_CD; const s = situacaoCompetencia(data.vals, l.codigo, competencia); const c = situacaoCD(data.vals, codigosLojas, competencia);
         const tipo = cd ? c.tipo : s.tipo; const v = cd ? c.validacao : s.validacao;
-        const cor = tipo === "VALIDADA" && !(cd && c.desatualizada) ? "border-l-emerald-500" : tipo === "SEM" ? "border-l-red-500" : "border-l-amber-500";
-        return <button key={l.codigo} type="button" onClick={() => setLoja(l.codigo)} className={`rounded-lg border border-l-4 p-3 text-left transition hover:shadow ${cor} ${loja === l.codigo ? "ring-2 ring-primary" : ""}`}>
-          <div className="flex items-center justify-between"><span className="font-semibold">{l.nome}</span><span className="text-[11px] text-muted-foreground">{cd ? "ciência do Diretor Operacional" : "validação do Gerente Comercial"}</span></div>
-          <div className="mt-1 text-xs">{tipo === "SEM" ? <span className="font-semibold text-red-600">{cd ? "Sem ciência registrada" : "Sem portfólio validado"}</span> : <span><b className={tipo === "VALIDADA" ? "text-emerald-700" : "text-amber-700"}>{tipo === "VALIDADA" ? (cd ? "Ciência dada" : "Validado") : "Pendente (usa a última versão)"}</b> · v{v!.versao} · {v!.aprovador_nome} · {v!.totais.ativos} SKUs</span>}</div>
-          {cd && c.desatualizada && <div className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-amber-700"><AlertTriangle className="size-3" />Lojas mudaram depois da ciência (+{c.incluidos.length} / −{c.retirados.length}): nova ciência necessária</div>}
-        </button>;
+        const cor = tipo === "VALIDADA" && !(cd && c.desatualizada) ? "border-l-success" : tipo === "SEM" ? "border-l-destructive" : "border-l-warning";
+        return <Card key={l.codigo} className={`min-w-0 overflow-hidden border-l-4 ${cor} ${loja === l.codigo ? "ring-2 ring-primary" : ""}`}><Button variant="ghost" type="button" aria-pressed={loja === l.codigo} onClick={() => setLoja(l.codigo)} className="h-full min-h-24 w-full flex-col items-stretch justify-start whitespace-normal p-4 text-left">
+          <div className="min-w-0 space-y-1"><span className="block font-semibold">{l.nome}</span><span className="block text-[11px] text-muted-foreground">{cd ? "ciência do Diretor Operacional" : "validação do Gerente Comercial"}</span></div>
+          <div className="mt-1 text-xs">{tipo === "SEM" ? <span className="font-semibold text-destructive">{cd ? "Sem ciência registrada" : "Sem portfólio validado"}</span> : <span><b className={tipo === "VALIDADA" ? "text-success" : "text-warning"}>{tipo === "VALIDADA" ? (cd ? "Ciência dada" : "Validado") : "Pendente (usa a última versão)"}</b> · v{v?.versao} · {v?.aprovador_nome} · {v?.totais.ativos} SKUs</span>}</div>
+          {cd && c.desatualizada && <div className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-warning"><AlertTriangle className="size-3" />Lojas mudaram depois da ciência (+{c.incluidos.length} / −{c.retirados.length}): nova ciência necessária</div>}
+        </Button></Card>;
       })}
     </section>
 
-    <section className="rounded-lg border p-4 space-y-2">
+    <section className="space-y-2 border-y bg-muted/50 px-4 py-3 text-sm">
       {!ehCD && sit.tipo === "VALIDADA" && <p><Badge className="mr-2">Validado</Badge><b>{nomeMes(competencia)}</b> validado em {new Date(sit.validacao.aprovado_em).toLocaleString("pt-BR")} por <b>{sit.validacao.aprovador_nome}</b> · versão {sit.validacao.versao} · {sit.validacao.totais.ativos} SKU(s) ativos.</p>}
       {!ehCD && sit.tipo === "HERDADA" && <p className="flex items-center gap-2"><AlertTriangle className="size-4 text-warning" /><span><b>Pendente de validação — utilizando última versão aprovada</b>: {nomeMes(sit.validacao.competencia)} v{sit.validacao.versao}, aprovada por {sit.validacao.aprovador_nome}. A herança não é uma nova aprovação.</span></p>}
       {!ehCD && sit.tipo === "SEM" && <p className="flex items-center gap-2"><AlertTriangle className="size-4 text-destructive" /><b>Sem portfólio validado</b> para {nomeLoja(loja)}.</p>}
-      {ehCD && sitCD.tipo === "VALIDADA" && <p><Badge className="mr-2">Ciência dada</Badge><b>{nomeMes(competencia)}</b> · ciência do Diretor Operacional em {new Date(sitCD.validacao!.aprovado_em).toLocaleString("pt-BR")} por <b>{sitCD.validacao!.aprovador_nome}</b> · versão {sitCD.validacao!.versao} · {sitCD.validacao!.totais.ativos} itens a manter em estoque.</p>}
-      {ehCD && sitCD.tipo === "HERDADA" && <p className="flex items-center gap-2"><AlertTriangle className="size-4 text-warning" /><span><b>Pendente de nova ciência — vale a última</b>: {nomeMes(sitCD.validacao!.competencia)} v{sitCD.validacao!.versao}, por {sitCD.validacao!.aprovador_nome}.</span></p>}
+      {ehCD && sitCD.tipo === "VALIDADA" && <p><Badge className="mr-2">Ciência dada</Badge><b>{nomeMes(competencia)}</b> · ciência do Diretor Operacional em {new Date(sitCD.validacao?.aprovado_em).toLocaleString("pt-BR")} por <b>{sitCD.validacao?.aprovador_nome}</b> · versão {sitCD.validacao?.versao} · {sitCD.validacao?.totais.ativos} itens a manter em estoque.</p>}
+      {ehCD && sitCD.tipo === "HERDADA" && <p className="flex items-center gap-2"><AlertTriangle className="size-4 text-warning" /><span><b>Pendente de nova ciência — vale a última</b>: {nomeMes(sitCD.validacao?.competencia)} v{sitCD.validacao?.versao}, por {sitCD.validacao?.aprovador_nome}.</span></p>}
       {ehCD && sitCD.tipo === "SEM" && <p className="flex items-center gap-2"><AlertTriangle className="size-4 text-destructive" /><b>Sem ciência registrada</b> para o {NOME_CD}.</p>}
-      {ehCD && sitCD.desatualizada && <p className="flex items-start gap-2 rounded-md bg-amber-50 p-2 text-sm text-amber-900"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span><b>Ciência desatualizada:</b> o Gerente Comercial alterou o portfólio das lojas depois dela. {sitCD.incluidos.length ? <>Incluídos: <b>{sitCD.incluidos.join(", ")}</b>. </> : null}{sitCD.retirados.length ? <>Retirados: <b>{sitCD.retirados.join(", ")}</b>. </> : null}O Diretor Operacional precisa dar nova ciência.</span></p>}
+      {ehCD && sitCD.desatualizada && <p className="flex items-start gap-2 rounded-md bg-warning/10 p-2 text-sm text-foreground"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span><b>Ciência desatualizada:</b> o Gerente Comercial alterou o portfólio das lojas depois dela. {sitCD.incluidos.length ? <>Incluídos: <b>{sitCD.incluidos.join(", ")}</b>. </> : null}{sitCD.retirados.length ? <>Retirados: <b>{sitCD.retirados.join(", ")}</b>. </> : null}O Diretor Operacional precisa dar nova ciência.</span></p>}
       {!ehCD && <p className="text-xs text-muted-foreground">Delegação do portfólio (planilha de classificação): {uploads.length ? uploads.map((u) => `${u.arquivo || "Edição manual"} · ${new Date(u.registrado_em).toLocaleString("pt-BR")} · ${u.n} SKUs`).join(" | ") : "nenhum upload registrado"}</p>}
     </section>
 
@@ -148,13 +149,13 @@ function ValidacaoPage() {
     </div>
 
     <section className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-semibold">Lista do portfólio (planilha de Parâmetros) · {nomeLoja(loja)}{filtroCard && filtroCard !== "Total" && <span className="ml-2 text-xs font-normal text-muted-foreground">filtro: {rotuloFiltro(filtroCard)} <button type="button" className="underline" onClick={() => setFiltroCard(null)}>limpar</button></span>}</h2>
-        <div className="flex gap-2"><Input placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-64" />
+      <div className="grid min-w-0 items-center gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
+        <h2 className="min-w-0 !text-lg font-semibold">Lista do portfólio (planilha de Parâmetros) · {nomeLoja(loja)}{filtroCard && filtroCard !== "Total" && <span className="ml-2 text-xs font-normal text-muted-foreground">filtro: {rotuloFiltro(filtroCard)} <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setFiltroCard(null)}>limpar</Button></span>}</h2>
+        <div className="grid min-w-0 grid-cols-2 gap-2 sm:flex"><Input placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} className="col-span-2 w-full sm:w-64" />
           <Button variant="outline" size="sm" disabled={!gestor} onClick={() => setSel(new Set(itens.map((i) => i.sku)))}>Marcar todos</Button>
           <Button variant="outline" size="sm" disabled={!gestor} onClick={() => setSel(new Set())}>Desmarcar</Button></div>
       </div>
-      <div className="max-h-[28rem] overflow-auto rounded-md border"><Table><TableHeader><TableRow><TableHead className="w-10">Ativo</TableHead><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Grupo</TableHead><TableHead>Classe</TableHead><TableHead>Meta OOS</TableHead></TableRow></TableHeader>
+      <div className="max-h-[28rem] overflow-auto rounded-lg border bg-card text-card-foreground [&>div]:overflow-visible"><Table><TableHeader className="sticky top-0 z-10 bg-muted"><TableRow><TableHead className="w-10">Ativo</TableHead><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Grupo</TableHead><TableHead>Classe</TableHead><TableHead>Meta OOS</TableHead></TableRow></TableHeader>
         <TableBody>{lista.map((i) => <TableRow key={i.sku}><TableCell><Checkbox aria-label={`Ativo ${i.sku}`} disabled={!gestor} checked={sel.has(i.sku)} onCheckedChange={(c) => setSel((s) => { const n = new Set(s); c ? n.add(i.sku) : n.delete(i.sku); return n; })} /></TableCell><TableCell>{i.sku}</TableCell><TableCell className="whitespace-normal text-xs">{i.descricao}</TableCell><TableCell className="text-xs">{i.categoria ?? "—"}</TableCell><TableCell>{CLASSES_PORTFOLIO[i.classe]}{i.semClasse && <span className="text-muted-foreground"> *</span>}</TableCell><TableCell className="text-xs">{!sel.has(i.sku) ? "Não ativo" : i.elegivelClasse ? "Elegível" : "Fora da meta"}</TableCell></TableRow>)}
           {!lista.length && <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">Nenhuma classificação vigente — importe a lista em Parâmetros › Portfólio e Classificação</TableCell></TableRow>}</TableBody></Table></div>
       <p className="text-xs text-muted-foreground">* Sem classificação registrada: tratado como Linha.</p>
@@ -170,12 +171,12 @@ function ValidacaoPage() {
           <CardFiltro key={c.id} rotulo={c.rotulo} valor={c.n} ativo={filtroCardCD === c.id} onClick={() => setFiltroCardCD((f) => (f === c.id || c.id === "TOTAL" || c.id === "LOJAS" ? null : c.id))} />
         ))}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-semibold">Itens aprovados pelo Gerente Comercial · o {NOME_CD} deve manter estoque{filtroCardCD && <span className="ml-2 text-xs font-normal text-muted-foreground">filtro: {(CLASSES_PORTFOLIO as Record<string, string>)[filtroCardCD] ?? filtroCardCD} <button type="button" className="underline" onClick={() => setFiltroCardCD(null)}>limpar</button></span>}</h2>
-        <Input placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-64" />
+      <div className="grid min-w-0 items-center gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
+        <h2 className="min-w-0 !text-lg font-semibold">Itens aprovados pelo Gerente Comercial · o {NOME_CD} deve manter estoque{filtroCardCD && <span className="ml-2 text-xs font-normal text-muted-foreground">filtro: {(CLASSES_PORTFOLIO as Record<string, string>)[filtroCardCD] ?? filtroCardCD} <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setFiltroCardCD(null)}>limpar</Button></span>}</h2>
+        <Input placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} className="col-span-2 w-full sm:w-64" />
       </div>
-      <div className="max-h-[28rem] overflow-auto rounded-md border"><Table><TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Grupo</TableHead><TableHead>Classe</TableHead><TableHead>Meta OOS</TableHead><TableHead>Aprovado nas lojas</TableHead></TableRow></TableHeader>
-        <TableBody>{listaCD.map((i) => <TableRow key={i.sku}><TableCell>{i.sku}</TableCell><TableCell className="whitespace-normal text-xs">{i.descricao}</TableCell><TableCell className="text-xs">{i.categoria ?? "—"}</TableCell><TableCell>{CLASSES_PORTFOLIO[i.classe]}</TableCell><TableCell className="text-xs">{i.elegivel ? "Elegível" : "Fora da meta"}</TableCell><TableCell className="text-xs">{(i.lojas ?? []).map(nomeLoja).join(", ")}{(i.lojas ?? []).length < codigosLojas.length && <span className="ml-1 text-amber-700">(não é de todas as lojas)</span>}</TableCell></TableRow>)}
+      <div className="max-h-[28rem] overflow-auto rounded-lg border bg-card text-card-foreground [&>div]:overflow-visible"><Table><TableHeader className="sticky top-0 z-10 bg-muted"><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Grupo</TableHead><TableHead>Classe</TableHead><TableHead>Meta OOS</TableHead><TableHead>Aprovado nas lojas</TableHead></TableRow></TableHeader>
+        <TableBody>{listaCD.map((i) => <TableRow key={i.sku}><TableCell>{i.sku}</TableCell><TableCell className="whitespace-normal text-xs">{i.descricao}</TableCell><TableCell className="text-xs">{i.categoria ?? "—"}</TableCell><TableCell>{CLASSES_PORTFOLIO[i.classe]}</TableCell><TableCell className="text-xs">{i.elegivel ? "Elegível" : "Fora da meta"}</TableCell><TableCell className="text-xs">{(i.lojas ?? []).map(nomeLoja).join(", ")}{(i.lojas ?? []).length < codigosLojas.length && <span className="ml-1 text-warning">(não é de todas as lojas)</span>}</TableCell></TableRow>)}
           {!listaCD.length && <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">Nenhuma loja tem portfólio validado pelo Gerente Comercial ainda — a lista do {NOME_CD} é montada a partir das validações das lojas.</TableCell></TableRow>}</TableBody></Table></div>
       {gestor ? <div className="flex flex-wrap items-end gap-3 rounded-lg border p-4">
         <Textarea placeholder="Observação da ciência (opcional)" value={obs} maxLength={1000} onChange={(e) => setObs(e.target.value)} className="min-h-10 max-w-xl" />
@@ -184,8 +185,8 @@ function ValidacaoPage() {
       </div> : <p className="text-sm text-muted-foreground">Somente o Diretor Operacional (signatário designado pelo administrador) pode dar ciência do {NOME_CD}.</p>}
     </section>}
 
-    <section className="space-y-3"><h2 className="font-semibold">Histórico de validações · {nomeLoja(loja)}</h2>
-      <div className="overflow-auto rounded-md border"><Table><TableHeader><TableRow><TableHead>Competência</TableHead><TableHead>Versão</TableHead><TableHead>Status</TableHead><TableHead>Aprovado por</TableHead><TableHead>Data/hora</TableHead><TableHead>Ativos</TableHead><TableHead>Alterações</TableHead><TableHead /></TableRow></TableHeader>
+    <section className="space-y-3"><h2 className="min-w-0 !text-lg font-semibold">Histórico de validações · {nomeLoja(loja)}</h2>
+      <div className="overflow-auto rounded-lg border bg-card text-card-foreground"><Table><TableHeader className="sticky top-0 z-10 bg-muted"><TableRow><TableHead>Competência</TableHead><TableHead>Versão</TableHead><TableHead>Status</TableHead><TableHead>Aprovado por</TableHead><TableHead>Data/hora</TableHead><TableHead>Ativos</TableHead><TableHead>Alterações</TableHead><TableHead /></TableRow></TableHeader>
         <TableBody>{historico.map((v) => <TableRow key={v.id}><TableCell>{nomeMes(v.competencia)}</TableCell><TableCell>v{v.versao}</TableCell><TableCell><Badge variant={v.status === "VALIDADA" ? "secondary" : "outline"}>{v.status === "VALIDADA" ? "Validada" : "Desfeita"}</Badge></TableCell><TableCell>{v.aprovador_nome}</TableCell><TableCell className="text-xs">{new Date(v.aprovado_em).toLocaleString("pt-BR")}</TableCell><TableCell>{v.totais.ativos}</TableCell><TableCell className="text-xs">{v.diff.primeira_validacao ? "Primeira validação" : `+${v.diff.incluidos?.length ?? 0} / −${v.diff.retirados?.length ?? 0} / ${v.diff.reclassificados?.length ?? 0} reclass.`}</TableCell>
           <TableCell className="flex gap-1"><Button size="sm" variant="outline" onClick={() => baixarDocumento(v, nomeLoja(v.loja), nomeLoja)}><Download className="size-4" />Documento</Button>{gestor && v.status === "VALIDADA" && <Button size="sm" variant="ghost" onClick={() => void desfazer(v)}><Undo2 className="size-4" />Desfazer</Button>}</TableCell></TableRow>)}
           {!historico.length && <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">Nenhuma validação registrada</TableCell></TableRow>}</TableBody></Table></div>
@@ -209,12 +210,12 @@ function Signatarios() {
     catch (e: any) { toast.error(e?.message ?? "Não foi possível alterar o signatário"); } finally { setSalvando(false); }
   }
   const sig = q.data?.sig ?? []; const usuarios = q.data?.usuarios ?? [];
-  return <section className="space-y-3 rounded-lg border p-4">
-    <h2 className="flex items-center gap-2 font-semibold"><Users className="size-4" />Signatários da validação (administrador)</h2>
+  return <section className="space-y-3 border-t pt-4">
+    <h2 className="flex items-center gap-2 !text-lg font-semibold"><Users className="size-4" />Signatários da validação (administrador)</h2>
     <p className="text-xs text-muted-foreground">Quem assina é designado aqui. O administrador designa, mas não assina. Cada função pode ter mais de uma pessoa; o termo registra quem assinou.</p>
-    <div className="grid gap-3 md:grid-cols-2">{FUNCOES.map((f) => <div key={f.k} className="rounded-md border p-3"><div className="font-semibold">{f.n}</div><div className="mb-2 text-xs text-muted-foreground">{f.d}</div>
+    <div className="grid gap-3 md:grid-cols-2">{FUNCOES.map((f) => <Card key={f.k} className="p-4"><div className="font-semibold">{f.n}</div><div className="mb-2 text-xs text-muted-foreground">{f.d}</div>
       {sig.filter((s) => s.funcao === f.k && s.ativo).map((s) => <div key={s.user_id} className="flex items-center justify-between border-t py-1 text-sm"><span>{s.nome}<span className="ml-2 text-[11px] text-muted-foreground">desde {new Date(s.designado_em).toLocaleDateString("pt-BR")}</span></span><Button size="sm" variant="ghost" disabled={salvando} onClick={() => void definir(s.user_id, f.k, false)}>Remover</Button></div>)}
-      {!sig.some((s) => s.funcao === f.k && s.ativo) && <p className="border-t pt-2 text-sm font-semibold text-red-600">Ninguém designado — ninguém consegue assinar.</p>}</div>)}</div>
+      {!sig.some((s) => s.funcao === f.k && s.ativo) && <p className="border-t pt-2 text-sm font-semibold text-destructive">Ninguém designado — ninguém consegue assinar.</p>}</Card>)}</div>
     <div className="flex flex-wrap items-end gap-3">
       <label className="text-xs font-semibold text-muted-foreground">Usuário<select value={usuario} onChange={(e) => setUsuario(e.target.value)} className="mt-1 block h-9 min-w-64 rounded-md border bg-background px-2 text-sm"><option value="">Selecione…</option>{usuarios.map((u) => <option key={u.id} value={u.id}>{u.nome || u.email}{u.nome && u.email ? ` (${u.email})` : ""}</option>)}</select></label>
       <label className="text-xs font-semibold text-muted-foreground">Função<select value={funcao} onChange={(e) => setFuncao(e.target.value)} className="mt-1 block h-9 min-w-48 rounded-md border bg-background px-2 text-sm">{FUNCOES.map((f) => <option key={f.k} value={f.k}>{f.n}</option>)}</select></label>
@@ -230,10 +231,12 @@ function rotuloFiltro(id: string) {
 
 function CardFiltro({ rotulo, valor, ativo, onClick }: { rotulo: string; valor: string | number; ativo: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} aria-pressed={ativo} title={ativo ? "Clique para limpar o filtro" : "Clique para filtrar a lista"}
-      className={`rounded-lg border p-3 text-left transition hover:border-primary/60 ${ativo ? "border-primary bg-primary/10 ring-1 ring-primary" : ""}`}>
-      <div className="text-xs text-muted-foreground">{rotulo}</div>
-      <div className="text-2xl font-bold">{valor}</div>
-    </button>
+    <Card className={`min-w-0 overflow-hidden ${ativo ? "border-primary ring-1 ring-primary" : ""}`}>
+      <Button type="button" variant="ghost" onClick={onClick} aria-pressed={ativo} title={ativo ? "Clique para limpar o filtro" : "Clique para filtrar a lista"}
+        className={`h-auto min-h-24 w-full flex-col items-start gap-1 whitespace-normal p-4 text-left ${ativo ? "bg-primary/10" : ""}`}>
+        <span className="text-xs text-muted-foreground">{rotulo}</span>
+        <span className="text-2xl font-bold tabular-nums text-card-foreground">{valor}</span>
+      </Button>
+    </Card>
   );
 }
