@@ -1,12 +1,13 @@
 // Camada de dados do módulo de Abastecimento v2 — monta, por loja, os itens de reposição a partir de:
 //   faturamento carregado (historico_consumo por almoxarifado da loja) → CMD; consenso → meta mensal; estoque de lote ao vivo;
-//   notas em trânsito + pedidos em aberto (sem duplicar pedido); cadastro de grupo/família; sazonalidade; exposição e caixa.
+//   notas em trânsito + pedidos em aberto (sem duplicar pedido); cadastro de grupo/família; exposição e caixa. A sazonalidade vem só do consenso (malha linear × realização).
 // Universo: produto ACABADO com meta no consenso para a loja (embalagem, em processo, local e revenda ficam de fora).
 import { calcularItem2, alocarCD, PARAM2_PADRAO, type Item2, type Base2, type Param2 } from "./abastecimento-motor2";
 import { resolverParam, type CoberturaRegra } from "./abastecimento-cobertura";
 import { cmdPonderado, acompanhamentoMeta, type AcompMeta, type Denominador } from "./abastecimento-demanda";
 import { consensoMedioNaJanela } from "./abastecimento-consenso";
-import { indiceMedioNaJanela, type PeriodoSazonal } from "./sazonalidade";
+import type { PeriodoSazonal } from "./sazonalidade";
+import { fatorRealizacao } from "./abastecimento-malha";
 import type { ClassePortfolio } from "./abastecimento-portfolio";
 
 export const nk = (s: unknown): string => String(s ?? "").trim().replace(/^0+/, "");
@@ -132,7 +133,7 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       const e = est.get(sku);
       const ref = refPorLoja[l.codigo] ?? o.hojeIso;
       const r = cmdPonderado(vendas.get(k) ?? new Map(), ref, { denominador: o.denominador, inicioHistorico: inicioPorLoja[l.codigo] });
-      const idx = indiceMedioNaJanela(b.periodos, { sku: e?.canon ?? sku, grupo, familia }, Math.max(1, rp.p.diasIdeal));
+      const fr = fatorRealizacao(vendas.get(k) ?? new Map<string, number>(), m.porMes, ref, { inicioHistorico: inicioPorLoja[l.codigo], piso: 0.25, teto: 2 });   // venda real ÷ malha do consenso (sem índice sazonal)
       const cons = consensoMedioNaJanela(m.porMes, o.hojeIso, Math.max(1, rp.p.diasIdeal));
       const expo = expoDe.get(`${l.codigo}|${sku}`);
       const mesAt = m.porMes[mesAtual] ?? 0;
@@ -142,7 +143,7 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       const idCanon = e?.canon ?? (sku.length < 8 ? sku.padStart(8, "0") : sku.length === 9 ? sku.padStart(10, "0") : sku);
       const it = calcularItem2({
         sku: idCanon, descricao: e?.desc || m.produto, categoria: familia, ativo: true, masterPresente: true,
-        estoque: e?.lojas[l.codigo] ?? 0, exposicao: expo ?? 0, vendaDiaReal: r.cmd, consensoDia: cons, indiceSazonal: idx.indice,
+        estoque: e?.lojas[l.codigo] ?? 0, exposicao: expo ?? 0, vendaDiaReal: r.cmd, consensoDia: cons, fatorRealizacao: fr ? fr.fator : null,
         classeAbc: abcDe.get(sku) ?? null, fullCase: fcDe.get(sku) ?? 1, custo: e?.custo ?? null, saldoCD: e?.cd ?? 0,
         emTransito: transito.get(`${l.codigo}|${sku}`) ?? 0, pedidoAberto: pedAb.get(`${l.codigo}|${sku}`) ?? 0, pedidoManual: manual ?? null,
       }, rp.p, o.base);
