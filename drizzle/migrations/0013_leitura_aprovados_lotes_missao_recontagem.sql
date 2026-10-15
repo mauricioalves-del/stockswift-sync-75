@@ -1,0 +1,2 @@
+ALTER POLICY "Autenticados podem ver lotes de itens de missão" ON public.itens_missao_lotes USING (public.usuario_aprovado(auth.uid()));
+ALTER POLICY rec_select_auth ON public.recontagem USING (public.usuario_aprovado(auth.uid()));
