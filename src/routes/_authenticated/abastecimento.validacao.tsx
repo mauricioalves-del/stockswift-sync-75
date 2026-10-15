@@ -171,7 +171,7 @@ function ValidacaoPage() {
         ))}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-semibold">Itens aprovados pelo Gerente Comercial · o {NOME_CD} deve manter estoque{filtroCardCD && <span className="ml-2 text-xs font-normal text-muted-foreground">filtro: {String(CLASSES_PORTFOLIO[filtroCardCD] ?? filtroCardCD)} <button type="button" className="underline" onClick={() => setFiltroCardCD(null)}>limpar</button></span>}</h2>
+        <h2 className="font-semibold">Itens aprovados pelo Gerente Comercial · o {NOME_CD} deve manter estoque{filtroCardCD && <span className="ml-2 text-xs font-normal text-muted-foreground">filtro: {(CLASSES_PORTFOLIO as Record<string, string>)[filtroCardCD] ?? filtroCardCD} <button type="button" className="underline" onClick={() => setFiltroCardCD(null)}>limpar</button></span>}</h2>
         <Input placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-64" />
       </div>
       <div className="max-h-[28rem] overflow-auto rounded-md border"><Table><TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Grupo</TableHead><TableHead>Classe</TableHead><TableHead>Meta OOS</TableHead><TableHead>Aprovado nas lojas</TableHead></TableRow></TableHeader>
@@ -225,7 +225,7 @@ function Signatarios() {
 
 function rotuloFiltro(id: string) {
   if (id === "Ativos" || id === "Elegíveis OOS") return id;
-  return String(CLASSES_PORTFOLIO[id] ?? id);
+  return String((CLASSES_PORTFOLIO as Record<string, string>)[id] ?? id);
 }
 
 function CardFiltro({ rotulo, valor, ativo, onClick }: { rotulo: string; valor: string | number; ativo: boolean; onClick: () => void }) {
