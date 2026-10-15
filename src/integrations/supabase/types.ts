@@ -1155,6 +1155,42 @@ export type Database = {
           },
         ]
       }
+      categorias_produto: {
+        Row: {
+          atualizado_por: string | null
+          categoria: string
+          codigo_produto: string
+          created_at: string
+          id: string
+          jornada: string
+          produto: string | null
+          segmento: string
+          updated_at: string
+        }
+        Insert: {
+          atualizado_por?: string | null
+          categoria: string
+          codigo_produto: string
+          created_at?: string
+          id?: string
+          jornada: string
+          produto?: string | null
+          segmento: string
+          updated_at?: string
+        }
+        Update: {
+          atualizado_por?: string | null
+          categoria?: string
+          codigo_produto?: string
+          created_at?: string
+          id?: string
+          jornada?: string
+          produto?: string | null
+          segmento?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       checagens_fefo: {
         Row: {
           created_at: string
