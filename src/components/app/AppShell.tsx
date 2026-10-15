@@ -43,6 +43,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/custo-contabil", label: "Investigação de Custo", icon: SearchCheck, role: "write" },
       { to: "/importar-familias", label: "Importador de Famílias", icon: Leaf, role: "write" },
       { to: "/grupos", label: "Importador de Grupos", icon: Layers, role: "write" },
+      { to: "/categorias", label: "Cadastro de Categoria", icon: Tags, role: "write" },
 
     ],
   },
