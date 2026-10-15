@@ -41,3 +41,8 @@
 
 ## Parâmetros no pilar Abastecimento
 - [x] Desfazer o subgrupo "Parâmetros" criado em Suprimentos e mover Importar Consumo e Sazonalidade para o Parâmetros já existente em Abastecimento.
+
+## Dashboard de Disponibilidade: ordem dos blocos
+- [x] Manter os cards de local logo abaixo dos indicadores e colocar o gráfico de evolução + Top itens em seguida.
+- [x] Mover a tabela de posição por local para abaixo do gráfico + Top itens.
+- [x] Validar na tela a nova ordem e o filtro por card e por linha.
