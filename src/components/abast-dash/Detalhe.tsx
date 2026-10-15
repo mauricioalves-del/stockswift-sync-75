@@ -9,8 +9,12 @@ const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").t
 export const zeraTexto = (l: DashLinha) => (l.status === "ruptura" ? "já zerado" : l.zeraEm ? `${dm(l.zeraEm)} · ${l.diasAteZerar} d` : "—");
 
 export function Detalhe({ filtro, linhas }: { filtro: Filtro; linhas: DashLinha[] }) {
-  const [chip, setChip] = useState<ChipF>("TODOS"); const [busca, setBusca] = useState(""); const [limite, setLimite] = useState(80);
-  const locais = escopoLocais(filtro.escopo); const base = useMemo(() => linhas.filter((l) => locais.includes(l.local)), [linhas, filtro.escopo]);
+  const [chip, setChip] = useState<ChipF>("TODOS"); const [busca, setBusca] = useState(""); const [limite, setLimite] = useState(80); const [lojaSel, setLojaSel] = useState<string[]>([]);
+  const locais = escopoLocais(filtro.escopo);
+  const baseEscopo = useMemo(() => linhas.filter((l) => locais.includes(l.local)), [linhas, filtro.escopo]);
+  const lojasDisp = useMemo(() => [...new Set(baseEscopo.map((l) => l.local))].sort((a, b) => String(NOME[a] ?? a).localeCompare(String(NOME[b] ?? b), "pt-BR")), [baseEscopo]);
+  const base = useMemo(() => (lojaSel.length ? baseEscopo.filter((l) => lojaSel.includes(l.local)) : baseEscopo), [baseEscopo, lojaSel]);
+  const toggleLoja = (c: string) => { setLojaSel((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c])); setLimite(80); };
   const conta = (c: ChipF) => (c === "TODOS" ? base.length : c === "SEMACAO" ? base.filter((l) => l.semAcao).length : base.filter((l) => l.status === c).length);
   const q = norm(busca.trim());
   const lista = useMemo(() => base.filter((l) => (chip === "TODOS" ? true : chip === "SEMACAO" ? l.semAcao : l.status === chip) && (!q || norm(l.produto).includes(q) || l.sku.includes(q)))
@@ -27,6 +31,7 @@ export function Detalhe({ filtro, linhas }: { filtro: Filtro; linhas: DashLinha[
     <Secao letra="F" titulo="Detalhe por SKU" acao={<div className="flex flex-wrap items-center gap-2">
       <div className="relative"><Search className="absolute left-2 top-2 size-3.5 text-muted-foreground" /><input value={busca} onChange={(e) => { setBusca(e.target.value); setLimite(80); }} placeholder="Buscar produto ou SKU" className="h-8 w-56 rounded-md border bg-background pl-7 pr-2 text-xs" /></div>
       <button type="button" onClick={csv} className="flex h-8 items-center gap-1 rounded-md border bg-background px-3 text-xs font-semibold hover:bg-muted"><Download className="size-3.5" /> Exportar CSV</button></div>}>
+      {lojasDisp.length > 1 && <div className="mb-2 flex flex-wrap items-center gap-2"><span className="text-xs font-semibold text-muted-foreground">Loja:</span><Chip ativo={lojaSel.length === 0} onClick={() => { setLojaSel([]); setLimite(80); }}>Todas <b>{baseEscopo.length}</b></Chip>{lojasDisp.map((c) => <Chip key={c} ativo={lojaSel.includes(c)} onClick={() => toggleLoja(c)}>{NOME[c] ?? c} <b>{baseEscopo.filter((l) => l.local === c).length}</b></Chip>)}</div>}
       <div className="mb-3 flex flex-wrap gap-2">{chips.map((x) => <Chip key={x.c} ativo={chip === x.c} onClick={() => { setChip(x.c); setLimite(80); }} cls={x.cls}>{x.r} <b>{conta(x.c)}</b></Chip>)}</div>
       <TabelaRolavel titulo="Detalhe por SKU"><table className="w-full text-sm"><thead className="sticky top-0 z-10"><tr className="border-b"><Th c="Local" /><Th c="SKU" /><Th c="Produto" /><Th c="Categoria" /><Th c="Status" /><Th c="Estoque" d /><Th c="Mín" d /><Th c="Máx" d /><Th c="Venda/d" d /><Th c="Cobert. líq. (d)" d /><Th c="Em trâns." d /><Th c="Chega em" d /><Th c="Zera em" d /><Th c="Sugestão" d /><Th c="Excesso R$" d /></tr></thead>
         <tbody>{lista.slice(0, limite).map((l) => <tr key={l.local + l.sku} className="border-b hover:bg-muted/40"><td className="px-2 py-2 whitespace-nowrap">{NOME[l.local]}</td><td className="px-2 py-2 font-mono text-xs">{l.sku}</td><td className="px-2 py-2 max-w-[260px] truncate" title={l.produto}>{l.produto}</td><td className="px-2 py-2 text-xs text-muted-foreground">{l.categoria === "Mercadoria de Revenda" ? "Revenda" : "Prod. Acabado"}</td>
