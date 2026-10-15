@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { queryOptions, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
-import { Tags, Upload, Download, Save, Loader2, History } from "lucide-react";
+import { Tags, Upload, Download, Save, Loader2, History, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const portfolioQuery = queryOptions({
   queryKey:["abast-portfolio"],
@@ -44,6 +46,8 @@ function PortfolioPage(){
   const hoje=new Date().toLocaleDateString("en-CA",{timeZone:"America/Sao_Paulo"});
   const [vigencia,setVigencia]=useState(hoje); const [busca,setBusca]=useState(""); const [classe,setClasse]=useState("TODOS");
   const [rows,setRows]=useState<Record<string,unknown>[]|null>(null); const [arquivo,setArquivo]=useState(""); const [salvando,setSalvando]=useState(false); const [historico,setHistorico]=useState(false);
+  type Edicao={sku:string;descricao:string;classe:string;vigencia:string;inicio_inovacao:string;versao_anterior:string};
+  const [editando,setEditando]=useState<Edicao|null>(null);
   const file=useRef<HTMLInputElement>(null);
   const previa=useMemo(()=>rows ? prepararPortfolio(rows,data.produtos,data.historico,vigencia,hoje) : [],[rows,data,vigencia,hoje]);
   const atuais=[...ultimasClassificacoes(data.historico).values()];
@@ -67,11 +71,36 @@ function PortfolioPage(){
   function modelo(){const w=XLSX.utils.book_new(); const rs=atuais.length ? atuais.map(r=>({"SKU Sistema":data.produtos.find(p=>chaveSkuPortfolio(p.sku)===r.sku)?.sku ?? r.sku,Produto:r.descricao,Cluster:CLASSES_PORTFOLIO[r.classe],Vigência:vigencia,"Início Inovação":r.inicio_inovacao ?? ""})) : [{"SKU Sistema":"",Produto:"",Cluster:"",Vigência:vigencia,"Início Inovação":""}];
     const s=XLSX.utils.json_to_sheet(rs);s["!cols"]=[{wch:16},{wch:65},{wch:18},{wch:14},{wch:20}];XLSX.utils.book_append_sheet(w,s,"Classificação");XLSX.writeFile(w,"Modelo_Classificacao_Portfolio.xlsx");}
   function mudarInicio(r:PreviaPortfolio,v:string){setRows(old=>old?.map((x,i)=>i===r.linha-2 ? {...x,"Início Inovação":v}:x) ?? null);}
+  async function salvarEdicao(){
+    if(!editando)return; setSalvando(true);
+    try{const {error}=await supabase.rpc("abast_importar_classificacoes",{p_arquivo:"Edição manual",p_itens:[{sku:editando.sku,descricao:editando.descricao,classe:editando.classe,vigencia:editando.vigencia,inicio_inovacao:editando.classe==="INOVACAO" ? editando.inicio_inovacao||null : null,versao_anterior:editando.versao_anterior}]});if(error)throw error;
+      await qc.invalidateQueries({queryKey:["abast-portfolio"]});setEditando(null);toast.success("Classificação atualizada");
+    }catch(e){toast.error(e instanceof Error ? e.message : "Não foi possível salvar a edição");}finally{setSalvando(false);}
+  }
+  async function remover(r:ClassificacaoPortfolio){
+    if(!window.confirm(`Remover ${r.sku} da lista do portfólio? O item sai da lista vigente e o histórico é mantido.`))return; setSalvando(true);
+    try{const {error}=await supabase.rpc("abast_importar_classificacoes",{p_arquivo:"Remoção manual",p_itens:[{sku:r.sku,descricao:r.descricao,classe:"REMOVIDO",vigencia:hoje,versao_anterior:r.id}]});if(error)throw error;
+      await qc.invalidateQueries({queryKey:["abast-portfolio"]});toast.success(`${r.sku} removido da lista`);
+    }catch(e){toast.error(e instanceof Error ? e.message : "Não foi possível remover");}finally{setSalvando(false);}
+  }
   return <div className="space-y-6">
     <header className="flex flex-wrap justify-between items-center gap-3"><h1 className="text-2xl font-bold flex gap-2 items-center"><Tags className="size-6"/>Portfólio e Classificação</h1><Button variant="outline" onClick={()=>setHistorico(s=>!s)}><History className="size-4"/>{historico ? "Classificações atuais" : "Histórico"}</Button></header>
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">{["TODOS",...Object.keys(CLASSES_PORTFOLIO)].map(c=><Button key={c} variant={classe===c ? "secondary":"outline"} className="h-auto items-start flex-col p-3" onClick={()=>setClasse(c)}><span className="text-xs text-muted-foreground">{c==="TODOS" ? "Todos":CLASSES_PORTFOLIO[c as keyof typeof CLASSES_PORTFOLIO]}</span><span className="text-2xl font-bold">{atuais.filter(r=>c==="TODOS" || r.classe===c).length}</span></Button>)}</div>
     <section className="border-y py-4 flex flex-wrap gap-3 items-end"><div><Label htmlFor="portfolio-vigencia">Vigência</Label><Input id="portfolio-vigencia" type="date" min={hoje} value={vigencia} onChange={e=>setVigencia(e.target.value)}/></div><Button variant="outline" onClick={modelo}><Download className="size-4"/>Baixar modelo (.xlsx)</Button>{isAdmin && <Button onClick={()=>file.current?.click()}><Upload className="size-4"/>Importar lista</Button>}<input ref={file} type="file" aria-label="Planilha de classificação" accept=".xlsx,.xls" className="hidden" onChange={e=>{const f=e.target.files?.[0];if(f)void importar(f);e.target.value="";}}/></section>
     {rows && <section className="space-y-3" aria-label="Prévia da importação"><div className="flex flex-wrap gap-3 items-center justify-between"><h2 className="font-semibold">Prévia · {arquivo} · {previa.length} SKUs</h2><Badge variant={erros ? "destructive":"secondary"}>{erros ? `${erros} inconsistência(s)` : "Pronto para confirmar"}</Badge></div><div className="max-h-96 overflow-auto border rounded-md"><Table><TableHeader><TableRow><TableHead>Linha / SKU</TableHead><TableHead>Produto</TableHead><TableHead>Anterior → Nova</TableHead><TableHead>Início Inovação</TableHead><TableHead>Validação</TableHead></TableRow></TableHeader><TableBody>{previa.map(r=><TableRow key={r.linha}><TableCell>{r.linha} · {r.sku}</TableCell><TableCell className="whitespace-normal min-w-48 text-xs">{r.descricao}</TableCell><TableCell>{r.anterior} → {r.classe ? CLASSES_PORTFOLIO[r.classe]:"Inválida"}</TableCell><TableCell>{r.classe==="INOVACAO" ? <Input aria-label={`Início Inovação ${r.sku}`} type="date" max={r.vigencia} value={r.inicio_inovacao} onChange={e=>mudarInicio(r,e.target.value)}/> : "—"}</TableCell><TableCell className={r.erros.length ? "text-destructive":"text-success"}>{r.erros.join("; ") || "Válido"}</TableCell></TableRow>)}</TableBody></Table></div><div className="flex gap-2"><Button disabled={!isAdmin || !!erros || salvando} onClick={()=>void confirmar()}>{salvando ? <Loader2 className="size-4 animate-spin"/>:<Save className="size-4"/>}Confirmar {previa.length} classificações</Button><Button variant="outline" onClick={()=>setRows(null)}>Cancelar</Button></div></section>}
-    <section className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">{historico ? "Histórico de classificações":"Classificações registradas"}</h2><Input aria-label="Buscar SKU ou produto" placeholder="Buscar SKU ou produto" className="max-w-sm" value={busca} onChange={e=>setBusca(e.target.value)}/></div><div className="overflow-auto border rounded-md"><Table><TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Classe</TableHead><TableHead>Vigência</TableHead><TableHead>Situação na meta</TableHead>{historico && <><TableHead>Anterior</TableHead><TableHead>Registro / Autor</TableHead></>}</TableRow></TableHeader><TableBody>{lista.map(r=><TableRow key={r.id}><TableCell>{r.sku}</TableCell><TableCell className="whitespace-normal text-xs min-w-48">{r.descricao}</TableCell><TableCell>{CLASSES_PORTFOLIO[r.classe]}</TableCell><TableCell>{r.vigencia.split("-").reverse().join("/")}</TableCell><TableCell>{r.vigencia>hoje ? "Vigência futura" : elegivelPortfolio(r.classe,r.inicio_inovacao,hoje) ? "Elegível por classe" : "Fora da meta OOS"}</TableCell>{historico && <><TableCell>{r.classe_anterior ?? "—"}</TableCell><TableCell className="text-xs">{new Date(r.registrado_em).toLocaleString("pt-BR")}<br/>{r.autor_id}</TableCell></>}</TableRow>)}{!lista.length && <TableRow><TableCell colSpan={historico ? 7:5} className="text-center py-12 text-muted-foreground">Nenhuma classificação registrada</TableCell></TableRow>}</TableBody></Table></div></section>
+    <section className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">{historico ? "Histórico de classificações":"Classificações registradas"}</h2><Input aria-label="Buscar SKU ou produto" placeholder="Buscar SKU ou produto" className="max-w-sm" value={busca} onChange={e=>setBusca(e.target.value)}/></div><div className="overflow-auto border rounded-md"><Table><TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Classe</TableHead><TableHead>Vigência</TableHead><TableHead>Situação na meta</TableHead>{historico ? <><TableHead>Anterior</TableHead><TableHead>Registro / Autor</TableHead></> : isAdmin && <TableHead className="w-24">Ações</TableHead>}</TableRow></TableHeader><TableBody>{lista.map(r=><TableRow key={r.id}><TableCell>{r.sku}</TableCell><TableCell className="whitespace-normal text-xs min-w-48">{r.descricao}</TableCell><TableCell>{(CLASSES_PORTFOLIO as Record<string,string>)[r.classe] ?? "Removido"}</TableCell><TableCell>{r.vigencia.split("-").reverse().join("/")}</TableCell><TableCell>{(r.classe as string)==="REMOVIDO" ? "Removido da lista" : r.vigencia>hoje ? "Vigência futura" : elegivelPortfolio(r.classe,r.inicio_inovacao,hoje) ? "Elegível por classe" : "Fora da meta OOS"}</TableCell>{historico ? <><TableCell>{r.classe_anterior ?? "—"}</TableCell><TableCell className="text-xs">{new Date(r.registrado_em).toLocaleString("pt-BR")}<br/>{r.autor_id}</TableCell></> : isAdmin && <TableCell><div className="flex gap-1"><Button size="icon" variant="ghost" title="Editar classificação" onClick={()=>setEditando({sku:r.sku,descricao:r.descricao,classe:r.classe,vigencia:r.vigencia>hoje ? r.vigencia : hoje,inicio_inovacao:r.inicio_inovacao ?? "",versao_anterior:r.id})}><Pencil className="size-4"/></Button><Button size="icon" variant="ghost" title="Remover da lista" disabled={salvando} onClick={()=>void remover(r)}><Trash2 className="size-4 text-destructive"/></Button></div></TableCell>}</TableRow>)}{!lista.length && <TableRow><TableCell colSpan={historico ? 7:6} className="text-center py-12 text-muted-foreground">Nenhuma classificação registrada</TableCell></TableRow>}</TableBody></Table></div></section>
+    <Dialog open={!!editando} onOpenChange={(o)=>{if(!o)setEditando(null);}}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Editar classificação · {editando?.sku}</DialogTitle></DialogHeader>
+        {editando && <div className="space-y-3">
+          <div><Label>Produto</Label><Input value={editando.descricao} onChange={(e)=>setEditando({...editando,descricao:e.target.value})}/></div>
+          <div><Label>Classe</Label><Select value={editando.classe} onValueChange={(v)=>setEditando({...editando,classe:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{Object.entries(CLASSES_PORTFOLIO).map(([k,rot])=><SelectItem key={k} value={k}>{rot}</SelectItem>)}</SelectContent></Select></div>
+          <div><Label>Vigência</Label><Input type="date" min={hoje} value={editando.vigencia} onChange={(e)=>setEditando({...editando,vigencia:e.target.value})}/></div>
+          {editando.classe==="INOVACAO" && <div><Label>Início da Inovação</Label><Input type="date" max={editando.vigencia} value={editando.inicio_inovacao} onChange={(e)=>setEditando({...editando,inicio_inovacao:e.target.value})}/></div>}
+          <p className="text-xs text-muted-foreground">A edição grava um novo registro no histórico (Edição manual), sem apagar o anterior.</p>
+        </div>}
+        <DialogFooter><Button variant="outline" onClick={()=>setEditando(null)}>Cancelar</Button><Button disabled={salvando || !editando?.descricao.trim()} onClick={()=>void salvarEdicao()}>{salvando ? <Loader2 className="size-4 animate-spin"/>:<Save className="size-4"/>}Salvar</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>;
 }

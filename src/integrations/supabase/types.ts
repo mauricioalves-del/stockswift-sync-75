@@ -148,6 +148,78 @@ export type Database = {
           },
         ]
       }
+      abast_disp_arquivo_20261014: {
+        Row: {
+          a_caminho: number | null
+          abaixo_exposicao: boolean | null
+          categoria: string | null
+          causa: string | null
+          classe: string | null
+          data: string | null
+          demanda_dia: number | null
+          descricao: string | null
+          elegivel: boolean | null
+          em_ruptura: boolean | null
+          estoque: number | null
+          exposicao: number | null
+          familia: string | null
+          id_produto: string | null
+          loja: string | null
+          preco: number | null
+          registrado_em: string | null
+          saldo_cd: number | null
+          venda_perdida_rs: number | null
+          venda_perdida_un: number | null
+          vendas_dia: number | null
+        }
+        Insert: {
+          a_caminho?: number | null
+          abaixo_exposicao?: boolean | null
+          categoria?: string | null
+          causa?: string | null
+          classe?: string | null
+          data?: string | null
+          demanda_dia?: number | null
+          descricao?: string | null
+          elegivel?: boolean | null
+          em_ruptura?: boolean | null
+          estoque?: number | null
+          exposicao?: number | null
+          familia?: string | null
+          id_produto?: string | null
+          loja?: string | null
+          preco?: number | null
+          registrado_em?: string | null
+          saldo_cd?: number | null
+          venda_perdida_rs?: number | null
+          venda_perdida_un?: number | null
+          vendas_dia?: number | null
+        }
+        Update: {
+          a_caminho?: number | null
+          abaixo_exposicao?: boolean | null
+          categoria?: string | null
+          causa?: string | null
+          classe?: string | null
+          data?: string | null
+          demanda_dia?: number | null
+          descricao?: string | null
+          elegivel?: boolean | null
+          em_ruptura?: boolean | null
+          estoque?: number | null
+          exposicao?: number | null
+          familia?: string | null
+          id_produto?: string | null
+          loja?: string | null
+          preco?: number | null
+          registrado_em?: string | null
+          saldo_cd?: number | null
+          venda_perdida_rs?: number | null
+          venda_perdida_un?: number | null
+          vendas_dia?: number | null
+        }
+        Relationships: []
+      }
       abast_disponibilidade_diaria: {
         Row: {
           a_caminho: number | null
