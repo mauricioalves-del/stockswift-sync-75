@@ -4,16 +4,24 @@ import { CLUSTERS, estoqueNoDia, HORIZONTE_FAROL, resumirLocal, type Cluster, ty
 import { somaDias } from "@/lib/abastecimento-dash-hist";
 import { CLUSTER_PILL, CLUSTER_ROTULO, Chip, LOJAS, NOME, Pill, Secao, TabelaRolavel, Th, dm, dmy, escopoLocais, n0, n1, repTexto, type Escopo, type Filtro } from "@/components/abast-dash/comum";
 
-export type ChipG = "TODOS" | "SEMACAO" | Cluster;
+export type ChipG = "TODOS" | "SEMACAO" | "ATE7" | "ATE11" | "ATE15" | Cluster;
 const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-const CHIPS: { c: ChipG; r: string; cls?: string }[] = [{ c: "TODOS", r: "Todos" }, { c: "SEMACAO", r: "Sem ação", cls: "border-red-300 text-red-700" }, { c: "ruptura", r: "Ruptura" }, { c: "critico", r: "≤ 3 d" }, { c: "urgente", r: "4–5 d" }, { c: "alerta", r: "6–7 d" }, { c: "atencao", r: "8–10 d" }, { c: "monitorar", r: "11–15 d" }, { c: "ok", r: "OK" }];
+// Faixas acumuladas: cada uma inclui os já zerados e tudo que zera até o limite (o risco nunca "some" ao avançar a janela).
+export const LIMITE_ACUM: Record<"ATE7" | "ATE11" | "ATE15", number> = { ATE7: 7, ATE11: 11, ATE15: 15 };
+export const noChip = (l: DashLinha, c: ChipG): boolean => {
+  if (c === "TODOS") return true;
+  if (c === "SEMACAO") return l.semAcao;
+  if (c === "ATE7" || c === "ATE11" || c === "ATE15") return l.status === "ruptura" || l.cluster === "ruptura" || (l.diasAteZerar !== null && l.diasAteZerar <= LIMITE_ACUM[c]);
+  return l.cluster === c;
+};
+const CHIPS: { c: ChipG; r: string; cls?: string }[] = [{ c: "TODOS", r: "Todos" }, { c: "SEMACAO", r: "Sem ação", cls: "border-red-300 text-red-700" }, { c: "ruptura", r: "Ruptura" }, { c: "ATE7", r: "Até 7 d (acum.)" }, { c: "ATE11", r: "Até 11 d (acum.)" }, { c: "ATE15", r: "Até 15 d (acum.)" }, { c: "ok", r: "OK" }];
 
 export function Farol({ hoje, filtro, setFiltro, linhas, chip, setChip }: { hoje: string; filtro: Filtro; setFiltro: (f: Filtro) => void; linhas: DashLinha[]; chip: ChipG; setChip: (c: ChipG) => void }) {
   const [dia, setDia] = useState(hoje); const [busca, setBusca] = useState("");
   const k = Math.max(0, Math.min(HORIZONTE_FAROL, Math.round((Date.UTC(+dia.slice(0, 4), +dia.slice(5, 7) - 1, +dia.slice(8, 10)) - Date.UTC(+hoje.slice(0, 4), +hoje.slice(5, 7) - 1, +hoje.slice(8, 10))) / 86400000)));
   const locais = escopoLocais(filtro.escopo); const base = useMemo(() => linhas.filter((l) => locais.includes(l.local)), [linhas, filtro.escopo]);
-  const q = norm(busca.trim()); const cnt = (c: ChipG) => (c === "TODOS" ? base.length : c === "SEMACAO" ? base.filter((l) => l.semAcao).length : base.filter((l) => l.cluster === c).length);
-  const lista = useMemo(() => base.filter((l) => (chip === "TODOS" ? true : chip === "SEMACAO" ? l.semAcao : l.cluster === chip) && (!q || norm(l.produto).includes(q) || l.sku.includes(q)))
+  const q = norm(busca.trim()); const cnt = (c: ChipG) => base.filter((l) => noChip(l, c)).length;
+  const lista = useMemo(() => base.filter((l) => noChip(l, chip) && (!q || norm(l.produto).includes(q) || l.sku.includes(q)))
     .sort((a, b) => (a.diasAteZerar ?? 99) - (b.diasAteZerar ?? 99) || b.vbm - a.vbm), [base, chip, q]);
   const alerta = base.filter((l) => l.alerta).sort((a, b) => (a.diasAteZerar ?? 0) - (b.diasAteZerar ?? 0))[0]; const enderec = base.filter((l) => l.status === "ruptura" && l.reposicao === "enderecado").length;
   const atalhos = [0, 3, 5, 7, 10, 15];
@@ -32,7 +40,7 @@ export function Farol({ hoje, filtro, setFiltro, linhas, chip, setChip }: { hoje
       <div className="mb-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">{[...LOJAS, "CD"].map((c) => { const ls = linhas.filter((l) => l.local === c); const r = resumirLocal(ls); const n = (cl: Cluster) => ls.filter((l) => l.cluster === cl).length; const sel = filtro.escopo === c;
         return <button key={c} type="button" onClick={() => escolhe(c as Escopo)} className={`rounded-xl border p-3 text-left transition hover:shadow ${sel ? "border-2 border-slate-900 shadow" : "bg-card"}`}><div className="flex items-center justify-between"><span className="text-sm font-bold">{c === "CD" ? "Almox SP (CD)" : `Loja ${NOME[c]}`}</span>{r.alertas > 0 && <AlertTriangle className="size-4 text-red-600" />}</div>
           <div className="text-[11px] text-muted-foreground">{r.ruptura ? <b className="text-red-600">{r.ruptura} em ruptura</b> : "Sem ruptura"} · {r.semAcao} sem ação</div>
-          <div className="mt-2 flex gap-1 text-[11px] font-semibold"><span className="rounded-full border px-2 py-0.5">≤3 d {n("critico")}</span><span className="rounded-full border px-2 py-0.5">4–5 d {n("urgente")}</span><span className="rounded-full border border-orange-300 px-2 py-0.5 text-orange-600">6–7 d {n("alerta")}</span></div></button>; })}</div>
+          <div className="mt-2 flex gap-1 text-[11px] font-semibold">{(["ATE7", "ATE11", "ATE15"] as const).map((c) => <span key={c} className={`rounded-full border px-2 py-0.5 ${c === "ATE7" ? "border-orange-300 text-orange-600" : ""}`}>≤{LIMITE_ACUM[c]} d {ls.filter((l) => noChip(l, c)).length}</span>)}</div></button>; })}</div>
       <div className="mb-3 flex flex-wrap items-center gap-2">{CHIPS.map((x) => <Chip key={x.c} ativo={chip === x.c} onClick={() => setChip(x.c)} cls={x.cls}>{x.r} <b>{cnt(x.c)}</b></Chip>)}
         <div className="relative ml-auto"><Search className="absolute left-2 top-2 size-3.5 text-muted-foreground" /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar SKU ou produto" className="h-8 w-56 rounded-md border bg-background pl-7 pr-2 text-xs" /></div></div>
       <TabelaRolavel titulo="Farol de ruptura futura"><table className="w-full text-sm"><thead className="sticky top-0 z-10"><tr className="border-b"><Th c="Farol" /><Th c="Produto" /><Th c="Local" /><Th c="Est. hoje" d /><Th c="Venda/d" d /><Th c="Est. no dia" d /><Th c="Cobert. líq." d /><Th c="Em trânsito" d /><Th c="Chega em" d /><Th c="Zera em" d /><Th c="Situação da reposição" /><Th c="Sugestão" d /></tr></thead>
