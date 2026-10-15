@@ -32,7 +32,7 @@ const COR: Record<Status2, string> = {
 const n1 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("pt-BR", { maximumFractionDigits: 1 }));
 const n2 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("pt-BR", { maximumFractionDigits: 2 }));
 const dataBr = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
-const BASES: { v: Base2; r: string }[] = [{ v: "real", r: "Venda real (CMD × sazonalidade)" }, { v: "consenso", r: "Meta do consenso" }, { v: "maior", r: "A maior das duas" }];
+const BASES: { v: Base2; r: string }[] = [{ v: "ajustada", r: "Malha do consenso × realizado" }, { v: "real", r: "Venda real (CMD)" }, { v: "consenso", r: "Malha do consenso (meta ÷ dias)" }, { v: "maior", r: "A maior das duas" }];
 
 // Colunas da tabela: cada uma sabe ordenar e filtrar (clique no título; ícone de funil para filtrar).
 const COLS: ColDef<ItemRep>[] = [
@@ -59,7 +59,7 @@ function ReposicaoPage() {
   const qc = useQueryClient();
   const bruto = useAbastBruto(pode);
   const [lojaSel, setLojaSel] = useState("");
-  const [base, setBase] = useState<Base2>("real");
+  const [base, setBase] = useState<Base2>("ajustada");
   const [filtro, setFiltro] = useState<Status2 | "PEDIDO" | "COBALTA" | "TODOS">("TODOS");
   const [famFiltro, setFamFiltro] = useState("");
   const [busca, setBusca] = useState("");
@@ -146,7 +146,7 @@ function ReposicaoPage() {
         <h1 className="text-2xl font-bold flex items-center gap-2"><Store className="size-6" /> Reposição de Lojas</h1>
         {bruto.data && (() => { const d = bruto.data; const mes = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(0, 7); const sem = d.lojas.filter((l) => !d.portfolioAprovado?.[l.codigo]); const herd = d.lojas.filter((l) => d.portfolioOrigem?.[l.codigo] && d.portfolioOrigem[l.codigo].competencia !== mes); return (sem.length || herd.length) ? <div className="my-2 space-y-1 rounded-md border border-warning/50 bg-warning/10 p-3 text-sm">{herd.map((l) => { const o = d.portfolioOrigem![l.codigo]; return <p key={l.codigo}><strong>{l.nome}: Pendente de validação — utilizando última versão aprovada</strong> ({o.competencia} v{o.versao}, aprovada por {o.aprovador}).</p>; })}{sem.length > 0 && <p><strong>Sem portfólio validado</strong> para {sem.map((l) => l.nome).join(", ")}: lista operacional padrão exibida; essas lojas ficam fora do indicador de disponibilidade até a primeira validação.</p>}</div> : null; })()}
         <p className="text-sm text-muted-foreground">
-          Só <strong>produto acabado com meta no consenso</strong>. Demanda pelo faturamento carregado (CMD 7/30/90 dias × sazonalidade) ou pela meta; o estoque vem do lote, ao vivo. <strong>Trânsito e pedidos em aberto abatem a sugestão</strong> (sem pedido duplicado e sem falsa ruptura). A exposição não conta como vendável, a sugestão só aparece quando o item cai <strong>abaixo do mínimo</strong> e é em caixa fechada; o CD limita o atendimento e o <strong>saldo do CD</strong> aparece em cada linha. Sem caixa fechada no CD, a loja em ruptura ou abaixo do mínimo recebe o <strong>saldo solto</strong>; granéis (sem caixa) são pedidos por consumo médio × cobertura; a linha é avisada quando a cobertura depois do pedido passa de 20 dias.
+          Só <strong>produto acabado com meta no consenso</strong>. Demanda pela <strong>malha do consenso</strong> (meta do mês ÷ dias do mês, que já traz a sazonalidade) ajustada pelo realizado (venda real ÷ malha), ou pelo faturamento (CMD 7/30/90 dias) ou só pela meta; o estoque vem do lote, ao vivo. <strong>Trânsito e pedidos em aberto abatem a sugestão</strong> (sem pedido duplicado e sem falsa ruptura). A exposição não conta como vendável, a sugestão só aparece quando o item cai <strong>abaixo do mínimo</strong> e é em caixa fechada; o CD limita o atendimento e o <strong>saldo do CD</strong> aparece em cada linha. Sem caixa fechada no CD, a loja em ruptura ou abaixo do mínimo recebe o <strong>saldo solto</strong>; granéis (sem caixa) são pedidos por consumo médio × cobertura; a linha é avisada quando a cobertura depois do pedido passa de 20 dias.
         </p>
       </div>
 
@@ -223,7 +223,7 @@ function ReposicaoPage() {
                 <TableCell><span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${COR[i.status]}`}>{STATUS2[i.status].rotulo}</span></TableCell>
                 <TableCell className="text-right">{n1(i.estoque)}</TableCell><TableCell className="text-right">{isAdmin ? <CelulaEdit valor={i.semExposicao ? null : i.exposicao} placeholder="0" titulo="Exposição: unidades que ficam na vitrine (não contam como vendável)" aoSalvar={(n) => salvarExposicao(i, n)} /> : n1(i.exposicao)}</TableCell>
                 <TableCell className="text-right">{i.emTransito + i.pedidoAberto > 0 ? n1(i.emTransito + i.pedidoAberto) : "—"}</TableCell>
-                <TableCell className="text-right">{n2(i.demandaDia)}{i.indiceSazonal !== 1 && <span className="ml-1 text-[10px] text-muted-foreground">×{n2(i.indiceSazonal)}</span>}</TableCell>
+                <TableCell className="text-right">{n2(i.demandaDia)}{i.fatorRealizacao !== null && i.baseUsada === "ajustada" && <span className="ml-1 text-[10px] text-muted-foreground" title="venda real ÷ malha do consenso">×{n2(i.fatorRealizacao)}</span>}</TableCell>
                 <TableCell className="text-right text-xs">{i.metaMes > 0 ? `${n1(i.realizadoMes)} / ${n1(i.metaMes)}` : "—"}</TableCell>
                 <TableCell className="text-right text-xs">{n1(i.minQ)} / {n1(i.idealQ)}</TableCell>
                 <TableCell className="text-right font-semibold">{i.sugestao > 0 ? `${i.sugestao}${i.caixa > 1 ? ` (${i.sugestaoCaixas} cx)` : ""}` : "—"}</TableCell>
