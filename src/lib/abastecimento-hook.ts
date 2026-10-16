@@ -37,9 +37,9 @@ export function useAbastBruto(habilitado: boolean) {
           const { data: ps, error } = await sb.from("abast_pedidos").select("id, loja, status").in("status", ["ABERTO", "EM_SEPARACAO", "SEPARADO", "ENVIADO"]);
           if (error) throw error;
           if (!ps?.length) return [] as any[];
-          const { data: its } = await sb.from("abast_pedido_itens").select("pedido_id, id_produto, qtd_pedida, qtd_separada").in("pedido_id", ps.map((p: any) => p.id));
+          const { data: its } = await sb.from("abast_pedido_itens").select("pedido_id, id_produto, qtd_pedida, qtd_separada, aceito").in("pedido_id", ps.map((p: any) => p.id));
           const m = new Map<string, any>(ps.map((p: any) => [p.id, p]));
-          return (its ?? []).map((i: any) => ({ loja: m.get(i.pedido_id).loja, id_produto: i.id_produto, qtd: Number(i.qtd_pedida), separada: Number(i.qtd_separada) || 0, status: m.get(i.pedido_id).status }));
+          return (its ?? []).filter((i: any) => i.aceito !== false).map((i: any) => ({ loja: m.get(i.pedido_id).loja, id_produto: i.id_produto, qtd: Number(i.qtd_pedida), separada: Number(i.qtd_separada) || 0, status: m.get(i.pedido_id).status }));
         }, [] as any[]),
       ]);
       // Portfólio validado pelo gestor (última validação ativa por loja): só esses SKUs entram no planejamento e nos indicadores

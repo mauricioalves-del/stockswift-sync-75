@@ -146,7 +146,7 @@ function ReposicaoPage() {
         const payload = doCD.map((i) => ({ id_produto: i.sku, descricao: i.descricao, qtd_sugerida: i.sugestao, qtd_pedida: i.qtdAtendida, caixa: i.caixa, origem: i.pedidoOrigem === "MANUAL" ? "MANUAL" : "SUGESTAO" }));
         const { data, error } = await (supabase as any).rpc("abast_criar_pedido", { p_loja: loja.codigo, p_base: base, p_obs: null, p_itens: payload });
         if (error) throw error;
-        msgs.push(`Pedido do CD nº ${data?.numero} (${data?.itens} itens, requisição ${data?.requisicao_numero ?? ""})`);
+        msgs.push(`Pedido do CD nº ${data?.numero} (${data?.itens} itens, aguardando aprovação comercial)`);
       }
       const porOrigem = new Map<string, ItemRep[]>();
       for (const i of paraPedido) { const o = origemDe(i); if (o !== "CD") porOrigem.set(o, [...(porOrigem.get(o) ?? []), i]); }
@@ -154,7 +154,7 @@ function ReposicaoPage() {
         const payload = lista.map((i) => ({ id_produto: i.sku, descricao: i.descricao, qtd_sugerida: i.sugestao, qtd_pedida: qtdEnvio(i), caixa: i.caixa }));
         const { data, error } = await (supabase as any).rpc("abast_criar_transferencia", { p_loja: loja.codigo, p_loja_origem: o, p_base: base, p_obs: null, p_itens: payload });
         if (error) throw error;
-        msgs.push(`Transferência nº ${data?.numero} de ${nomeOrigem(o)} (${data?.itens} itens, requisição ${data?.requisicao_numero ?? ""})`);
+        msgs.push(`Transferência nº ${data?.numero} de ${nomeOrigem(o)} (${data?.itens} itens, aguardando aprovação comercial)`);
       }
       toast.success(`${msgs.join(" · ")} criado(s). Separação em Suprimentos → Requisições.`);
       setManuaisTxt({}); setFora(new Set()); setOrigemSel({});
