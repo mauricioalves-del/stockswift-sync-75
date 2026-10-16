@@ -15,8 +15,8 @@ import { montarItens, nk, type ItemRep } from "@/lib/abastecimento-dados";
 import { STATUS2, LIMITE_COBERTURA_AVISO, resumirLoja2, type Status2, type Base2 } from "@/lib/abastecimento-motor2";
 import { resolverParam } from "@/lib/abastecimento-cobertura";
 import { passaFiltros, proximaOrdem, comparar, opcoesCategoria, filtroAtivo, type ColDef, type Filtro, type Ordem } from "@/lib/tabela-filtro";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
+import { TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
