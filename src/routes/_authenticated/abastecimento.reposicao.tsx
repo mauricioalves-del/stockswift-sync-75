@@ -125,7 +125,7 @@ function ReposicaoPage() {
   }, [baseLinhas, filtros, ordem, classes]);
   const ref = mont && loja ? mont.refPorLoja[loja.codigo] : null;
   const atraso = ref ? Math.round((Date.now() - new Date(ref + "T12:00:00").getTime()) / 86400000) : null;
-  const paraPedido = useMemo(() => itens.filter((i) => qtdEnvio(i) > 0 && !fora.has(`${i.loja}|${nk(i.sku)}`)), [itens, fora, origemSel, sobras]);
+  const paraPedido = useMemo(() => itens.filter((i) => qtdEnvio(i) > 0 && !fora.has(`${i.loja}|${nk(i.sku)}`)), [itens, fora, origemSel, saldoPorAlmox, opcoesAlmox]);
   const totalPedido = paraPedido.reduce((a, b) => a + qtdEnvio(b), 0);
 
   // Quanto o CD consegue mandar: em caixas fechadas quando há caixa; senão, o saldo todo.
@@ -154,7 +154,7 @@ function ReposicaoPage() {
         const payload = lista.map((i) => ({ id_produto: i.sku, descricao: i.descricao, qtd_sugerida: i.sugestao, qtd_pedida: qtdEnvio(i), caixa: i.caixa }));
         const { data, error } = await (supabase as any).rpc("abast_criar_transferencia", { p_loja: loja.codigo, p_loja_origem: o, p_base: base, p_obs: null, p_itens: payload });
         if (error) throw error;
-        msgs.push(`Transferência nº ${data?.numero} de ${nomeLoja(o)} (${data?.itens} itens, requisição ${data?.requisicao_numero ?? ""})`);
+        msgs.push(`Transferência nº ${data?.numero} de ${nomeOrigem(o)} (${data?.itens} itens, requisição ${data?.requisicao_numero ?? ""})`);
       }
       toast.success(`${msgs.join(" · ")} criado(s). Separação em Suprimentos → Requisições.`);
       setManuaisTxt({}); setFora(new Set()); setOrigemSel({});
@@ -251,7 +251,7 @@ function ReposicaoPage() {
           {linhas.map((i) => {
             const k = `${i.loja}|${nk(i.sku)}`;
             return (
-              <TableRow key={k} title={i.alertas.join(" · ")} className={fora.has(k) ? "opacity-40" : ""}>
+              <TableRow key={k} title={i.alertas.join(" · ") || "Clique duplo: ver estoque em todos os almoxarifados"} onDoubleClick={() => setConsulta(i)} className={`cursor-pointer ${fora.has(k) ? "opacity-40" : ""}`}>
                 {gestor && <TableCell><input type="checkbox" disabled={qtdEnvio(i) <= 0} checked={qtdEnvio(i) > 0 && !fora.has(k)} onChange={() => { const n = new Set(fora); if (n.has(k)) n.delete(k); else n.add(k); setFora(n); }} /></TableCell>}
                 <TableCell className="font-mono text-xs">{i.sku}</TableCell>
                 <TableCell className="min-w-[240px] text-xs leading-snug whitespace-normal break-words">{i.descricao || "—"}{i.semExposicao && <span className="ml-1 text-[10px] text-warning">sem exposição</span>}{i.semCaixa && <span className="ml-1 text-[10px] text-warning">sem caixa</span>}{i.solto && !i.caixaCadastrada && <span className="ml-1 text-[10px] text-muted-foreground">granel: sem caixa</span>}{i.solto && i.caixaCadastrada && <span className="ml-1 text-[10px] text-muted-foreground">granel</span>}</TableCell>
@@ -264,7 +264,7 @@ function ReposicaoPage() {
                 <TableCell className="text-right text-xs">{n1(i.minQ)} / {n1(i.idealQ)}</TableCell>
                 <TableCell className="text-right font-semibold">{i.sugestao > 0 ? `${i.sugestao}${i.caixa > 1 ? ` (${i.sugestaoCaixas} cx)` : ""}` : "—"}</TableCell>
                 <TableCell className="text-right">{gestor ? <div className="flex flex-col items-end gap-0.5"><Input className="h-7 w-20 text-right" inputMode="numeric" placeholder={i.sugestao > 0 ? String(i.sugestao) : "0"} value={manuaisTxt[`${i.loja}|${nk(i.sku)}`] ?? ""} onChange={(e) => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: e.target.value })} />{maxCD(i) > 0 && <button type="button" className="text-[10px] text-primary hover:underline" title="Preenche o pedido com o máximo que o CD consegue mandar (em caixas fechadas quando há caixa)" onClick={() => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: String(maxCD(i)) })}>usar CD: {n1(maxCD(i))}</button>}</div> : n1(i.qtdPedido)}</TableCell>
-                <TableCell className="text-xs">{(() => { const op = sobras.get(nk(i.sku)) ?? []; const o = origemDe(i); if (!gestor || (op.length === 0 && o === "CD")) return <span className="text-muted-foreground">CD</span>; return <div className="flex flex-col gap-0.5"><select className="h-7 rounded-md border bg-background px-1 text-xs" title="De onde sai o estoque: CD (padrão) ou outra loja com sobra acima do Ideal" value={o} onChange={(e) => setOrigemSel({ ...origemSel, [k]: e.target.value })}><option value="CD">CD ({n1(i.saldoCD ?? 0)})</option>{op.map((s) => <option key={s.loja} value={s.loja} title={nomeLoja(s.loja)}>{nomeCurtoLoja(s.loja, nomeLoja(s.loja))} (sobra {n1(s.sobra)})</option>)}</select>{o !== "CD" && <span className="text-[10px] text-primary">transferir {n1(qtdEnvio(i))}</span>}</div>; })()}</TableCell>
+                <TableCell className="text-xs" onDoubleClick={(e) => e.stopPropagation()}>{(() => { const o = origemDe(i); if (!gestor) return <span className="text-muted-foreground">{nomeOrigem(o)}</span>; return <div className="flex flex-col gap-0.5"><select className="h-7 rounded-md border bg-background px-1 text-xs" title="De onde sai o estoque: CD (padrão) ou qualquer outro almoxarifado" value={o} onChange={(e) => setOrigemSel({ ...origemSel, [k]: e.target.value })}><option value="CD">CD ({n1(i.saldoCD ?? 0)})</option>{opcoesAlmox.filter((x) => x.valor !== i.loja).map((x) => <option key={x.valor} value={x.valor} title={x.nome}>{x.rotulo} ({n1(saldoEm(i, x.valor))})</option>)}</select>{o !== "CD" && <span className="text-[10px] text-primary">transferir {n1(qtdEnvio(i))}</span>}</div>; })()}</TableCell>
                 <TableCell className="text-right">{i.qtdPedido > 0 ? <>{n1(i.qtdAtendida)}{i.faltaCD > 0 && <AlertTriangle className="inline size-3 ml-1 text-warning" aria-label="CD não cobre" />}{i.fracionado && <div className="text-[10px] text-primary" title="O CD não tem caixa fechada: enviando o saldo solto">solto</div>}{(i.saldoCD ?? 0) <= 0 && <div className="text-[10px] text-destructive" title="Sem saldo no CD: depende de produção (veja a Projeção do CD)">produzir</div>}</> : "—"}</TableCell>
                 <TableCell className="text-right text-xs">{i.saldoCD == null ? "—" : `${n1(i.saldoCD)}${i.caixa > 1 ? ` (${i.caixasCD} cx)` : ""}`}{i.reservadoCD > 0 && <div className="text-[10px] text-muted-foreground" title="Pedidos ABERTOS (ainda não expedidos) já reservam parte do saldo do CD">reservado: {n1(i.reservadoCD)}</div>}{i.qtdPedido > 0 && i.disponivelCD != null && i.disponivelCD < i.qtdPedido && <div className="text-[10px] text-warning" title="O que sobra do CD para esta loja depois das lojas de maior prioridade">disp. p/ esta: {n1(i.disponivelCD)}</div>}</TableCell>
                 <TableCell className={`text-right text-xs ${i.avisoCobertura ? "text-warning font-semibold" : ""}`} title={i.avisoCobertura ? `Mais de ${LIMITE_COBERTURA_AVISO} dias de cobertura depois do pedido (aviso: o pedido continua sugerido)` : ""}>{i.avisoCobertura && <AlertTriangle className="inline size-3 mr-1" aria-label="Cobertura alta" />}{i.cobPosPedido == null ? "—" : n1(i.cobPosPedido)}</TableCell>
@@ -272,7 +272,8 @@ function ReposicaoPage() {
           })}
         </TableBody>
       </table></TabelaRolavel>
-      <p className="text-xs text-muted-foreground">Origem: o CD é o padrão; quando ele não cobre, escolha outra loja com sobra (estoque acima do Ideal dela). Itens com outra origem viram um Pedido de Transferência entre Lojas separado. Pedido manual: digite a quantidade exata (ela substitui a sugestão; zero = não pedir) ou use "usar CD" para alocar o que o CD tem. O CD atende no máximo o seu saldo. O pedido gerado usa o que o CD atende e passa a contar como "a caminho" até ser recebido. Administradores podem corrigir Expo. direto na tabela.</p>
+      <ConsultaEstoqueSku aberto={!!consulta} onFechar={() => setConsulta(null)} bruto={bruto.data} sku={consulta?.sku ?? ""} descricao={consulta?.descricao ?? ""} lojaDestino={consulta?.loja ?? ""} cdNaoAtende={!!consulta && consulta.qtdAtendida < consulta.qtdPedido} onUsar={(o) => { if (consulta) setOrigemSel({ ...origemSel, [`${consulta.loja}|${nk(consulta.sku)}`]: o }); setConsulta(null); }} />
+      <p className="text-xs text-muted-foreground">Origem: o CD é o padrão; quando ele não cobre, escolha qualquer almoxarifado (saldo entre parênteses). Clique duplo na linha abre a Visão Geral de Estoque do SKU. Itens com outra origem viram um Pedido de Transferência separado. Pedido manual: digite a quantidade exata (ela substitui a sugestão; zero = não pedir) ou use "usar CD" para alocar o que o CD tem. O CD atende no máximo o seu saldo. O pedido gerado usa o que o CD atende e passa a contar como "a caminho" até ser recebido. Administradores podem corrigir Expo. direto na tabela.</p>
 
     </div>
   );
