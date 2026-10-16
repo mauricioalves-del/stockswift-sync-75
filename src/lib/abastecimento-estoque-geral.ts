@@ -1,7 +1,7 @@
 // Visão Geral de Estoque: a matriz produto × almoxarifado da planilha do ERP, com o estado de cada célula de loja e CD
 // na visão de Disponibilidade (mesmo cálculo do dashboard: política de cobertura, portfólio validado e elegibilidade OOS).
 import { montarDash, type DashLinha, type StatusDash } from "./abastecimento-dash";
-import { nk, type Bruto } from "./abastecimento-dados";
+import { nk, SALDO_DE_PARA, type Bruto } from "./abastecimento-dados";
 
 export type Estado = "ruptura" | "abaixo" | "ok" | "excesso";
 export type ColunaDef = { k: string; rot: string; planilha: string; plano: string | null };
