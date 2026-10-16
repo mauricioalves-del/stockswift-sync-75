@@ -8,7 +8,7 @@ import { useRole } from "@/hooks/useRole";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 
@@ -225,7 +225,7 @@ function RessalvaDialog({ p, onClose, onOk }: { p: Pedido; onClose: () => void; 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>Ressalvas · Pedido {p.numero} ({p.loja})</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Ressalvas · Pedido {p.numero} ({p.loja})</DialogTitle><DialogDescription className="sr-only">Registre a observação e sugira produtos extras do catálogo aprovado para o Diretor de Operações.</DialogDescription></DialogHeader>
         <div className="space-y-4">
           <div><label className="text-sm font-medium">Observação (obrigatória)</label><Textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={4} placeholder="Descreva as ressalvas para o Diretor de Operações" /></div>
           <div className="space-y-2">
@@ -266,7 +266,7 @@ function DecisaoDialog({ p, onClose, onOk }: { p: Pedido; onClose: () => void; o
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Decisão do Diretor · Pedido {p.numero} ({p.loja})</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Decisão do Diretor · Pedido {p.numero} ({p.loja})</DialogTitle><DialogDescription className="sr-only">Decida se o pedido será atendido com ou sem as sugestões do gerente comercial, ou cancele.</DialogDescription></DialogHeader>
         <div className="space-y-3">
           <Historico p={p} />
           <ItensTabela itens={p.itens} />
