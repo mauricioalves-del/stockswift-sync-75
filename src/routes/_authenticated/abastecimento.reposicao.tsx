@@ -15,8 +15,8 @@ import { montarItens, nk, type ItemRep } from "@/lib/abastecimento-dados";
 import { STATUS2, LIMITE_COBERTURA_AVISO, resumirLoja2, type Status2, type Base2 } from "@/lib/abastecimento-motor2";
 import { resolverParam } from "@/lib/abastecimento-cobertura";
 import { passaFiltros, proximaOrdem, comparar, opcoesCategoria, filtroAtivo, type ColDef, type Filtro, type Ordem } from "@/lib/tabela-filtro";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
+import { TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -73,7 +73,6 @@ function ReposicaoPage() {
   const [manuaisTxt, setManuaisTxt] = useState<Record<string, string>>({});
   const [fora, setFora] = useState<Set<string>>(new Set());
   const [gerando, setGerando] = useState(false);
-  const [famLinha, setFamLinha] = useState<Record<string, string>>({});
   const [ordem, setOrdem] = useState<Ordem>(null);
   const [filtros, setFiltros] = useState<Record<string, Filtro>>({});
   const [origemSel, setOrigemSel] = useState<Record<string, string>>({});
@@ -161,16 +160,6 @@ function ReposicaoPage() {
     const a = document.createElement("a"); a.href = url; a.download = `Reposicao_${loja?.codigo}_${hojeIso}.csv`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
 
-  // Família por linha: cadastra a família para todos os SKUs da linha que ainda não têm
-  const semFamPorLinha = useMemo(() => { const m = new Map<string, { sku: string; descricao: string }[]>(); const vistos = new Set<string>(); for (const s of mont?.semFamilia ?? []) { const k = nk(s.sku); if (vistos.has(k)) continue; vistos.add(k); const l = s.linha || "(sem linha)"; m.set(l, [...(m.get(l) ?? []), { sku: s.sku, descricao: s.descricao }]); } return [...m.entries()]; }, [mont]);
-  const famExistentes = useMemo(() => [...new Set((bruto.data?.familias ?? []).map((f) => f.familia))].sort(), [bruto.data]);
-  async function cadastrarFamilia(linhaNome: string, lista: { sku: string; descricao: string }[]) {
-    const fam = (famLinha[linhaNome] ?? "").trim();
-    if (!fam) { toast.error("Escolha ou digite a família."); return; }
-    const { error } = await (supabase as any).from("familias").insert(lista.map((s) => ({ codigo_produto: s.sku, descricao_produto: s.descricao, familia: fam })));
-    if (error) toast.error("Não consegui cadastrar: " + error.message);
-    else { toast.success(`Família "${fam}" cadastrada para ${lista.length} SKU(s) da linha ${linhaNome}.`); setFamLinha({ ...famLinha, [linhaNome]: "" }); qc.invalidateQueries({ queryKey: ["abast-v2"] }); }
-  }
 
   if (!pode) return <div className="p-8 text-center text-muted-foreground">Acesso restrito a gestores.</div>;
   const semDados = !bruto.isLoading && !!mont && itens.length === 0;
@@ -273,15 +262,6 @@ function ReposicaoPage() {
       </table></TabelaRolavel>
       <p className="text-xs text-muted-foreground">Origem: o CD é o padrão; quando ele não cobre, escolha outra loja com sobra (estoque acima do Ideal dela). Itens com outra origem viram um Pedido de Transferência entre Lojas separado. Pedido manual: digite a quantidade exata (ela substitui a sugestão; zero = não pedir) ou use "usar CD" para alocar o que o CD tem. O CD atende no máximo o seu saldo. O pedido gerado usa o que o CD atende e passa a contar como "a caminho" até ser recebido. Administradores podem corrigir Expo. direto na tabela.</p>
 
-      {isAdmin && semFamPorLinha.length > 0 && (
-        <Card><CardHeader className="pb-2"><CardTitle className="text-base">Produtos sem família ({mont?.semFamilia.length})</CardTitle>
-          <CardDescription>Cadastre a família uma vez por linha: ela vale para todos os SKUs da linha que ainda não têm cadastro.</CardDescription></CardHeader>
-          <CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>Linha</TableHead><TableHead className="text-right">SKUs</TableHead><TableHead>Família</TableHead><TableHead /></TableRow></TableHeader>
-            <TableBody>{semFamPorLinha.map(([l, lista]) => (
-              <TableRow key={l}><TableCell>{l}</TableCell><TableCell className="text-right">{lista.length}</TableCell>
-                <TableCell><Input list="fam-lista" className="h-8 w-56" placeholder="escolha ou digite" value={famLinha[l] ?? ""} onChange={(e) => setFamLinha({ ...famLinha, [l]: e.target.value })} /></TableCell>
-                <TableCell><Button size="sm" variant="outline" onClick={() => cadastrarFamilia(l, lista)}>Cadastrar</Button></TableCell></TableRow>))}</TableBody></Table>
-            <datalist id="fam-lista">{famExistentes.map((f) => <option key={f} value={f} />)}</datalist></CardContent></Card>)}
     </div>
   );
 }
