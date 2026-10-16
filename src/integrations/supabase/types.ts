@@ -360,6 +360,7 @@ export type Database = {
       }
       abast_pedido_itens: {
         Row: {
+          aceito: boolean | null
           caixa: number | null
           descricao: string | null
           id: string
@@ -371,6 +372,7 @@ export type Database = {
           qtd_sugerida: number | null
         }
         Insert: {
+          aceito?: boolean | null
           caixa?: number | null
           descricao?: string | null
           id?: string
@@ -382,6 +384,7 @@ export type Database = {
           qtd_sugerida?: number | null
         }
         Update: {
+          aceito?: boolean | null
           caixa?: number | null
           descricao?: string | null
           id?: string
@@ -404,6 +407,16 @@ export type Database = {
       }
       abast_pedidos: {
         Row: {
+          aprov_comercial_em: string | null
+          aprov_comercial_nome: string | null
+          aprov_comercial_obs: string | null
+          aprov_comercial_por: string | null
+          aprov_comercial_resultado: string | null
+          aprov_diretor_decisao: string | null
+          aprov_diretor_em: string | null
+          aprov_diretor_nome: string | null
+          aprov_diretor_obs: string | null
+          aprov_diretor_por: string | null
           atualizado_em: string
           atualizado_por: string | null
           base_demanda: string | null
@@ -420,6 +433,16 @@ export type Database = {
           tipo: string
         }
         Insert: {
+          aprov_comercial_em?: string | null
+          aprov_comercial_nome?: string | null
+          aprov_comercial_obs?: string | null
+          aprov_comercial_por?: string | null
+          aprov_comercial_resultado?: string | null
+          aprov_diretor_decisao?: string | null
+          aprov_diretor_em?: string | null
+          aprov_diretor_nome?: string | null
+          aprov_diretor_obs?: string | null
+          aprov_diretor_por?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
           base_demanda?: string | null
@@ -436,6 +459,16 @@ export type Database = {
           tipo?: string
         }
         Update: {
+          aprov_comercial_em?: string | null
+          aprov_comercial_nome?: string | null
+          aprov_comercial_obs?: string | null
+          aprov_comercial_por?: string | null
+          aprov_comercial_resultado?: string | null
+          aprov_diretor_decisao?: string | null
+          aprov_diretor_em?: string | null
+          aprov_diretor_nome?: string | null
+          aprov_diretor_obs?: string | null
+          aprov_diretor_por?: string | null
           atualizado_em?: string
           atualizado_por?: string | null
           base_demanda?: string | null
@@ -4615,6 +4648,10 @@ export type Database = {
         }
         Returns: Json
       }
+      abast__gerar_requisicao: {
+        Args: { p_id: string; p_uid: string }
+        Returns: undefined
+      }
       abast__registrar_disponibilidade: {
         Args: { p_data: string }
         Returns: Json
@@ -4629,6 +4666,15 @@ export type Database = {
       }
       abast_aplicar_malha: {
         Args: { p_arquivo: string; p_itens: Json; p_mes: string }
+        Returns: Json
+      }
+      abast_aprovar_comercial: {
+        Args: {
+          p_aprovado: boolean
+          p_id: string
+          p_itens_sugeridos: Json
+          p_obs: string
+        }
         Returns: Json
       }
       abast_atualizar_pedido: {
@@ -4647,6 +4693,10 @@ export type Database = {
           p_loja_origem: string
           p_obs: string
         }
+        Returns: Json
+      }
+      abast_decidir_diretor: {
+        Args: { p_decisao: string; p_id: string; p_obs: string }
         Returns: Json
       }
       abast_desfazer_validacao: {
