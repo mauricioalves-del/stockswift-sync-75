@@ -79,11 +79,13 @@ function PortfolioPage(){
       const cadastroNovo=!editando.skuOriginal;
       if(!cadastroNovo && atuais.some(r=>r.sku===skuNovo && r.sku!==editando.skuOriginal))throw new Error(`O código ${skuNovo} já está na lista vigente`);
       if(cadastroNovo && atuais.some(r=>r.sku===skuNovo))throw new Error(`O código ${skuNovo} já está na lista vigente — use o lápis para editar`);
-      const itens=[{sku:skuNovo,descricao:editando.descricao,classe:editando.classe,vigencia:editando.vigencia,inicio_inovacao:editando.classe==="INOVACAO" ? editando.inicio_inovacao||null : null,versao_anterior:editando.versao_anterior}];
+      // Última versão do histórico do SKU de destino (inclui REMOVIDO), exigida pela RPC para evitar sobrescrita concorrente
+      const ultimaVersao=[...data.historico].filter(r=>r.sku===skuNovo).sort((a,b)=>b.vigencia.localeCompare(a.vigencia)||b.registrado_em.localeCompare(a.registrado_em))[0]?.id ?? null;
+      const itens=[{sku:skuNovo,descricao:editando.descricao,classe:editando.classe,vigencia:editando.vigencia,inicio_inovacao:editando.classe==="INOVACAO" ? editando.inicio_inovacao||null : null,versao_anterior:skuNovo===editando.skuOriginal ? editando.versao_anterior : ultimaVersao}];
       if(!cadastroNovo && skuNovo!==editando.skuOriginal)itens.push({sku:editando.skuOriginal,descricao:editando.descricao,classe:"REMOVIDO",vigencia:hoje,inicio_inovacao:null,versao_anterior:editando.versao_anterior});
       const {error}=await supabase.rpc("abast_importar_classificacoes",{p_arquivo:cadastroNovo ? "Cadastro manual" : "Edição manual",p_itens:itens});if(error)throw error;
       await qc.invalidateQueries({queryKey:["abast-portfolio"]});setEditando(null);toast.success(cadastroNovo ? "Item cadastrado no portfólio" : "Classificação atualizada");
-    }catch(e){toast.error(e instanceof Error ? e.message : "Não foi possível salvar a edição");}finally{setSalvando(false);}
+    }catch(e){const m=(e as {message?:string})?.message;toast.error(m || "Não foi possível salvar a edição");}finally{setSalvando(false);}
   }
   async function remover(r:ClassificacaoPortfolio){
     if(!window.confirm(`Remover ${r.sku} da lista do portfólio? O item sai da lista vigente e o histórico é mantido.`))return; setSalvando(true);
