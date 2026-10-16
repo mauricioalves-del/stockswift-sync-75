@@ -141,6 +141,13 @@
       "when": 1792176010316,
       "tag": "0019_pedidos_leitura_aprovadores",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792177728088,
+      "tag": "0020_restaurar_grants_pedidos_aprovacao",
+      "breakpoints": true
     }
   ]
 }
