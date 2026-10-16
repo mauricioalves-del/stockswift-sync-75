@@ -11,7 +11,6 @@ export type ColunaDef = { k: string; rot: string; planilha: string; plano: strin
 export const COLUNAS: ColunaDef[] = [
   { k: "CD", rot: "Fábrica (CD)", planilha: "Alm_SP_Fabrica", plano: "CD" },
   { k: "JESUINO", rot: "Loja SP (Itaim)", planilha: "Alm_SP_Loja", plano: "JESUINO" },
-  { k: "PARA", rot: "Pará", planilha: "Alm_Para", plano: null },
   { k: "PROCESSO", rot: "Em processo", planilha: "Alm_SP_Processo", plano: null },
   { k: "QUALIDADE", rot: "Qualidade", planilha: "Alm_SP_Qualidade", plano: null },
   { k: "PDV", rot: "PDV Ativação", planilha: "Alm_PDV_Ativacao", plano: null },
