@@ -156,7 +156,7 @@ function ReposicaoPage() {
         if (error) throw error;
         msgs.push(`Transferência nº ${data?.numero} de ${nomeOrigem(o)} (${data?.itens} itens, aguardando aprovação comercial)`);
       }
-      toast.success(`${msgs.join(" · ")} criado(s). Separação em Suprimentos → Requisições.`);
+      toast.success(`${msgs.join(" · ")} criado(s). Acompanhe em Abastecimento → Pedidos, na etapa "Aguard. comercial". A requisição de separação só é criada após a aprovação.`);
       setManuaisTxt({}); setFora(new Set()); setOrigemSel({});
       qc.invalidateQueries({ queryKey: ["abast-v2"] });
     } catch (err: any) { toast.error(`${msgs.length ? msgs.join(" · ") + " criado(s), mas " : ""}não consegui criar: ` + (err?.message ?? err)); if (msgs.length) qc.invalidateQueries({ queryKey: ["abast-v2"] }); }

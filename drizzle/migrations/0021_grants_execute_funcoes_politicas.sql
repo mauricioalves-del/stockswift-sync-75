@@ -1,0 +1,11 @@
+GRANT EXECUTE ON FUNCTION public.abast_eh_signatario(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_gestor(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.usuario_aprovado(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_role() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.abast_papeis_validacao() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.abast_aprovar_comercial(uuid, boolean, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.abast_decidir_diretor(uuid, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.abast_criar_pedido(text, text, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.abast_criar_transferencia(text, text, text, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.abast_atualizar_pedido(uuid, text) TO authenticated;
