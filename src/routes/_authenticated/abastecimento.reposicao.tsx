@@ -11,7 +11,9 @@ import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { CLASSES_PORTFOLIO } from "@/lib/abastecimento-portfolio";
 import { TabelaRolavel } from "@/components/abast-dash/comum";
 import { nomeCurtoLoja } from "@/lib/abastecimento-nomes";
-import { montarItens, nk, type ItemRep } from "@/lib/abastecimento-dados";
+import { montarItens, nk, SALDO_DE_PARA, type ItemRep } from "@/lib/abastecimento-dados";
+import { COLUNAS, origemDe as origemColuna } from "@/lib/abastecimento-estoque-geral";
+import { ConsultaEstoqueSku, valorOrigemColuna } from "@/components/abast-dash/ConsultaEstoqueSku";
 import { STATUS2, LIMITE_COBERTURA_AVISO, resumirLoja2, type Status2, type Base2 } from "@/lib/abastecimento-motor2";
 import { resolverParam } from "@/lib/abastecimento-cobertura";
 import { passaFiltros, proximaOrdem, comparar, opcoesCategoria, filtroAtivo, type ColDef, type Filtro, type Ordem } from "@/lib/tabela-filtro";
@@ -85,20 +87,30 @@ function ReposicaoPage() {
   const classes = bruto.data?.portfolioClasses?.[loja?.codigo ?? ""];
   const classeDe = (i: ItemRep) => { const classe = classes?.[nk(i.sku)]; return classe ? CLASSES_PORTFOLIO[classe] : "Sem validação"; };
   const nomeLoja = (c: string) => bruto.data?.lojas.find((l) => l.codigo === c)?.nome ?? c;
-  // Sobra de outras lojas para remanejamento: o que passa do Ideal (exposição + cobertura + segurança) de cada loja.
-  const sobras = useMemo(() => {
-    const m = new Map<string, { loja: string; sobra: number }[]>();
-    if (!mont || !loja) return m;
-    for (const [lc, lista] of Object.entries(mont.itens)) {
-      if (lc === loja.codigo) continue;
-      for (const o of lista) { const s = Math.floor((o.estoque ?? 0) - Math.max(0, o.idealQ ?? 0)); if (s > 0) { const k = nk(o.sku); m.set(k, [...(m.get(k) ?? []), { loja: lc, sobra: s }]); } }
+  // Todos os almoxarifados da Visão Geral de Estoque como origem possível (o analista decide).
+  const opcoesAlmox = useMemo(() => {
+    if (!bruto.data) return [] as { valor: string; almox: string; rotulo: string; nome: string }[];
+    return COLUNAS.filter((c) => c.k !== "CD").map((c) => {
+      const almox = origemColuna(c, bruto.data!); const valor = valorOrigemColuna(c.k, almox, c.plano);
+      const nome = c.plano ? nomeLoja(c.plano) : c.rot;
+      return { valor, almox, nome, rotulo: c.plano ? nomeCurtoLoja(c.plano, nome) : c.rot };
+    });
+  }, [bruto.data]);
+  const saldoPorAlmox = useMemo(() => {
+    const m = new Map<string, Map<string, number>>();
+    for (const e of bruto.data?.estoque ?? []) {
+      const q = Number(e.quantidade) || 0; if (q <= 0) continue;
+      const k = nk(SALDO_DE_PARA[nk(e.id_produto)] ?? e.id_produto);
+      const mm = m.get(k) ?? new Map(); mm.set(e.origem, (mm.get(e.origem) ?? 0) + q); m.set(k, mm);
     }
     return m;
-  }, [mont, loja]);
+  }, [bruto.data]);
+  const [consulta, setConsulta] = useState<ItemRep | null>(null);
   const origemDe = (i: ItemRep) => origemSel[`${i.loja}|${nk(i.sku)}`] ?? "CD";
-  const sobraDe = (i: ItemRep, lc: string) => sobras.get(nk(i.sku))?.find((s) => s.loja === lc)?.sobra ?? 0;
-  const qtdEnvio = (i: ItemRep) => { const o = origemDe(i); return o === "CD" ? i.qtdAtendida : Math.min(i.qtdPedido, sobraDe(i, o)); };
-  const cols: ColDef<ItemRep>[] = COLS.flatMap((c) => c.k === "produto" ? [c, { k: "classe", r: "Classe", t: "cat", v: classeDe }] : c.k === "pedido" ? [c, { k: "origem", r: "Origem", t: "cat", v: (i: ItemRep) => origemDe(i) === "CD" ? "CD" : nomeLoja(origemDe(i)) }] : [c]);
+  const nomeOrigem = (o: string) => o === "CD" ? "CD" : opcoesAlmox.find((x) => x.valor === o)?.nome ?? o;
+  const saldoEm = (i: ItemRep, o: string) => { const a = opcoesAlmox.find((x) => x.valor === o)?.almox; return a ? Math.floor(saldoPorAlmox.get(nk(i.sku))?.get(a) ?? 0) : 0; };
+  const qtdEnvio = (i: ItemRep) => { const o = origemDe(i); return o === "CD" ? i.qtdAtendida : Math.min(i.qtdPedido, saldoEm(i, o)); };
+  const cols: ColDef<ItemRep>[] = COLS.flatMap((c) => c.k === "produto" ? [c, { k: "classe", r: "Classe", t: "cat", v: classeDe }] : c.k === "pedido" ? [c, { k: "origem", r: "Origem", t: "cat", v: (i: ItemRep) => nomeOrigem(origemDe(i)) }] : [c]);
   const itens: ItemRep[] = (mont && loja ? mont.itens[loja.codigo] : null) ?? [];
   const resumo = useMemo(() => resumirLoja2(itens), [itens]);
   const familias = useMemo(() => [...new Set(itens.map((i) => i.familia).filter(Boolean))].sort(), [itens]);
