@@ -127,6 +127,13 @@
       "when": 1792160463474,
       "tag": "0017_disponibilidade_de_para_fatia_bolo",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792175970151,
+      "tag": "0018_pedido_aprovacao_comercial_diretor",
+      "breakpoints": true
     }
   ]
 }
