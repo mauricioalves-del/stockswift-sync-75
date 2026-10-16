@@ -40,6 +40,7 @@ import { Route as AuthenticatedAbastecimentoConsumoRouteImport } from './routes/
 import { Route as AuthenticatedAbastecimentoDashboardRouteImport } from './routes/_authenticated/abastecimento.dashboard'
 import { Route as AuthenticatedAbastecimentoDemandasRouteImport } from './routes/_authenticated/abastecimento.demandas'
 import { Route as AuthenticatedAbastecimentoDisponibilidadeRouteImport } from './routes/_authenticated/abastecimento.disponibilidade'
+import { Route as AuthenticatedAbastecimentoEstoqueRouteImport } from './routes/_authenticated/abastecimento.estoque'
 import { Route as AuthenticatedAbastecimentoFaturamentoRouteImport } from './routes/_authenticated/abastecimento.faturamento'
 import { Route as AuthenticatedAbastecimentoIndicadoresRouteImport } from './routes/_authenticated/abastecimento.indicadores'
 import { Route as AuthenticatedAbastecimentoParametrosRouteImport } from './routes/_authenticated/abastecimento.parametros'
@@ -266,6 +267,12 @@ const AuthenticatedAbastecimentoDisponibilidadeRoute =
   AuthenticatedAbastecimentoDisponibilidadeRouteImport.update({
     id: '/abastecimento/disponibilidade',
     path: '/abastecimento/disponibilidade',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAbastecimentoEstoqueRoute =
+  AuthenticatedAbastecimentoEstoqueRouteImport.update({
+    id: '/abastecimento/estoque',
+    path: '/abastecimento/estoque',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAbastecimentoFaturamentoRoute =
@@ -659,6 +666,7 @@ export interface FileRoutesByFullPath {
   '/abastecimento/dashboard': typeof AuthenticatedAbastecimentoDashboardRoute
   '/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
   '/abastecimento/disponibilidade': typeof AuthenticatedAbastecimentoDisponibilidadeRoute
+  '/abastecimento/estoque': typeof AuthenticatedAbastecimentoEstoqueRoute
   '/abastecimento/faturamento': typeof AuthenticatedAbastecimentoFaturamentoRoute
   '/abastecimento/indicadores': typeof AuthenticatedAbastecimentoIndicadoresRoute
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
@@ -751,6 +759,7 @@ export interface FileRoutesByTo {
   '/abastecimento/dashboard': typeof AuthenticatedAbastecimentoDashboardRoute
   '/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
   '/abastecimento/disponibilidade': typeof AuthenticatedAbastecimentoDisponibilidadeRoute
+  '/abastecimento/estoque': typeof AuthenticatedAbastecimentoEstoqueRoute
   '/abastecimento/faturamento': typeof AuthenticatedAbastecimentoFaturamentoRoute
   '/abastecimento/indicadores': typeof AuthenticatedAbastecimentoIndicadoresRoute
   '/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
@@ -845,6 +854,7 @@ export interface FileRoutesById {
   '/_authenticated/abastecimento/dashboard': typeof AuthenticatedAbastecimentoDashboardRoute
   '/_authenticated/abastecimento/demandas': typeof AuthenticatedAbastecimentoDemandasRoute
   '/_authenticated/abastecimento/disponibilidade': typeof AuthenticatedAbastecimentoDisponibilidadeRoute
+  '/_authenticated/abastecimento/estoque': typeof AuthenticatedAbastecimentoEstoqueRoute
   '/_authenticated/abastecimento/faturamento': typeof AuthenticatedAbastecimentoFaturamentoRoute
   '/_authenticated/abastecimento/indicadores': typeof AuthenticatedAbastecimentoIndicadoresRoute
   '/_authenticated/abastecimento/parametros': typeof AuthenticatedAbastecimentoParametrosRoute
@@ -939,6 +949,7 @@ export interface FileRouteTypes {
     | '/abastecimento/dashboard'
     | '/abastecimento/demandas'
     | '/abastecimento/disponibilidade'
+    | '/abastecimento/estoque'
     | '/abastecimento/faturamento'
     | '/abastecimento/indicadores'
     | '/abastecimento/parametros'
@@ -1031,6 +1042,7 @@ export interface FileRouteTypes {
     | '/abastecimento/dashboard'
     | '/abastecimento/demandas'
     | '/abastecimento/disponibilidade'
+    | '/abastecimento/estoque'
     | '/abastecimento/faturamento'
     | '/abastecimento/indicadores'
     | '/abastecimento/parametros'
@@ -1124,6 +1136,7 @@ export interface FileRouteTypes {
     | '/_authenticated/abastecimento/dashboard'
     | '/_authenticated/abastecimento/demandas'
     | '/_authenticated/abastecimento/disponibilidade'
+    | '/_authenticated/abastecimento/estoque'
     | '/_authenticated/abastecimento/faturamento'
     | '/_authenticated/abastecimento/indicadores'
     | '/_authenticated/abastecimento/parametros'
@@ -1419,6 +1432,13 @@ declare module '@tanstack/react-router' {
       path: '/abastecimento/disponibilidade'
       fullPath: '/abastecimento/disponibilidade'
       preLoaderRoute: typeof AuthenticatedAbastecimentoDisponibilidadeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/abastecimento/estoque': {
+      id: '/_authenticated/abastecimento/estoque'
+      path: '/abastecimento/estoque'
+      fullPath: '/abastecimento/estoque'
+      preLoaderRoute: typeof AuthenticatedAbastecimentoEstoqueRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/abastecimento/faturamento': {
@@ -1887,6 +1907,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbastecimentoDashboardRoute: typeof AuthenticatedAbastecimentoDashboardRoute
   AuthenticatedAbastecimentoDemandasRoute: typeof AuthenticatedAbastecimentoDemandasRoute
   AuthenticatedAbastecimentoDisponibilidadeRoute: typeof AuthenticatedAbastecimentoDisponibilidadeRoute
+  AuthenticatedAbastecimentoEstoqueRoute: typeof AuthenticatedAbastecimentoEstoqueRoute
   AuthenticatedAbastecimentoFaturamentoRoute: typeof AuthenticatedAbastecimentoFaturamentoRoute
   AuthenticatedAbastecimentoIndicadoresRoute: typeof AuthenticatedAbastecimentoIndicadoresRoute
   AuthenticatedAbastecimentoParametrosRoute: typeof AuthenticatedAbastecimentoParametrosRoute
@@ -1973,6 +1994,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedAbastecimentoDemandasRoute,
   AuthenticatedAbastecimentoDisponibilidadeRoute:
     AuthenticatedAbastecimentoDisponibilidadeRoute,
+  AuthenticatedAbastecimentoEstoqueRoute:
+    AuthenticatedAbastecimentoEstoqueRoute,
   AuthenticatedAbastecimentoFaturamentoRoute:
     AuthenticatedAbastecimentoFaturamentoRoute,
   AuthenticatedAbastecimentoIndicadoresRoute:
