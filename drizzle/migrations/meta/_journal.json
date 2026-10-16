@@ -113,6 +113,13 @@
       "when": 1792097641396,
       "tag": "0015_transferencia_entre_lojas",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792156398215,
+      "tag": "0016_transferencia_qualquer_almox",
+      "breakpoints": true
     }
   ]
 }
