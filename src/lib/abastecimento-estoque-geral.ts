@@ -37,8 +37,9 @@ export function montarEstoqueGeral(b: Bruto, hoje: string, elegivel: (sku: strin
   const origens = new Set(origem.values());
   for (const e of b.estoque) {
     if (!origens.has(e.origem)) continue; const q = Number(e.quantidade) || 0; if (q <= 0) continue;
-    const o = abre(nk(e.id_produto), e.id_produto, e.descricao ?? ""); if (!o.desc && e.descricao) o.desc = e.descricao;
-    if (e.id_produto.length > o.sku.length) o.sku = e.id_produto; o.qtd.set(e.origem, (o.qtd.get(e.origem) ?? 0) + q);
+    const alvo = SALDO_DE_PARA[nk(e.id_produto)]; const id = alvo ?? e.id_produto;   // DE-PARA: saldo do acabado vira o do produto local
+    const o = abre(nk(id), id, alvo ? "" : (e.descricao ?? "")); if (!alvo && !o.desc && e.descricao) o.desc = e.descricao;
+    if (id.length > o.sku.length) o.sku = id; o.qtd.set(e.origem, (o.qtd.get(e.origem) ?? 0) + q);
   }
   for (const l of dash) abre(nk(l.sku), l.sku, l.produto);       // SKU do plano aparece mesmo sem nenhum saldo
   const out: LinhaGeral[] = [];
