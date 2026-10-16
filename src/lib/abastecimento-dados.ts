@@ -60,6 +60,7 @@ export const GRUPO_REVENDA = "Mercadoria de Revenda";
 const META_VAZIA = { porMes: {} as Record<string, number>, tipo: "", produto: "", linha: "" };
 /** universo "meta" (padrão): produto acabado com meta no consenso (Reposição). "sortimento": sortimento ativo (abast_produto_loja.ativo_sortimento) de produto acabado + mercadoria de revenda (Dashboard de Disponibilidade). */
 /** DE-PARA de saldo: produto acabado (chave normalizada) cujo saldo é o saldo oficial do produto local. */
+export const ALMOX_PROCESSO = "Alm_SP_Processo";
 export const SALDO_DE_PARA: Record<string, string> = { "5104132": "05304043" };
 
 export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador; hojeIso: string; manuais?: Record<string, number | null>; universo?: "meta" | "sortimento" }): Montagem {
@@ -80,7 +81,10 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
     const id = alvo ?? String(e.id_produto);
     const k = nk(id);
     const x = est.get(k) ?? { lojas: {}, cd: 0, desc: "", custo: 0, canon: id };
-    if (e.origem === b.cd) x.cd += q; else { const l = lojaDoAlmox.get(e.origem); if (l) x.lojas[l] = (x.lojas[l] ?? 0) + q; }
+    // Produto local do DE-PARA: o saldo "do CD" é sempre o do almoxarifado de Processo (fica na produção, nunca no CD).
+    const deProcesso = !!alvo;
+    if (deProcesso ? e.origem === ALMOX_PROCESSO : e.origem === b.cd) x.cd += q;
+    else if (deProcesso && e.origem === b.cd) { /* ignorado: saldo oficial vem do Processo */ } else { const l = lojaDoAlmox.get(e.origem); if (l) x.lojas[l] = (x.lojas[l] ?? 0) + q; }
     if (!alvo && !x.desc && e.descricao) x.desc = e.descricao;
     if (!x.custo && Number(e.custo_unitario) > 0) x.custo = Number(e.custo_unitario);
     if (id.length > x.canon.length) x.canon = id;
