@@ -28,7 +28,7 @@ export function valorOrigemColuna(k: string, planilhaOuAlmox: string, plano: str
 
 export function ConsultaEstoqueSku({ aberto, onFechar, bruto, sku, descricao, lojaDestino, cdNaoAtende, onUsar }: {
   aberto: boolean; onFechar: () => void; bruto: Bruto | undefined; sku: string; descricao: string; lojaDestino: string; cdNaoAtende: boolean;
-  onUsar: (origem: string) => void;
+  onUsar?: (origem: string) => void;
 }) {
   const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
   const clsQ = useQuery({ enabled: aberto, queryKey: ["abast-portfolio-cls"], staleTime: 60000,
@@ -66,7 +66,7 @@ export function ConsultaEstoqueSku({ aberto, onFechar, bruto, sku, descricao, lo
                   {COLUNAS.map((c) => { const cel = linha.celulas[c.k]; return <td key={c.k} title={dica(cel)} className={`px-2 py-1.5 text-right tabular-nums ${cel.estado ? COR[cel.estado] + " font-semibold" : cel.qtd === 0 ? "text-muted-foreground/50" : ""}`}>{cel.qtd === 0 && !cel.estado ? "·" : un(cel.qtd)}</td>; })}
                   <td className="px-2 py-1.5 text-right font-semibold tabular-nums">{un(linha.total)}</td>
                 </tr>
-                <tr>
+                {onUsar && <tr>
                   <td colSpan={4} className="px-2 py-2 text-right text-[11px] text-muted-foreground">Usar como origem</td>
                   {COLUNAS.map((c) => {
                     const v = valorOrigemColuna(c.k, bruto ? origemDe(c, bruto) : c.planilha, c.plano);
@@ -74,7 +74,7 @@ export function ConsultaEstoqueSku({ aberto, onFechar, bruto, sku, descricao, lo
                     return <td key={c.k} className="px-1 py-2 text-right">{pode && <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={() => onUsar(v)}>Usar</Button>}</td>;
                   })}
                   <td />
-                </tr>
+                </tr>}
               </tbody>
             </table>
             <p className="mt-2 text-[11px] text-muted-foreground">Cores: Ruptura (vermelho), Abaixo do mínimo (amarelo), OK (verde), Excesso (azul). Passe o mouse para ver mín/máx.</p>

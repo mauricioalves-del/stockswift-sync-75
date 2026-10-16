@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { ConsultaEstoqueSku } from "@/components/abast-dash/ConsultaEstoqueSku";
+import type { Bruto } from "@/lib/abastecimento-dados";
 import { Bar, CartesianGrid, Cell, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Cluster, DashLinha } from "@/lib/abastecimento-dash";
 import { farolRuptura, serie, topDiasRuptura, type Agrupamento, type HistLinha } from "@/lib/abastecimento-dash-hist";
@@ -7,8 +11,25 @@ import { CLUSTER_PILL, FAROL, NOME, Pill, Secao, dm, escopoLocais, n0, n1, pct, 
 type Props = { hoje: string; filtro: Filtro; setFiltro: (f: Filtro) => void; linhas: DashLinha[]; hist: HistLinha[]; irFarol: (c: Cluster | "SEMACAO") => void };
 const ultimoDia = (m: string) => { const [a, mm] = m.split("-").map(Number); return `${m}-${String(new Date(a, mm, 0).getDate()).padStart(2, "0")}`; };
 
-export function Evolucao({ hoje, filtro, setFiltro, hist }: Omit<Props, "linhas" | "irFarol">) {
+type Periodo = { ini: string; fim: string; dias: number; aberto: boolean };
+const semZero = (s: string) => String(s).replace(/^0+/, "");
+function periodosRuptura(hist: HistLinha[], local: string, sku: string): { periodos: Periodo[]; ultimaFoto: string | null } {
+  const ultimaFoto = hist.reduce<string | null>((m, h) => (!m || h.data > m ? h.data : m), null);
+  const rs = hist.filter((h) => h.loja === local && semZero(h.id_produto) === semZero(sku)).sort((a, b) => a.data.localeCompare(b.data));
+  const out: Periodo[] = []; let cur: Periodo | null = null;
+  for (const h of rs) {
+    if (h.em_ruptura) { if (cur) { cur.fim = h.data; cur.dias++; } else cur = { ini: h.data, fim: h.data, dias: 1, aberto: false }; }
+    else if (cur) { out.push(cur); cur = null; }
+  }
+  if (cur) { cur.aberto = cur.fim === ultimaFoto; out.push(cur); }
+  return { periodos: out, ultimaFoto };
+}
+
+export function Evolucao({ hoje, filtro, setFiltro, hist, bruto }: Omit<Props, "linhas" | "irFarol"> & { bruto?: Bruto }) {
   const [ag, setAg] = useState<Agrupamento>("dia");
+  const [det, setDet] = useState<{ local: string; sku: string; produto: string } | null>(null);
+  const [estq, setEstq] = useState(false);
+  const pr = det ? periodosRuptura(hist, det.local, det.sku) : null;
   const f = { de: filtro.de, ate: filtro.ate, locais: escopoLocais(filtro.escopo), categoria: null as string | null };
   const pts = serie(hist, f, hoje, ag); const top = topDiasRuptura(hist, f, 10); const maxDias = Math.max(1, ...top.map((t) => t.dias));
   const dados = pts.map((p) => ({ ...p, barra: p.pct === null ? null : +(p.pct * 100).toFixed(2), vazio: p.pct === null ? 0.35 : null, acum: p.acumulado === null ? null : +(p.acumulado * 100).toFixed(2) }));
@@ -34,9 +55,21 @@ export function Evolucao({ hoje, filtro, setFiltro, hist }: Omit<Props, "linhas"
         <div className="mt-1 flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground"><span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-emerald-600" /> % do {ag === "dia" ? "dia" : ag === "semana" ? "semana" : "mês"} (cor = farol)</span><span className="flex items-center gap-1"><span className="h-0.5 w-4 bg-slate-900" /> Acumulado do período</span><span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-slate-200" /> Sem registro de contagem</span>{ag === "mes" && <span>Clique numa coluna para abrir os dias do mês</span>}</div>
       </Secao>
       <Secao letra="D" titulo="Top itens · dias em ruptura no período">
-        {top.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Nenhum item com ruptura no período.</p> : <ul className="space-y-3">{top.map((t) => <li key={t.local + t.id_produto}><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="truncate text-sm font-semibold" title={t.produto}>{t.produto}</div><div className="text-[11px] text-muted-foreground">{NOME[t.local] ?? t.local}</div></div><span className="shrink-0 text-sm font-bold text-red-600">{t.dias} {t.dias === 1 ? "dia" : "dias"}</span></div><div className="mt-1 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-red-500" style={{ width: `${(t.dias / maxDias) * 100}%` }} /></div></li>)}</ul>}
-        <p className="mt-4 text-[11px] italic text-muted-foreground">Lista completa no detalhe (bloco F).</p>
+        {top.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Nenhum item com ruptura no período.</p> : <ul className="space-y-3">{top.map((t) => <li key={t.local + t.id_produto}><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="cursor-pointer truncate text-sm font-semibold hover:underline" title="Clique duas vezes para ver os detalhes da ruptura" onDoubleClick={() => setDet({ local: t.local, sku: t.id_produto, produto: t.produto })}>{t.produto}</div><div className="text-[11px] text-muted-foreground">{NOME[t.local] ?? t.local}</div></div><span className="shrink-0 text-sm font-bold text-red-600">{t.dias} {t.dias === 1 ? "dia" : "dias"}</span></div><div className="mt-1 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-red-500" style={{ width: `${(t.dias / maxDias) * 100}%` }} /></div></li>)}</ul>}
+        <p className="mt-4 text-[11px] italic text-muted-foreground">Lista completa no detalhe (bloco F). Clique duas vezes no produto para ver os detalhes.</p>
       </Secao>
+      <Dialog open={!!det && !estq} onOpenChange={(o) => { if (!o) setDet(null); }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader><DialogTitle>Detalhe da ruptura · {det?.sku}</DialogTitle><DialogDescription>{det?.produto} · {det ? NOME[det.local] ?? det.local : ""}</DialogDescription></DialogHeader>
+          {pr && pr.periodos.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Sem ruptura no período filtrado.</p> : pr && (
+            <table className="w-full text-sm"><thead><tr className="border-b bg-muted text-[11px] uppercase"><th className="px-2 py-2 text-left">Entrou em ruptura</th><th className="px-2 py-2 text-left">Até</th><th className="px-2 py-2 text-right">Dias</th><th className="px-2 py-2 text-left">Situação</th></tr></thead>
+              <tbody>{pr.periodos.map((p) => <tr key={p.ini} className="border-b last:border-0"><td className="px-2 py-1.5">{dm(p.ini)}</td><td className="px-2 py-1.5">{p.aberto ? "—" : dm(p.fim)}</td><td className="px-2 py-1.5 text-right font-semibold tabular-nums">{p.dias}</td><td className="px-2 py-1.5">{p.aberto ? <span className="font-semibold text-destructive">Pendente (em ruptura)</span> : "Resolvida"}</td></tr>)}
+                <tr className="bg-muted/50"><td colSpan={2} className="px-2 py-1.5 font-semibold">Total no período</td><td className="px-2 py-1.5 text-right font-bold tabular-nums">{pr.periodos.reduce((a, p) => a + p.dias, 0)}</td><td /></tr></tbody></table>)}
+          <p className="text-[11px] text-muted-foreground">Contagem pela foto diária, entre {dm(filtro.de)} e {dm(filtro.ate)}.</p>
+          <div className="flex justify-end"><Button variant="outline" onClick={() => setEstq(true)}>Ver estoque do item</Button></div>
+        </DialogContent>
+      </Dialog>
+      <ConsultaEstoqueSku aberto={!!det && estq} onFechar={() => setEstq(false)} bruto={bruto} sku={det?.sku ?? ""} descricao={det?.produto ?? ""} lojaDestino="" cdNaoAtende={false} />
     </div>
   );
 }

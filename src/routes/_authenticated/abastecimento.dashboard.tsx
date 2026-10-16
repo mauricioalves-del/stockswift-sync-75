@@ -89,7 +89,7 @@ function DashboardPage() {
       {bruto.isLoading ? <p className="py-10 text-center text-muted-foreground">Carregando a posição de estoque…</p> : bruto.error ? <p className="py-10 text-center text-red-600">Não consegui ler os dados de abastecimento.</p> : (<>
         <Secao letra="B" titulo="Indicadores do período"><Kpis hoje={hoje} filtro={filtro} linhas={linhas} hist={hist} /></Secao>
         <ResumoLocais hoje={hoje} filtro={filtro} setFiltro={setFiltro} linhas={linhas} hist={hist} transito={transito} />
-        <Evolucao hoje={hoje} filtro={filtro} setFiltro={setFiltro} hist={hist} />
+        <Evolucao hoje={hoje} filtro={filtro} setFiltro={setFiltro} hist={hist} bruto={bruto.data} />
         <ResumoLocaisTabela hoje={hoje} filtro={filtro} setFiltro={setFiltro} linhas={linhas} hist={hist} transito={transito} />
         <Rankings filtro={filtro} linhas={linhas} irFarol={irFarol} />
         <Detalhe filtro={filtro} linhas={linhas} />
