@@ -30,6 +30,14 @@ export function Evolucao({ hoje, filtro, setFiltro, hist, bruto }: Omit<Props, "
   const [det, setDet] = useState<{ local: string; sku: string; produto: string } | null>(null);
   const [estq, setEstq] = useState(false);
   const pr = det ? periodosRuptura(hist, det.local, det.sku) : null;
+  // Saldo real (ao vivo) do item no local; a foto diária não é alterada, só a situação exibida.
+  const saldoReal = (() => {
+    if (!det || !bruto) return null;
+    const alvo = semZero(det.sku); const deProc = alvo === "5304043";
+    const almox = det.local === "CD" ? (deProc ? "Alm_SP_Processo" : bruto.cd) : bruto.lojas.find((l) => l.codigo === det.local)?.almoxarifado;
+    if (!almox) return null;
+    return bruto.estoque.reduce((s, e) => { const k = semZero(e.id_produto) === "5104132" ? "5304043" : semZero(e.id_produto); return k === alvo && e.origem === almox ? s + Number(e.quantidade || 0) : s; }, 0);
+  })();
   const f = { de: filtro.de, ate: filtro.ate, locais: escopoLocais(filtro.escopo), categoria: null as string | null };
   const pts = serie(hist, f, hoje, ag); const top = topDiasRuptura(hist, f, 10); const maxDias = Math.max(1, ...top.map((t) => t.dias));
   const dados = pts.map((p) => ({ ...p, barra: p.pct === null ? null : +(p.pct * 100).toFixed(2), vazio: p.pct === null ? 0.35 : null, acum: p.acumulado === null ? null : +(p.acumulado * 100).toFixed(2) }));
@@ -63,7 +71,7 @@ export function Evolucao({ hoje, filtro, setFiltro, hist, bruto }: Omit<Props, "
           <DialogHeader><DialogTitle>Detalhe da ruptura · {det?.sku}</DialogTitle><DialogDescription>{det?.produto} · {det ? NOME[det.local] ?? det.local : ""}</DialogDescription></DialogHeader>
           {pr && pr.periodos.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Sem ruptura no período filtrado.</p> : pr && (
             <table className="w-full text-sm"><thead><tr className="border-b bg-muted text-[11px] uppercase"><th className="px-2 py-2 text-left">Entrou em ruptura</th><th className="px-2 py-2 text-left">Até</th><th className="px-2 py-2 text-right">Dias</th><th className="px-2 py-2 text-left">Situação</th></tr></thead>
-              <tbody>{pr.periodos.map((p) => <tr key={p.ini} className="border-b last:border-0"><td className="px-2 py-1.5">{dm(p.ini)}</td><td className="px-2 py-1.5">{p.aberto ? "—" : dm(p.fim)}</td><td className="px-2 py-1.5 text-right font-semibold tabular-nums">{p.dias}</td><td className="px-2 py-1.5">{p.aberto ? <span className="font-semibold text-destructive">Pendente (em ruptura)</span> : "Resolvida"}</td></tr>)}
+              <tbody>{pr.periodos.map((p) => <tr key={p.ini} className="border-b last:border-0"><td className="px-2 py-1.5">{dm(p.ini)}</td><td className="px-2 py-1.5">{p.aberto ? "—" : dm(p.fim)}</td><td className="px-2 py-1.5 text-right font-semibold tabular-nums">{p.dias}</td><td className="px-2 py-1.5">{!p.aberto ? "Resolvida" : saldoReal !== null && saldoReal > 0 ? <span className="font-semibold text-success">Resolvida · saldo atual {n0(saldoReal)} un</span> : <span className="font-semibold text-destructive">Pendente (em ruptura)</span>}</td></tr>)}
                 <tr className="bg-muted/50"><td colSpan={2} className="px-2 py-1.5 font-semibold">Total no período</td><td className="px-2 py-1.5 text-right font-bold tabular-nums">{pr.periodos.reduce((a, p) => a + p.dias, 0)}</td><td /></tr></tbody></table>)}
           <p className="text-[11px] text-muted-foreground">Contagem pela foto diária, entre {dm(filtro.de)} e {dm(filtro.ate)}.</p>
           <div className="flex justify-end"><Button variant="outline" onClick={() => setEstq(true)}>Ver estoque do item</Button></div>
