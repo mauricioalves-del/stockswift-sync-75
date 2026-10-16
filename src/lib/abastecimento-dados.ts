@@ -59,6 +59,9 @@ export const destinoNota = (s: string): string | null => {
 export const GRUPO_REVENDA = "Mercadoria de Revenda";
 const META_VAZIA = { porMes: {} as Record<string, number>, tipo: "", produto: "", linha: "" };
 /** universo "meta" (padrão): produto acabado com meta no consenso (Reposição). "sortimento": sortimento ativo (abast_produto_loja.ativo_sortimento) de produto acabado + mercadoria de revenda (Dashboard de Disponibilidade). */
+/** DE-PARA de saldo: produto acabado (chave normalizada) cujo saldo é o saldo oficial do produto local. */
+export const SALDO_DE_PARA: Record<string, string> = { "5104132": "05304043" };
+
 export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador; hojeIso: string; manuais?: Record<string, number | null>; universo?: "meta" | "sortimento" }): Montagem {
   const grupoDe = new Map<string, string>(); for (const g of b.grupos) grupoDe.set(nk(g.codigo_produto), g.grupo);
   const famDe = new Map<string, string>(); for (const f of b.familias) famDe.set(nk(f.codigo_produto), f.familia);
@@ -71,10 +74,9 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
   // estoque ao vivo
   const est = new Map<string, { lojas: Record<string, number>; cd: number; desc: string; custo: number; canon: string }>();
   // Produtos locais que consomem o saldo de um produto acabado: o saldo do acabado vira o saldo oficial do local.
-  const SALDO_DE: Record<string, string> = { [nk("05104132")]: "05304043" };
   for (const e of b.estoque) {
     const q = Number(e.quantidade) || 0;
-    const alvo = SALDO_DE[nk(e.id_produto)];
+    const alvo = SALDO_DE_PARA[nk(e.id_produto)];
     const id = alvo ?? String(e.id_produto);
     const k = nk(id);
     const x = est.get(k) ?? { lojas: {}, cd: 0, desc: "", custo: 0, canon: id };
