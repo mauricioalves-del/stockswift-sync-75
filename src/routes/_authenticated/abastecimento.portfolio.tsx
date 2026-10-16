@@ -76,10 +76,13 @@ function PortfolioPage(){
     if(!editando)return; setSalvando(true);
     try{
       const skuNovo=chaveSkuPortfolio(editando.sku); if(!skuNovo)throw new Error("Informe o código do produto");
+      const cadastroNovo=!editando.skuOriginal;
+      if(!cadastroNovo && atuais.some(r=>r.sku===skuNovo && r.sku!==editando.skuOriginal))throw new Error(`O código ${skuNovo} já está na lista vigente`);
+      if(cadastroNovo && atuais.some(r=>r.sku===skuNovo))throw new Error(`O código ${skuNovo} já está na lista vigente — use o lápis para editar`);
       const itens=[{sku:skuNovo,descricao:editando.descricao,classe:editando.classe,vigencia:editando.vigencia,inicio_inovacao:editando.classe==="INOVACAO" ? editando.inicio_inovacao||null : null,versao_anterior:editando.versao_anterior}];
-      if(skuNovo!==editando.skuOriginal)itens.push({sku:editando.skuOriginal,descricao:editando.descricao,classe:"REMOVIDO",vigencia:hoje,inicio_inovacao:null,versao_anterior:editando.versao_anterior});
-      const {error}=await supabase.rpc("abast_importar_classificacoes",{p_arquivo:"Edição manual",p_itens:itens});if(error)throw error;
-      await qc.invalidateQueries({queryKey:["abast-portfolio"]});setEditando(null);toast.success("Classificação atualizada");
+      if(!cadastroNovo && skuNovo!==editando.skuOriginal)itens.push({sku:editando.skuOriginal,descricao:editando.descricao,classe:"REMOVIDO",vigencia:hoje,inicio_inovacao:null,versao_anterior:editando.versao_anterior});
+      const {error}=await supabase.rpc("abast_importar_classificacoes",{p_arquivo:cadastroNovo ? "Cadastro manual" : "Edição manual",p_itens:itens});if(error)throw error;
+      await qc.invalidateQueries({queryKey:["abast-portfolio"]});setEditando(null);toast.success(cadastroNovo ? "Item cadastrado no portfólio" : "Classificação atualizada");
     }catch(e){toast.error(e instanceof Error ? e.message : "Não foi possível salvar a edição");}finally{setSalvando(false);}
   }
   async function remover(r:ClassificacaoPortfolio){
