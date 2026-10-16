@@ -92,8 +92,8 @@ function DashboardPage() {
         <Evolucao hoje={hoje} filtro={filtro} setFiltro={setFiltro} hist={hist} bruto={bruto.data} />
         <ResumoLocaisTabela hoje={hoje} filtro={filtro} setFiltro={setFiltro} linhas={linhas} hist={hist} transito={transito} />
         <Rankings filtro={filtro} linhas={linhas} irFarol={irFarol} />
-        <Detalhe filtro={filtro} linhas={linhas} />
-        <div id="bloco-g"><Farol hoje={hoje} filtro={filtro} setFiltro={setFiltro} linhas={linhas} chip={chipG} setChip={setChipG} /></div>
+        <Detalhe filtro={filtro} linhas={linhas} hist={hist} bruto={bruto.data} />
+        <div id="bloco-g"><Farol hoje={hoje} filtro={filtro} setFiltro={setFiltro} linhas={linhas} chip={chipG} setChip={setChipG} hist={hist} bruto={bruto.data} /></div>
       </>)}
     </div>
   );

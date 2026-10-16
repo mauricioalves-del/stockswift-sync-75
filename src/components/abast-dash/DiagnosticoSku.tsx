@@ -67,7 +67,7 @@ export function DiagnosticoSku({ linha, onFechar, hist, bruto, todas }: { linha:
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         {l && h && (<>
           <DialogHeader><DialogTitle>Diagnóstico · {l.sku}</DialogTitle><DialogDescription>{l.produto} · {NOME[l.local] ?? l.local}</DialogDescription></DialogHeader>
-          <div className="flex flex-wrap gap-2"><Pill cls={STATUS_PILL[l.status]}>{STATUS_TXT[l.status]}</Pill><Pill cls={CLUSTER_PILL[l.cluster]}>{CLUSTER_ROTULO[l.cluster]}</Pill>{l.alerta && <Pill cls="bg-destructive text-destructive-foreground">ALERTA</Pill>}</div>
+          <div className="flex flex-wrap gap-2"><Pill cls={STATUS_PILL[l.status]?.c ?? ""}>{STATUS_PILL[l.status]?.r ?? STATUS_TXT[l.status]}</Pill><Pill cls={CLUSTER_PILL[l.cluster]}>{CLUSTER_ROTULO[l.cluster]}</Pill>{l.alerta && <Pill cls="bg-destructive text-destructive-foreground">ALERTA</Pill>}</div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[["Estoque", `${n0(l.estoque)} un`], ["Mín · Máx", `${n0(l.minimo ?? 0)} · ${n0(l.maximo ?? 0)}`], ["Venda/dia", n1(l.vbm)], ["Cobertura", l.cobertura === null ? "—" : `${n1(l.cobertura)} d`], ["Em trânsito", n0(l.emTransito)], ["Chega em", l.chegaEm ? dm(l.chegaEm) : "—"], ["Zera em", l.zeraEm ? `${dm(l.zeraEm)} · ${l.diasAteZerar} d` : "—"], ["Sugestão", `${n0(l.sugestao)} un`]].map(([t, v]) => <div key={t} className="rounded-lg border bg-card p-2"><div className="text-[10px] font-semibold uppercase text-muted-foreground">{t}</div><div className="text-sm font-bold tabular-nums">{v}</div></div>)}
           </div>

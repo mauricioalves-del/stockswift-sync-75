@@ -1,3 +1,6 @@
+import { DiagnosticoSku } from "@/components/abast-dash/DiagnosticoSku";
+import type { HistLinha } from "@/lib/abastecimento-dash-hist";
+import type { Bruto } from "@/lib/abastecimento-dados";
 import { useMemo, useState } from "react";
 import { AlertTriangle, Search } from "lucide-react";
 import { CLUSTERS, estoqueNoDia, HORIZONTE_FAROL, resumirLocal, type Cluster, type DashLinha } from "@/lib/abastecimento-dash";
@@ -16,7 +19,8 @@ export const noChip = (l: DashLinha, c: ChipG): boolean => {
 };
 const CHIPS: { c: ChipG; r: string; cls?: string }[] = [{ c: "TODOS", r: "Todos" }, { c: "SEMACAO", r: "Sem ação", cls: "border-red-300 text-red-700" }, { c: "ruptura", r: "Ruptura" }, { c: "ATE7", r: "Até 7 d (acum.)" }, { c: "ATE11", r: "Até 11 d (acum.)" }, { c: "ATE15", r: "Até 15 d (acum.)" }, { c: "ok", r: "OK" }];
 
-export function Farol({ hoje, filtro, setFiltro, linhas, chip, setChip }: { hoje: string; filtro: Filtro; setFiltro: (f: Filtro) => void; linhas: DashLinha[]; chip: ChipG; setChip: (c: ChipG) => void }) {
+export function Farol({ hoje, filtro, setFiltro, linhas, chip, setChip, hist = [], bruto }: { hoje: string; filtro: Filtro; setFiltro: (f: Filtro) => void; linhas: DashLinha[]; chip: ChipG; setChip: (c: ChipG) => void; hist?: HistLinha[]; bruto?: Bruto }) {
+  const [diag, setDiag] = useState<DashLinha | null>(null);
   const [dia, setDia] = useState(hoje); const [busca, setBusca] = useState("");
   const k = Math.max(0, Math.min(HORIZONTE_FAROL, Math.round((Date.UTC(+dia.slice(0, 4), +dia.slice(5, 7) - 1, +dia.slice(8, 10)) - Date.UTC(+hoje.slice(0, 4), +hoje.slice(5, 7) - 1, +hoje.slice(8, 10))) / 86400000)));
   const locais = escopoLocais(filtro.escopo); const base = useMemo(() => linhas.filter((l) => locais.includes(l.local)), [linhas, filtro.escopo]);
@@ -45,11 +49,12 @@ export function Farol({ hoje, filtro, setFiltro, linhas, chip, setChip }: { hoje
         <div className="relative ml-auto"><Search className="absolute left-2 top-2 size-3.5 text-muted-foreground" /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar SKU ou produto" className="h-8 w-56 rounded-md border bg-background pl-7 pr-2 text-xs" /></div></div>
       <TabelaRolavel titulo="Farol de ruptura futura"><table className="w-full text-sm"><thead className="sticky top-0 z-10"><tr className="border-b"><Th c="Farol" /><Th c="Produto" /><Th c="Local" /><Th c="Est. hoje" d /><Th c="Venda/d" d /><Th c="Est. no dia" d /><Th c="Cobert. líq." d /><Th c="Em trânsito" d /><Th c="Chega em" d /><Th c="Zera em" d /><Th c="Situação da reposição" /><Th c="Sugestão" d /></tr></thead>
         <tbody>{lista.slice(0, 100).map((l) => { const en = estoqueNoDia(l.estoque, l.vbm, l.entradas, hoje, somaDias(hoje, k)); const cob = l.vbm > 0 ? Math.max(0, en - l.exposicao) / l.vbm : null; const r = repTexto(l); const fora = l.cluster === "ok" && l.status !== "ruptura";
-          return (<tr key={l.local + l.sku} className={`border-b ${l.alerta ? "bg-red-50" : ""} ${fora ? "text-muted-foreground" : ""}`}><td className="px-2 py-2"><Pill cls={CLUSTER_PILL[l.cluster]}>{CLUSTER_ROTULO[l.cluster]}</Pill></td><td className="px-2 py-2"><div className="max-w-[250px] truncate font-semibold" title={l.produto}>{l.produto}</div><div className="text-[11px] text-muted-foreground">SKU {l.sku}</div></td><td className="px-2 py-2 whitespace-nowrap">{NOME[l.local]}</td>
+          return (<tr title="Clique duas vezes para ver o diagnóstico e o plano de ação" onDoubleClick={() => setDiag(l)} key={l.local + l.sku} className={`border-b ${l.alerta ? "bg-red-50" : ""} ${fora ? "text-muted-foreground" : ""}`}><td className="px-2 py-2"><Pill cls={CLUSTER_PILL[l.cluster]}>{CLUSTER_ROTULO[l.cluster]}</Pill></td><td className="px-2 py-2"><div className="max-w-[250px] truncate font-semibold" title={l.produto}>{l.produto}</div><div className="text-[11px] text-muted-foreground">SKU {l.sku}</div></td><td className="px-2 py-2 whitespace-nowrap">{NOME[l.local]}</td>
             <td className="px-2 py-2 text-right">{n0(l.estoque)}</td><td className="px-2 py-2 text-right">{n1(l.vbm)}</td><td className="px-2 py-2 text-right font-semibold">{n1(en)}</td><td className="px-2 py-2 text-right">{cob === null ? "—" : `${n1(cob)} d`}</td><td className="px-2 py-2 text-right font-semibold text-teal-700">{l.emTransito ? `${n0(l.emTransito)} un` : "—"}</td><td className="px-2 py-2 text-right font-semibold text-teal-700">{l.chegaNotaEm ? dm(l.chegaNotaEm) : "—"}</td>
             <td className="px-2 py-2 text-right">{l.status === "ruptura" || l.zeraEm ? <div className="flex flex-col items-end"><Pill cls={CLUSTER_PILL[l.cluster]}>{l.status === "ruptura" ? "já zerado" : `${dm(l.zeraEm)} · ${l.diasAteZerar} d`}</Pill>{l.entradaTotal > 0 && l.zeraSemTransito && l.zeraSemTransito !== l.zeraEm && <span className="text-[10px] text-muted-foreground">s/ reposição: {dm(l.zeraSemTransito)}</span>}</div> : <span className="text-[11px]">{">"} 15 d</span>}</td>
             <td className="px-2 py-2"><span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${r.c}`}>{r.t}</span></td><td className="px-2 py-2 text-right font-semibold">{l.sugestao ? n0(l.sugestao) : "—"}</td></tr>); })}
           {lista.length === 0 && <tr><td colSpan={12} className="p-6 text-center text-muted-foreground">Nenhum SKU neste filtro.</td></tr>}</tbody></table></TabelaRolavel>
+      <DiagnosticoSku linha={diag} onFechar={() => setDiag(null)} hist={hist} bruto={bruto} todas={linhas} />
       <p className="mt-2 text-[11px] italic text-muted-foreground">{lista.length > 100 ? `Mostrando 100 de ${n0(lista.length)}. ` : ""}O alerta destaca (vermelho) só SKUs que zeram em até 5 dias sem reposição a caminho ou com chegada depois de zerar. Itens além de 15 dias aparecem em cinza. Almox SP: demanda = soma das lojas; ainda sem fonte de entradas (compras/produção).</p>
     </Secao>
   );
