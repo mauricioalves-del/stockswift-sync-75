@@ -47,13 +47,18 @@ export function useAbastBruto(habilitado: boolean) {
       const portfolioAprovado: Record<string, string[]> = {};
       const portfolioClasses: Record<string, Record<string, ClassePortfolio>> = {};
       const portfolioOrigem: Record<string, { competencia: string; versao: number; aprovador: string }> = {};
+      // Descrição oficial do portfólio: classificação vigente + documentos aprovados (o aprovado mais recente prevalece)
+      const portfolioDescricoes: Record<string, string> = {};
+      const cls = await seguro(() => fetchAll<any>((f, t) => sb.from("abast_classificacoes_portfolio").select("sku, descricao, registrado_em").order("registrado_em").range(f, t)), []);
+      for (const c of cls) if (c.descricao) portfolioDescricoes[String(c.sku).replace(/^0+/, "")] = String(c.descricao);
+      for (const v of [...vals].reverse()) for (const i of v.itens ?? []) if (i?.descricao) portfolioDescricoes[String(i.sku).replace(/^0+/, "")] = String(i.descricao);
       for (const v of vals) if (!portfolioAprovado[v.loja]) {
         portfolioOrigem[v.loja] = { competencia: v.competencia, versao: v.versao, aprovador: v.aprovador_nome };
         portfolioAprovado[v.loja] = (v.itens ?? []).filter((i: any) => i.ativo).map((i: any) => String(i.sku).replace(/^0+/, ""));
         portfolioClasses[v.loja] = classesDoPortfolioAprovado(v.itens ?? []);
       }
       return {
-        portfolioAprovado, portfolioOrigem, portfolioClasses,
+        portfolioAprovado, portfolioOrigem, portfolioClasses, portfolioDescricoes,
         lojas: (lojas ?? []) as Bruto["lojas"], cd: String(c.cd_almoxarifado || "Alm_SP_Fabrica"),
         params: { diasMin: dias(c.dias_min, 5), diasIdeal: Math.max(1, dias(c.dias_ideal, 10)), diasMax: dias(c.dias_max, 15), diasSeguranca: dias(c.dias_seguranca, 0) }, coberturas,
         consenso, grupos, familias, abc: abcRaw.map((x: any) => ({ codigo_produto: x.codigo_produto, classe: x.classe })), periodos: periodos as Bruto["periodos"],
