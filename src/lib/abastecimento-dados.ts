@@ -36,6 +36,8 @@ export type Bruto = {
   /** SKUs (sem zeros à esquerda) do último portfólio validado pelo gestor, por loja. Quando existe, substitui o universo da loja. */
   portfolioAprovado?: Record<string, string[]>;
   portfolioClasses?: Record<string, Record<string, ClassePortfolio>>;
+  /** Descrição do produto conforme o portfólio aprovado/classificado (SKU sem zeros à esquerda). */
+  portfolioDescricoes?: Record<string, string>;
   portfolioOrigem?: Record<string, { competencia: string; versao: number; aprovador: string }>;
 };
 
@@ -148,7 +150,7 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       // Sem registro de estoque o código vem sem zeros (consenso): completa pelo padrão (8 dígitos; 9 viram 10).
       const idCanon = e?.canon ?? (sku.length < 8 ? sku.padStart(8, "0") : sku.length === 9 ? sku.padStart(10, "0") : sku);
       const it = calcularItem2({
-        sku: idCanon, descricao: e?.desc || m.produto, categoria: familia, ativo: true, masterPresente: true,
+        sku: idCanon, descricao: b.portfolioDescricoes?.[sku] || e?.desc || m.produto || idCanon, categoria: familia, ativo: true, masterPresente: true,
         estoque: e?.lojas[l.codigo] ?? 0, exposicao: expo ?? 0, vendaDiaReal: r.cmd, consensoDia: cons, fatorRealizacao: fr ? fr.fator : null,
         classeAbc: abcDe.get(sku) ?? null, fullCase: fcDe.get(sku) ?? 1, custo: e?.custo ?? null, saldoCD: e?.cd ?? 0,
         emTransito: transito.get(`${l.codigo}|${sku}`) ?? 0, pedidoAberto: pedAb.get(`${l.codigo}|${sku}`) ?? 0, pedidoManual: manual ?? null,

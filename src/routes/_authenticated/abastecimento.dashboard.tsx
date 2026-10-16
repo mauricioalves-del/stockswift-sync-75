@@ -57,7 +57,7 @@ function DashboardPage() {
   const todas = useMemo(() => (bruto.data ? montarDash(bruto.data, hoje) : []), [bruto.data, hoje]);
   const catOk = (c: string | null) => filtro.categoria === "AMBAS" || c === filtro.categoria;
   const linhas = useMemo(() => todas.filter((l: any) => catOk(l.categoria) && elegivel(l.sku, hoje)), [todas, filtro.categoria, elegivel]);
-  const hist = useMemo(() => (histQ.data ?? []).filter((h) => catOk(h.categoria) && elegivel(h.id_produto, h.data) && noPortfolio(h.loja, h.id_produto)), [histQ.data, filtro.categoria, elegivel, noPortfolio]);
+  const hist = useMemo(() => { const d = bruto.data?.portfolioDescricoes ?? {}; return (histQ.data ?? []).filter((h) => catOk(h.categoria) && elegivel(h.id_produto, h.data) && noPortfolio(h.loja, h.id_produto)).map((h) => { const pd = d[String(h.id_produto).replace(/^0+/, "")]; return pd ? { ...h, descricao: pd } : h; }); }, [histQ.data, filtro.categoria, elegivel, noPortfolio, bruto.data]);
   const transito = useMemo(() => (bruto.data ? transitoPorLocal(bruto.data, hoje, filtro.categoria === "AMBAS" ? null : filtro.categoria) : {}), [bruto.data, hoje, filtro.categoria]);
   const irFarol = (c: Cluster | "SEMACAO") => { setChipG(c); document.getElementById("bloco-g")?.scrollIntoView({ behavior: "smooth", block: "start" }); };
   const atualizado = bruto.dataUpdatedAt ? new Date(bruto.dataUpdatedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—";
