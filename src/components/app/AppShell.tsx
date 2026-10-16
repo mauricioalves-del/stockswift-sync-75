@@ -74,6 +74,7 @@ const NAV: (NavItem | NavGroup)[] = [
     id: "abastecimento", label: "Abastecimento", icon: Store, role: "gestor",
     items: [
       { to: "/abastecimento/dashboard", label: "Dashboard de Disponibilidade", icon: LayoutDashboard, role: "gestor" },
+      { to: "/abastecimento/estoque", label: "Visão Geral de Estoque", icon: Boxes, role: "gestor" },
       { to: "/abastecimento/reposicao", label: "Reposição de Lojas", icon: Store, role: "gestor" },
       { to: "/abastecimento/pedidos", label: "Pedidos", icon: ClipboardList, role: "gestor" },
       { to: "/abastecimento/validacao", label: "Validação do Gestor", icon: Tags, role: "gestor" },
