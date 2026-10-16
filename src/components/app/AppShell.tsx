@@ -74,13 +74,13 @@ const NAV: (NavItem | NavGroup)[] = [
     id: "abastecimento", label: "Abastecimento", icon: Store, role: "gestor",
     items: [
       { to: "/abastecimento/dashboard", label: "Dashboard de Disponibilidade", icon: LayoutDashboard, role: "gestor" },
-      { to: "/abastecimento/projecao-cd", label: "Projeção do CD e Plano", icon: TrendingDown, role: "gestor" },
       { to: "/abastecimento/reposicao", label: "Reposição de Lojas", icon: Store, role: "gestor" },
       { to: "/abastecimento/pedidos", label: "Pedidos", icon: ClipboardList, role: "gestor" },
       { to: "/abastecimento/validacao", label: "Validação do Gestor", icon: Tags, role: "gestor" },
       {
         id: "abastecimento-parametros", label: "Parâmetros",
         items: [
+          { to: "/abastecimento/projecao-cd", label: "Projeção do CD e Plano", icon: TrendingDown, role: "gestor" },
           { to: "/abastecimento/portfolio", label: "Portfólio e Classificação", icon: Tags, role: "gestor" },
           { to: "/abastecimento/caixaria", label: "Caixaria e Exposição", icon: Boxes, role: "gestor" },
           { to: "/abastecimento/cobertura", label: "Cobertura e parâmetros", icon: SlidersHorizontal, role: "gestor" },
