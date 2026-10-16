@@ -105,7 +105,7 @@ function EstoquePage() {
           <span>Cores (lojas e CD):</span>
           {estados.map((e) => <span key={e} className="flex items-center gap-1"><span className={`inline-block size-3 rounded-sm border ${COR[e]}`} />{ROTULO[e]}</span>)}
           <span className="flex items-center gap-1"><span className="inline-block size-3 rounded-sm border bg-background" />Fora do planejamento (sem cor)</span>
-          <span>· Pará, Processo, Qualidade e PDV são informativos. Clique no título para ordenar (menor → maior) e no funil para filtrar cada coluna.</span>
+          <span>· Processo, Qualidade e PDV são informativos. Clique no título para ordenar (menor → maior) e no funil para filtrar cada coluna.</span>
         </div>
       </section>
 
