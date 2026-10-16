@@ -101,7 +101,7 @@ function PortfolioPage(){
       <DialogContent>
         <DialogHeader><DialogTitle>{editando?.skuOriginal ? `Editar classificação · ${editando.skuOriginal}` : "Cadastrar item no portfólio"}</DialogTitle></DialogHeader>
         {editando && <div className="space-y-3">
-          <div><Label>Código do produto (SKU)</Label><Input value={editando.sku} onChange={(e)=>setEditando({...editando,sku:e.target.value})}/>{chaveSkuPortfolio(editando.sku)!==editando.skuOriginal && <p className="text-xs text-amber-600 mt-1">O código será alterado de {editando.skuOriginal} para {chaveSkuPortfolio(editando.sku)}: o código antigo sai da lista vigente e o histórico é mantido.</p>}</div>
+          <div><Label>Código do produto (SKU)</Label><Input value={editando.sku} onChange={(e)=>setEditando({...editando,sku:e.target.value})}/>{!!editando.skuOriginal && chaveSkuPortfolio(editando.sku)!==editando.skuOriginal && <p className="text-xs text-amber-600 mt-1">O código será alterado de {editando.skuOriginal} para {chaveSkuPortfolio(editando.sku)}: o código antigo sai da lista vigente e o histórico é mantido.</p>}</div>
           <div><Label>Produto</Label><Input value={editando.descricao} onChange={(e)=>setEditando({...editando,descricao:e.target.value})}/></div>
           <div><Label>Classe</Label><Select value={editando.classe} onValueChange={(v)=>setEditando({...editando,classe:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{Object.entries(CLASSES_PORTFOLIO).map(([k,rot])=><SelectItem key={k} value={k}>{rot}</SelectItem>)}</SelectContent></Select></div>
           <div><Label>Vigência</Label><Input type="date" min={hoje} value={editando.vigencia} onChange={(e)=>setEditando({...editando,vigencia:e.target.value})}/></div>
