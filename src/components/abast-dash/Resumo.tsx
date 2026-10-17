@@ -11,7 +11,12 @@ const semaforo = (ruptura: number, stockout: number) => (ruptura > 0 ? [true, fa
 export function Kpis({ hoje, filtro, linhas, hist }: Omit<Props, "setFiltro">) {
   const locais = escopoLocais(filtro.escopo); const ls = linhas.filter((l) => locais.includes(l.local));
   const rs = resumirLocal(ls); const rp = resumoPeriodo(hist, { de: filtro.de, ate: filtro.ate, locais, categoria: null }, hoje);
-  const hojeRupt = rs.skus ? rs.ruptura / rs.skus : null; const risco = riscoEnderecado(ls, hoje);
+  // Ruptura do dia travada na foto diária (09h): não muda com o estoque ao vivo.
+  const fotoEsc = hist.filter((h) => locais.includes(h.loja) && h.data <= hoje);
+  const dataFoto = fotoEsc.reduce<string | null>((m, h) => (!m || h.data > m ? h.data : m), null);
+  const fotoDia = dataFoto ? fotoEsc.filter((h) => h.data === dataFoto) : [];
+  const fotoRupt = fotoDia.filter((h) => h.em_ruptura).length;
+  const hojeRupt = fotoDia.length ? fotoRupt / fotoDia.length : null; const risco = riscoEnderecado(ls, hoje);
   const alertas = ls.filter((l) => l.alerta).sort((a, b) => (a.diasAteZerar ?? 0) - (b.diasAteZerar ?? 0));
   const f = rp.ruptura === null ? null : farolRuptura(rp.ruptura); const at = rp.ruptura === null ? null : atingimento(rp.ruptura);
   const possiveis = rs.skus * rp.diasPeriodo;
@@ -30,7 +35,7 @@ export function Kpis({ hoje, filtro, linhas, hist }: Omit<Props, "setFiltro">) {
           <div className={`mt-1 flex items-center gap-2 text-2xl font-bold ${f ? FAROL[f].texto : ""}`}>{pct(rp.ruptura)}{rp.parcial && <Pill cls="bg-orange-100 text-orange-700">PARCIAL · {rp.diasComRegistro.length} {rp.diasComRegistro.length === 1 ? "dia" : "dias"}</Pill>}</div>
           <div className="mt-1 text-[11px] text-muted-foreground">Meta ≤ {pct(META_RUPTURA, 1)} · Ating. {at === null ? "—" : `${(at * 100).toFixed(0)}%`}</div>
         </div>
-        <Card t="Ruptura · hoje" v={pct(hojeRupt)} s={`${rs.ruptura} SKU(s) zerado(s) de ${rs.skus}`} cor="border-l-emerald-500" />
+        <Card t={dataFoto && dataFoto !== hoje ? `Ruptura · foto ${dm(dataFoto)}` : "Ruptura · hoje (foto 09h)"} v={pct(hojeRupt)} s={dataFoto ? `${fotoRupt} SKU(s) zerado(s) de ${fotoDia.length} na foto` : "sem foto registrada"} cor={fotoRupt > 0 ? "border-l-red-500" : "border-l-emerald-500"} vc={fotoRupt > 0 ? "text-red-600" : ""} />
         <Card t="Stockout" v={n0(rs.stockout)} s={`${pct(rs.skus ? rs.stockout / rs.skus : null, 1)} do sortimento`} cor="border-l-yellow-500" vc="text-yellow-600" />
         <Card t="Stock Over" v={n0(rs.stockover)} s={`${brl(rs.excessoRs)} em excesso`} cor="border-l-violet-500" vc="text-violet-600" />
         <Card t="Cobertura média" v={rs.coberturaMedia === null ? "—" : `${n1(rs.coberturaMedia)} d`} s="Estoque líquido ÷ VBM" cor="border-l-slate-700" />
