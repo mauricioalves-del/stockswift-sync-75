@@ -52,3 +52,6 @@
 - [x] Abreviar os títulos das colunas: A caminho → Transi, Demanda/dia → CMD, Cob. pós-pedido (dias) → Cobertura, com o significado no tooltip.
 - [x] Abreviar também as lojas na lista de Origem e no título da lista maximizada.
 - [x] Validar na tela: botões, cabeçalhos e opções de Origem com nomes curtos, sem erro de console.
+
+## Menu lateral
+- [x] Ocultar "Cadastro de E-mails" do menu principal; tela segue acessível por link direto e como "E-mails" em Cadastro.
