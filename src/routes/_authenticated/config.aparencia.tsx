@@ -102,8 +102,9 @@ function AparenciaPage() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        O ícone de sol/lua no cabeçalho alterna rapidamente entre Mágio Claro e Mágio Escuro. O tema Atual permanece
-        disponível apenas nesta tela.
+        Mágio Claro é o tema oficial do aplicativo e o padrão para quem ainda não escolheu. O ícone de sol/lua no
+        cabeçalho alterna rapidamente entre Mágio Claro e Mágio Escuro. O tema Amazônia Premium permanece disponível
+        apenas nesta tela.
       </p>
     </div>
   );

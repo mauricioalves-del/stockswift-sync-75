@@ -12,6 +12,7 @@ import {
  ReceiptText,
  SlidersHorizontal,
 } from "lucide-react";
+import oncaIcono from "@/assets/onca-icono.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -314,8 +315,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Button>
 
             <div className="lg:hidden flex items-center gap-2 mr-auto">
-              <div className="size-7 rounded-md bg-primary text-primary-foreground flex items-center justify-center">
-                <Leaf className="size-4" />
+              <div className="size-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                <img src={oncaIcono} alt="Onça" className="size-5" />
               </div>
               <span className="font-semibold">Mágio</span>
             </div>
@@ -386,9 +387,9 @@ function SidebarContent({
   return (
     <>
       <div className={cn("flex items-center gap-3 border-b border-sidebar-border h-16", collapsed ? "px-3 justify-center" : "px-5")}>
-        <div className="size-10 rounded-lg flex items-center justify-center shrink-0"
-          style={{ background: "var(--gradient-gold)" }}>
-          <Leaf className="size-5 text-sidebar-primary-foreground" />
+        <div className="size-10 rounded-full flex items-center justify-center shrink-0"
+           style={{ background: "var(--gradient-gold)" }}>
+          <img src={oncaIcono} alt="Onça" className="size-7" />
         </div>
         {!collapsed && (
           <div>

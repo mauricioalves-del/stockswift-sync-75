@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Leaf, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import oncaIcono from "@/assets/onca-icono.png";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -70,8 +71,8 @@ function AuthPage() {
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "var(--gradient-amazon)" }}>
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center text-center gap-3 mb-6 text-sidebar-foreground">
-          <div className="size-14 rounded-2xl flex items-center justify-center shadow-xl" style={{ background: "var(--gradient-gold)" }}>
-            <Leaf className="size-7 text-sidebar-primary-foreground" />
+          <div className="size-14 rounded-full flex items-center justify-center shadow-xl" style={{ background: "var(--gradient-gold)" }}>
+            <img src={oncaIcono} alt="Onça" className="size-10" />
           </div>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Mágio Chocolates</h1>
