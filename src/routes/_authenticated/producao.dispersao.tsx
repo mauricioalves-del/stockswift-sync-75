@@ -706,7 +706,7 @@ function DispersaoPage() {
                 </CardContent>
               </Card>
             )}
-            <Card className={serieLinha.length > 0 ? "" : "lg:col-span-3"}>
+            <Card className={serieLinha.length > 0 ? undefined : "lg:col-span-3"}>
               <CardHeader className="pb-2"><CardTitle className="text-base">Ações por Status</CardTitle></CardHeader>
               <CardContent className="h-64">
                 <ResponsiveContainer>
