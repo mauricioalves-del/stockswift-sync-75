@@ -72,7 +72,7 @@ function AuthPage() {
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center text-center gap-3 mb-6 text-sidebar-foreground">
           <div className="size-14 rounded-full flex items-center justify-center shadow-xl" style={{ background: "var(--gradient-gold)" }}>
-            <img src={oncaIcono} alt="Onça" className="size-10" />
+            <img src={oncaIcono} alt="Onça" className="h-full w-full rounded-full object-cover" />
           </div>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Mágio Chocolates</h1>

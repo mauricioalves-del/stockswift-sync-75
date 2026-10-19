@@ -316,7 +316,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             <div className="lg:hidden flex items-center gap-2 mr-auto">
               <div className="size-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                <img src={oncaIcono} alt="Onça" className="size-5" />
+                <img src={oncaIcono} alt="Onça" className="h-full w-full rounded-full object-cover" />
               </div>
               <span className="font-semibold">Mágio</span>
             </div>
@@ -389,7 +389,7 @@ function SidebarContent({
       <div className={cn("flex items-center gap-3 border-b border-sidebar-border h-16", collapsed ? "px-3 justify-center" : "px-5")}>
         <div className="size-10 rounded-full flex items-center justify-center shrink-0"
            style={{ background: "var(--gradient-gold)" }}>
-          <img src={oncaIcono} alt="Onça" className="size-7" />
+          <img src={oncaIcono} alt="Onça" className="h-full w-full rounded-full object-cover" />
         </div>
         {!collapsed && (
           <div>
