@@ -639,6 +639,92 @@ function DispersaoPage() {
           </div>
 
           <Card>
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-2">
+              <div>
+                <CardTitle className="text-base">Tendência {granul === "dia" ? "Diária" : granul === "ano" ? "Anual" : "Mensal"} (R$)</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">Clique em uma coluna para ver os itens do período e criar ações.</p>
+              </div>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                size="sm"
+                value={granul}
+                onValueChange={(value) => value && setGranul(value as "dia" | "mes" | "ano")}
+                aria-label="Escolher visão temporal do gráfico"
+                className="rounded-md border bg-muted/30 p-1"
+              >
+                <ToggleGroupItem value="dia" aria-label="Visão por dia">Dia</ToggleGroupItem>
+                <ToggleGroupItem value="mes" aria-label="Visão por mês">Mês</ToggleGroupItem>
+                <ToggleGroupItem value="ano" aria-label="Visão por ano">Ano</ToggleGroupItem>
+              </ToggleGroup>
+            </CardHeader>
+            <CardContent className="h-64">
+              <ResponsiveContainer>
+                <BarChart
+                  data={serieMes}
+                  className="cursor-pointer"
+                  onClick={(state: any) => {
+                    const idx = state?.activeTooltipIndex;
+                    const item = typeof idx === "number" ? serieMes[idx] : undefined;
+                    if (item) setPeriodoSel({ chave: item.chave, label: item.mes });
+                  }}
+                >
+
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
+                  <XAxis dataKey="mes" fontSize={12} />
+                  <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
+                  <RTooltip formatter={(v: any, n: any) => [fmtBRL(Number(v)), n === "perda" ? "Perda" : "Economia"]} />
+                  <Legend formatter={(v) => (v === "perda" ? "Perda" : "Economia")} />
+                  <Bar dataKey="perda" fill="#E57373" radius={[3, 3, 0, 0]}>
+                    <LabelList dataKey="perda" position="top" fontSize={10} fill="currentColor" formatter={(v: any) => (Number(v) ? fmtCompacto(Number(v)) : "")} />
+                  </Bar>
+                  <Bar dataKey="economia" fill="#81C784" radius={[3, 3, 0, 0]}>
+                    <LabelList dataKey="economia" position="top" fontSize={10} fill="currentColor" formatter={(v: any) => (Number(v) ? fmtCompacto(Number(v)) : "")} />
+                  </Bar>
+
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-3 lg:grid-cols-3">
+            {serieLinha.length > 0 && (
+              <Card className="lg:col-span-2">
+                <CardHeader className="pb-2"><CardTitle className="text-base">Impacto por Linha / Origem (R$)</CardTitle></CardHeader>
+                <CardContent className="h-64">
+                  <ResponsiveContainer>
+                    <BarChart data={serieLinha}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
+                      <XAxis dataKey="linha" fontSize={12} />
+                      <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
+                      <RTooltip formatter={(v: any) => fmtBRL(Number(v))} />
+                      <Bar dataKey="impacto_abs" fill="#FFB74D" radius={[3, 3, 0, 0]}>
+                        <LabelList dataKey="impacto_abs" position="top" fontSize={10} fill="currentColor" formatter={(v: any) => fmtCompacto(Number(v))} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+            <Card className={serieLinha.length > 0 ? undefined : "lg:col-span-3"}>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Ações por Status</CardTitle></CardHeader>
+              <CardContent className="h-64">
+                <ResponsiveContainer>
+                  <BarChart data={serieStatus}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
+                    <XAxis dataKey="status" fontSize={10} interval={0} angle={-15} textAnchor="end" height={60} />
+                    <YAxis fontSize={12} />
+                    <RTooltip />
+                    <Bar dataKey="qtd" fill="#4FC3F7" radius={[3, 3, 0, 0]}>
+                      <LabelList dataKey="qtd" position="top" fontSize={11} fill="currentColor" />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Matriz de Criticidade (frequência × impacto)</CardTitle>
               <p className="text-xs text-muted-foreground">Limiares atuais: {limFreq} OPs e {fmtBRL(limImpacto)} — configuráveis em Faixas de Alerta.</p>
@@ -739,93 +825,6 @@ function DispersaoPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-3 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-              <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-2">
-                <div>
-                  <CardTitle className="text-base">Tendência {granul === "dia" ? "Diária" : granul === "ano" ? "Anual" : "Mensal"} (R$)</CardTitle>
-                  <p className="mt-1 text-xs text-muted-foreground">Clique em uma coluna para ver os itens do período e criar ações.</p>
-                </div>
-                <ToggleGroup
-                  type="single"
-                  variant="outline"
-                  size="sm"
-                  value={granul}
-                  onValueChange={(value) => value && setGranul(value as "dia" | "mes" | "ano")}
-                  aria-label="Escolher visão temporal do gráfico"
-                  className="rounded-md border bg-muted/30 p-1"
-                >
-                  <ToggleGroupItem value="dia" aria-label="Visão por dia">Dia</ToggleGroupItem>
-                  <ToggleGroupItem value="mes" aria-label="Visão por mês">Mês</ToggleGroupItem>
-                  <ToggleGroupItem value="ano" aria-label="Visão por ano">Ano</ToggleGroupItem>
-                </ToggleGroup>
-              </CardHeader>
-              <CardContent className="h-64">
-                <ResponsiveContainer>
-                  <BarChart
-                    data={serieMes}
-                    className="cursor-pointer"
-                    onClick={(state: any) => {
-                      const idx = state?.activeTooltipIndex;
-                      const item = typeof idx === "number" ? serieMes[idx] : undefined;
-                      if (item) setPeriodoSel({ chave: item.chave, label: item.mes });
-                    }}
-                  >
-
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
-                    <XAxis dataKey="mes" fontSize={12} />
-                    <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
-                    <RTooltip formatter={(v: any, n: any) => [fmtBRL(Number(v)), n === "perda" ? "Perda" : "Economia"]} />
-                    <Legend formatter={(v) => (v === "perda" ? "Perda" : "Economia")} />
-                    <Bar dataKey="perda" fill="#E57373" radius={[3, 3, 0, 0]}>
-                      <LabelList dataKey="perda" position="top" fontSize={10} fill="currentColor" formatter={(v: any) => (Number(v) ? fmtCompacto(Number(v)) : "")} />
-                    </Bar>
-                    <Bar dataKey="economia" fill="#81C784" radius={[3, 3, 0, 0]}>
-                      <LabelList dataKey="economia" position="top" fontSize={10} fill="currentColor" formatter={(v: any) => (Number(v) ? fmtCompacto(Number(v)) : "")} />
-                    </Bar>
-
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Ações por Status</CardTitle></CardHeader>
-              <CardContent className="h-64">
-                <ResponsiveContainer>
-                  <BarChart data={serieStatus}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
-                    <XAxis dataKey="status" fontSize={10} interval={0} angle={-15} textAnchor="end" height={60} />
-                    <YAxis fontSize={12} />
-                    <RTooltip />
-                    <Bar dataKey="qtd" fill="#4FC3F7" radius={[3, 3, 0, 0]}>
-                      <LabelList dataKey="qtd" position="top" fontSize={11} fill="currentColor" />
-                    </Bar>
-
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-
-          {serieLinha.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Impacto por Linha / Origem (R$)</CardTitle></CardHeader>
-              <CardContent className="h-64">
-                <ResponsiveContainer>
-                  <BarChart data={serieLinha}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.4} />
-                    <XAxis dataKey="linha" fontSize={12} />
-                    <YAxis fontSize={12} tickFormatter={(v) => fmtBRL(Number(v))} width={90} />
-                    <RTooltip formatter={(v: any) => fmtBRL(Number(v))} />
-                    <Bar dataKey="impacto_abs" fill="#FFB74D" radius={[3, 3, 0, 0]}>
-                      <LabelList dataKey="impacto_abs" position="top" fontSize={10} fill="currentColor" formatter={(v: any) => fmtCompacto(Number(v))} />
-                    </Bar>
-
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         {/* ============ LISTA ============ */}
