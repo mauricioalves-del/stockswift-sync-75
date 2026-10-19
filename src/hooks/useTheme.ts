@@ -7,14 +7,14 @@ export const THEMES: { id: ThemeId; nome: string; descricao: string; dark: boole
   {
     id: "atual",
     nome: "Amazônia Premium (Atual)",
-    descricao: "Identidade atual — Verde Floresta, Dourado Cacau e Bege Natural.",
+    descricao: "Identidade anterior — Verde Floresta, Dourado Cacau e Bege Natural. Disponível como opção.",
     dark: false,
     swatches: ["#1B5E20", "#2E7D32", "#C9A227", "#5D4037", "#F5F1E6"],
   },
   {
     id: "magio-claro",
     nome: "Mágio Claro",
-    descricao: "Design System oficial — Verde Amazônia, Azul Institucional e Off White.",
+    descricao: "Tema oficial do aplicativo — Verde Amazônia, Azul Institucional e Off White.",
     dark: false,
     swatches: ["#4E7F84", "#34436C", "#B1BFE2", "#E4E0D5", "#FFFFFF"],
   },
@@ -35,10 +35,10 @@ export function isThemeId(v: unknown): v is ThemeId {
 }
 
 export function readStoredTheme(): ThemeId {
-  if (typeof window === "undefined") return "atual";
+  if (typeof window === "undefined") return "magio-claro";
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (isThemeId(stored)) return stored;
-  return "atual";
+  return "magio-claro"; // Tema oficial do aplicativo para quem nunca escolheu.
 }
 
 /** Aplica o tema no elemento raiz — data-theme + classe .dark para as variantes escuras. */
@@ -57,7 +57,7 @@ export function applyTheme(theme: ThemeId) {
 }
 
 export function useTheme() {
-  const [theme, setThemeState] = useState<ThemeId>("atual");
+  const [theme, setThemeState] = useState<ThemeId>("magio-claro");
   const [hydrated, setHydrated] = useState(false);
 
   // Hidrata do localStorage e, em seguida, da preferência salva do usuário.
