@@ -169,6 +169,13 @@
       "when": 1792501365328,
       "tag": "0023_pedidos_preservar_sugestoes_anteriores",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792501384123,
+      "tag": "0024_pedidos_bloquear_retorno_com_separacao",
+      "breakpoints": true
     }
   ]
 }
