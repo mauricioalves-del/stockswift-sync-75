@@ -18,7 +18,7 @@ test("Somente administrador autenticado pode retornar um pedido e o resultado pe
   const headers = { apikey: key, Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json", Prefer: "return=representation" };
   const role = await fetch(`${base}/rest/v1/rpc/has_role`, { method: "POST", headers, body: JSON.stringify({ _user_id: session.user.id, _role: "ADMINISTRADOR" }) });
   expect(await role.json()).toBe(true);
-  const inserted = await fetch(`${base}/rest/v1/abast_pedidos`, { method: "POST", headers, body: JSON.stringify({ numero: -Date.now(), loja: "ELDORADO", status: "AGUARD_DIRETOR", criado_por: session.user.id, observacao: "Teste automatizado de retorno" }) });
+  const inserted = await fetch(`${base}/rest/v1/abast_pedidos`, { method: "POST", headers, body: JSON.stringify({ loja: "ELDORADO", status: "AGUARD_DIRETOR", criado_por: session.user.id, observacao: "Teste automatizado de retorno" }) });
   expect(inserted.status).toBe(201);
   const [order] = await inserted.json();
   try {
