@@ -20,12 +20,19 @@ export function usePermissions() {
     enabled: !!role,
     staleTime: 60_000,
     queryFn: async () => {
-      // perfil_id via role_key
-      const { data: perfil } = await (supabase as any)
+      // Perfil do usuário (profiles.perfil_id), válido só se casar com o papel atual;
+      // senão, o primeiro perfil ativo com o mesmo papel.
+      const uid = (await supabase.auth.getUser()).data.user?.id;
+      const { data: prof } = uid
+        ? await (supabase as any).from("profiles").select("perfil_id").eq("id", uid).maybeSingle()
+        : { data: null };
+      const { data: candidatos } = await (supabase as any)
         .from("perfis")
-        .select("id")
+        .select("id, created_at")
         .eq("role_key", role)
-        .maybeSingle();
+        .order("created_at");
+      const lista = (candidatos ?? []) as { id: string }[];
+      const perfil = lista.find((p) => p.id === prof?.perfil_id) ?? lista[0] ?? null;
 
       const [modsRes, permsRes] = await Promise.all([
         (supabase as any).from("modulos_sistema").select("id, rota"),

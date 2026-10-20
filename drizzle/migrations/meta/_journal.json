@@ -176,6 +176,13 @@
       "when": 1792501384123,
       "tag": "0024_pedidos_bloquear_retorno_com_separacao",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792519583470,
+      "tag": "0025_proteger_perfil_id",
+      "breakpoints": true
     }
   ]
 }
