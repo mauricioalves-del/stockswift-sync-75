@@ -1,7 +1,7 @@
 # Correção de grupos das Baixas Operacionais
 
 ## Pedidos: retorno de status
-- [ ] Adicionar retorno ao status anterior exclusivo para administrador e verificar permissões e fluxo.
+- [x] Adicionar retorno ao status anterior exclusivo para administrador e verificar permissões e fluxo.
 
 ## Reposição de Lojas: apresentação
 - [x] Remover Grupo, Família e Caixa da lista; mostrar Classe do portfólio aprovado após Produto.
