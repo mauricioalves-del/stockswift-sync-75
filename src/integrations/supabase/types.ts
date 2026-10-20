@@ -422,6 +422,7 @@ export type Database = {
           base_demanda: string | null
           criado_em: string
           criado_por: string | null
+          historico_status: Json
           id: string
           loja: string
           loja_origem: string | null
@@ -448,6 +449,7 @@ export type Database = {
           base_demanda?: string | null
           criado_em?: string
           criado_por?: string | null
+          historico_status?: Json
           id?: string
           loja: string
           loja_origem?: string | null
@@ -474,6 +476,7 @@ export type Database = {
           base_demanda?: string | null
           criado_em?: string
           criado_por?: string | null
+          historico_status?: Json
           id?: string
           loja?: string
           loja_origem?: string | null
@@ -4718,6 +4721,10 @@ export type Database = {
       abast_papeis_validacao: { Args: never; Returns: Json }
       abast_registrar_disponibilidade: {
         Args: { p_data?: string }
+        Returns: Json
+      }
+      abast_retornar_status: {
+        Args: { p_id: string; p_status_atual: string }
         Returns: Json
       }
       abast_validar_cd: {
