@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ClipboardList, Download, PackageCheck, Pencil, Plus, Trash2, Undo2 } from "lucide-react";
+import { ClipboardList, Download, PackageCheck, Pencil, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { statusAnterior } from "@/lib/abastecimento-pedido-status";
 import { anexarSaldos, itemValido, mostrarSaldo, saldoFinal, validarEdicaoLocal, type Saldo } from "@/lib/abastecimento-pedidos-saldo";
+import { RessalvaDialog } from "@/components/abast-dash/RessalvaDialog";
 
 export const Route = createFileRoute("/_authenticated/abastecimento/pedidos")({
   component: PedidosPage,
@@ -29,7 +30,6 @@ type Pedido = {
   aprov_diretor_nome?: string | null; aprov_diretor_em?: string | null; aprov_diretor_obs?: string | null; aprov_diretor_decisao?: string | null;
   edicoes?: Edicao[] | null; almox_origem?: string | null;
 };
-type Sug = { id_produto: string; descricao: string; qtd: number };
 
 const ETAPAS = [{ k: "AGUARD_COMERCIAL", r: "Comercial" }, { k: "AGUARD_DIRETOR", r: "Diretor" }, { k: "ABERTO", r: "Aberto" }, { k: "EM_SEPARACAO", r: "Em separação" }, { k: "SEPARADO", r: "Separado" }, { k: "ENVIADO", r: "Enviado" }, { k: "RECEBIDO", r: "Recebido" }];
 const ROTULO: Record<string, string> = { AGUARD_COMERCIAL: "Aguard. comercial", AGUARD_DIRETOR: "Aguard. diretor", ABERTO: "Aberto", EM_SEPARACAO: "Em separação", SEPARADO: "Separado", ENVIADO: "Enviado", RECEBIDO: "Recebido", CANCELADO: "Cancelado" };
@@ -38,7 +38,6 @@ const ATIVOS = ["AGUARD_COMERCIAL", "AGUARD_DIRETOR", "ABERTO", "EM_SEPARACAO", 
 const DECISAO: Record<string, string> = { COM_SUGESTOES: "Atender com as sugestões", SEM_SUGESTOES: "Atender sem as sugestões", CANCELAR: "Cancelado pelo diretor" };
 const un = (v: number) => Math.round(v).toLocaleString("pt-BR");
 const dt = (s?: string | null) => (s ? new Date(s).toLocaleString("pt-BR") : "");
-const nk = (s: string) => String(s ?? "").replace(/^0+/, "");
 
 function Etapas({ status }: { status: string }) {
   if (status === "CANCELADO") return <span className="text-xs text-muted-foreground">—</span>;
@@ -334,66 +333,6 @@ function ExcluirItemDialog({ p, i, onClose, onOk }: { p: Pedido; i: Item; onClos
         <DialogHeader><DialogTitle>Excluir item · Pedido {p.numero}</DialogTitle><DialogDescription>Retirar <span className="font-mono">{i.id_produto}</span> {i.descricao} ({un(Number(i.qtd_pedida))} un) do pedido. A exclusão fica registrada no histórico do pedido.</DialogDescription></DialogHeader>
         <Input placeholder="Motivo (opcional)" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
         <DialogFooter><Button variant="ghost" disabled={salvando} onClick={onClose}>Voltar</Button><Button variant="destructive" disabled={salvando} onClick={excluir}>{salvando ? "Excluindo..." : "Excluir item"}</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function RessalvaDialog({ p, onClose, onOk }: { p: Pedido; onClose: () => void; onOk: () => void }) {
-  const sb = supabase as any;
-  const [obs, setObs] = useState("");
-  const [sugs, setSugs] = useState<Sug[]>([]);
-  const [sel, setSel] = useState("");
-  const [qtd, setQtd] = useState("");
-  const [salvando, setSalvando] = useState(false);
-  const cat = useQuery({
-    queryKey: ["abast-catalogo-aprovado", p.loja],
-    queryFn: async () => {
-      const { data } = await sb.from("abast_validacoes_portfolio").select("itens, competencia").eq("loja", p.loja).eq("status", "VALIDADA").order("competencia", { ascending: false }).order("aprovado_em", { ascending: false }).limit(1);
-      const itens = (data?.[0]?.itens ?? []) as any[];
-      return itens.filter((i) => i.ativo !== false).map((i) => ({ sku: String(i.sku), descricao: String(i.descricao ?? i.sku) }));
-    },
-  });
-  const noPedido = useMemo(() => new Set(p.itens.map((i) => nk(i.id_produto))), [p.itens]);
-  const opcoes = (cat.data ?? []).filter((c) => !sugs.some((s) => nk(s.id_produto) === nk(c.sku)));
-
-  function adicionar() {
-    const c = (cat.data ?? []).find((x) => x.sku === sel); const n = Number(qtd);
-    if (!c || !(n > 0)) { toast.error("Escolha o produto e uma quantidade maior que zero."); return; }
-    setSugs([...sugs, { id_produto: c.sku, descricao: c.descricao, qtd: n }]); setSel(""); setQtd("");
-  }
-  async function enviar() {
-    if (!obs.trim()) { toast.error("Escreva as ressalvas na observação."); return; }
-    setSalvando(true);
-    try {
-      const { error } = await sb.rpc("abast_aprovar_comercial", { p_id: p.id, p_aprovado: false, p_obs: obs.trim(), p_itens_sugeridos: sugs });
-      if (error) throw error;
-      toast.success(`Pedido ${p.numero} enviado ao Diretor de Operações.`); onOk();
-    } catch (err: any) { toast.error("Não consegui registrar: " + (err?.message ?? err)); }
-    finally { setSalvando(false); }
-  }
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>Ressalvas · Pedido {p.numero} ({p.loja})</DialogTitle><DialogDescription className="sr-only">Registre a observação e sugira produtos extras do catálogo aprovado para o Diretor de Operações.</DialogDescription></DialogHeader>
-        <div className="space-y-4">
-          <div><label className="text-sm font-medium">Observação (obrigatória)</label><Textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={4} placeholder="Descreva as ressalvas para o Diretor de Operações" /></div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Sugerir mais produtos (catálogo aprovado da loja)</label>
-            {cat.isLoading ? <p className="text-xs text-muted-foreground">Carregando catálogo…</p> : !(cat.data ?? []).length ? <p className="text-xs text-muted-foreground">Esta loja não tem portfólio aprovado; não é possível sugerir produtos.</p> : (
-              <div className="flex gap-2">
-                <select value={sel} onChange={(e) => setSel(e.target.value)} className="h-9 flex-1 rounded-md border bg-background px-2 text-sm">
-                  <option value="">Escolha o produto…</option>
-                  {opcoes.map((c) => <option key={c.sku} value={c.sku}>{c.sku} · {c.descricao}{noPedido.has(nk(c.sku)) ? " (já no pedido)" : ""}</option>)}
-                </select>
-                <Input type="number" min={1} value={qtd} onChange={(e) => setQtd(e.target.value)} placeholder="Qtd" className="w-24" />
-                <Button type="button" variant="outline" onClick={adicionar}><Plus className="size-4" /></Button>
-              </div>
-            )}
-            {sugs.length > 0 && <Table><TableBody>{sugs.map((s) => <TableRow key={s.id_produto}><TableCell className="font-mono text-xs">{s.id_produto}</TableCell><TableCell>{s.descricao}</TableCell><TableCell className="text-right">{un(s.qtd)}</TableCell><TableCell className="w-10"><Button size="sm" variant="ghost" onClick={() => setSugs(sugs.filter((x) => x !== s))} aria-label="Remover"><Trash2 className="size-4" /></Button></TableCell></TableRow>)}</TableBody></Table>}
-          </div>
-        </div>
-        <DialogFooter><Button variant="ghost" onClick={onClose}>Voltar</Button><Button disabled={salvando} onClick={enviar}>Enviar ao Diretor</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
