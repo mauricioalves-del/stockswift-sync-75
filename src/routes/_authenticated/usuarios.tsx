@@ -91,15 +91,19 @@ function UsuariosPage() {
     },
   });
 
-  async function changeRole(userId: string, newRole: Role) {
+  async function changeRole(userId: string, newRole: Role, perfilId?: string) {
     await supabase.from("user_roles").delete().eq("user_id", userId);
     const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: newRole });
     if (error) return toast.error(error.message);
+    if (perfilId) {
+      const { error: pErr } = await (supabase as any).from("profiles").update({ perfil_id: perfilId }).eq("id", userId);
+      if (pErr) return toast.error(pErr.message);
+    }
     toast.success("Perfil atualizado");
     const me = (await supabase.auth.getUser()).data.user?.id;
     await supabase.from("audit_logs").insert({
       usuario: me, acao: "ALTERAR_PERFIL", entidade: "user_roles",
-      entidade_id: userId, payload: { role: newRole },
+      entidade_id: userId, payload: { role: newRole, perfil_id: perfilId ?? null },
     });
     qc.invalidateQueries({ queryKey: ["usuarios"] });
   }
@@ -262,11 +266,14 @@ function UsuariosPage() {
                     <TableCell className="font-medium">{u.nome || "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{u.email}</TableCell>
                     <TableCell>
-                      <Select value={u.role ?? ""} onValueChange={(v) => changeRole(u.id, v as Role)}>
+                      <Select
+                        value={(perfis.find((p) => p.id === u.perfil_id && p.role_key === u.role) ?? perfis.find((p) => p.role_key === u.role))?.id ?? ""}
+                        onValueChange={(id) => { const p = perfis.find((x) => x.id === id); if (p) changeRole(u.id, p.role_key, p.id); }}
+                      >
                         <SelectTrigger className="w-full"><SelectValue placeholder="—" /></SelectTrigger>
                         <SelectContent>
                           {perfis.map((p) => (
-                            <SelectItem key={p.id} value={p.role_key}>{p.nome}</SelectItem>
+                            <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
