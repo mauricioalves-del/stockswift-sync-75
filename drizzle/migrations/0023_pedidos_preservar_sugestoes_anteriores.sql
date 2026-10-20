@@ -1,0 +1,2 @@
+ALTER TABLE public.abast_pedido_itens DROP CONSTRAINT abast_pedido_itens_origem_check;
+ALTER TABLE public.abast_pedido_itens ADD CONSTRAINT abast_pedido_itens_origem_check CHECK (origem IN ('SUGESTAO','MANUAL','TRANSFERENCIA','SUGESTAO_COMERCIAL','SUGESTAO_COMERCIAL_ANTERIOR'));

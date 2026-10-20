@@ -162,6 +162,13 @@
       "when": 1792501309486,
       "tag": "0022_pedidos_retorno_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792501365328,
+      "tag": "0023_pedidos_preservar_sugestoes_anteriores",
+      "breakpoints": true
     }
   ]
 }
