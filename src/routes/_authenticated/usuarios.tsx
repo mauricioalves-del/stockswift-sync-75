@@ -9,14 +9,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
-import { Shield, ExternalLink, UserCheck, Trash2, Clock } from "lucide-react";
-import { deleteUsuario } from "@/lib/usuarios.functions";
+import { Shield, ExternalLink, UserCheck, Trash2, Clock, UserPlus, ShieldPlus } from "lucide-react";
+import { deleteUsuario, createUsuario } from "@/lib/usuarios.functions";
 import type { Database } from "@/integrations/supabase/types";
 
 type Role = Database["public"]["Enums"]["app_role"];
@@ -42,7 +46,10 @@ function UsuariosPage() {
   const podeGerir = isAdmin || role === "COORDENADOR_CONTROLE";
   const qc = useQueryClient();
   const deleteFn = useServerFn(deleteUsuario);
+  const createFn = useServerFn(createUsuario);
   const [toDelete, setToDelete] = useState<{ id: string; nome: string } | null>(null);
+  const [novoUsuarioOpen, setNovoUsuarioOpen] = useState(false);
+  const [novoPerfilOpen, setNovoPerfilOpen] = useState(false);
 
   const perfisQ = useQuery({
     queryKey: ["perfis-ativos"],
