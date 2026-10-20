@@ -140,6 +140,32 @@ function UsuariosPage() {
     qc.invalidateQueries({ queryKey: ["usuarios"] });
   }
 
+  async function criarPerfil(d: { nome: string; role_key: Role; descricao: string }) {
+    const { error } = await (supabase as any).from("perfis")
+      .insert({ nome: d.nome, role_key: d.role_key, descricao: d.descricao || null, ativo: true });
+    if (error) return toast.error(error.message);
+    const me = (await supabase.auth.getUser()).data.user?.id;
+    await supabase.from("audit_logs").insert({
+      usuario: me, acao: "CRIAR_PERFIL", entidade: "perfis",
+      entidade_id: d.nome, payload: { role_key: d.role_key },
+    });
+    toast.success("Perfil criado");
+    setNovoPerfilOpen(false);
+    qc.invalidateQueries({ queryKey: ["perfis-ativos"] });
+    qc.invalidateQueries({ queryKey: ["perfis"] });
+  }
+
+  async function criarUsuario(d: { nome: string; email: string; senha: string; role: Role; almoxes: string[] }) {
+    try {
+      await createFn({ data: d });
+      toast.success("Usuário criado e aprovado");
+      setNovoUsuarioOpen(false);
+      qc.invalidateQueries({ queryKey: ["usuarios"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao criar usuário");
+    }
+  }
+
   async function confirmDelete() {
     if (!toDelete) return;
     try {
