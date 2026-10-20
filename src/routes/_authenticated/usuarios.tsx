@@ -199,11 +199,19 @@ function UsuariosPage() {
             Aprove novos cadastros, atribua um perfil e defina quais almoxarifados cada usuário pode acessar.
           </p>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link to="/config/perfis">
-            <Shield className="size-4 mr-1.5" /> Matriz de Permissões <ExternalLink className="size-3 ml-1" />
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button size="sm" onClick={() => setNovoUsuarioOpen(true)}>
+            <UserPlus className="size-4 mr-1.5" /> Novo usuário
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setNovoPerfilOpen(true)}>
+            <ShieldPlus className="size-4 mr-1.5" /> Novo perfil
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/config/perfis">
+              <Shield className="size-4 mr-1.5" /> Matriz de Permissões <ExternalLink className="size-3 ml-1" />
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Aguardando aprovação */}
