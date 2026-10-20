@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Fragment, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ClipboardList, Download, PackageCheck, Plus, Trash2 } from "lucide-react";
+import { ClipboardList, Download, PackageCheck, Plus, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -11,14 +11,16 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { statusAnterior } from "@/lib/abastecimento-pedido-status";
 
 export const Route = createFileRoute("/_authenticated/abastecimento/pedidos")({
   component: PedidosPage,
-  head: () => ({ meta: [{ title: "Pedidos de Abastecimento" }, { name: "description", content: "Aprovação e acompanhamento dos pedidos de abastecimento das lojas." }] }),
+  head: () => ({ meta: [{ title: "Pedidos de Abastecimento — Mágio" }, { name: "description", content: "Aprovação e acompanhamento dos pedidos de abastecimento das lojas." }, { property: "og:title", content: "Pedidos de Abastecimento — Mágio" }, { property: "og:description", content: "Aprovação e acompanhamento dos pedidos de abastecimento das lojas." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
 
 type Item = { id: string; id_produto: string; descricao: string | null; qtd_sugerida: number | null; qtd_pedida: number; qtd_separada: number | null; caixa: number | null; origem: string; aceito: boolean | null };
 type Pedido = {
+  historico_status?: string[];
   id: string; numero: number; loja: string; status: string; base_demanda: string | null; tipo?: string | null; loja_origem?: string | null; observacao?: string | null;
   criado_em: string; atualizado_em: string; requisicao_id: string | null; requisicao_numero: string | null; itens: Item[];
   aprov_comercial_nome?: string | null; aprov_comercial_em?: string | null; aprov_comercial_obs?: string | null; aprov_comercial_resultado?: string | null;
@@ -66,6 +68,21 @@ function PedidosPage() {
   const [agindo, setAgindo] = useState<string | null>(null);
   const [ressalva, setRessalva] = useState<Pedido | null>(null);
   const [decisao, setDecisao] = useState<Pedido | null>(null);
+  const [retorno, setRetorno] = useState<Pedido | null>(null);
+
+  async function retornar(p: Pedido) {
+    if (!isAdmin) return;
+    setAgindo(p.id);
+    try {
+      const { data, error } = await sb.rpc("abast_retornar_status", { p_id: p.id, p_status_atual: p.status });
+      if (error) throw error;
+      toast.success(`Pedido ${p.numero} retornou para ${ROTULO[data.para] ?? data.para}.`);
+      setRetorno(null);
+      recarregar();
+      qc.invalidateQueries({ queryKey: ["requisicoes"] });
+    } catch (err: any) { toast.error("Não consegui retornar: " + (err?.message ?? err)); }
+    finally { setAgindo(null); }
+  }
 
   const q = useQuery({
     enabled: pode, queryKey: ["abast-pedidos"], refetchInterval: 15000, refetchOnWindowFocus: true,
@@ -139,6 +156,7 @@ function PedidosPage() {
                 <TableCell className="text-xs">{dt(p.criado_em)}</TableCell>
                 <TableCell className="text-right whitespace-nowrap space-x-1" onClick={(e) => e.stopPropagation()}>
                   <Button size="sm" variant="ghost" onClick={() => exportar(p)} aria-label="CSV"><Download className="size-4" /></Button>
+                  {isAdmin && statusAnterior(p) && <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => setRetorno(p)} title={`Retornar para ${ROTULO[statusAnterior(p) ?? ""] ?? "status anterior"}`} aria-label={`Retornar status do pedido ${p.numero}`}><Undo2 className="size-4" /> Retornar</Button>}
                   {comercial && p.status === "AGUARD_COMERCIAL" && <>
                     <Button size="sm" disabled={agindo === p.id} onClick={() => aprovar(p)}>Aprovar</Button>
                     <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => setRessalva(p)}>Com ressalvas</Button>
@@ -159,6 +177,13 @@ function PedidosPage() {
         </TableBody></Table></CardContent></Card>
       {ressalva && <RessalvaDialog p={ressalva} onClose={() => setRessalva(null)} onOk={() => { setRessalva(null); recarregar(); }} />}
       {decisao && <DecisaoDialog p={decisao} onClose={() => setDecisao(null)} onOk={() => { setDecisao(null); recarregar(); }} />}
+      {isAdmin && retorno && <Dialog open onOpenChange={(o) => !o && agindo !== retorno.id && setRetorno(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Retornar status · Pedido {retorno.numero}</DialogTitle><DialogDescription>De {ROTULO[retorno.status]} para {ROTULO[statusAnterior(retorno) ?? ""]}. O retorno ficará registrado no histórico de auditoria.</DialogDescription></DialogHeader>
+          {statusAnterior(retorno)?.startsWith("AGUARD_") && <p className="text-sm text-muted-foreground">A aprovação será refeita. Se houver requisição sem separação, ela será cancelada; uma nova será criada após a aprovação.</p>}
+          <DialogFooter><Button variant="ghost" disabled={agindo === retorno.id} onClick={() => setRetorno(null)}>Voltar</Button><Button disabled={agindo === retorno.id} onClick={() => retornar(retorno)}>Confirmar retorno</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>}
     </div>
   );
 }
@@ -182,7 +207,7 @@ function Historico({ p }: { p: Pedido }) {
 }
 
 function ItensTabela({ itens }: { itens: Item[] }) {
-  const orig = (i: Item) => i.origem === "SUGESTAO_COMERCIAL" ? `Sugestão comercial${i.aceito === true ? " · aceita" : i.aceito === false ? " · recusada" : " · pendente"}` : i.origem === "MANUAL" ? "Manual" : i.origem === "TRANSFERENCIA" ? "Transferência" : "Sugestão";
+  const orig = (i: Item) => i.origem === "SUGESTAO_COMERCIAL_ANTERIOR" ? "Sugestão comercial · aprovação anterior" : i.origem === "SUGESTAO_COMERCIAL" ? `Sugestão comercial${i.aceito === true ? " · aceita" : i.aceito === false ? " · recusada" : " · pendente"}` : i.origem === "MANUAL" ? "Manual" : i.origem === "TRANSFERENCIA" ? "Transferência" : "Sugestão";
   return (
     <Table><TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead className="text-right">Pedido</TableHead><TableHead className="text-right">Separado</TableHead><TableHead className="text-right">Sugerido</TableHead><TableHead className="text-right">Caixa</TableHead><TableHead>Origem</TableHead></TableRow></TableHeader>
       <TableBody>{itens.map((i) => <TableRow key={i.id} className={i.aceito === false ? "opacity-50 line-through" : ""}><TableCell className="font-mono text-xs">{i.id_produto}</TableCell><TableCell>{i.descricao}</TableCell><TableCell className="text-right font-semibold">{un(Number(i.qtd_pedida))}</TableCell><TableCell className="text-right">{i.qtd_separada == null ? "—" : un(Number(i.qtd_separada))}</TableCell><TableCell className="text-right">{i.qtd_sugerida == null ? "—" : un(Number(i.qtd_sugerida))}</TableCell><TableCell className="text-right">{i.caixa ?? "—"}</TableCell><TableCell className={`text-xs ${i.origem === "SUGESTAO_COMERCIAL" ? "text-primary font-medium" : ""}`}>{orig(i)}</TableCell></TableRow>)}</TableBody></Table>

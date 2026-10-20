@@ -13,3 +13,4 @@
 - Hosted access regression tests use a locally minted approved session and never store or print its credentials.
 - Portfolio classification is an append-only ledger separate from ABC; authenticated database RPCs atomically validate imports and derive the author from the session to prevent partial writes and unauthorized reclassification.
 - Replenishment displays portfolio classes from the same immutable approved snapshot used for each store's SKU list, never from current classification or ABC, to preserve approval provenance.
+- Order status rollback uses an admin-validated database RPC and a transition stack; it audits the previous order and synchronizes linked requisitions to prevent approval bypass and duplicate active requests.
