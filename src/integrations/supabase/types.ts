@@ -422,6 +422,7 @@ export type Database = {
           base_demanda: string | null
           criado_em: string
           criado_por: string | null
+          edicoes: Json
           historico_status: Json
           id: string
           loja: string
@@ -449,6 +450,7 @@ export type Database = {
           base_demanda?: string | null
           criado_em?: string
           criado_por?: string | null
+          edicoes?: Json
           historico_status?: Json
           id?: string
           loja: string
@@ -476,6 +478,7 @@ export type Database = {
           base_demanda?: string | null
           criado_em?: string
           criado_por?: string | null
+          edicoes?: Json
           historico_status?: Json
           id?: string
           loja?: string
@@ -4625,6 +4628,10 @@ export type Database = {
       }
     }
     Functions: {
+      abast__almox_origem: {
+        Args: { p_loja_origem: string; p_tipo: string }
+        Returns: string
+      }
       abast__aplicar_carga: {
         Args: { p_arquivo: string; p_payload: Json; p_uid: string }
         Returns: Json
@@ -4655,10 +4662,23 @@ export type Database = {
         Args: { p_id: string; p_uid: string }
         Returns: undefined
       }
+      abast__pode_editar_pedido: {
+        Args: { p_status: string; p_uid: string }
+        Returns: boolean
+      }
       abast__registrar_disponibilidade: {
         Args: { p_data: string }
         Returns: Json
       }
+      abast__saldo_origem: {
+        Args: { p_alm: string; p_exclui?: string; p_sku: string }
+        Returns: {
+          estoque: number
+          estoque_lido_em: string
+          reservado: number
+        }[]
+      }
+      abast__sku_saldo: { Args: { p_id: string }; Returns: string }
       abast_aplicar_carga: {
         Args: { p_arquivo: string; p_payload: Json }
         Returns: Json
@@ -4710,15 +4730,35 @@ export type Database = {
         Args: { p_ativo?: boolean; p_funcao: string; p_user_id: string }
         Returns: Json
       }
+      abast_editar_item_pedido: {
+        Args: { p_item: string; p_motivo?: string; p_qtd: number }
+        Returns: Json
+      }
       abast_eh_signatario: {
         Args: { _funcao: string; _uid: string }
         Returns: boolean
+      }
+      abast_excluir_item_pedido: {
+        Args: { p_item: string; p_motivo?: string }
+        Returns: Json
       }
       abast_importar_classificacoes: {
         Args: { p_arquivo: string; p_itens: Json }
         Returns: Json
       }
       abast_papeis_validacao: { Args: never; Returns: Json }
+      abast_pedido_saldos: {
+        Args: { p_ids?: string[] }
+        Returns: {
+          almox_origem: string
+          estoque: number
+          estoque_lido_em: string
+          item_id: string
+          pedido_id: string
+          reservado_outros: number
+          saldo_inicial: number
+        }[]
+      }
       abast_registrar_disponibilidade: {
         Args: { p_data?: string }
         Returns: Json
@@ -4726,6 +4766,16 @@ export type Database = {
       abast_retornar_status: {
         Args: { p_id: string; p_status_atual: string }
         Returns: Json
+      }
+      abast_saldo_produtos: {
+        Args: { p_pedido: string; p_skus: string[] }
+        Returns: {
+          almox_origem: string
+          estoque: number
+          reservado_outros: number
+          saldo_inicial: number
+          sku: string
+        }[]
       }
       abast_validar_cd: {
         Args: { p_competencia: string; p_observacao: string }
