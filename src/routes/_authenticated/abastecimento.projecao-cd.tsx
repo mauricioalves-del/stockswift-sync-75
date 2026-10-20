@@ -10,7 +10,7 @@ import { formatBRL } from "@/lib/inventory";
 import { useRole } from "@/hooks/useRole";
 import { interpretarConsenso, aoaDaAbaConsenso, serieDiariaConsenso, type ResultadoConsenso } from "@/lib/abastecimento-consenso";
 import { projetarCD, planoProducao, paraPcp, type ResultadoProjecao, type Severidade, type LinhaPlano } from "@/lib/abastecimento-projecao";
-import { planejarSku, estimarDemandaReal, type ResultadoMotor, type Lote, type Zona } from "@/lib/abastecimento-cd-motor";
+import { planejarSku, estimarDemandaReal, cargaSemanal, semanaDeProducao, type ResultadoMotor, type Lote, type Zona } from "@/lib/abastecimento-cd-motor";
 import { somasRealizacao } from "@/lib/abastecimento-realizacao";
 import { carregarBomCompleta, explodirSimulacao, type BomLinha } from "@/lib/pcp-bom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +29,8 @@ const COR: Record<Severidade, string> = { critica: "bg-red-100 text-red-700 bord
 const ZONA_COR: Record<Zona, string> = { vermelho: "bg-red-100 text-red-700 border-red-200", amarelo: "bg-amber-100 text-amber-800 border-amber-200", verde: "bg-emerald-100 text-emerald-700 border-emerald-200", excesso: "bg-violet-100 text-violet-700 border-violet-200" };
 const ZONA_ROT: Record<Zona, string> = { vermelho: "Vermelho", amarelo: "Amarelo", verde: "Verde", excesso: "Excesso" };
 const ROT: Record<Severidade, string> = { critica: "Crítica (≤14 dias)", alta: "Alta (≤30)", media: "Média (≤60)", baixa: "Baixa (>60)", ok: "Sem ruptura" };
+type LinhaPlanoCiclo = LinhaPlano & { foraDoCiclo?: boolean };
+const DIAS_SEMANA = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
 const un = (v: number) => Math.round(v).toLocaleString("pt-BR");
 const dataBr = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
 const fimDoMes = (mes: string) => { const d = new Date(Date.UTC(+mes.slice(0, 4), +mes.slice(5, 7), 0)); return d.toISOString().slice(0, 10); };
@@ -53,6 +55,8 @@ function ProjecaoCdPage() {
   const [shelfMin, setShelfMin] = useState("30");
   const [zServ, setZServ] = useState("1.65");
   const [comCafe, setComCafe] = useState(false);
+  const [diaRev, setDiaRev] = useState("5");          // dia da revisão semanal do plano (5 = sexta); "" = libera em qualquer dia
+  const [capSem, setCapSem] = useState("2779");       // capacidade semanal de referência (un): mediana de 16 semanas, estimada pela ficha técnica
   const [filtro, setFiltro] = useState<Severidade | "TODOS">("TODOS");
   const [busca, setBusca] = useState("");
   const [fora, setFora] = useState<Set<string>>(new Set());
@@ -153,7 +157,7 @@ function ProjecaoCdPage() {
     }
     const probAprov = aprQ + repQ >= 50 ? Math.min(0.98, Math.max(0.5, aprQ / (aprQ + repQ))) : 0.9;
     const motor = new Map<string, ResultadoMotor & { tipo: string; custo: number }>();
-    const pm = { leadTimeDias: lead, diasQualidade: Math.max(0, Number(diasQual) || 0), diasProcesso: Math.max(0, Number(diasProc) || 0), shelfMinimoDespacho: Math.max(0, Number(shelfMin) || 0), nivelServicoZ: Number(zServ) > 0 ? Number(zServ) : 1.65, segurancaExtraDias: seg, probAprovBaixa: probAprov };
+    const pm = { leadTimeDias: lead, diasQualidade: Math.max(0, Number(diasQual) || 0), diasProcesso: Math.max(0, Number(diasProc) || 0), shelfMinimoDespacho: Math.max(0, Number(shelfMin) || 0), nivelServicoZ: Number(zServ) > 0 ? Number(zServ) : 1.65, segurancaExtraDias: seg, probAprovBaixa: probAprov, diaRevisao: diaRev === "" ? null : Number(diaRev) };
     for (const [k, o] of porSku) {
       if (!comCafe && o.tipo.toLowerCase().includes("cafeteria")) continue;
       const dem = new Array(N).fill(0); const metaLoja: Record<string, number> = {};
@@ -169,11 +173,11 @@ function ProjecaoCdPage() {
         baixasPendentes: baixaPend.get(k) ?? 0, taxaBaixaDia: baixaTaxa.get(k) ?? 0, custo: e?.custo }, inicio, pm);
       if (r) motor.set(k, { ...r, tipo: o.tipo, custo: e?.custo ?? 0 });
     }
-    const limite = somaDiasIso(inicio, 30); const plano: LinhaPlano[] = [];
-    for (const [k, m] of motor) for (const o of m.ordens) if (o.liberar <= limite) plano.push({ sku: canon.get(k) ?? k, descricao: m.descricao, quantidade: o.quantidade, produzirAte: o.liberar, dataRuptura: m.dataRupturaCD ?? o.chegada, urgente: o.urgente, severidade: m.severidade });
+    const limite = somaDiasIso(inicio, 30); const plano: LinhaPlanoCiclo[] = [];
+    for (const [k, m] of motor) for (const o of m.ordens) if (o.liberar <= limite) plano.push({ sku: canon.get(k) ?? k, descricao: m.descricao, quantidade: o.quantidade, produzirAte: o.liberar, dataRuptura: m.dataRupturaCD ?? o.chegada, urgente: o.urgente, foraDoCiclo: o.foraDoCiclo, severidade: m.severidade });
     plano.sort((a, b) => a.produzirAte.localeCompare(b.produzirAte) || b.quantidade - a.quantidade);
     return { vazio: false as const, inicio, N, ultimoMes, projs, plano, almoxDe, motor, probAprov };
-  }, [dados.data, leadTime, segCD, diasTransito, comCafe, diasQual, diasProc, shelfMin, zServ]);
+  }, [dados.data, leadTime, segCD, diasTransito, comCafe, diasQual, diasProc, shelfMin, zServ, diaRev]);
 
   const projFiltradas = useMemo(() => {
     if (!calc || calc.vazio) return [];
@@ -217,6 +221,7 @@ function ProjecaoCdPage() {
   }
 
   const planoSel = useMemo(() => (calc && !calc.vazio ? calc.plano.filter((l) => !fora.has(l.sku)) : []), [calc, fora]);
+  const carga = useMemo(() => cargaSemanal(planoSel.map((l) => ({ liberar: l.produzirAte, quantidade: l.quantidade, sku: l.sku })), Number(capSem) || 0), [planoSel, capSem]);
   async function verificarMp() {
     if (!dados.data || planoSel.length === 0) return;
     setVerificando(true);
@@ -316,6 +321,8 @@ function ProjecaoCdPage() {
           <div><div className="text-xs text-muted-foreground mb-1">Liberação da Qualidade (dias)</div><Input className="w-28" inputMode="numeric" value={diasQual} onChange={(e) => setDiasQual(e.target.value)} /></div>
           <div><div className="text-xs text-muted-foreground mb-1">Processo → disponível (dias)</div><Input className="w-28" inputMode="numeric" value={diasProc} onChange={(e) => setDiasProc(e.target.value)} /></div>
           <div><div className="text-xs text-muted-foreground mb-1">Shelf mínimo p/ despacho (dias)</div><Input className="w-28" inputMode="numeric" value={shelfMin} onChange={(e) => setShelfMin(e.target.value)} /></div>
+          <div><div className="text-xs text-muted-foreground mb-1">Dia da revisão do plano</div><select value={diaRev} onChange={(e) => setDiaRev(e.target.value)} className="h-9 w-44 rounded-md border bg-background px-2 text-sm"><option value="">Qualquer dia (sem ciclo)</option>{DIAS_SEMANA.map((d, i) => <option key={d} value={String(i)}>{d}</option>)}</select></div>
+          <div><div className="text-xs text-muted-foreground mb-1">Capacidade semanal (un)</div><Input className="w-28" inputMode="numeric" value={capSem} onChange={(e) => setCapSem(e.target.value)} title="Mediana de 16 semanas de produção de acabados, estimada pela ficha técnica" /></div>
           <div><div className="text-xs text-muted-foreground mb-1">Nível de serviço (z)</div><Input className="w-28" inputMode="decimal" value={zServ} onChange={(e) => setZServ(e.target.value)} /></div>
           <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={comCafe} onChange={(e) => setComCafe(e.target.checked)} /> incluir cafeteria</label>
           <span className="text-xs text-muted-foreground">Horizonte: de {dataBr(calc.inicio)} até {dataBr(fimDoMes(calc.ultimoMes))} ({calc.N} dias)</span>
@@ -371,21 +378,32 @@ function ProjecaoCdPage() {
 
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Plano de produção sugerido</CardTitle>
-            <CardDescription>Ordens planejadas pelo motor: campanhas por ciclo de produção, liberadas com antecedência igual ao prazo (produção + qualidade), em múltiplos da caixa e limitadas à cobertura máxima. Mostra as liberações dos próximos 30 dias. Desmarque o que não quiser produzir e verifique a matéria-prima.</CardDescription></CardHeader>
+            <CardDescription>Ordens planejadas pelo motor: campanhas semanais, liberadas com antecedência igual ao prazo (produção + qualidade), em múltiplos da caixa e limitadas à cobertura máxima. {diaRev !== "" ? <>Com a revisão na <b>{DIAS_SEMANA[Number(diaRev)].toLowerCase()}</b>, as ordens só são liberadas nesse dia (na última revisão que ainda cumpre o prazo); o que não pode esperar aparece como <b>FORA DO CICLO</b>.</> : "Sem dia de revisão: liberação em qualquer dia."} Mostra as liberações dos próximos 30 dias. Desmarque o que não quiser produzir e verifique a matéria-prima.</CardDescription></CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-wrap gap-2">
               <Button onClick={verificarMp} disabled={verificando || planoSel.length === 0} className="gap-2"><FlaskConical className="size-4" /> {verificando ? "Checando..." : `Verificar matéria-prima (${new Set(planoSel.map((l) => l.sku)).size} SKUs)`}</Button>
-              <Button variant="outline" className="gap-1" onClick={() => csv(`Plano_Producao_${calc.inicio}.csv`, ["SKU", "Produto", "Quantidade", "Produzir até", "Ruptura prevista", "Urgente", "Matéria-prima insuficiente (itens)"], planoSel.map((l) => [l.sku, l.descricao, l.quantidade, l.produzirAte, l.dataRuptura, l.urgente ? "SIM" : "", mp ? (mp.bloqueados.get(l.sku) ?? 0) : ""]))}><Download className="size-4" /> CSV do plano</Button>
+              <Button variant="outline" className="gap-1" onClick={() => csv(`Plano_Producao_${calc.inicio}.csv`, ["SKU", "Produto", "Quantidade", "Produzir até", "Ruptura prevista", "Urgente", "Fora do ciclo", "Semana de produção", "Matéria-prima insuficiente (itens)"], planoSel.map((l) => [l.sku, l.descricao, l.quantidade, l.produzirAte, l.dataRuptura, l.urgente ? "SIM" : "", l.foraDoCiclo ? "SIM" : "", dataBr(semanaDeProducao(l.produzirAte)), mp ? (mp.bloqueados.get(l.sku) ?? 0) : ""]))}><Download className="size-4" /> CSV do plano</Button>
             </div>
+            {carga.length > 0 && (
+              <div className="rounded-md border">
+                <div className="border-b bg-muted/40 px-3 py-1.5 text-xs font-medium">Carga por semana de produção <span className="font-normal text-muted-foreground">· capacidade de referência {un(Number(capSem) || 0)} un/semana (mediana medida; produção observada, não o máximo)</span></div>
+                <ul className="divide-y">{carga.map((c) => (
+                  <li key={c.semana} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-1.5 text-sm">
+                    <span className="w-32 font-medium">Semana de {dataBr(c.semana)}</span><span className="w-24 text-xs text-muted-foreground">{c.ordens} ordens · {c.skus} SKUs</span>
+                    <span className="w-24 text-right font-semibold tabular-nums">{un(c.unidades)} un</span>
+                    <div className="h-2 min-w-[120px] flex-1 rounded bg-muted"><div className={`h-2 rounded ${c.pct !== null && c.pct > 100 ? "bg-red-500" : c.pct !== null && c.pct > 80 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, c.pct ?? 0)}%` }} /></div>
+                    <span className={`w-14 text-right text-xs tabular-nums ${c.pct !== null && c.pct > 100 ? "font-semibold text-red-600" : c.pct !== null && c.pct > 80 ? "font-semibold text-amber-600" : "text-muted-foreground"}`}>{c.pct === null ? "—" : `${c.pct.toFixed(0)}%`}</span>
+                  </li>))}</ul>
+              </div>)}
             <Table><TableHeader><TableRow><TableHead className="w-8" /><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead className="text-right">Produzir</TableHead><TableHead className="text-right">Produzir até</TableHead><TableHead className="text-right">Ruptura</TableHead>{mp && <TableHead>Matéria-prima</TableHead>}</TableRow></TableHeader>
               <TableBody>
                 {calc.plano.length === 0 && <TableRow><TableCell colSpan={7} className="py-6 text-center text-muted-foreground">Nenhuma ruptura prevista: não há o que produzir.</TableCell></TableRow>}
                 {calc.plano.map((l) => (
-                  <TableRow key={l.sku} className={fora.has(l.sku) ? "opacity-40" : ""}>
+                  <TableRow key={`${l.sku}-${l.produzirAte}`} className={fora.has(l.sku) ? "opacity-40" : ""}>
                     <TableCell><input type="checkbox" checked={!fora.has(l.sku)} onChange={() => { const n = new Set(fora); if (n.has(l.sku)) n.delete(l.sku); else n.add(l.sku); setFora(n); setMp(null); }} /></TableCell>
                     <TableCell className="font-mono text-xs">{l.sku}</TableCell><TableCell className="max-w-[260px] truncate">{l.descricao || "—"}</TableCell>
                     <TableCell className="text-right font-semibold">{un(l.quantidade)}</TableCell>
-                    <TableCell className="text-right">{dataBr(l.produzirAte)}{l.urgente && <span className="ml-1 rounded-full bg-red-100 px-1.5 text-[10px] font-semibold text-red-700">URGENTE</span>}</TableCell>
+                    <TableCell className="text-right">{dataBr(l.produzirAte)}{l.urgente && <span className="ml-1 rounded-full bg-red-100 px-1.5 text-[10px] font-semibold text-red-700">URGENTE</span>}{l.foraDoCiclo && <span className="ml-1 rounded-full bg-orange-100 px-1.5 text-[10px] font-semibold text-orange-700" title="Não pode esperar a próxima revisão: liberar já">FORA DO CICLO</span>}</TableCell>
                     <TableCell className="text-right">{dataBr(l.dataRuptura)}</TableCell>
                     {mp && <TableCell className="text-xs">{mp.semBom.includes(l.sku) ? <span className="text-amber-600">sem ficha técnica: não verificável</span> : (mp.bloqueados.get(l.sku) ?? 0) > 0 ? <span className="text-red-600 font-semibold">{mp.bloqueados.get(l.sku)} MP insuficiente(s)</span> : <span className="text-emerald-600">MP suficiente</span>}</TableCell>}
                   </TableRow>))}
