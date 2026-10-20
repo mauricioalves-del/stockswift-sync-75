@@ -15,14 +15,15 @@ export type ParamsMotor = {
   leadTimeDias: number; diasQualidade: number; diasProcesso: number; atrasoEstresseDias: number;
   shelfMinimoDespacho: number; shelfPadraoDias: number; nivelServicoZ: number; pesoMeta: number;
   cicloProducaoDias: number; coberturaMaximaDias: number; probAprovBaixa: number; fatorEstresse: number; segurancaExtraDias: number;
+  diaRevisao: number | null;   // dia da semana da revisão do plano (0 = domingo … 5 = sexta); null = libera em qualquer dia
 };
 export const PARAMS_PADRAO: ParamsMotor = {
   leadTimeDias: 7, diasQualidade: 2, diasProcesso: 3, atrasoEstresseDias: 2, shelfMinimoDespacho: 30, shelfPadraoDias: 180,
-  nivelServicoZ: 1.65, pesoMeta: 0, cicloProducaoDias: 7, coberturaMaximaDias: 60, probAprovBaixa: 0.9, fatorEstresse: 1.65, segurancaExtraDias: 0,
+  nivelServicoZ: 1.65, pesoMeta: 0, cicloProducaoDias: 7, coberturaMaximaDias: 60, probAprovBaixa: 0.9, fatorEstresse: 1.65, segurancaExtraDias: 0, diaRevisao: null,
 };
 export type Zona = "vermelho" | "amarelo" | "verde" | "excesso";
 export type Severidade = "critica" | "alta" | "media" | "baixa" | "ok";
-export type OrdemProducao = { liberar: string; chegada: string; quantidade: number; atrasoDias: number; urgente: boolean; fatores: string[] };
+export type OrdemProducao = { liberar: string; chegada: string; quantidade: number; atrasoDias: number; urgente: boolean; foraDoCiclo: boolean; fatores: string[] };
 export type ResultadoMotor = {
   sku: string; descricao: string; severidade: Severidade; dataRupturaCD: string | null; diasAteRuptura: number | null;
   dataRupturaEstresse: string | null; diasAteRupturaEstresse: number | null; riscoNaoPrevisto: boolean; qtdProtecao: number;
@@ -36,6 +37,19 @@ const ms = (s: string) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(
 export const idxDia = (inicio: string, iso: string) => Math.round((ms(iso) - ms(inicio)) / DIA);
 export const isoDia = (inicio: string, d: number) => new Date(ms(inicio) + d * DIA).toISOString().slice(0, 10);
 const soma = (a: number[]) => a.reduce((x, y) => x + y, 0);
+/** Dias até o próximo dia da semana `dow` (0 = domingo … 6 = sábado), a partir de `inicio`; 0 = hoje. */
+export function diasAteDiaSemana(inicio: string, dow: number): number { return (dow - new Date(ms(inicio)).getUTCDay() + 7) % 7; }
+/** Semana (segunda-feira, ISO) em que a ordem liberada em `liberarIso` é produzida: a liberação de sexta vira produção na semana seguinte. */
+export function semanaDeProducao(liberarIso: string): string {
+  const d = new Date(ms(liberarIso) + 3 * DIA); return new Date(d.getTime() - ((d.getUTCDay() + 6) % 7) * DIA).toISOString().slice(0, 10);
+}
+export type CargaSemana = { semana: string; ordens: number; skus: number; unidades: number; pct: number | null };
+/** Unidades do plano por semana de produção, contra a capacidade semanal de referência (pct = null se não informada). */
+export function cargaSemanal(linhas: { liberar: string; quantidade: number; sku: string }[], capacidade: number): CargaSemana[] {
+  const por = new Map<string, { ordens: number; skus: Set<string>; un: number }>();
+  for (const l of linhas) { const s = semanaDeProducao(l.liberar); const a = por.get(s) ?? { ordens: 0, skus: new Set<string>(), un: 0 }; a.ordens++; a.skus.add(l.sku); a.un += l.quantidade; por.set(s, a); }
+  return [...por.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([semana, a]) => ({ semana, ordens: a.ordens, skus: a.skus.size, unidades: a.un, pct: capacidade > 0 ? (a.un / capacidade) * 100 : null }));
+}
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 
 /** Média e desvio padrão diários de uma série de vendas (usado para o run-rate real e o estoque de segurança). */
@@ -93,19 +107,26 @@ export function planejarSku(e: EntradaMotor, inicio: string, pp: Partial<ParamsM
   const nfp = soma(e.lotesCD.map((l) => l.qtd)) - base.bloq0 + wip + qual + notas + e.estoqueLojas + e.emTransitoLojas - esp.baixas;
   const zona: Zona = nfp <= tor ? "vermelho" : nfp <= toy ? "amarelo" : nfp <= tog ? "verde" : "excesso";
   // 4) ordens planejadas (MRP time-phased, lote = período de suprimento, múltiplo de caixa, teto de cobertura)
-  const seg = redSeg; const ordens: { chegada: number; qtd: number; fatores: string[]; atraso: number }[] = [];
+  const seg = redSeg; const ordens: { chegada: number; qtd: number; fatores: string[]; atraso: number; fora: boolean }[] = [];
   const capQtd = Math.ceil((adu * p.coberturaMaximaDias + seg) / caixa) * caixa; let ultimaChegada = -1;
   const semPerdas = simular(e, p, { ...esp, baixas: 0, taxaBaixa: 0 }, [], inicio);
   for (let it = 0; it < 8; it++) {
     const s = simular(e, p, esp, ordens, inicio); const t = s.fim.findIndex((v, d) => d > ultimaChegada && (v < seg - 1e-9 || s.faltaDia[d] > 1e-9)); if (t < 0) break;
-    const chegada = Math.max(t, dlt); if (chegada >= N || chegada <= ultimaChegada) break;
+    let chegada = Math.max(t, dlt), foraCiclo = false;
+    if (p.diaRevisao !== null) {                                           // cadência semanal: só libera no dia da revisão
+      const d1 = diasAteDiaSemana(inicio, p.diaRevisao), relNec = chegada - dlt;   // d1 = dias até a próxima revisão (0 = hoje)
+      if (relNec < d1) foraCiclo = true;                                    // não dá para esperar a próxima revisão: sai fora do ciclo
+      else chegada = d1 + 7 * Math.floor((relNec - d1) / 7) + dlt;          // última revisão que ainda cumpre o prazo (nunca mais tarde)
+      if (chegada <= ultimaChegada) chegada = ultimaChegada + 1;
+    }
+    if (chegada >= N || chegada <= ultimaChegada) break;
     const w = Math.min(N - 1, chegada + p.cicloProducaoDias - 1); const bruta = soma(dem.slice(chegada, w + 1));
     const ok = (q: number) => { const r = simular(e, p, esp, [...ordens, { chegada, qtd: q }], inicio); return Math.min(...r.fim.slice(chegada, w + 1)) >= seg - 1e-9 && r.faltaDia.slice(chegada, w + 1).every((x) => x <= 1e-9); };
     let lo = 1, hi = Math.max(1, Math.ceil(((bruta + seg) * 1.5 + caixa) / caixa));
     while (lo < hi) { const mid = (lo + hi) >> 1; if (ok(mid * caixa)) hi = mid; else lo = mid + 1; }
     const q = Math.min(lo * caixa, capQtd);
     const fatores = ["consumo"]; if (semPerdas.ruptura === null ? base.ruptura !== null : (base.ruptura ?? Infinity) < semPerdas.ruptura - 1) fatores.push("baixas"); if (base.perda > 0) fatores.push("validade");
-    ordens.push({ chegada, qtd: q, fatores, atraso: Math.max(0, dlt - t) }); ultimaChegada = chegada;
+    ordens.push({ chegada, qtd: q, fatores, atraso: Math.max(0, dlt - t), fora: foraCiclo }); ultimaChegada = chegada;
   }
   // 5) riscos fora da previsão: estresse (sem plano) e proteção residual com o plano
   const sEst = simular(e, p, est, [], inicio); const sEstPlano = simular(e, p, est, ordens.map((o) => ({ chegada: o.chegada, qtd: o.qtd })), inicio);
@@ -119,7 +140,7 @@ export function planejarSku(e: EntradaMotor, inicio: string, pp: Partial<ParamsM
     adu, fatorBias: fator, sigmaDia: sigma, dlt, red, yellow, green, tor, toy, tog, nfp, zona, prioridade: tog > 0 ? (nfp / tog) * 100 : 0,
     usavelHoje, bloqueadoShelf: base.bloq0, wip, qualidade: qual, notas, baixasPendentesEsperadas: esp.baixas, perdaVencimentoUn: base.perda,
     primeiraPerdaVenc: base.primeiraPerda === null ? null : isoDia(inicio, base.primeiraPerda), deficitSemPlano: base.falta,
-    ordens: ordens.map((o) => ({ liberar: isoDia(inicio, Math.max(0, o.chegada - dlt)), chegada: isoDia(inicio, o.chegada), quantidade: o.qtd, atrasoDias: o.atraso, urgente: o.chegada - dlt <= 0, fatores: o.fatores })),
+    ordens: ordens.map((o) => ({ liberar: isoDia(inicio, Math.max(0, o.chegada - dlt)), chegada: isoDia(inicio, o.chegada), quantidade: o.qtd, atrasoDias: o.atraso, urgente: p.diaRevisao !== null ? o.fora || o.atraso > 0 : o.chegada - dlt <= 0, foraDoCiclo: o.fora, fatores: o.fatores })),
     coberturaDiasUsavel: adu > 0 ? usavelHoje / adu : null,
   };
 }
