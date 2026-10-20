@@ -332,7 +332,165 @@ function UsuariosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <NovoPerfilDialog open={novoPerfilOpen} onOpenChange={setNovoPerfilOpen} onSave={criarPerfil} />
+      <NovoUsuarioDialog
+        open={novoUsuarioOpen}
+        onOpenChange={setNovoUsuarioOpen}
+        perfis={perfis}
+        origensOpts={origensOpts}
+        onSave={criarUsuario}
+      />
     </div>
+  );
+}
+
+const ROLE_OPCOES: { value: Role; label: string }[] = [
+  { value: "ADMINISTRADOR", label: "Administrador" },
+  { value: "COORDENADOR_CONTROLE", label: "Coordenador de Controle" },
+  { value: "GERENTE", label: "Gerente" },
+  { value: "DIRETOR_OPERACOES", label: "Diretor de Operações" },
+  { value: "COORDENADOR_FINANCEIRO", label: "Coordenador Financeiro" },
+  { value: "AUDITOR", label: "Auditor" },
+  { value: "OPERADOR_ESTOQUE", label: "Operador de Estoque" },
+  { value: "VENDEDOR", label: "Vendedor" },
+  { value: "INVENTARIANTE", label: "Inventariante" },
+  { value: "CONSULTA", label: "Consulta" },
+];
+
+function NovoPerfilDialog({
+  open, onOpenChange, onSave,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onSave: (d: { nome: string; role_key: Role; descricao: string }) => void;
+}) {
+  const [nome, setNome] = useState("");
+  const [roleKey, setRoleKey] = useState<Role>("CONSULTA");
+  const [descricao, setDescricao] = useState("");
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Novo perfil de acesso</DialogTitle>
+          <DialogDescription>
+            O perfil passa a aparecer na lista de perfis atribuíveis aos usuários.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="np-nome">Nome do perfil</Label>
+            <Input id="np-nome" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Supervisor de Loja" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Nível de acesso base</Label>
+            <Select value={roleKey} onValueChange={(v) => setRoleKey(v as Role)}>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {ROLE_OPCOES.map((r) => (
+                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="np-desc">Descrição (opcional)</Label>
+            <Textarea id="np-desc" value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={2} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button disabled={!nome.trim()} onClick={() => onSave({ nome: nome.trim(), role_key: roleKey, descricao: descricao.trim() })}>
+            Criar perfil
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NovoUsuarioDialog({
+  open, onOpenChange, perfis, origensOpts, onSave,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  perfis: { id: string; nome: string; role_key: Role }[];
+  origensOpts: { value: string; label: string }[];
+  onSave: (d: { nome: string; email: string; senha: string; role: Role; almoxes: string[] }) => Promise<void>;
+}) {
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [role, setRole] = useState<Role | "">("");
+  const [almoxes, setAlmoxes] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  const perfilSel = (role || perfis[0]?.role_key || "") as Role | "";
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const valido = nome.trim().length > 0 && emailOk && senha.length >= 6 && !!perfilSel;
+
+  async function salvar() {
+    if (!valido || !perfilSel) return;
+    setSaving(true);
+    await onSave({ nome: nome.trim(), email: email.trim(), senha, role: perfilSel, almoxes });
+    setSaving(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Novo usuário</DialogTitle>
+          <DialogDescription>
+            Cadastra a pessoa direto no sistema, já aprovada e com perfil — sem precisar de auto-registro.
+            Ela entra com o e-mail e a senha definidos aqui.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="nu-nome">Nome</Label>
+            <Input id="nu-nome" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="nu-email">E-mail</Label>
+            <Input id="nu-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@magiochocolates.com.br" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="nu-senha">Senha inicial</Label>
+            <Input id="nu-senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Perfil</Label>
+            <Select value={perfilSel} onValueChange={(v) => setRole(v as Role)}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Selecione o perfil" /></SelectTrigger>
+              <SelectContent>
+                {perfis.map((p) => (
+                  <SelectItem key={p.id} value={p.role_key}>{p.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Almoxarifados</Label>
+            <MultiSelect
+              options={origensOpts}
+              value={almoxes}
+              onChange={setAlmoxes}
+              placeholder="Buscar almoxarifado…"
+              allLabel="Todos"
+            />
+            <p className="text-xs text-muted-foreground">Vazio = acesso a todos os almoxarifados.</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button disabled={!valido || saving} onClick={salvar}>
+            {saving ? "Criando..." : "Criar usuário"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
