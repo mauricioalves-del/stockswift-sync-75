@@ -16,10 +16,11 @@ export type ParamsMotor = {
   shelfMinimoDespacho: number; shelfPadraoDias: number; nivelServicoZ: number; pesoMeta: number;
   cicloProducaoDias: number; coberturaMaximaDias: number; probAprovBaixa: number; fatorEstresse: number; segurancaExtraDias: number;
   diaRevisao: number | null;   // dia da semana da revisão do plano (0 = domingo … 5 = sexta); null = libera em qualquer dia
+  tetoBaixaSobreDemanda: number;   // a produção só repõe baixas históricas até esta fração da demanda média (evita produzir para um item que não vende)
 };
 export const PARAMS_PADRAO: ParamsMotor = {
   leadTimeDias: 7, diasQualidade: 2, diasProcesso: 3, atrasoEstresseDias: 2, shelfMinimoDespacho: 30, shelfPadraoDias: 180,
-  nivelServicoZ: 1.65, pesoMeta: 0, cicloProducaoDias: 7, coberturaMaximaDias: 60, probAprovBaixa: 0.9, fatorEstresse: 1.65, segurancaExtraDias: 0, diaRevisao: null,
+  nivelServicoZ: 1.65, pesoMeta: 0, cicloProducaoDias: 7, coberturaMaximaDias: 60, probAprovBaixa: 0.9, fatorEstresse: 1.65, segurancaExtraDias: 0, diaRevisao: null, tetoBaixaSobreDemanda: 0.25,
 };
 export type Zona = "vermelho" | "amarelo" | "verde" | "excesso";
 export type Severidade = "critica" | "alta" | "media" | "baixa" | "ok";
@@ -95,10 +96,11 @@ export function planejarSku(e: EntradaMotor, inicio: string, pp: Partial<ParamsM
   const fator = e.realizacao === null ? 1 : clamp(p.pesoMeta + (1 - p.pesoMeta) * e.realizacao, 0.25, 2);
   const dem = e.demandaMeta.map((v) => v * fator); const adu = soma(dem.slice(0, janela)) / janela;
   const sigma = Math.max(e.sigmaDia ?? 0.5 * adu, 0.25 * adu);      // piso: CV mínimo de 25% (σ=0 costuma ser venda censurada por falta de estoque)
-  const esp: Cen = { demanda: dem, baixas: e.baixasPendentes * p.probAprovBaixa, atraso: 0, taxaBaixa: e.taxaBaixaDia };
-  const est: Cen = { demanda: dem.map((v) => Math.min(2 * v + 1e-9, v + p.fatorEstresse * sigma)), baixas: e.baixasPendentes, atraso: p.atrasoEstresseDias, taxaBaixa: e.taxaBaixaDia * 1.5 };
+  const taxaBx = Math.min(e.taxaBaixaDia, p.tetoBaixaSobreDemanda * adu);   // baixa histórica não vira demanda de produção além do teto
+  const esp: Cen = { demanda: dem, baixas: e.baixasPendentes * p.probAprovBaixa, atraso: 0, taxaBaixa: taxaBx };
+  const est: Cen = { demanda: dem.map((v) => Math.min(2 * v + 1e-9, v + p.fatorEstresse * sigma)), baixas: e.baixasPendentes, atraso: p.atrasoEstresseDias, taxaBaixa: taxaBx * 1.5 };
   // 2) buffers DDMRP (em unidades): vermelho = base + segurança estatística (+ baixa média no prazo); amarelo = ADU × DLT; verde = ciclo de produção
-  const redBase = adu * dlt * 0.5; const redSeg = (e.sigmaDia !== null ? p.nivelServicoZ * sigma * Math.sqrt(dlt) : 0.5 * redBase) + e.taxaBaixaDia * dlt + adu * p.segurancaExtraDias;
+  const redBase = adu * dlt * 0.5; const redSeg = (e.sigmaDia !== null ? p.nivelServicoZ * sigma * Math.sqrt(dlt) : 0.5 * redBase) + taxaBx * dlt + adu * p.segurancaExtraDias;
   const red = redBase + redSeg, yellow = adu * dlt, green = Math.max(caixa, adu * p.cicloProducaoDias);
   const tor = red, toy = red + yellow, tog = toy + green;
   // 3) posição de fluxo líquido (NFP) e zona
