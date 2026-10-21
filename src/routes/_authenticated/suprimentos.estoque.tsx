@@ -204,26 +204,67 @@ function EstoquePosicaoPage() {
                 </TableRow></TableHeader>
 
                 <TableBody>
-                  {agregado.slice(0, 500).map((r) => (
-                    <TableRow
-                      key={`${r.origem}|${r.id_produto}`}
-                      className="cursor-pointer"
-                      title="Dois cliques para ver os lotes"
-                      onDoubleClick={() => setDetalhe({ origem: r.origem, id_produto: r.id_produto, descricao: r.descricao })}
-                    >
-                      <TableCell className="font-mono text-xs">{r.id_produto}</TableCell>
-                      <TableCell className="text-xs max-w-xs truncate">{r.descricao}</TableCell>
-                      <TableCell className="text-xs">{r.unidade}</TableCell>
-                      <TableCell className="text-xs">{r.origem}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatNum(r.quantidade)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatBRL(r.custo_unitario)}</TableCell>
-                      <TableCell className="text-right tabular-nums font-semibold">{formatBRL(r.valor)}</TableCell>
-                    </TableRow>
-                  ))}
+                  {agregado.slice(0, 500).map((r) => {
+                    const key = `${r.origem}|${r.id_produto}`;
+                    const aberto = expandido === key;
+                    const lotes = lotesPorChave.get(key) ?? [];
+                    return (
+                      <Fragment key={key}>
+                        <TableRow
+                          className="cursor-pointer"
+                          title="Clique para ver os lotes"
+                          onClick={() => setExpandido((k) => (k === key ? null : key))}
+                        >
+                          <TableCell className="w-8 align-middle">
+                            {aberto ? <ChevronDown className="size-4 text-muted-foreground" /> : <ChevronRight className="size-4 text-muted-foreground" />}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{r.id_produto}</TableCell>
+                          <TableCell className="text-xs max-w-xs truncate">{r.descricao}</TableCell>
+                          <TableCell className="text-xs">{r.unidade}</TableCell>
+                          <TableCell className="text-xs">{r.origem}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatNum(r.quantidade)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatBRL(r.custo_unitario)}</TableCell>
+                          <TableCell className="text-right tabular-nums font-semibold">{formatBRL(r.valor)}</TableCell>
+                        </TableRow>
+                        {aberto && (
+                          <TableRow className="bg-muted/40 hover:bg-muted/40">
+                            <TableCell colSpan={8} className="p-0">
+                              <div className="px-4 py-2">
+                                <Table>
+                                  <TableHeader><TableRow>
+                                    <TableHead className="text-xs">Grupo</TableHead>
+                                    <TableHead className="text-xs">Lote</TableHead>
+                                    <TableHead className="text-right text-xs">Quantidade</TableHead>
+                                    <TableHead className="text-right text-xs">Custo Total</TableHead>
+                                    <TableHead className="text-xs">Validade</TableHead>
+                                  </TableRow></TableHeader>
+                                  <TableBody>
+                                    {lotes.map((l) => (
+                                      <TableRow key={l.lote}>
+                                        <TableCell className="text-xs">{grupoDe(r.id_produto)}</TableCell>
+                                        <TableCell className="font-mono text-xs">{l.lote}</TableCell>
+                                        <TableCell className="text-right tabular-nums text-xs">{formatNum(l.quantidade)}</TableCell>
+                                        <TableCell className="text-right tabular-nums text-xs font-medium">{formatBRL(l.quantidade * l.custo_unitario)}</TableCell>
+                                        <TableCell className="text-xs">{l.data_validade ? new Date(`${l.data_validade}T00:00:00`).toLocaleDateString("pt-BR") : "—"}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                    {!lotes.length && (
+                                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground text-xs py-2">Sem lotes.</TableCell></TableRow>
+                                    )}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                   {agregado.length === 0 && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground text-sm py-6">Sem dados.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground text-sm py-6">Sem dados.</TableCell></TableRow>
                   )}
                 </TableBody>
+
               </Table>
               {agregado.length > 500 && (
                 <div className="text-xs text-muted-foreground p-2 text-center">
