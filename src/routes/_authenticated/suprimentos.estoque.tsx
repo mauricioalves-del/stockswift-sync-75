@@ -193,6 +193,7 @@ function EstoquePosicaoPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow>
+                  <TableHead className="w-8" />
                   <TableHead>SKU</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Un.</TableHead>
@@ -201,6 +202,7 @@ function EstoquePosicaoPage() {
                   <TableHead className="text-right">Custo Unit.</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                 </TableRow></TableHeader>
+
                 <TableBody>
                   {agregado.slice(0, 500).map((r) => (
                     <TableRow
