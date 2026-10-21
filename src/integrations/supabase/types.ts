@@ -3593,6 +3593,33 @@ export type Database = {
         }
         Relationships: []
       }
+      producao_consumo_empresa_ajuste: {
+        Row: {
+          ajustado_em: string
+          empresa_depois: string
+          id: string
+          id_op: string | null
+          produto: string | null
+          regra: string
+        }
+        Insert: {
+          ajustado_em?: string
+          empresa_depois: string
+          id: string
+          id_op?: string | null
+          produto?: string | null
+          regra: string
+        }
+        Update: {
+          ajustado_em?: string
+          empresa_depois?: string
+          id?: string
+          id_op?: string | null
+          produto?: string | null
+          regra?: string
+        }
+        Relationships: []
+      }
       produtos_excluidos_dispersao: {
         Row: {
           excluido_em: string

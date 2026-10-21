@@ -1,6 +1,6 @@
 // Diálogo de Ressalvas do pedido: busca no catálogo aprovado, aviso de disponibilidade e totais das sugestões.
 export type CatProduto = { sku: string; descricao: string; classe?: string | null };
-export type SugRessalva = { id_produto: string; descricao: string; qtd: number; caixa?: number };
+export type SugRessalva = { id_produto: string; descricao: string; qtd: number; caixa?: number; fracionar?: boolean };
 export type SaldoProduto = { estoque: number; reservado_outros: number; saldo_inicial: number };
 
 /** Chave do SKU: sem zeros à esquerda (o mesmo SKU aparece com e sem zero nas bases). */
@@ -51,21 +51,24 @@ export function caixaDoProduto(fullCase: unknown, solto: boolean): number {
 const modoSolto = (caixa: number, s: SaldoProduto | null | undefined) => !!s && caixa > 1 && s.saldo_inicial > 0 && s.saldo_inicial < caixa;
 /** Quantidade inicial ao escolher o produto: uma caixa; com menos de uma caixa no origem, o saldo solto. */
 export function qtdInicial(caixa: number, s: SaldoProduto | null | undefined): number {
-  return modoSolto(caixa, s) ? Math.floor(s!.saldo_inicial) : caixa;
+  return s && modoSolto(caixa, s) ? Math.floor(s.saldo_inicial) : caixa;
 }
 /** Botões − / +: anda uma caixa (ou 1 un no saldo solto), sem passar do disponível nem ficar abaixo do mínimo. */
-export function passoQtd(atual: number | null, d: number, caixa: number, s: SaldoProduto | null | undefined): number {
-  if (modoSolto(caixa, s)) return Math.min(Math.floor(s!.saldo_inicial), Math.max(1, (atual ?? 0) + d));
+export function passoQtd(atual: number | null, d: number, caixa: number, s: SaldoProduto | null | undefined, fracionar = false): number {
+  if (fracionar || modoSolto(caixa, s)) {
+    const n = Math.max(1, (atual ?? 0) + d);
+    return s ? Math.max(0, Math.min(s.saldo_inicial, n)) : n;
+  }
   const base = atual && atual > 0 ? (d > 0 ? Math.floor(atual / caixa) : Math.ceil(atual / caixa)) * caixa : 0;
   let n = Math.max(caixa, base + d * caixa);
   if (s && s.saldo_inicial >= caixa) n = Math.min(n, Math.floor(s.saldo_inicial / caixa) * caixa);
   return n;
 }
 /** Erro que impede adicionar/enviar a sugestão (caixa fechada e disponível no CD). null = ok. Sem saldo conhecido, vale só a caixa. */
-export function erroQtdExtra(qtd: number | null, caixa: number, s: SaldoProduto | null | undefined): string | null {
-  if (!qtd || !(qtd > 0)) return "Informe uma quantidade maior que zero.";
+export function erroQtdExtra(qtd: number | null, caixa: number, s: SaldoProduto | null | undefined, fracionar = false): string | null {
+  if (!qtd || !Number.isFinite(qtd) || !(qtd > 0)) return "Informe uma quantidade maior que zero.";
   if (s && s.saldo_inicial <= 0) return "Sem estoque disponível no CD.";
   if (s && qtd > s.saldo_inicial) return `Acima do disponível no CD: ${Math.max(0, s.saldo_inicial)} un${caixa > 1 ? (s.saldo_inicial >= caixa ? ` (${Math.floor(s.saldo_inicial / caixa)} cx)` : " (menos de uma caixa)") : ""}.`;
-  if (caixa > 1 && qtd % caixa !== 0 && !modoSolto(caixa, s)) return `A quantidade deve ser múltiplo da caixa (${caixa} un).`;
+  if (!fracionar && caixa > 1 && qtd % caixa !== 0 && !modoSolto(caixa, s)) return `A quantidade deve ser múltiplo da caixa (${caixa} un).`;
   return null;
 }
