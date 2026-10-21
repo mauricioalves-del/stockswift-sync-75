@@ -1,7 +1,10 @@
 # Correção de grupos das Baixas Operacionais
 
+## Pedidos: aprovação somente comercial
+- [x] Remover etapa do Diretor, aprovar ressalvas e extras direto para separação, preservar estoque e retorno administrativo; tela autenticada verificada e 13 testes passaram, incluindo aprovação transacional sem persistência.
+
 ## Fracionamento nas ressalvas comerciais
-- [x] Adicionar opção por produto, preservar limite de estoque e aprovação do Diretor; seis testes passaram e quantidade de 7 unidades conferida na tela do pedido 24, sem enviar alterações.
+- [x] Adicionar opção por produto e preservar limite de estoque; aprovação agora exclusivamente comercial. Seis testes de fracionamento passaram.
 
 ## Pedidos: retorno de status
 - [x] Adicionar retorno ao status anterior exclusivo para administrador e verificar permissões e fluxo.

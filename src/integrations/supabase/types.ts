@@ -4804,6 +4804,7 @@ export type Database = {
           sku: string
         }[]
       }
+      abast_testar_aprovacao_comercial: { Args: never; Returns: Json }
       abast_validar_cd: {
         Args: { p_competencia: string; p_observacao: string }
         Returns: Json
