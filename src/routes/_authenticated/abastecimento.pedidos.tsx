@@ -9,9 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { statusAnterior } from "@/lib/abastecimento-pedido-status";
+import { statusAnterior, statusPedido } from "@/lib/abastecimento-pedido-status";
 import { anexarSaldos, itemValido, mostrarSaldo, saldoFinal, validarEdicaoLocal, type Saldo } from "@/lib/abastecimento-pedidos-saldo";
 import { RessalvaDialog } from "@/components/abast-dash/RessalvaDialog";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
@@ -34,8 +33,8 @@ type Pedido = {
   edicoes?: Edicao[] | null; almox_origem?: string | null;
 };
 
-const ETAPAS = [{ k: "AGUARD_COMERCIAL", r: "Comercial" }, { k: "AGUARD_DIRETOR", r: "Diretor" }, { k: "ABERTO", r: "Aberto" }, { k: "EM_SEPARACAO", r: "Em separação" }, { k: "SEPARADO", r: "Separado" }, { k: "ENVIADO", r: "Enviado" }, { k: "RECEBIDO", r: "Recebido" }];
-const ROTULO: Record<string, string> = { AGUARD_COMERCIAL: "Aguard. comercial", AGUARD_DIRETOR: "Aguard. diretor", ABERTO: "Aberto", EM_SEPARACAO: "Em separação", SEPARADO: "Separado", ENVIADO: "Enviado", RECEBIDO: "Recebido", CANCELADO: "Cancelado" };
+const ETAPAS = [{ k: "AGUARD_COMERCIAL", r: "Comercial" }, { k: "ABERTO", r: "Aberto" }, { k: "EM_SEPARACAO", r: "Em separação" }, { k: "SEPARADO", r: "Separado" }, { k: "ENVIADO", r: "Enviado" }, { k: "RECEBIDO", r: "Recebido" }];
+const ROTULO: Record<string, string> = { AGUARD_COMERCIAL: "Aguard. comercial", AGUARD_DIRETOR: "Aguard. comercial", ABERTO: "Aberto", EM_SEPARACAO: "Em separação", SEPARADO: "Separado", ENVIADO: "Enviado", RECEBIDO: "Recebido", CANCELADO: "Cancelado" };
 const COR: Record<string, string> = { AGUARD_COMERCIAL: "bg-warning/15 text-warning", AGUARD_DIRETOR: "bg-destructive/10 text-destructive", ABERTO: "bg-amber-100 text-amber-800", EM_SEPARACAO: "bg-orange-100 text-orange-700", SEPARADO: "bg-teal-100 text-teal-700", ENVIADO: "bg-indigo-100 text-indigo-700", RECEBIDO: "bg-emerald-100 text-emerald-700", CANCELADO: "bg-slate-100 text-slate-500" };
 const ATIVOS = ["AGUARD_COMERCIAL", "AGUARD_DIRETOR", "ABERTO", "EM_SEPARACAO", "SEPARADO", "ENVIADO"];
 const DECISAO: Record<string, string> = { COM_SUGESTOES: "Atender com as sugestões", SEM_SUGESTOES: "Atender sem as sugestões", CANCELAR: "Cancelado pelo diretor" };
@@ -80,12 +79,11 @@ function PedidosPage() {
   const [aberto, setAberto] = useState<string | null>(null);
   const [agindo, setAgindo] = useState<string | null>(null);
   const [ressalva, setRessalva] = useState<Pedido | null>(null);
-  const [decisao, setDecisao] = useState<Pedido | null>(null);
   const [retorno, setRetorno] = useState<Pedido | null>(null);
   const [editando, setEditando] = useState<{ p: Pedido; i: Item } | null>(null);
   const [excluindo, setExcluindo] = useState<{ p: Pedido; i: Item } | null>(null);
   // editar/excluir item: só enquanto o pedido aguarda aprovação (antes de existir requisição de separação)
-  const podeEditar = (p: Pedido) => (p.status === "AGUARD_COMERCIAL" && (comercial || gestor)) || (p.status === "AGUARD_DIRETOR" && (diretor || gestor));
+  const podeEditar = (p: Pedido) => (p.status === "AGUARD_COMERCIAL" && (comercial || gestor)) || (p.status === "AGUARD_DIRETOR" && (comercial || gestor));
 
   async function retornar(p: Pedido) {
     if (!isAdmin) return;
@@ -109,7 +107,7 @@ function PedidosPage() {
       const ids = (ps ?? []).map((p: any) => p.id);
       const { data: its } = ids.length ? await sb.from("abast_pedido_itens").select("id, pedido_id, id_produto, descricao, qtd_sugerida, qtd_pedida, qtd_separada, caixa, origem, aceito").in("pedido_id", ids) : { data: [] };
       const { data: sal } = ids.length ? await sb.rpc("abast_pedido_saldos", { p_ids: ids }) : { data: [] };   // se falhar, a tela segue sem as colunas de saldo
-      return anexarSaldos(ps ?? [], its ?? [], sal) as unknown as Pedido[];
+      return (anexarSaldos(ps ?? [], its ?? [], sal) as unknown as Pedido[]).map((p) => ({ ...p, status: statusPedido(p.status) }));
     },
   });
 
@@ -167,10 +165,10 @@ function PedidosPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><ClipboardList className="size-6" /> Pedidos de Abastecimento</h1>
         <p className="text-sm text-muted-foreground">
-          Todo pedido gerado passa primeiro pela <strong>aprovação do gerente comercial</strong>. Aprovado, nasce a requisição de separação e segue: <strong>Aberto</strong> → <strong>Em separação</strong> → <strong>Separado</strong> → <strong>Enviado</strong> → <strong>Recebido</strong>. Com ressalvas, o gerente comercial registra a observação e pode sugerir mais produtos do catálogo aprovado; o pedido vai para o <strong>Diretor de Operações</strong>, que decide se atende com as alterações. Pedidos aguardando aprovação ainda não contam como "a caminho" na Reposição.
+          Aprovação comercial · Separação · Envio · Recebimento
         </p>
       </div>
-      <div className="flex flex-wrap gap-2">{["ATIVOS", "AGUARD_COMERCIAL", "AGUARD_DIRETOR", "ABERTO", "EM_SEPARACAO", "SEPARADO", "ENVIADO", "RECEBIDO", "CANCELADO", "TODOS"].map((s) => <button key={s} onClick={() => setStatus(s)} className={`rounded-full border px-3 py-1 text-xs ${status === s ? "bg-primary text-primary-foreground border-primary font-semibold" : "hover:bg-muted"}`}>{s === "ATIVOS" ? "Em andamento" : ROTULO[s] ?? "Todos"}{s !== "TODOS" ? ` (${contagem(s)})` : ""}</button>)}</div>
+      <div className="flex flex-wrap gap-2">{["ATIVOS", "AGUARD_COMERCIAL", "ABERTO", "EM_SEPARACAO", "SEPARADO", "ENVIADO", "RECEBIDO", "CANCELADO", "TODOS"].map((s) => <button key={s} onClick={() => setStatus(s)} className={`rounded-full border px-3 py-1 text-xs ${status === s ? "bg-primary text-primary-foreground border-primary font-semibold" : "hover:bg-muted"}`}>{s === "ATIVOS" ? "Em andamento" : ROTULO[s] ?? "Todos"}{s !== "TODOS" ? ` (${contagem(s)})` : ""}</button>)}</div>
       <Card><CardContent className="p-0 overflow-x-auto"><Table>
         <TableHeader><TableRow><TableHead>Nº</TableHead><TableHead>Loja</TableHead><TableHead>Almox origem</TableHead><TableHead>Status</TableHead><TableHead>Etapas</TableHead><TableHead>Requisição</TableHead><TableHead className="text-right">Itens</TableHead><TableHead className="text-right">Unidades</TableHead><TableHead className="text-right">Separado</TableHead><TableHead>Criado</TableHead><TableHead /></TableRow></TableHeader>
         <TableBody>
@@ -196,7 +194,6 @@ function PedidosPage() {
                     <Button size="sm" disabled={agindo === p.id} onClick={() => aprovar(p)}>Aprovar</Button>
                     <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => setRessalva(p)}>Adicionar Produto</Button>
                   </>}
-                  {diretor && p.status === "AGUARD_DIRETOR" && <Button size="sm" disabled={agindo === p.id} onClick={() => setDecisao(p)}>Decidir</Button>}
                   {gestor && (p.status === "ABERTO" || p.status === "EM_SEPARACAO") && p.requisicao_id && <Link to="/suprimentos/requisicoes" title={`Separar na tela Requisições (${p.requisicao_numero})`} className="inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs hover:bg-muted"><PackageCheck className="size-3.5" /> Separar</Link>}
                   {gestor && (p.status === "SEPARADO" || p.status === "EM_SEPARACAO" || (p.status === "ABERTO" && !p.requisicao_id)) && <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => mudar(p, "ENVIADO")}>Marcar enviado</Button>}
                   {gestor && p.status === "ENVIADO" && <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => mudar(p, "RECEBIDO")}>Marcar recebido</Button>}
@@ -211,7 +208,6 @@ function PedidosPage() {
           })}
         </TableBody></Table></CardContent></Card>
       {ressalva && <RessalvaDialog p={ressalva} onClose={() => setRessalva(null)} onOk={() => { setRessalva(null); recarregar(); }} />}
-      {decisao && <DecisaoDialog p={decisao} onClose={() => setDecisao(null)} onOk={() => { setDecisao(null); recarregar(); }} />}
       {editando && <EditarItemDialog p={editando.p} i={editando.i} onClose={() => setEditando(null)} onOk={() => { setEditando(null); recarregar(); }} />}
       {excluindo && <ExcluirItemDialog p={excluindo.p} i={excluindo.i} onClose={() => setExcluindo(null)} onOk={() => { setExcluindo(null); recarregar(); }} />}
       {isAdmin && retorno && <Dialog open onOpenChange={(o) => !o && agindo !== retorno.id && setRetorno(null)}>
@@ -276,7 +272,7 @@ function ItensTabela({ p, podeEditar, onEditar, onExcluir, compacto, lojaCtx }: 
       {!compacto && <p className="text-[11px] text-muted-foreground">{nota}</p>}
       <Table><TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead>{verLoja && <><TableHead className="text-right" title={`Estoque atual de ${p.loja}`}>Estoque loja</TableHead><TableHead className="text-right" title={`Consumo médio diário na base de demanda usada no abastecimento: ${base}`}>CMD</TableHead><TableHead className="text-right">Exposição</TableHead><TableHead className="text-right" title="Estoque mínimo / ideal da loja (exposição + CMD × dias de cobertura)">Mín / Ideal</TableHead></>}<TableHead className="text-right">Pedido</TableHead>{verSep && <TableHead className="text-right">Separado</TableHead>}<TableHead className="text-right">Sugerido</TableHead><TableHead className="text-right">Caixa</TableHead>{!compacto && <><TableHead className="text-right">Estoque origem</TableHead><TableHead className="text-right">Em outros pedidos</TableHead><TableHead className="text-right">Saldo inicial</TableHead><TableHead className="text-right">Saldo final</TableHead></>}<TableHead>Origem do item</TableHead>{podeEditar && <TableHead />}</TableRow></TableHeader>
         <TableBody>{itens.map((i) => {
-          const c = verLoja ? lojaCtx!(p, i) : undefined;
+          const c = verLoja ? lojaCtx?.(p, i) : undefined;
           const ver = mostrarSaldo(p, i), fin = ver ? saldoFinal(i) : null, falta = fin !== null && fin < 0;
           return (<TableRow key={i.id} className={i.aceito === false ? "opacity-50 line-through" : ""}>
             <TableCell className="font-mono text-xs">{i.id_produto}</TableCell><TableCell>{i.descricao}</TableCell>
@@ -376,35 +372,3 @@ function ExcluirItemDialog({ p, i, onClose, onOk }: { p: Pedido; i: Item; onClos
   );
 }
 
-function DecisaoDialog({ p, onClose, onOk }: { p: Pedido; onClose: () => void; onOk: () => void }) {
-  const sb = supabase as any;
-  const [obs, setObs] = useState("");
-  const [salvando, setSalvando] = useState(false);
-  const temSug = p.itens.some((i) => i.origem === "SUGESTAO_COMERCIAL");
-  async function decidir(d: string) {
-    setSalvando(true);
-    try {
-      const { error } = await sb.rpc("abast_decidir_diretor", { p_id: p.id, p_decisao: d, p_obs: obs.trim() || null });
-      if (error) throw error;
-      toast.success(d === "CANCELAR" ? `Pedido ${p.numero} cancelado.` : `Pedido ${p.numero} liberado para separação.`); onOk();
-    } catch (err: any) { toast.error("Não consegui registrar: " + (err?.message ?? err)); }
-    finally { setSalvando(false); }
-  }
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Decisão do Diretor · Pedido {p.numero} ({p.loja})</DialogTitle><DialogDescription className="sr-only">Decida se o pedido será atendido com ou sem as sugestões do gerente comercial, ou cancele.</DialogDescription></DialogHeader>
-        <div className="space-y-3">
-          <Historico p={p} />
-          <ItensTabela p={p} podeEditar={false} compacto onEditar={() => {}} onExcluir={() => {}} />
-          <div><label className="text-sm font-medium">Observação do diretor (opcional)</label><Textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={3} /></div>
-        </div>
-        <DialogFooter className="flex-wrap gap-2">
-          <Button variant="ghost" disabled={salvando} onClick={() => decidir("CANCELAR")}>Cancelar pedido</Button>
-          <Button variant="outline" disabled={salvando} onClick={() => decidir("SEM_SUGESTOES")}>{temSug ? "Atender sem sugestões" : "Atender pedido"}</Button>
-          {temSug && <Button disabled={salvando} onClick={() => decidir("COM_SUGESTOES")}>Atender com sugestões</Button>}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
