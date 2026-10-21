@@ -19,6 +19,7 @@ type LinhaEntrada = {
   qtd_consumo?: unknown
   qtd_previsto?: unknown
   qtd_produzida?: unknown
+  empresa?: unknown
 }
 
 function json(body: unknown, status = 200) {
@@ -83,9 +84,11 @@ export const Route = createFileRoute('/api/public/import-consumo-op')({
           const data_producao = toIsoDate(txt(r.data_producao))
           const qtd_consumo = num(r.qtd_consumo)
           const qtd_previsto = num(r.qtd_previsto)
+          const empresa = txt(r.empresa)
           if (!id_op) return erros.push({ linha: i + 1, erro: 'id_op vazio' })
           if (!material) return erros.push({ linha: i + 1, erro: 'material vazio' })
           if (!data_producao) return erros.push({ linha: i + 1, erro: 'data_producao inválida' })
+          if (!empresa) return erros.push({ linha: i + 1, erro: 'empresa vazia (Filial SP - Fabrica ou Matriz Para)' })
           if (Number.isNaN(qtd_consumo)) return erros.push({ linha: i + 1, erro: 'qtd_consumo inválida' })
           if (Number.isNaN(qtd_previsto)) return erros.push({ linha: i + 1, erro: 'qtd_previsto inválida' })
           const qpRaw = txt(r.qtd_produzida) === '' ? null : num(r.qtd_produzida)
@@ -115,6 +118,7 @@ export const Route = createFileRoute('/api/public/import-consumo-op')({
             qtd_consumo,
             qtd_previsto,
             qtd_produzida,
+            empresa,
             criado_por: null,
           })
         })
