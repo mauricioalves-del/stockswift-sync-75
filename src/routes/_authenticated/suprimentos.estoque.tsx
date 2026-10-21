@@ -118,24 +118,29 @@ function EstoquePosicaoPage() {
     return { skus, valor, qtd };
   }, [agregado]);
 
-  const lotesDetalhe = useMemo(() => {
-    if (!detalhe) return [];
-    const m = new Map<string, { lote: string; quantidade: number; custo_unitario: number; data_validade: string | null }>();
+  const lotesPorChave = useMemo(() => {
+    const m = new Map<string, { lote: string; quantidade: number; custo_unitario: number; data_validade: string | null }[]>();
     for (const r of q.data ?? []) {
-      if (r.origem !== detalhe.origem || r.id_produto !== detalhe.id_produto) continue;
+      const key = `${r.origem}|${r.id_produto}`;
       const lote = r.lote || "Sem lote";
       const qtd = Number(r.quantidade);
       const cu = Number(r.custo_unitario);
-      const prev = m.get(lote);
+      const arr = m.get(key) ?? [];
+      const prev = arr.find((l) => l.lote === lote);
       if (prev) { prev.quantidade += qtd; }
-      else m.set(lote, { lote, quantidade: qtd, custo_unitario: cu, data_validade: r.data_validade });
+      else arr.push({ lote, quantidade: qtd, custo_unitario: cu, data_validade: r.data_validade });
+      m.set(key, arr);
     }
-    return Array.from(m.values()).sort((a, b) => {
-      if (!a.data_validade) return 1;
-      if (!b.data_validade) return -1;
-      return a.data_validade.localeCompare(b.data_validade);
-    });
-  }, [detalhe, q.data]);
+    for (const arr of m.values()) {
+      arr.sort((a, b) => {
+        if (!a.data_validade) return 1;
+        if (!b.data_validade) return -1;
+        return a.data_validade.localeCompare(b.data_validade);
+      });
+    }
+    return m;
+  }, [q.data]);
+
 
   return (
     <div className="w-full space-y-4">
