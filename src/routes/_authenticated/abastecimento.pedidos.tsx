@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClipboardList, Download, PackageCheck, Pencil, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
@@ -14,6 +14,9 @@ import { Input } from "@/components/ui/input";
 import { statusAnterior } from "@/lib/abastecimento-pedido-status";
 import { anexarSaldos, itemValido, mostrarSaldo, saldoFinal, validarEdicaoLocal, type Saldo } from "@/lib/abastecimento-pedidos-saldo";
 import { RessalvaDialog } from "@/components/abast-dash/RessalvaDialog";
+import { useAbastBruto } from "@/lib/abastecimento-hook";
+import { montarItens, nk, type ItemRep } from "@/lib/abastecimento-dados";
+import type { Base2 } from "@/lib/abastecimento-motor2";
 
 export const Route = createFileRoute("/_authenticated/abastecimento/pedidos")({
   component: PedidosPage,
@@ -37,6 +40,14 @@ const COR: Record<string, string> = { AGUARD_COMERCIAL: "bg-warning/15 text-warn
 const ATIVOS = ["AGUARD_COMERCIAL", "AGUARD_DIRETOR", "ABERTO", "EM_SEPARACAO", "SEPARADO", "ENVIADO"];
 const DECISAO: Record<string, string> = { COM_SUGESTOES: "Atender com as sugestões", SEM_SUGESTOES: "Atender sem as sugestões", CANCELAR: "Cancelado pelo diretor" };
 const un = (v: number) => Math.round(v).toLocaleString("pt-BR");
+const un1 = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const BASES: Base2[] = ["ajustada", "real", "consenso", "maior"];
+const BASE_ROTULO: Record<string, string> = { ajustada: "ajustada", real: "real", consenso: "consenso", maior: "maior entre real e consenso" };
+const baseDo = (p: { base_demanda: string | null }): Base2 => (BASES.includes(p.base_demanda as Base2) ? (p.base_demanda as Base2) : "ajustada");
+/** Status a partir dos quais a coluna "Separado" faz sentido. */
+const COM_SEPARACAO = ["SEPARADO", "ENVIADO", "RECEBIDO"];
+/** Contexto da loja de destino (valores atuais do motor de abastecimento, na base de demanda do pedido). */
+type LojaCtx = (p: Pedido, i: Item) => ItemRep | undefined;
 const dt = (s?: string | null) => (s ? new Date(s).toLocaleString("pt-BR") : "");
 
 function Etapas({ status }: { status: string }) {
@@ -102,6 +113,23 @@ function PedidosPage() {
     },
   });
 
+  // Estoque da loja, CMD, exposição e mín/ideal: mesmo cálculo da Reposição, na base de demanda escolhida no pedido.
+  const bruto = useAbastBruto(pode);
+  const hojeIso = new Date().toLocaleDateString("en-CA");
+  const lojaCtx = useMemo<LojaCtx | null>(() => {
+    if (!bruto.data || !q.data?.length) return null;
+    const porBase = new Map<Base2, Map<string, ItemRep>>();
+    for (const b of new Set(q.data.map(baseDo))) {
+      const m = new Map<string, ItemRep>();
+      try {
+        const mont = montarItens(bruto.data, { base: b, denominador: "calendario", hojeIso });
+        for (const [loja, its] of Object.entries(mont.itens)) for (const it of its) m.set(`${loja}|${nk(it.sku)}`, it);
+      } catch { /* sem contexto da loja: colunas ficam com "—" */ }
+      porBase.set(b, m);
+    }
+    return (p, i) => porBase.get(baseDo(p))?.get(`${p.loja}|${nk(i.id_produto)}`);
+  }, [bruto.data, q.data, hojeIso]);
+
   const recarregar = () => { qc.invalidateQueries({ queryKey: ["abast-pedidos"] }); qc.invalidateQueries({ queryKey: ["abast-v2"] }); };
 
   async function mudar(p: Pedido, novo: string) {
@@ -126,7 +154,7 @@ function PedidosPage() {
   }
   function exportar(p: Pedido) {
     const esc = (s: unknown) => `"${String(s ?? "").replace(/"/g, '""')}"`;
-    const linhas = [["Pedido", "Loja", "Requisição", "SKU", "Produto", "Qtd pedida", "Qtd separada", "Sugerida", "Caixa", "Origem do item", "Almox origem", "Saldo inicial", "Saldo final"], ...p.itens.map((i) => [p.numero, p.loja, p.requisicao_numero, i.id_produto, i.descricao, i.qtd_pedida, i.qtd_separada, i.qtd_sugerida, i.caixa, i.origem, p.almox_origem, mostrarSaldo(p, i) ? i.saldo?.saldo_inicial : "", mostrarSaldo(p, i) ? saldoFinal(i) : ""])];
+    const linhas = [["Pedido", "Loja", "Requisição", "SKU", "Produto", "Estoque loja", "CMD", "Exposição", "Mínimo", "Ideal", "Qtd pedida", "Qtd separada", "Sugerida", "Caixa", "Origem do item", "Almox origem", "Saldo inicial", "Saldo final"], ...p.itens.map((i) => [p.numero, p.loja, p.requisicao_numero, i.id_produto, i.descricao, ...((c) => [c?.estoque ?? "", c?.demandaDia == null ? "" : un1(c.demandaDia), c?.exposicao ?? "", c?.minQ ?? "", c?.idealQ ?? ""])(lojaCtx?.(p, i)), i.qtd_pedida, i.qtd_separada, i.qtd_sugerida, i.caixa, i.origem, p.almox_origem, mostrarSaldo(p, i) ? i.saldo?.saldo_inicial : "", mostrarSaldo(p, i) ? saldoFinal(i) : ""])];
     const url = URL.createObjectURL(new Blob(["\uFEFF" + linhas.map((l) => l.map(esc).join(";")).join("\r\n")], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = `Pedido_${p.numero}_${p.loja}.csv`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
@@ -166,7 +194,7 @@ function PedidosPage() {
                   {isAdmin && statusAnterior(p) && <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => setRetorno(p)} title={`Retornar para ${ROTULO[statusAnterior(p) ?? ""] ?? "status anterior"}`} aria-label={`Retornar status do pedido ${p.numero}`}><Undo2 className="size-4" /> Retornar</Button>}
                   {comercial && p.status === "AGUARD_COMERCIAL" && <>
                     <Button size="sm" disabled={agindo === p.id} onClick={() => aprovar(p)}>Aprovar</Button>
-                    <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => setRessalva(p)}>Com ressalvas</Button>
+                    <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => setRessalva(p)}>Adicionar Produto</Button>
                   </>}
                   {diretor && p.status === "AGUARD_DIRETOR" && <Button size="sm" disabled={agindo === p.id} onClick={() => setDecisao(p)}>Decidir</Button>}
                   {gestor && (p.status === "ABERTO" || p.status === "EM_SEPARACAO") && p.requisicao_id && <Link to="/suprimentos/requisicoes" title={`Separar na tela Requisições (${p.requisicao_numero})`} className="inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs hover:bg-muted"><PackageCheck className="size-3.5" /> Separar</Link>}
@@ -177,7 +205,7 @@ function PedidosPage() {
                 </TableCell></TableRow>
               {aberto === p.id && <TableRow><TableCell colSpan={11} className="bg-muted/30 space-y-3">
                 <Historico p={p} />
-                <ItensTabela p={p} podeEditar={podeEditar(p)} onEditar={(i) => setEditando({ p, i })} onExcluir={(i) => setExcluindo({ p, i })} />
+                <ItensTabela p={p} lojaCtx={lojaCtx} podeEditar={podeEditar(p)} onEditar={(i) => setEditando({ p, i })} onExcluir={(i) => setExcluindo({ p, i })} />
               </TableCell></TableRow>}
             </Fragment>);
           })}
@@ -229,10 +257,13 @@ function HistoricoAprovacoes({ p }: { p: Pedido }) {
   );
 }
 
-function ItensTabela({ p, podeEditar, onEditar, onExcluir, compacto }: { p: Pedido; podeEditar: boolean; onEditar: (i: Item) => void; onExcluir: (i: Item) => void; compacto?: boolean }) {
+function ItensTabela({ p, podeEditar, onEditar, onExcluir, compacto, lojaCtx }: { p: Pedido; lojaCtx?: LojaCtx | null; podeEditar: boolean; onEditar: (i: Item) => void; onExcluir: (i: Item) => void; compacto?: boolean }) {
   const itens = p.itens;
   const orig = (i: Item) => i.origem === "SUGESTAO_COMERCIAL_ANTERIOR" ? "Sugestão comercial · aprovação anterior" : i.origem === "SUGESTAO_COMERCIAL" ? `Sugestão comercial${i.aceito === true ? " · aceita" : i.aceito === false ? " · recusada" : " · pendente"}` : i.origem === "MANUAL" ? "Manual" : i.origem === "TRANSFERENCIA" ? "Transferência" : "Sugestão";
   const algumSaldo = itens.some((i) => mostrarSaldo(p, i));
+  const verSep = COM_SEPARACAO.includes(p.status) || (p.status === "CANCELADO" && itens.some((i) => i.qtd_separada != null));
+  const verLoja = !compacto && !!lojaCtx;
+  const base = BASE_ROTULO[baseDo(p)];
   const nota = algumSaldo
     ? "Saldo inicial = estoque do almox de origem − unidades de outros pedidos em andamento (aguardando aprovação, abertos, em separação ou separados). Saldo final = saldo inicial − este pedido."
     : p.status === "ENVIADO" || p.status === "RECEBIDO" || p.status === "CANCELADO" ? "Saldos não se aplicam a este pedido: o estoque do ERP já reflete a saída (ou o pedido foi cancelado)." : "Saldo do origem indisponível no momento.";
@@ -243,13 +274,20 @@ function ItensTabela({ p, podeEditar, onEditar, onExcluir, compacto }: { p: Pedi
         {podeEditar && <span className="text-primary">Você pode editar a quantidade e excluir itens enquanto o pedido aguarda aprovação; o limite é o saldo do origem, em múltiplos da caixa.</span>}
       </div>
       {!compacto && <p className="text-[11px] text-muted-foreground">{nota}</p>}
-      <Table><TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead className="text-right">Pedido</TableHead><TableHead className="text-right">Separado</TableHead><TableHead className="text-right">Sugerido</TableHead><TableHead className="text-right">Caixa</TableHead>{!compacto && <><TableHead className="text-right">Estoque origem</TableHead><TableHead className="text-right">Em outros pedidos</TableHead><TableHead className="text-right">Saldo inicial</TableHead><TableHead className="text-right">Saldo final</TableHead></>}<TableHead>Origem do item</TableHead>{podeEditar && <TableHead />}</TableRow></TableHeader>
+      <Table><TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead>{verLoja && <><TableHead className="text-right" title={`Estoque atual de ${p.loja}`}>Estoque loja</TableHead><TableHead className="text-right" title={`Consumo médio diário na base de demanda usada no abastecimento: ${base}`}>CMD</TableHead><TableHead className="text-right">Exposição</TableHead><TableHead className="text-right" title="Estoque mínimo / ideal da loja (exposição + CMD × dias de cobertura)">Mín / Ideal</TableHead></>}<TableHead className="text-right">Pedido</TableHead>{verSep && <TableHead className="text-right">Separado</TableHead>}<TableHead className="text-right">Sugerido</TableHead><TableHead className="text-right">Caixa</TableHead>{!compacto && <><TableHead className="text-right">Estoque origem</TableHead><TableHead className="text-right">Em outros pedidos</TableHead><TableHead className="text-right">Saldo inicial</TableHead><TableHead className="text-right">Saldo final</TableHead></>}<TableHead>Origem do item</TableHead>{podeEditar && <TableHead />}</TableRow></TableHeader>
         <TableBody>{itens.map((i) => {
+          const c = verLoja ? lojaCtx!(p, i) : undefined;
           const ver = mostrarSaldo(p, i), fin = ver ? saldoFinal(i) : null, falta = fin !== null && fin < 0;
           return (<TableRow key={i.id} className={i.aceito === false ? "opacity-50 line-through" : ""}>
             <TableCell className="font-mono text-xs">{i.id_produto}</TableCell><TableCell>{i.descricao}</TableCell>
+            {verLoja && <>
+              <TableCell className="text-right">{c?.estoque == null ? "—" : un(c.estoque)}</TableCell>
+              <TableCell className="text-right" title={c?.demandaDia != null ? `Base ${base}` : undefined}>{c?.demandaDia == null ? "—" : un1(c.demandaDia)}</TableCell>
+              <TableCell className="text-right">{c?.exposicao == null ? "—" : un(c.exposicao)}</TableCell>
+              <TableCell className="text-right whitespace-nowrap">{c?.minQ == null ? "—" : `${un(c.minQ)} / ${c.idealQ == null ? "—" : un(c.idealQ)}`}</TableCell>
+            </>}
             <TableCell className="text-right font-semibold">{un(Number(i.qtd_pedida))}</TableCell>
-            <TableCell className="text-right">{i.qtd_separada == null ? "—" : un(Number(i.qtd_separada))}</TableCell>
+            {verSep && <TableCell className="text-right">{i.qtd_separada == null ? "—" : un(Number(i.qtd_separada))}</TableCell>}
             <TableCell className="text-right">{i.qtd_sugerida == null ? "—" : un(Number(i.qtd_sugerida))}</TableCell>
             <TableCell className="text-right">{i.caixa ?? "—"}</TableCell>
             {!compacto && <>
