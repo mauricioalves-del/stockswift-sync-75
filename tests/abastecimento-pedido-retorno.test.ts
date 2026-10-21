@@ -1,11 +1,18 @@
 import { test, expect } from "bun:test";
-import { statusAnterior } from "../src/lib/abastecimento-pedido-status";
+import { statusAnterior, statusPedido } from "../src/lib/abastecimento-pedido-status";
 
 test("Pedido aguardando diretor retorna à aprovação comercial", () => {
   expect(statusAnterior({ status: "AGUARD_DIRETOR", itens: [] })).toBe("AGUARD_COMERCIAL");
 });
 test("Retorno usa a etapa realmente anterior inclusive após cancelamento", () => {
-  expect(statusAnterior({ status: "CANCELADO", historico_status: ["AGUARD_COMERCIAL", "AGUARD_DIRETOR"], itens: [] })).toBe("AGUARD_DIRETOR");
+  expect(statusAnterior({ status: "CANCELADO", historico_status: ["AGUARD_COMERCIAL", "AGUARD_DIRETOR"], itens: [] })).toBe("AGUARD_COMERCIAL");
+});
+test("Etapa aposentada fica acessível à aprovação comercial", () => {
+  expect(statusPedido("AGUARD_DIRETOR")).toBe("AGUARD_COMERCIAL");
+  expect(statusPedido("ABERTO")).toBe("ABERTO");
+});
+test("Pedido aprovado retorna somente ao comercial mesmo com aprovação antiga do Diretor", () => {
+  expect(statusAnterior({ status: "ABERTO", aprov_diretor_em: "2026-10-21", itens: [] })).toBe("AGUARD_COMERCIAL");
 });
 test("Primeira etapa não permite retorno", () => {
   expect(statusAnterior({ status: "AGUARD_COMERCIAL", itens: [] })).toBeNull();

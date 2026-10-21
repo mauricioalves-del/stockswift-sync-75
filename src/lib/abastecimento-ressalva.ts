@@ -23,7 +23,7 @@ export function qtdValida(texto: string): number | null {
   const n = Number(String(texto ?? "").trim().replace(",", "."));
   return Number.isFinite(n) && n > 0 ? n : null;
 }
-/** Aviso (não bloqueia: quem decide é o Diretor) quando a sugestão passa do que há disponível no origem. */
+/** Aviso de disponibilidade; a aprovação comercial também valida o limite no banco. */
 export function avisoDisponibilidade(qtd: number, saldo: SaldoProduto | null | undefined): string | null {
   if (!saldo || !(qtd > 0)) return null;
   if (saldo.saldo_inicial <= 0) return "Sem estoque disponível no origem";

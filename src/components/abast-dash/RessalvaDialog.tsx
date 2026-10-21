@@ -22,7 +22,7 @@ function Disp({ s, caixa = 1 }: { s?: SaldoProduto | null; caixa?: number }) {
   return <span title={`Estoque ${un(s.estoque)} − ${un(s.reservado_outros)} em pedidos em andamento (inclui o que este pedido já leva)${caixa > 1 ? ` · caixa de ${caixa} un` : ""}`} className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${v <= 0 ? "bg-destructive/10 text-destructive" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"}`}>{v <= 0 ? "sem estoque" : `${un(v)} disponível${cx}`}</span>;
 }
 
-/** Ressalvas do gerente comercial: justificativa obrigatória + produtos extras do catálogo aprovado da loja. O pedido segue para o Diretor de Operações. */
+/** Aprovação comercial com justificativa e extras do catálogo aprovado; segue para separação. */
 export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClose: () => void; onOk: () => void }) {
   const sb = supabase as any;
   const [obs, setObs] = useState(""); const [tentou, setTentou] = useState(false);
@@ -87,7 +87,7 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
     try {
       const { error } = await sb.rpc("abast_aprovar_comercial", { p_id: p.id, p_aprovado: false, p_obs: obs.trim(), p_itens_sugeridos: sugs });
       if (error) throw error;
-      toast.success(`Pedido ${p.numero} enviado ao Diretor de Operações.`); onOk();
+      toast.success(`Pedido ${p.numero} aprovado com ressalvas. A requisição de separação foi criada.`); onOk();
     } catch (err: any) { toast.error("Não consegui registrar: " + (err?.message ?? err)); }
     finally { setSalvando(false); }
   }
@@ -104,12 +104,12 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
 
         <div className="max-h-[68vh] space-y-5 overflow-y-auto px-6 py-5">
           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-            Ao enviar, o pedido sai da sua aprovação e vai para o <strong>Diretor de Operações</strong>, que decide se atende com ou sem as sugestões.
+            Aprovação comercial com ressalvas
           </div>
 
           <section className="space-y-2">
             <div className="flex items-baseline justify-between"><label htmlFor="ressalva-obs" className="text-sm font-semibold">Justificativa <span className="text-destructive">*</span></label><span className="text-[11px] text-muted-foreground">{obs.trim().length} caracteres</span></div>
-            <Textarea id="ressalva-obs" value={obs} onChange={(e) => setObs(e.target.value)} rows={4} aria-invalid={tentou && !obs.trim()} className={tentou && !obs.trim() ? "border-destructive" : ""} placeholder="Explique ao Diretor por que o pedido precisa de ajuste ou de demanda extra (ex.: campanha, evento, ruptura prevista)." />
+            <Textarea id="ressalva-obs" value={obs} onChange={(e) => setObs(e.target.value)} rows={4} aria-invalid={tentou && !obs.trim()} className={tentou && !obs.trim() ? "border-destructive" : ""} placeholder="Justificativa das alterações ou da demanda extra" />
             {tentou && !obs.trim() && <p className="text-xs text-destructive">A justificativa é obrigatória.</p>}
           </section>
 
@@ -157,7 +157,7 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
 
             {sugs.length > 0 && (
               <div className="rounded-md border">
-                <div className="flex items-center justify-between border-b bg-muted/40 px-3 py-1.5 text-xs font-medium"><span>Sugestões para o Diretor</span><span className="text-muted-foreground">{resumo.produtos} produto{resumo.produtos > 1 ? "s" : ""} · {un(resumo.unidades)} un</span></div>
+                <div className="flex items-center justify-between border-b bg-muted/40 px-3 py-1.5 text-xs font-medium"><span>Produtos extras aprovados</span><span className="text-muted-foreground">{resumo.produtos} produto{resumo.produtos > 1 ? "s" : ""} · {un(resumo.unidades)} un</span></div>
                 <ul className="divide-y">
                   {sugs.map((s, k) => { const aviso = errosSugs[k]; const cx = s.caixa ?? caixaDe(s.id_produto); return (
                     <li key={s.id_produto} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
@@ -177,7 +177,7 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
 
         <DialogFooter className="items-center gap-2 border-t bg-muted/30 px-6 py-3 sm:justify-between">
           <span className="text-xs text-muted-foreground">{resumo.produtos ? `${resumo.produtos} produto${resumo.produtos > 1 ? "s" : ""} extra${resumo.produtos > 1 ? "s" : ""} · ${un(resumo.unidades)} un` : "Sem produtos extras"}</span>
-          <div className="flex gap-2"><Button variant="ghost" disabled={salvando} onClick={onClose}>Voltar</Button><Button disabled={salvando || errosSugs.some(Boolean)} onClick={enviar} className="gap-2">{salvando ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}{salvando ? "Enviando…" : "Enviar ao Diretor"}</Button></div>
+          <div className="flex gap-2"><Button variant="ghost" disabled={salvando} onClick={onClose}>Voltar</Button><Button disabled={salvando || errosSugs.some(Boolean)} onClick={enviar} className="gap-2">{salvando ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}{salvando ? "Aprovando…" : "Aprovar com ressalvas"}</Button></div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
