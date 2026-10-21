@@ -8,10 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Boxes, Loader2 } from "lucide-react";
+import { Boxes, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { formatNum, formatBRL } from "@/lib/inventory";
 import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
+
 
 export const Route = createFileRoute("/_authenticated/suprimentos/estoque")({
   component: EstoquePosicaoPage,
