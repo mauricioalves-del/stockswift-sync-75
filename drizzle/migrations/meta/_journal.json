@@ -183,6 +183,13 @@
       "when": 1792519583470,
       "tag": "0025_proteger_perfil_id",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792618746338,
+      "tag": "0026_pedidos_aprovacao_somente_comercial",
+      "breakpoints": true
     }
   ]
 }
