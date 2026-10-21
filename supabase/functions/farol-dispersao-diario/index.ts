@@ -465,11 +465,19 @@ Deno.serve(async (req) => {
     // Autenticação: segredo compartilhado (chamado pelo pg_cron, sem sessão de usuário).
     const cronSecretEsperado = await getCfg(admin, "farol_dispersao_cron_secret");
     const cronSecretRecebido = req.headers.get("x-cron-secret");
-    if (!cronSecretEsperado || cronSecretRecebido !== cronSecretEsperado) {
+    // Modo teste: segredo próprio (x-teste-secret). Envia SÓ para o e-mail informado em body.somente_para (domínio da empresa)
+    // e nunca usa a lista cadastrada. Sem esse segredo, vale apenas o segredo do agendamento (comportamento normal).
+    const testeSecretEsperado = await getCfg(admin, "farol_teste_secret");
+    const modoTeste = !!testeSecretEsperado && req.headers.get("x-teste-secret") === testeSecretEsperado;
+    if (!modoTeste && (!cronSecretEsperado || cronSecretRecebido !== cronSecretEsperado)) {
       return json({ ok: false, code: "FORBIDDEN", error: "Segredo de agendamento inválido ou ausente" }, 403);
     }
 
     const body = await req.json().catch(() => ({}));
+    const emailTeste = String(body?.somente_para ?? "").trim().toLowerCase();
+    if (modoTeste && !/^[a-z0-9._%+-]+@magiochocolates\.com\.br$/.test(emailTeste)) {
+      return json({ ok: false, code: "TESTE_INVALIDO", error: "Modo teste exige somente_para com um e-mail @magiochocolates.com.br" }, 400);
+    }
     const dataAlvo: string = (body?.data as string | undefined) || dataAlvoSaoPaulo();
     const dataAlvoFmt = new Date(`${dataAlvo}T00:00:00`).toLocaleDateString("pt-BR");
 
@@ -509,7 +517,7 @@ Deno.serve(async (req) => {
     });
 
     // ==== Destinatários ====
-    const { data: dests, error: derr } = await admin
+    const { data: dests, error: derr } = modoTeste ? { data: [{ email: emailTeste }], error: null } : await admin
       .from("cadastro_emails")
       .select("email")
       .eq("finalidade", FINALIDADE)
@@ -634,7 +642,7 @@ ${corpo}
       from: FROM_HEADER,
       to: toList,
       replyTo: REPLY_TO,
-      subject: `Farol de Dispersão de Lote — ${dataAlvoFmt}${itens.length ? ` (${itens.length} desvio(s))` : ""}`,
+      subject: `${modoTeste ? "[TESTE] " : ""}Farol de Dispersão de Lote — ${dataAlvoFmt}${itens.length ? ` (${itens.length} desvio(s))` : ""}`,
       html,
       attachment: {
         filename: `${slug("Dispersao de Lote Producao")}_${dataAlvo}.html`,
@@ -647,7 +655,7 @@ ${corpo}
 
     await admin.from("audit_logs").insert({
       usuario: null,
-      acao: r.ok ? "FAROL_DISPERSAO_ENVIADO" : "FAROL_DISPERSAO_FALHA",
+      acao: modoTeste ? "FAROL_DISPERSAO_TESTE" : r.ok ? "FAROL_DISPERSAO_ENVIADO" : "FAROL_DISPERSAO_FALHA",
       entidade: "v_impacto_consumo",
       payload: {
         data_alvo: dataAlvo,
