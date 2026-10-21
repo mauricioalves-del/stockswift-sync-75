@@ -146,7 +146,8 @@ function EstoquePosicaoPage() {
     <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><Boxes className="size-6" /> Posição de Estoque</h1>
-        <p className="text-sm text-muted-foreground">Saldo sistêmico consolidado por SKU e almox. Dê dois cliques numa linha para ver os lotes.</p>
+        <p className="text-sm text-muted-foreground">Saldo sistêmico consolidado por SKU e almox. Clique numa linha para ver os lotes abaixo dela.</p>
+
       </div>
 
       <div className="grid grid-cols-3 gap-3">
