@@ -533,7 +533,7 @@ Deno.serve(async (req) => {
 
     const avisoSemEmpresaHtml = semEmpresa > 0
       ? `<p style="font-size:13px;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:8px 12px;margin:0 0 12px;font-weight:600">
-      ⚠️ Atenção: ${semEmpresa} linha(s) de consumo de ${esc(dataAlvoFmt)} sem empresa classificada — não entraram neste farol. Verifique a importação.
+      ⚠️ Atenção: ${semEmpresa} linha(s) de consumo de ${esc(dataAlvoFmt)} sem empresa classificada — não entraram neste farol (podem conter desvios de qualquer unidade). Verifique a importação.
     </p>`
       : "";
 
@@ -561,7 +561,7 @@ Deno.serve(async (req) => {
       const qtdOps = totalPorOp.size;
 
       corpo = `
-    ${opsPadraoHtml}
+    ${avisoSemEmpresaHtml}${opsPadraoHtml}
     <p style="font-size:13px;color:#374151;margin:0 0 12px">
       ${itens.length} desvio(s) identificado(s) em ${qtdOps} ordem(ns) de produção, no dia ${esc(dataAlvoFmt)}.
     </p>
