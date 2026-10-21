@@ -116,7 +116,7 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
           <section className="space-y-3">
             <div>
               <h3 className="flex items-center gap-2 text-sm font-semibold"><PackagePlus className="size-4" /> Produtos extras <span className="font-normal text-muted-foreground">(opcional)</span></h3>
-              <p className="text-xs text-muted-foreground">Catálogo aprovado de {p.loja}{catalogo.length ? ` · ${catalogo.length} produtos` : ""}. “Disponível” = estoque de {origem} menos o que está em pedidos em andamento (inclusive este). A quantidade vai em caixa fechada, até o disponível; com menos de uma caixa no CD, vale o saldo solto.</p>
+              <p className="text-xs text-muted-foreground">Catálogo aprovado de {p.loja}{catalogo.length ? ` · ${catalogo.length} produtos` : ""}. Origem: {origem}. Disponibilidade líquida dos pedidos em andamento (inclusive este).</p>
             </div>
             {cat.isLoading ? <p className="text-xs text-muted-foreground">Carregando catálogo…</p> : !catalogo.length ? <p className="rounded-md border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">Esta loja não tem portfólio aprovado; não é possível sugerir produtos.</p> : (
               <div className="overflow-hidden rounded-md border">
