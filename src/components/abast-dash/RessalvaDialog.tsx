@@ -7,15 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { avisoDisponibilidade, chaveSku, filtrarCatalogo, mapaSaldos, qtdValida, resumoSugestoes, type CatProduto, type SaldoProduto, type SugRessalva } from "@/lib/abastecimento-ressalva";
+import { caixaDoProduto, chaveSku, erroQtdExtra, filtrarCatalogo, mapaSaldos, passoQtd, qtdInicial, qtdValida, resumoSugestoes, saldoParaExtra, type CatProduto, type SaldoProduto, type SugRessalva } from "@/lib/abastecimento-ressalva";
+import { useAbastBruto } from "@/lib/abastecimento-hook";
+import { ehSolto, nk } from "@/lib/abastecimento-dados";
 
 type PedidoRessalva = { id: string; numero: number; loja: string; almox_origem?: string | null; itens: { id_produto: string; qtd_pedida: number; aceito: boolean | null; origem: string }[] };
 const un = (n: number) => Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 
-function Disp({ s }: { s?: SaldoProduto | null }) {
+function Disp({ s, caixa = 1 }: { s?: SaldoProduto | null; caixa?: number }) {
   if (!s) return null;
   const v = s.saldo_inicial;
-  return <span title={`Estoque ${un(s.estoque)} − ${un(s.reservado_outros)} em outros pedidos em andamento`} className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${v <= 0 ? "bg-destructive/10 text-destructive" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"}`}>{v <= 0 ? "sem estoque" : `${un(v)} disponível`}</span>;
+  const cx = caixa > 1 && v > 0 ? (v >= caixa ? ` · ${Math.floor(v / caixa)} cx` : " · solto") : "";
+  return <span title={`Estoque ${un(s.estoque)} − ${un(s.reservado_outros)} em pedidos em andamento (inclui o que este pedido já leva)${caixa > 1 ? ` · caixa de ${caixa} un` : ""}`} className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${v <= 0 ? "bg-destructive/10 text-destructive" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"}`}>{v <= 0 ? "sem estoque" : `${un(v)} disponível${cx}`}</span>;
 }
 
 /** Ressalvas do gerente comercial: justificativa obrigatória + produtos extras do catálogo aprovado da loja. O pedido segue para o Diretor de Operações. */
@@ -44,6 +47,17 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
   });
   const saldos = saldosQ.data ?? new Map<string, SaldoProduto>();
   const validos = p.itens.filter((i) => i.aceito !== false && !(i.origem === "SUGESTAO_COMERCIAL" && i.aceito == null));
+  // Caixaria: mesma regra do motor (abast_produto.full_case; família vendida solta não tem caixa). Dados já em cache na tela de Pedidos.
+  const bruto = useAbastBruto(true);
+  const caixaDe = useMemo(() => {
+    const fc = new Map<string, unknown>((bruto.data?.produtos ?? []).map((x) => [nk(x.id_produto), x.full_case]));
+    const fam = new Map<string, string>((bruto.data?.familias ?? []).map((x) => [nk(x.codigo_produto), x.familia]));
+    return (sku: string) => caixaDoProduto(fc.get(nk(sku)), ehSolto(fam.get(nk(sku)) ?? ""));
+  }, [bruto.data]);
+  // Disponível no CD para extra = saldo do banco (já sem os outros pedidos) menos o que este pedido já leva do SKU
+  const qtdNoPedido = useMemo(() => { const m = new Map<string, number>(); for (const i of validos) m.set(chaveSku(i.id_produto), (m.get(chaveSku(i.id_produto)) ?? 0) + Number(i.qtd_pedida)); return m; }, [p.itens]);
+  const saldoDe = (sku: string) => saldoParaExtra(saldos.get(chaveSku(sku)), qtdNoPedido.get(chaveSku(sku)) ?? 0);
+  const carregandoCaixa = bruto.isLoading;
   const noPedido = useMemo(() => new Set(validos.map((i) => chaveSku(i.id_produto))), [p.itens]);
   const jaSugeridos = useMemo(() => new Set(sugs.map((s) => chaveSku(s.id_produto))), [sugs]);
   const resultados = useMemo(() => filtrarCatalogo(catalogo, busca, jaSugeridos), [catalogo, busca, jaSugeridos]);
@@ -51,16 +65,22 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
   const origem = p.almox_origem ?? "origem";
   const unidadesPedido = validos.reduce((a, i) => a + Number(i.qtd_pedida), 0);
   const n = qtdValida(qtd);
-  const avisoSel = sel && n ? avisoDisponibilidade(n, saldos.get(chaveSku(sel.sku))) : null;
+  const cxSel = sel ? caixaDe(sel.sku) : 1;
+  const saldoSel = sel ? saldoDe(sel.sku) : null;
+  const erroSel = sel ? erroQtdExtra(n, cxSel, saldoSel) : null;
+  const errosSugs = sugs.map((x) => erroQtdExtra(x.qtd, x.caixa ?? caixaDe(x.id_produto), saldoDe(x.id_produto)));
 
+  function escolher(c: CatProduto) { setSel(c); setQtd(String(qtdInicial(caixaDe(c.sku), saldoDe(c.sku)))); }
   function adicionar() {
-    if (!sel || !n) { toast.error("Escolha o produto e uma quantidade maior que zero."); return; }
-    setSugs([...sugs, { id_produto: sel.sku, descricao: sel.descricao, qtd: n }]); setSel(null); setQtd("1"); setBusca("");
+    if (!sel || carregandoCaixa) return;
+    if (erroSel) { toast.error(erroSel); return; }
+    setSugs([...sugs, { id_produto: sel.sku, descricao: sel.descricao, qtd: n!, caixa: cxSel }]); setSel(null); setQtd("1"); setBusca("");
     setTimeout(() => buscaRef.current?.focus(), 50);
   }
   async function enviar() {
     setTentou(true);
     if (!obs.trim()) { toast.error("Escreva as ressalvas na justificativa."); return; }
+    if (errosSugs.some(Boolean)) { toast.error("Ajuste as quantidades dos produtos extras (caixa fechada, até o disponível no CD)."); return; }
     setSalvando(true);
     try {
       const { error } = await sb.rpc("abast_aprovar_comercial", { p_id: p.id, p_aprovado: false, p_obs: obs.trim(), p_itens_sugeridos: sugs });
@@ -94,7 +114,7 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
           <section className="space-y-3">
             <div>
               <h3 className="flex items-center gap-2 text-sm font-semibold"><PackagePlus className="size-4" /> Produtos extras <span className="font-normal text-muted-foreground">(opcional)</span></h3>
-              <p className="text-xs text-muted-foreground">Catálogo aprovado de {p.loja}{catalogo.length ? ` · ${catalogo.length} produtos` : ""}. “Disponível” = estoque de {origem} menos o que está em outros pedidos em andamento; é só informativo, a decisão é do Diretor.</p>
+              <p className="text-xs text-muted-foreground">Catálogo aprovado de {p.loja}{catalogo.length ? ` · ${catalogo.length} produtos` : ""}. “Disponível” = estoque de {origem} menos o que está em pedidos em andamento (inclusive este). A quantidade vai em caixa fechada, até o disponível; com menos de uma caixa no CD, vale o saldo solto.</p>
             </div>
             {cat.isLoading ? <p className="text-xs text-muted-foreground">Carregando catálogo…</p> : !catalogo.length ? <p className="rounded-md border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">Esta loja não tem portfólio aprovado; não é possível sugerir produtos.</p> : (
               <div className="overflow-hidden rounded-md border">
@@ -102,27 +122,28 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
                   <div className="space-y-2 bg-primary/5 px-3 py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0"><div className="font-mono text-[11px] text-muted-foreground">{sel.sku}</div><div className="truncate text-sm font-medium">{sel.descricao}</div></div>
-                      <div className="flex items-center gap-2"><Disp s={saldos.get(chaveSku(sel.sku))} /><Button type="button" variant="ghost" size="sm" onClick={() => setSel(null)}>Trocar</Button></div>
+                      <div className="flex items-center gap-2"><Disp s={saldoSel} caixa={cxSel} /><Button type="button" variant="ghost" size="sm" onClick={() => setSel(null)}>Trocar</Button></div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Quantidade</span>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setQtd(String(Math.max(1, (n ?? 1) - 1)))} aria-label="Diminuir"><Minus className="size-4" /></Button>
+                      <span className="text-xs text-muted-foreground">Quantidade{cxSel > 1 ? ` · caixa de ${cxSel} un` : ""}</span>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setQtd(String(passoQtd(n, -1, cxSel, saldoSel)))} aria-label="Diminuir"><Minus className="size-4" /></Button>
                       <Input autoFocus inputMode="decimal" className="w-24 text-center" value={qtd} onChange={(e) => setQtd(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") adicionar(); }} aria-label="Quantidade" />
-                      <Button type="button" variant="outline" size="sm" onClick={() => setQtd(String((n ?? 0) + 1))} aria-label="Aumentar"><Plus className="size-4" /></Button>
-                      <Button type="button" onClick={adicionar} disabled={!n} className="ml-auto gap-1"><Plus className="size-4" /> Adicionar à lista</Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setQtd(String(passoQtd(n, 1, cxSel, saldoSel)))} aria-label="Aumentar"><Plus className="size-4" /></Button>
+                      {cxSel > 1 && n ? <span className="text-xs text-muted-foreground">{n % cxSel === 0 ? `${un(n / cxSel)} cx` : "solto"}</span> : null}
+                      <Button type="button" onClick={adicionar} disabled={!!erroSel || carregandoCaixa} className="ml-auto gap-1"><Plus className="size-4" /> {carregandoCaixa ? "Carregando caixaria…" : "Adicionar à lista"}</Button>
                     </div>
-                    {avisoSel && <p className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300"><AlertTriangle className="size-3.5" /> {avisoSel}</p>}
+                    {erroSel && <p className="flex items-center gap-1 text-xs text-destructive"><AlertTriangle className="size-3.5" /> {erroSel}</p>}
                   </div>
                 ) : (
                   <>
-                    <div className="relative border-b"><Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input ref={buscaRef} value={busca} onChange={(e) => setBusca(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && resultados[0]) setSel(resultados[0]); }} placeholder="Buscar por nome ou SKU" aria-label="Buscar produto" className="h-10 rounded-none border-0 pl-9 focus-visible:ring-0" /></div>
+                    <div className="relative border-b"><Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input ref={buscaRef} value={busca} onChange={(e) => setBusca(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && resultados[0]) escolher(resultados[0]); }} placeholder="Buscar por nome ou SKU" aria-label="Buscar produto" className="h-10 rounded-none border-0 pl-9 focus-visible:ring-0" /></div>
                     <ul className="max-h-52 divide-y overflow-y-auto">
                       {resultados.map((c) => (
-                        <li key={c.sku}><button type="button" onClick={() => setSel(c)} className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-muted">
+                        <li key={c.sku}><button type="button" onClick={() => escolher(c)} className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-muted">
                           <span className="w-20 shrink-0 font-mono text-[11px] text-muted-foreground">{c.sku}</span>
                           <span className="min-w-0 flex-1 truncate text-sm">{c.descricao}</span>
                           {noPedido.has(chaveSku(c.sku)) && <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">já no pedido</span>}
-                          <Disp s={saldos.get(chaveSku(c.sku))} />
+                          <Disp s={saldoDe(c.sku)} caixa={caixaDe(c.sku)} />
                         </button></li>))}
                       {resultados.length === 0 && <li className="px-3 py-6 text-center text-xs text-muted-foreground">{busca ? "Nenhum produto encontrado para essa busca." : "Todos os produtos do catálogo já foram sugeridos."}</li>}
                     </ul>
@@ -135,13 +156,14 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
               <div className="rounded-md border">
                 <div className="flex items-center justify-between border-b bg-muted/40 px-3 py-1.5 text-xs font-medium"><span>Sugestões para o Diretor</span><span className="text-muted-foreground">{resumo.produtos} produto{resumo.produtos > 1 ? "s" : ""} · {un(resumo.unidades)} un</span></div>
                 <ul className="divide-y">
-                  {sugs.map((s) => { const aviso = avisoDisponibilidade(s.qtd, saldos.get(chaveSku(s.id_produto))); return (
+                  {sugs.map((s, k) => { const aviso = errosSugs[k]; const cx = s.caixa ?? caixaDe(s.id_produto); return (
                     <li key={s.id_produto} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
                       <span className="w-20 shrink-0 font-mono text-[11px] text-muted-foreground">{s.id_produto}</span>
                       <span className="min-w-0 flex-1 truncate text-sm" title={s.descricao}>{s.descricao}</span>
                       <Input inputMode="decimal" className="h-8 w-20 text-right" value={String(s.qtd)} aria-label={`Quantidade de ${s.id_produto}`} onChange={(e) => { const v = qtdValida(e.target.value); setSugs(sugs.map((x) => (x === s ? { ...x, qtd: v ?? 0 } : x))); }} />
+                      {cx > 1 && <span className="w-16 text-[11px] text-muted-foreground">{s.qtd > 0 && s.qtd % cx === 0 ? `${un(s.qtd / cx)} cx` : `cx ${cx} un`}</span>}
                       <Button size="sm" variant="ghost" onClick={() => setSugs(sugs.filter((x) => x !== s))} aria-label={`Remover ${s.id_produto}`}><Trash2 className="size-4" /></Button>
-                      {aviso && <p className="flex w-full items-center gap-1 pl-[5.75rem] text-[11px] text-amber-700 dark:text-amber-300"><AlertTriangle className="size-3" /> {aviso}</p>}
+                      {aviso && <p className="flex w-full items-center gap-1 pl-[5.75rem] text-[11px] text-destructive"><AlertTriangle className="size-3" /> {aviso}</p>}
                     </li>); })}
                 </ul>
               </div>
@@ -151,7 +173,7 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
 
         <DialogFooter className="items-center gap-2 border-t bg-muted/30 px-6 py-3 sm:justify-between">
           <span className="text-xs text-muted-foreground">{resumo.produtos ? `${resumo.produtos} produto${resumo.produtos > 1 ? "s" : ""} extra${resumo.produtos > 1 ? "s" : ""} · ${un(resumo.unidades)} un` : "Sem produtos extras"}</span>
-          <div className="flex gap-2"><Button variant="ghost" disabled={salvando} onClick={onClose}>Voltar</Button><Button disabled={salvando || sugs.some((s) => !(s.qtd > 0))} onClick={enviar} className="gap-2">{salvando ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}{salvando ? "Enviando…" : "Enviar ao Diretor"}</Button></div>
+          <div className="flex gap-2"><Button variant="ghost" disabled={salvando} onClick={onClose}>Voltar</Button><Button disabled={salvando || errosSugs.some(Boolean)} onClick={enviar} className="gap-2">{salvando ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}{salvando ? "Enviando…" : "Enviar ao Diretor"}</Button></div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
