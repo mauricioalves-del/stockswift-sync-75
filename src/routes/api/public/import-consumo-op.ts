@@ -88,7 +88,8 @@ export const Route = createFileRoute('/api/public/import-consumo-op')({
           if (!id_op) return erros.push({ linha: i + 1, erro: 'id_op vazio' })
           if (!material) return erros.push({ linha: i + 1, erro: 'material vazio' })
           if (!data_producao) return erros.push({ linha: i + 1, erro: 'data_producao inválida' })
-          if (!empresa) return erros.push({ linha: i + 1, erro: 'empresa vazia (Filial SP - Fabrica ou Matriz Para)' })
+          // empresa é opcional aqui: se não vier, o banco infere (mesma OP / produto de uma só empresa); sem como inferir fica vazia e o farol avisa.
+          // Rejeitar a linha faria a importação inteira parar quando o remetente não envia a coluna.
           if (Number.isNaN(qtd_consumo)) return erros.push({ linha: i + 1, erro: 'qtd_consumo inválida' })
           if (Number.isNaN(qtd_previsto)) return erros.push({ linha: i + 1, erro: 'qtd_previsto inválida' })
           const qpRaw = txt(r.qtd_produzida) === '' ? null : num(r.qtd_produzida)
@@ -118,7 +119,7 @@ export const Route = createFileRoute('/api/public/import-consumo-op')({
             qtd_consumo,
             qtd_previsto,
             qtd_produzida,
-            empresa,
+            empresa: empresa || null,
             criado_por: null,
           })
         })
@@ -175,6 +176,7 @@ export const Route = createFileRoute('/api/public/import-consumo-op')({
             novos: Math.max(ok - atualizados, 0),
             atualizados: Math.min(atualizados, ok),
             falhas,
+            empresa_nao_informada: validas.filter((v) => !v.empresa).length,
             erros,
           })
         } catch (e) {
