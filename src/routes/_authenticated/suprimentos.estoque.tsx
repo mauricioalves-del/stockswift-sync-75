@@ -34,7 +34,7 @@ function EstoquePosicaoPage() {
   const [origemF, setOrigemF] = useState<string>("__all");
   const [grupoF, setGrupoF] = useState<string>("__all");
   const [busca, setBusca] = useState("");
-  const [detalhe, setDetalhe] = useState<{ origem: string; id_produto: string; descricao: string } | null>(null);
+  const [expandido, setExpandido] = useState<string | null>(null);
   const { almoxes } = useMeusAlmoxarifados();
 
   const q = useQuery({
