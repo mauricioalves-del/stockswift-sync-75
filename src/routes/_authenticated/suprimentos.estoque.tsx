@@ -275,44 +275,10 @@ function EstoquePosicaoPage() {
           )}
         </CardContent>
       </Card>
-
-      <Dialog open={!!detalhe} onOpenChange={(open) => { if (!open) setDetalhe(null); }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="font-mono text-sm">
-              {detalhe?.id_produto} — {detalhe?.descricao}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader><TableRow>
-                <TableHead>Grupo</TableHead>
-                <TableHead>Lote</TableHead>
-                <TableHead className="text-right">Quantidade</TableHead>
-                <TableHead className="text-right">Custo Total</TableHead>
-                <TableHead>Validade</TableHead>
-              </TableRow></TableHeader>
-              <TableBody>
-                {lotesDetalhe.map((l) => (
-                  <TableRow key={l.lote}>
-                    <TableCell className="text-xs">{detalhe ? grupoDe(detalhe.id_produto) : ""}</TableCell>
-                    <TableCell className="font-mono text-xs">{l.lote}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatNum(l.quantidade)}</TableCell>
-                    <TableCell className="text-right tabular-nums font-semibold">{formatBRL(l.quantidade * l.custo_unitario)}</TableCell>
-                    <TableCell className="text-xs">{l.data_validade ? new Date(`${l.data_validade}T00:00:00`).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                  </TableRow>
-                ))}
-                {lotesDetalhe.length === 0 && (
-                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground text-sm py-6">Sem lotes.</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
+
 
 function KPI({ label, value }: { label: string; value: string }) {
   return (
