@@ -17,9 +17,8 @@ const CORS = {
 const GMAIL_GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v1/users/me/messages/send";
 const FINALIDADE = "Farol Dispersão Diário - PA";
 const EMPRESA_ALVO = "Matriz Para";
-function empresaOk(v: unknown): boolean {
-  return String(v ?? "").trim().toLowerCase() === EMPRESA_ALVO.trim().toLowerCase();
-}
+const norm = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+function empresaOk(v: unknown): boolean { return norm(v) === norm(EMPRESA_ALVO); }
 
 function json(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -487,6 +486,7 @@ Deno.serve(async (req) => {
     if (lerr) throw lerr;
 
     const linhasEmpresa = (linhasDia ?? []).filter((r: any) => empresaOk(r.empresa));
+    const semEmpresa = (linhasDia ?? []).filter((r: any) => !norm(r.empresa)).length;
     const itens = linhasEmpresa.filter((r: any) => (r.tipo_desvio ?? "ok") !== "ok");
 
     // Meritocracia: OPs cujos itens vieram 100% dentro do padrão (sem nenhum desvio)
@@ -531,9 +531,15 @@ Deno.serve(async (req) => {
     </p>`
       : "";
 
+    const avisoSemEmpresaHtml = semEmpresa > 0
+      ? `<p style="font-size:13px;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:8px 12px;margin:0 0 12px;font-weight:600">
+      ⚠️ Atenção: ${semEmpresa} linha(s) de consumo de ${esc(dataAlvoFmt)} sem empresa classificada — não entraram neste farol. Verifique a importação.
+    </p>`
+      : "";
+
     let corpo: string;
     if (itens.length === 0) {
-      corpo = `${opsPadraoHtml}<p style="font-size:13px;color:#374151">Nenhum desvio identificado em ${esc(dataAlvoFmt)}.</p>`;
+      corpo = `${avisoSemEmpresaHtml}${opsPadraoHtml}<p style="font-size:13px;color:#374151">Nenhum desvio identificado em ${esc(dataAlvoFmt)}.</p>`;
     } else {
       const linhasHtml = itens.map((r: any) => {
         const impacto = Number(r.impacto_rs ?? 0);
