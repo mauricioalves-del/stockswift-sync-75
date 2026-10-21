@@ -1,5 +1,8 @@
 # Correção de grupos das Baixas Operacionais
 
+## Fracionamento nas ressalvas comerciais
+- [ ] Adicionar opção por produto, preservar limite de estoque e aprovação do Diretor, testar regras e conferir na tela.
+
 ## Pedidos: retorno de status
 - [x] Adicionar retorno ao status anterior exclusivo para administrador e verificar permissões e fluxo.
 

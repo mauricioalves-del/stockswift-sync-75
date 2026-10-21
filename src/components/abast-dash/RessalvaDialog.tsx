@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { caixaDoProduto, chaveSku, erroQtdExtra, filtrarCatalogo, mapaSaldos, passoQtd, qtdInicial, qtdValida, resumoSugestoes, saldoParaExtra, type CatProduto, type SaldoProduto, type SugRessalva } from "@/lib/abastecimento-ressalva";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { ehSolto, nk } from "@/lib/abastecimento-dados";
@@ -28,6 +29,7 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
   const [sugs, setSugs] = useState<SugRessalva[]>([]);
   const [busca, setBusca] = useState(""); const [sel, setSel] = useState<CatProduto | null>(null); const [qtd, setQtd] = useState("1");
   const [salvando, setSalvando] = useState(false);
+  const [fracionar, setFracionar] = useState(false);
   const buscaRef = useRef<HTMLInputElement>(null);
 
   const cat = useQuery({
@@ -67,20 +69,20 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
   const n = qtdValida(qtd);
   const cxSel = sel ? caixaDe(sel.sku) : 1;
   const saldoSel = sel ? saldoDe(sel.sku) : null;
-  const erroSel = sel ? erroQtdExtra(n, cxSel, saldoSel) : null;
-  const errosSugs = sugs.map((x) => erroQtdExtra(x.qtd, x.caixa ?? caixaDe(x.id_produto), saldoDe(x.id_produto)));
+  const erroSel = sel ? erroQtdExtra(n, cxSel, saldoSel, fracionar) : null;
+  const errosSugs = sugs.map((x) => erroQtdExtra(x.qtd, x.caixa ?? caixaDe(x.id_produto), saldoDe(x.id_produto), x.fracionar));
 
-  function escolher(c: CatProduto) { setSel(c); setQtd(String(qtdInicial(caixaDe(c.sku), saldoDe(c.sku)))); }
+  function escolher(c: CatProduto) { setSel(c); setFracionar(false); setQtd(String(qtdInicial(caixaDe(c.sku), saldoDe(c.sku)))); }
   function adicionar() {
-    if (!sel || carregandoCaixa) return;
+    if (!sel || carregandoCaixa || n === null) return;
     if (erroSel) { toast.error(erroSel); return; }
-    setSugs([...sugs, { id_produto: sel.sku, descricao: sel.descricao, qtd: n!, caixa: cxSel }]); setSel(null); setQtd("1"); setBusca("");
+    setSugs([...sugs, { id_produto: sel.sku, descricao: sel.descricao, qtd: n, caixa: cxSel, fracionar }]); setSel(null); setQtd("1"); setBusca("");
     setTimeout(() => buscaRef.current?.focus(), 50);
   }
   async function enviar() {
     setTentou(true);
     if (!obs.trim()) { toast.error("Escreva as ressalvas na justificativa."); return; }
-    if (errosSugs.some(Boolean)) { toast.error("Ajuste as quantidades dos produtos extras (caixa fechada, até o disponível no CD)."); return; }
+    if (errosSugs.some(Boolean)) { toast.error("Ajuste as quantidades dos produtos extras conforme a caixaria ou fracionamento, até o saldo disponível."); return; }
     setSalvando(true);
     try {
       const { error } = await sb.rpc("abast_aprovar_comercial", { p_id: p.id, p_aprovado: false, p_obs: obs.trim(), p_itens_sugeridos: sugs });
@@ -126,9 +128,10 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs text-muted-foreground">Quantidade{cxSel > 1 ? ` · caixa de ${cxSel} un` : ""}</span>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setQtd(String(passoQtd(n, -1, cxSel, saldoSel)))} aria-label="Diminuir"><Minus className="size-4" /></Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setQtd(String(passoQtd(n, -1, cxSel, saldoSel, fracionar)))} aria-label="Diminuir"><Minus className="size-4" /></Button>
                       <Input autoFocus inputMode="decimal" className="w-24 text-center" value={qtd} onChange={(e) => setQtd(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") adicionar(); }} aria-label="Quantidade" />
-                      <Button type="button" variant="outline" size="sm" onClick={() => setQtd(String(passoQtd(n, 1, cxSel, saldoSel)))} aria-label="Aumentar"><Plus className="size-4" /></Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setQtd(String(passoQtd(n, 1, cxSel, saldoSel, fracionar)))} aria-label="Aumentar"><Plus className="size-4" /></Button>
+                      {cxSel > 1 && <label className="flex items-center gap-2 text-xs"><Checkbox checked={fracionar} onCheckedChange={(v) => setFracionar(v === true)} />Fracionar</label>}
                       {cxSel > 1 && n ? <span className="text-xs text-muted-foreground">{n % cxSel === 0 ? `${un(n / cxSel)} cx` : "solto"}</span> : null}
                       <Button type="button" onClick={adicionar} disabled={!!erroSel || carregandoCaixa} className="ml-auto gap-1"><Plus className="size-4" /> {carregandoCaixa ? "Carregando caixaria…" : "Adicionar à lista"}</Button>
                     </div>
@@ -162,6 +165,7 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
                       <span className="min-w-0 flex-1 truncate text-sm" title={s.descricao}>{s.descricao}</span>
                       <Input inputMode="decimal" className="h-8 w-20 text-right" value={String(s.qtd)} aria-label={`Quantidade de ${s.id_produto}`} onChange={(e) => { const v = qtdValida(e.target.value); setSugs(sugs.map((x) => (x === s ? { ...x, qtd: v ?? 0 } : x))); }} />
                       {cx > 1 && <span className="w-16 text-[11px] text-muted-foreground">{s.qtd > 0 && s.qtd % cx === 0 ? `${un(s.qtd / cx)} cx` : `cx ${cx} un`}</span>}
+                      {cx > 1 && <label className="flex items-center gap-2 text-xs"><Checkbox checked={s.fracionar ?? false} onCheckedChange={(v) => setSugs(sugs.map((x) => x === s ? { ...x, fracionar: v === true } : x))} aria-label={`Fracionar ${s.id_produto}`} />Fracionar</label>}
                       <Button size="sm" variant="ghost" onClick={() => setSugs(sugs.filter((x) => x !== s))} aria-label={`Remover ${s.id_produto}`}><Trash2 className="size-4" /></Button>
                       {aviso && <p className="flex w-full items-center gap-1 pl-[5.75rem] text-[11px] text-destructive"><AlertTriangle className="size-3" /> {aviso}</p>}
                     </li>); })}
