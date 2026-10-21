@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
@@ -8,10 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Boxes, Loader2 } from "lucide-react";
+import { Boxes, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { formatNum, formatBRL } from "@/lib/inventory";
 import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
+
 
 export const Route = createFileRoute("/_authenticated/suprimentos/estoque")({
   component: EstoquePosicaoPage,
@@ -34,7 +34,7 @@ function EstoquePosicaoPage() {
   const [origemF, setOrigemF] = useState<string>("__all");
   const [grupoF, setGrupoF] = useState<string>("__all");
   const [busca, setBusca] = useState("");
-  const [detalhe, setDetalhe] = useState<{ origem: string; id_produto: string; descricao: string } | null>(null);
+  const [expandido, setExpandido] = useState<string | null>(null);
   const { almoxes } = useMeusAlmoxarifados();
 
   const q = useQuery({
@@ -118,30 +118,36 @@ function EstoquePosicaoPage() {
     return { skus, valor, qtd };
   }, [agregado]);
 
-  const lotesDetalhe = useMemo(() => {
-    if (!detalhe) return [];
-    const m = new Map<string, { lote: string; quantidade: number; custo_unitario: number; data_validade: string | null }>();
+  const lotesPorChave = useMemo(() => {
+    const m = new Map<string, { lote: string; quantidade: number; custo_unitario: number; data_validade: string | null }[]>();
     for (const r of q.data ?? []) {
-      if (r.origem !== detalhe.origem || r.id_produto !== detalhe.id_produto) continue;
+      const key = `${r.origem}|${r.id_produto}`;
       const lote = r.lote || "Sem lote";
       const qtd = Number(r.quantidade);
       const cu = Number(r.custo_unitario);
-      const prev = m.get(lote);
+      const arr = m.get(key) ?? [];
+      const prev = arr.find((l) => l.lote === lote);
       if (prev) { prev.quantidade += qtd; }
-      else m.set(lote, { lote, quantidade: qtd, custo_unitario: cu, data_validade: r.data_validade });
+      else arr.push({ lote, quantidade: qtd, custo_unitario: cu, data_validade: r.data_validade });
+      m.set(key, arr);
     }
-    return Array.from(m.values()).sort((a, b) => {
-      if (!a.data_validade) return 1;
-      if (!b.data_validade) return -1;
-      return a.data_validade.localeCompare(b.data_validade);
-    });
-  }, [detalhe, q.data]);
+    for (const arr of m.values()) {
+      arr.sort((a, b) => {
+        if (!a.data_validade) return 1;
+        if (!b.data_validade) return -1;
+        return a.data_validade.localeCompare(b.data_validade);
+      });
+    }
+    return m;
+  }, [q.data]);
+
 
   return (
     <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><Boxes className="size-6" /> Posição de Estoque</h1>
-        <p className="text-sm text-muted-foreground">Saldo sistêmico consolidado por SKU e almox. Dê dois cliques numa linha para ver os lotes.</p>
+        <p className="text-sm text-muted-foreground">Saldo sistêmico consolidado por SKU e almox. Clique numa linha para ver os lotes abaixo dela.</p>
+
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -187,6 +193,7 @@ function EstoquePosicaoPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow>
+                  <TableHead className="w-8" />
                   <TableHead>SKU</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Un.</TableHead>
@@ -195,27 +202,69 @@ function EstoquePosicaoPage() {
                   <TableHead className="text-right">Custo Unit.</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                 </TableRow></TableHeader>
+
                 <TableBody>
-                  {agregado.slice(0, 500).map((r) => (
-                    <TableRow
-                      key={`${r.origem}|${r.id_produto}`}
-                      className="cursor-pointer"
-                      title="Dois cliques para ver os lotes"
-                      onDoubleClick={() => setDetalhe({ origem: r.origem, id_produto: r.id_produto, descricao: r.descricao })}
-                    >
-                      <TableCell className="font-mono text-xs">{r.id_produto}</TableCell>
-                      <TableCell className="text-xs max-w-xs truncate">{r.descricao}</TableCell>
-                      <TableCell className="text-xs">{r.unidade}</TableCell>
-                      <TableCell className="text-xs">{r.origem}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatNum(r.quantidade)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatBRL(r.custo_unitario)}</TableCell>
-                      <TableCell className="text-right tabular-nums font-semibold">{formatBRL(r.valor)}</TableCell>
-                    </TableRow>
-                  ))}
+                  {agregado.slice(0, 500).map((r) => {
+                    const key = `${r.origem}|${r.id_produto}`;
+                    const aberto = expandido === key;
+                    const lotes = lotesPorChave.get(key) ?? [];
+                    return (
+                      <Fragment key={key}>
+                        <TableRow
+                          className="cursor-pointer"
+                          title="Clique para ver os lotes"
+                          onClick={() => setExpandido((k) => (k === key ? null : key))}
+                        >
+                          <TableCell className="w-8 align-middle">
+                            {aberto ? <ChevronDown className="size-4 text-muted-foreground" /> : <ChevronRight className="size-4 text-muted-foreground" />}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{r.id_produto}</TableCell>
+                          <TableCell className="text-xs max-w-xs truncate">{r.descricao}</TableCell>
+                          <TableCell className="text-xs">{r.unidade}</TableCell>
+                          <TableCell className="text-xs">{r.origem}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatNum(r.quantidade)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatBRL(r.custo_unitario)}</TableCell>
+                          <TableCell className="text-right tabular-nums font-semibold">{formatBRL(r.valor)}</TableCell>
+                        </TableRow>
+                        {aberto && (
+                          <TableRow className="bg-muted/40 hover:bg-muted/40">
+                            <TableCell colSpan={8} className="p-0">
+                              <div className="px-4 py-2">
+                                <Table>
+                                  <TableHeader><TableRow>
+                                    <TableHead className="text-xs">Grupo</TableHead>
+                                    <TableHead className="text-xs">Lote</TableHead>
+                                    <TableHead className="text-right text-xs">Quantidade</TableHead>
+                                    <TableHead className="text-right text-xs">Custo Total</TableHead>
+                                    <TableHead className="text-xs">Validade</TableHead>
+                                  </TableRow></TableHeader>
+                                  <TableBody>
+                                    {lotes.map((l) => (
+                                      <TableRow key={l.lote}>
+                                        <TableCell className="text-xs">{grupoDe(r.id_produto)}</TableCell>
+                                        <TableCell className="font-mono text-xs">{l.lote}</TableCell>
+                                        <TableCell className="text-right tabular-nums text-xs">{formatNum(l.quantidade)}</TableCell>
+                                        <TableCell className="text-right tabular-nums text-xs font-medium">{formatBRL(l.quantidade * l.custo_unitario)}</TableCell>
+                                        <TableCell className="text-xs">{l.data_validade ? new Date(`${l.data_validade}T00:00:00`).toLocaleDateString("pt-BR") : "—"}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                    {!lotes.length && (
+                                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground text-xs py-2">Sem lotes.</TableCell></TableRow>
+                                    )}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                   {agregado.length === 0 && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground text-sm py-6">Sem dados.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground text-sm py-6">Sem dados.</TableCell></TableRow>
                   )}
                 </TableBody>
+
               </Table>
               {agregado.length > 500 && (
                 <div className="text-xs text-muted-foreground p-2 text-center">
@@ -226,44 +275,10 @@ function EstoquePosicaoPage() {
           )}
         </CardContent>
       </Card>
-
-      <Dialog open={!!detalhe} onOpenChange={(open) => { if (!open) setDetalhe(null); }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="font-mono text-sm">
-              {detalhe?.id_produto} — {detalhe?.descricao}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader><TableRow>
-                <TableHead>Grupo</TableHead>
-                <TableHead>Lote</TableHead>
-                <TableHead className="text-right">Quantidade</TableHead>
-                <TableHead className="text-right">Custo Total</TableHead>
-                <TableHead>Validade</TableHead>
-              </TableRow></TableHeader>
-              <TableBody>
-                {lotesDetalhe.map((l) => (
-                  <TableRow key={l.lote}>
-                    <TableCell className="text-xs">{detalhe ? grupoDe(detalhe.id_produto) : ""}</TableCell>
-                    <TableCell className="font-mono text-xs">{l.lote}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatNum(l.quantidade)}</TableCell>
-                    <TableCell className="text-right tabular-nums font-semibold">{formatBRL(l.quantidade * l.custo_unitario)}</TableCell>
-                    <TableCell className="text-xs">{l.data_validade ? new Date(`${l.data_validade}T00:00:00`).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                  </TableRow>
-                ))}
-                {lotesDetalhe.length === 0 && (
-                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground text-sm py-6">Sem lotes.</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
+
 
 function KPI({ label, value }: { label: string; value: string }) {
   return (
