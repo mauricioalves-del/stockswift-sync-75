@@ -219,39 +219,6 @@ function CargaPage() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Malha — consenso da diretoria</CardTitle>
-          <CardDescription>Malha/dia = consenso do mês (unidades) ÷ dias do mês, como no Excel. Um arquivo por mês: CSV ou Excel com <code>SKU</code>, <code>Loja</code> e <code>Consenso</code> (ou <code>SKU</code> e uma coluna por loja).</CardDescription></CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap items-end gap-3">
-            <div><div className="text-xs text-muted-foreground mb-1">Mês do consenso</div><Input type="month" className="w-40" value={mes} onChange={(e) => { setMes(e.target.value); setResMalha(null); }} /></div>
-            <div><div className="text-xs text-muted-foreground mb-1">Os valores estão em</div>
-              <select className="h-9 rounded-md border bg-background px-2 text-sm" value={unidade} onChange={(e) => { setUnidade(e.target.value as "mensal" | "diaria"); setResMalha(null); }}>
-                <option value="mensal">unidades por mês (÷ {diasDoMes(mes)} dias)</option><option value="diaria">unidades por dia</option></select></div>
-            <input ref={inputMalha} type="file" accept=".csv,.txt,.xlsx,.xlsm" className="hidden" onChange={aoEscolherMalha} />
-            <Button onClick={() => inputMalha.current?.click()} disabled={lendo || !mes} className="gap-2"><Upload className="size-4" /> Escolher arquivo da malha</Button>
-            <Button variant="outline" onClick={baixarModelo} className="gap-2"><Download className="size-4" /> Baixar modelo</Button>
-            {arquivoMalha && <span className="text-sm text-muted-foreground">{arquivoMalha}</span>}
-          </div>
-          {mes !== mesAtual && <p className="text-xs text-amber-600">Atenção: o mês escolhido ({mes}) não é o mês atual ({mesAtual}).</p>}
-
-          {resMalha && (
-            <div className="space-y-2 rounded-md border p-3 text-sm">
-              {resMalha.bloqueios.length > 0 && <div className="rounded-md border border-red-300 bg-red-50 p-3 text-red-800"><strong>Bloqueio:</strong> {resMalha.bloqueios.join(" ")}</div>}
-              {resMalha.itens.length > 0 && <p>Formato <strong>{resMalha.formato}</strong>{resMalha.aba ? ` (aba/arquivo "${resMalha.aba}")` : ""} · <strong>{resMalha.itens.length}</strong> valores lidos para {Object.entries(resMalha.porLoja).map(([l, n]) => `${l}: ${n}`).join(" · ")} · dividido por {resMalha.diasMes} dias ({resMalha.mes}).</p>}
-              {resMalha.pendencias.length > 0 && <details><summary className="cursor-pointer font-medium">{resMalha.pendencias.length} linha(s) ignorada(s)</summary><ul className="mt-1 max-h-48 overflow-auto text-xs">{resMalha.pendencias.slice(0, 60).map((p, i) => <li key={i}>linha {p.linha}, {p.campo}: "{p.valor}": {p.motivo}</li>)}</ul></details>}
-              <div className="flex justify-end"><Button onClick={aplicarMalha} disabled={aplicandoMalha || resMalha.bloqueios.length > 0}>{aplicandoMalha ? "Aplicando..." : "Aplicar malha"}</Button></div>
-            </div>
-          )}
-
-          <div className="text-sm">
-            <div className="font-medium mb-1">Malha vigente no sistema</div>
-            {(malhaVigente.data ?? []).length === 0
-              ? <span className="text-muted-foreground">Nenhuma malha carregada ainda.</span>
-              : <ul className="text-xs space-y-0.5">{(malhaVigente.data ?? []).map((m, i) => <li key={i}>{m.loja}: {m.n} SKUs · {m.mesRef === "planilha" ? "da planilha (mês não informado)" : `mês ${m.mesRef}`}{m.mesRef !== mesAtual ? " ⚠ não é o mês atual" : ""}</li>)}</ul>}
-          </div>
-        </CardContent>
-      </Card>
 
       <Card><CardHeader className="pb-2"><CardTitle className="text-base">Últimas cargas</CardTitle></CardHeader>
         <CardContent className="p-0"><Table>
