@@ -13,7 +13,7 @@ import { PARAM_SISTEMA, resolverParam, validarCampos, type CoberturaRegra } from
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ConsumoPage } from "./abastecimento.consumo";
+import { ConsumoPage } from "@/components/abast-dash/ImportarConsumo";
 
 export const Route = createFileRoute("/_authenticated/abastecimento/cobertura")({
   component: CoberturaPage,
