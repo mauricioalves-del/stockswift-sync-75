@@ -13,6 +13,7 @@ import { PARAM_SISTEMA, resolverParam, validarCampos, type CoberturaRegra } from
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ConsumoPage } from "@/components/abast-dash/ImportarConsumo";
 
 export const Route = createFileRoute("/_authenticated/abastecimento/cobertura")({
   component: CoberturaPage,
@@ -155,6 +156,7 @@ function CoberturaPage() {
 
       {isAdmin && <div className="flex gap-2"><Button className="gap-1" disabled={!sujo || erros.length > 0 || salvando} onClick={salvar}><Save className="size-4" /> {salvando ? "Salvando..." : "Salvar cobertura"}</Button><Button variant="outline" disabled={!sujo || salvando} onClick={() => setIniciado(false)}>Descartar alterações</Button></div>}
       <p className="text-xs text-muted-foreground">Estes parâmetros valem para a Reposição de Lojas e os Indicadores. O módulo "Parâmetros Abastecimento" (Suprimentos) é o modelo anterior e não alimenta a Reposição.</p>
+      <div className="border-t pt-4"><ConsumoPage /></div>
     </div>
   );
 }
