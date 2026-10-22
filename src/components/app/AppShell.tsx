@@ -82,7 +82,6 @@ const NAV: (NavItem | NavGroup)[] = [
       {
         id: "abastecimento-parametros", label: "Parâmetros",
         items: [
-          { to: "/abastecimento/projecao-cd", label: "Projeção do CD e Plano", icon: TrendingDown, role: "gestor" },
           { to: "/abastecimento/portfolio", label: "Portfólio e Classificação", icon: Tags, role: "gestor" },
           { to: "/abastecimento/caixaria", label: "Caixaria e Exposição", icon: Boxes, role: "gestor" },
           { to: "/abastecimento/cobertura", label: "Cobertura e parâmetros", icon: SlidersHorizontal, role: "gestor" },
@@ -97,6 +96,7 @@ const NAV: (NavItem | NavGroup)[] = [
   {
     id: "producao", label: "Produção", icon: Factory, role: "any",
     items: [
+      { to: "/abastecimento/projecao-cd", label: "Projeção do CD e Plano", icon: TrendingDown, role: "gestor" },
       { to: "/producao/pcp", label: "Análise de Ruptura", icon: Factory, role: "any" },
       { to: "/producao/solicitacao-materiais", label: "Solicitação de Materiais", icon: ClipboardList, role: "write" },
       { to: "/producao/dispersao", label: "Dispersão de Lote", icon: GitCompareArrows, role: "any" },
