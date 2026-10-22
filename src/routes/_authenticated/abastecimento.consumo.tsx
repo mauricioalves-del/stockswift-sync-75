@@ -53,7 +53,7 @@ function toIsoDate(s: string): string {
   return "";
 }
 
-function ConsumoPage() {
+export function ConsumoPage() {
   const { canWrite, isAdmin } = useRole();
   const qc = useQueryClient();
   const [rows, setRows] = useState<Row[]>([]);

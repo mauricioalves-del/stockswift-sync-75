@@ -88,7 +88,7 @@ const NAV: (NavItem | NavGroup)[] = [
           // Ocultados do menu (solicitação de 22/10/2026) — rotas preservadas:
           // { to: "/abastecimento/carga", label: "Carga de dados", icon: FileSpreadsheet, role: "admin" },
           // { to: "/abastecimento/faturamento", label: "Carga de faturamento", icon: ReceiptText, role: "admin" },
-          { to: "/abastecimento/consumo", label: "Importar Consumo", icon: TrendingUp, role: "write" },
+//          { to: "/abastecimento/consumo", label: "Importar Consumo", icon: TrendingUp, role: "write" },
           // { to: "/config/sazonalidade", label: "Sazonalidade", icon: Sparkles, role: "admin" },
         ],
       },
