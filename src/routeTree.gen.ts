@@ -63,6 +63,7 @@ import { Route as AuthenticatedConfigSazonalidadeRouteImport } from './routes/_a
 import { Route as AuthenticatedGestaoMinhasTarefasRouteImport } from './routes/_authenticated/gestao.minhas-tarefas'
 import { Route as AuthenticatedGestaoModelosChecklistRouteImport } from './routes/_authenticated/gestao.modelos-checklist'
 import { Route as AuthenticatedGestaoPlanejamentoRouteImport } from './routes/_authenticated/gestao.planejamento'
+import { Route as AuthenticatedGestaoPlanoIntegracaoRouteImport } from './routes/_authenticated/gestao.plano-integracao'
 import { Route as AuthenticatedMissoesIndexRouteImport } from './routes/_authenticated/missoes.index'
 import { Route as AuthenticatedMissoesIdRouteImport } from './routes/_authenticated/missoes.$id'
 import { Route as AuthenticatedObsoletosAcoesRouteImport } from './routes/_authenticated/obsoletos.acoes'
@@ -407,6 +408,12 @@ const AuthenticatedGestaoPlanejamentoRoute =
     path: '/gestao/planejamento',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedGestaoPlanoIntegracaoRoute =
+  AuthenticatedGestaoPlanoIntegracaoRouteImport.update({
+    id: '/gestao/plano-integracao',
+    path: '/gestao/plano-integracao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMissoesIndexRoute =
   AuthenticatedMissoesIndexRouteImport.update({
     id: '/missoes/',
@@ -687,6 +694,7 @@ export interface FileRoutesByFullPath {
   '/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
+  '/gestao/plano-integracao': typeof AuthenticatedGestaoPlanoIntegracaoRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/obsoletos/acoes': typeof AuthenticatedObsoletosAcoesRoute
   '/obsoletos/dashboard': typeof AuthenticatedObsoletosDashboardRoute
@@ -780,6 +788,7 @@ export interface FileRoutesByTo {
   '/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
+  '/gestao/plano-integracao': typeof AuthenticatedGestaoPlanoIntegracaoRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/obsoletos/acoes': typeof AuthenticatedObsoletosAcoesRoute
   '/obsoletos/dashboard': typeof AuthenticatedObsoletosDashboardRoute
@@ -875,6 +884,7 @@ export interface FileRoutesById {
   '/_authenticated/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
   '/_authenticated/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/_authenticated/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
+  '/_authenticated/gestao/plano-integracao': typeof AuthenticatedGestaoPlanoIntegracaoRoute
   '/_authenticated/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/_authenticated/obsoletos/acoes': typeof AuthenticatedObsoletosAcoesRoute
   '/_authenticated/obsoletos/dashboard': typeof AuthenticatedObsoletosDashboardRoute
@@ -970,6 +980,7 @@ export interface FileRouteTypes {
     | '/gestao/minhas-tarefas'
     | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
+    | '/gestao/plano-integracao'
     | '/missoes/$id'
     | '/obsoletos/acoes'
     | '/obsoletos/dashboard'
@@ -1063,6 +1074,7 @@ export interface FileRouteTypes {
     | '/gestao/minhas-tarefas'
     | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
+    | '/gestao/plano-integracao'
     | '/missoes/$id'
     | '/obsoletos/acoes'
     | '/obsoletos/dashboard'
@@ -1157,6 +1169,7 @@ export interface FileRouteTypes {
     | '/_authenticated/gestao/minhas-tarefas'
     | '/_authenticated/gestao/modelos-checklist'
     | '/_authenticated/gestao/planejamento'
+    | '/_authenticated/gestao/plano-integracao'
     | '/_authenticated/missoes/$id'
     | '/_authenticated/obsoletos/acoes'
     | '/_authenticated/obsoletos/dashboard'
@@ -1595,6 +1608,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGestaoPlanejamentoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/gestao/plano-integracao': {
+      id: '/_authenticated/gestao/plano-integracao'
+      path: '/gestao/plano-integracao'
+      fullPath: '/gestao/plano-integracao'
+      preLoaderRoute: typeof AuthenticatedGestaoPlanoIntegracaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/missoes/': {
       id: '/_authenticated/missoes/'
       path: '/missoes'
@@ -1928,6 +1948,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGestaoMinhasTarefasRoute: typeof AuthenticatedGestaoMinhasTarefasRoute
   AuthenticatedGestaoModelosChecklistRoute: typeof AuthenticatedGestaoModelosChecklistRoute
   AuthenticatedGestaoPlanejamentoRoute: typeof AuthenticatedGestaoPlanejamentoRoute
+  AuthenticatedGestaoPlanoIntegracaoRoute: typeof AuthenticatedGestaoPlanoIntegracaoRoute
   AuthenticatedMissoesIdRoute: typeof AuthenticatedMissoesIdRoute
   AuthenticatedObsoletosAcoesRoute: typeof AuthenticatedObsoletosAcoesRoute
   AuthenticatedObsoletosDashboardRoute: typeof AuthenticatedObsoletosDashboardRoute
@@ -2027,6 +2048,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedGestaoModelosChecklistRoute:
     AuthenticatedGestaoModelosChecklistRoute,
   AuthenticatedGestaoPlanejamentoRoute: AuthenticatedGestaoPlanejamentoRoute,
+  AuthenticatedGestaoPlanoIntegracaoRoute:
+    AuthenticatedGestaoPlanoIntegracaoRoute,
   AuthenticatedMissoesIdRoute: AuthenticatedMissoesIdRoute,
   AuthenticatedObsoletosAcoesRoute: AuthenticatedObsoletosAcoesRoute,
   AuthenticatedObsoletosDashboardRoute: AuthenticatedObsoletosDashboardRoute,
