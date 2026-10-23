@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ConsultaEstoqueSku } from "@/components/abast-dash/ConsultaEstoqueSku";
+import { RupturasDiaDialog } from "@/components/abast-dash/RupturasDiaDialog";
 import type { Bruto } from "@/lib/abastecimento-dados";
 import { Bar, CartesianGrid, Cell, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Cluster, DashLinha } from "@/lib/abastecimento-dash";
@@ -27,6 +28,7 @@ function periodosRuptura(hist: HistLinha[], local: string, sku: string): { perio
 
 export function Evolucao({ hoje, filtro, setFiltro, hist, bruto }: Omit<Props, "linhas" | "irFarol"> & { bruto?: Bruto }) {
   const [ag, setAg] = useState<Agrupamento>("dia");
+  const [diaDetalhe, setDiaDetalhe] = useState<string | null>(null);
   const [det, setDet] = useState<{ local: string; sku: string; produto: string } | null>(null);
   const [estq, setEstq] = useState(false);
   const pr = det ? periodosRuptura(hist, det.local, det.sku) : null;
@@ -54,7 +56,7 @@ export function Evolucao({ hoje, filtro, setFiltro, hist, bruto }: Omit<Props, "
               <Tooltip content={({ active, payload }: any) => { if (!active || !payload?.length) return null; const p = payload[0].payload; return <div className="rounded-md border bg-background p-2 text-xs shadow"><div className="font-semibold">{ag === "dia" ? dm(p.chave) : p.rotulo}{p.parcial ? ` · parcial (${p.diasRegistrados}/${p.diasNoGrupo} dias)` : ""}</div><div>{p.pct === null ? "sem registro de contagem" : `% do ${ag === "dia" ? "dia" : "período"}: ${pct(p.pct)} (${p.rupturas} de ${p.itemDias} item-dias)`}</div><div>Acumulado: {pct(p.acumulado)}</div></div>; }} />
               <ReferenceLine y={3} stroke="#16a34a" strokeDasharray="5 4" label={{ value: "Meta 3,0%", position: "insideTopRight", fill: "#16a34a", fontSize: 11 }} />
               <ReferenceLine y={5} stroke="#dc2626" strokeDasharray="5 4" label={{ value: "Corte 5,0% (0% da meta)", position: "insideTopRight", fill: "#dc2626", fontSize: 11 }} />
-              <Bar dataKey="barra" stackId="s" onClick={clique} cursor={ag === "mes" ? "pointer" : "default"} radius={[3, 3, 0, 0]}>{dados.map((d, i) => <Cell key={i} fill={d.pct === null ? "#e5e7eb" : FAROL[farolRuptura(d.pct)].hex} fillOpacity={d.parcial ? 0.55 : 1} stroke={d.parcial ? "#475569" : undefined} strokeDasharray={d.parcial ? "3 2" : undefined} />)}</Bar>
+              <Bar dataKey="barra" stackId="s" onClick={clique} cursor="pointer" radius={[3, 3, 0, 0]} shape={(props: any) => <g><rect x={props.x} y={props.y} width={props.width} height={props.height} rx={3} fill={props.fill} fillOpacity={props.fillOpacity} stroke={props.stroke} strokeDasharray={props.strokeDasharray} /><rect x={props.x} y={props.y - Math.max(0, 8 - props.height)} width={props.width} height={Math.max(8, props.height)} fill="transparent" role={ag === "dia" ? "button" : undefined} tabIndex={ag === "dia" ? 0 : undefined} aria-label={ag === "dia" ? `Detalhes da ruptura de ${dm(props.payload.chave)}` : undefined} onDoubleClick={() => { if (ag === "dia") setDiaDetalhe(props.payload.chave); }} onKeyDown={(e) => { if (ag === "dia" && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setDiaDetalhe(props.payload.chave); } }} /></g>}>{dados.map((d, i) => <Cell key={i} fill={d.pct === null ? "#e5e7eb" : FAROL[farolRuptura(d.pct)].hex} fillOpacity={d.parcial ? 0.55 : 1} stroke={d.parcial ? "#475569" : undefined} strokeDasharray={d.parcial ? "3 2" : undefined} />)}</Bar>
               <Bar dataKey="vazio" stackId="s" fill="#e5e7eb" />
               <Line type="monotone" dataKey="acum" stroke="#0f172a" strokeWidth={2} dot={{ r: 3, fill: "#fff", stroke: "#0f172a" }} connectNulls />
             </ComposedChart>
@@ -66,6 +68,7 @@ export function Evolucao({ hoje, filtro, setFiltro, hist, bruto }: Omit<Props, "
         {top.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Nenhum item com ruptura no período.</p> : <ul className="space-y-3">{top.map((t) => <li key={t.local + t.id_produto}><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="cursor-pointer truncate text-sm font-semibold hover:underline" title="Clique duas vezes para ver os detalhes da ruptura" onDoubleClick={() => setDet({ local: t.local, sku: t.id_produto, produto: t.produto })}>{t.produto}</div><div className="text-[11px] text-muted-foreground">{NOME[t.local] ?? t.local}</div></div><span className="shrink-0 text-sm font-bold text-red-600">{t.dias} {t.dias === 1 ? "dia" : "dias"}</span></div><div className="mt-1 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-red-500" style={{ width: `${(t.dias / maxDias) * 100}%` }} /></div></li>)}</ul>}
         <p className="mt-4 text-[11px] italic text-muted-foreground">Lista completa no detalhe (bloco F). Clique duas vezes no produto para ver os detalhes.</p>
       </Secao>
+      <RupturasDiaDialog dia={diaDetalhe} fotos={hist.filter((h) => f.locais.includes(h.loja))} hoje={hoje} bruto={bruto} onFechar={() => setDiaDetalhe(null)} />
       <Dialog open={!!det && !estq} onOpenChange={(o) => { if (!o) setDet(null); }}>
         <DialogContent className="max-w-xl">
           <DialogHeader><DialogTitle>Detalhe da ruptura · {det?.sku}</DialogTitle><DialogDescription>{det?.produto} · {det ? NOME[det.local] ?? det.local : ""}</DialogDescription></DialogHeader>
