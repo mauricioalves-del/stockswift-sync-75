@@ -57,8 +57,8 @@ export function Evolucao({ hoje, filtro, setFiltro, hist, bruto }: Omit<Props, "
               <ReferenceLine y={3} stroke="#16a34a" strokeDasharray="5 4" label={{ value: "Meta 3,0%", position: "insideTopRight", fill: "#16a34a", fontSize: 11 }} />
               <ReferenceLine y={5} stroke="#dc2626" strokeDasharray="5 4" label={{ value: "Corte 5,0% (0% da meta)", position: "insideTopRight", fill: "#dc2626", fontSize: 11 }} />
               <Bar dataKey="barra" stackId="s" onClick={clique} cursor="pointer" radius={[3, 3, 0, 0]} shape={(props: any) => <g><rect x={props.x} y={props.y} width={props.width} height={props.height} rx={3} fill={props.fill} fillOpacity={props.fillOpacity} stroke={props.stroke} strokeDasharray={props.strokeDasharray} /><rect x={props.x} y={props.y - Math.max(0, 8 - props.height)} width={props.width} height={Math.max(8, props.height)} fill="transparent" role={ag === "dia" ? "button" : undefined} tabIndex={ag === "dia" ? 0 : undefined} aria-label={ag === "dia" ? `Detalhes da ruptura de ${dm(props.payload.chave)}` : undefined} onDoubleClick={() => { if (ag === "dia") setDiaDetalhe(props.payload.chave); }} onKeyDown={(e) => { if (ag === "dia" && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setDiaDetalhe(props.payload.chave); } }} /></g>}>{dados.map((d, i) => <Cell key={i} fill={d.pct === null ? "#e5e7eb" : FAROL[farolRuptura(d.pct)].hex} fillOpacity={d.parcial ? 0.55 : 1} stroke={d.parcial ? "#475569" : undefined} strokeDasharray={d.parcial ? "3 2" : undefined} />)}</Bar>
-              <Bar dataKey="vazio" stackId="s" fill="#e5e7eb" />
-              <Line type="monotone" dataKey="acum" stroke="#0f172a" strokeWidth={2} dot={{ r: 3, fill: "#fff", stroke: "#0f172a" }} connectNulls />
+              <Bar dataKey="vazio" stackId="s" fill="#e5e7eb" pointerEvents="none" />
+              <Line type="monotone" dataKey="acum" stroke="#0f172a" strokeWidth={2} dot={{ r: 3, fill: "#fff", stroke: "#0f172a" }} pointerEvents="none" connectNulls />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
