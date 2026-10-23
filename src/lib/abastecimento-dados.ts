@@ -36,6 +36,8 @@ export type Bruto = {
   pedidosAbertos: { loja: string; id_produto: string; qtd: number; status: string; separada?: number }[];
   produtos: { id_produto: string; full_case: number | null }[];
   exposicoes: { loja: string; id_produto: string; exposicao: number | null; ativo_sortimento?: boolean | null }[];
+  /** Regra de exposição de cada loja: unidades em exposição por SKU quando o SKU não tem exposição própria cadastrada. */
+  expoPadrao?: Record<string, number>;
   /** SKUs (sem zeros à esquerda) do último portfólio validado pelo gestor, por loja. Quando existe, substitui o universo da loja. */
   portfolioAprovado?: Record<string, string[]>;
   portfolioClasses?: Record<string, Record<string, ClassePortfolio>>;
@@ -46,7 +48,7 @@ export type Bruto = {
 
 export type ItemRep = Item2 & {
   loja: string; grupo: string; familia: string; linha: string; tipo: string;
-  cmd: number; tendencia: number; consensoDia: number | null; metaMes: number; realizadoMes: number; acomp: AcompMeta; refVendas: string | null; semExposicao: boolean; semCaixa: boolean; caixaCadastrada: boolean; solto: boolean; cdBruto: number; reservadoCD: number; param: Param2; paramOrigem: string;
+  cmd: number; tendencia: number; consensoDia: number | null; metaMes: number; realizadoMes: number; acomp: AcompMeta; refVendas: string | null; semExposicao: boolean; exposicaoOrigem: "sku" | "loja" | null; semCaixa: boolean; caixaCadastrada: boolean; solto: boolean; cdBruto: number; reservadoCD: number; param: Param2; paramOrigem: string;
 };
 
 export type Montagem = {
@@ -147,7 +149,10 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       const r = cmdPonderado(vendas.get(k) ?? new Map(), ref, { denominador: o.denominador, inicioHistorico: inicioPorLoja[l.codigo] });
       const fr = fatorRealizacao(vendas.get(k) ?? new Map<string, number>(), m.porMes, ref, { inicioHistorico: inicioPorLoja[l.codigo], piso: 0.25, teto: 2 });   // venda real ÷ malha do consenso (sem índice sazonal)
       const cons = consensoMedioNaJanela(m.porMes, o.hojeIso, Math.max(1, rp.p.diasIdeal));
-      const expo = expoDe.get(`${l.codigo}|${sku}`);
+      // Exposição: cadastro do SKU na loja (exceção) > regra da loja > sem exposição
+      const expoSku = expoDe.get(`${l.codigo}|${sku}`) ?? null;
+      const expoRegra = b.expoPadrao?.[l.codigo] ?? null;
+      const expo = expoSku ?? expoRegra;
       const mesAt = m.porMes[mesAtual] ?? 0;
       let realizado = 0; const vm = vendas.get(k); if (vm) for (const [d, q] of vm) if (d.startsWith(mesAtual) && d <= ref) realizado += q;
       const manual = o.manuais?.[`${l.codigo}|${sku}`];
@@ -161,7 +166,7 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       }, rp.p, o.base);
       if (!familia) semFamilia.push({ loja: l.codigo, sku: it.sku, descricao: it.descricao, linha: m.linha || m.tipo });
       lista.push({ ...it, loja: l.codigo, grupo, familia, linha: m.linha, tipo: m.tipo, cmd: r.cmd, tendencia: r.tendencia, consensoDia: cons, metaMes: mesAt, realizadoMes: realizado,
-        acomp: acompanhamentoMeta(mesAt, realizado, ref), refVendas: refPorLoja[l.codigo], semExposicao: expo == null, semCaixa: !fcDe.has(sku) && !solto && !fracionada, caixaCadastrada: fcDe.has(sku), solto, cdBruto: e?.cd ?? 0, reservadoCD: reservado.get(sku) ?? 0, param: rp.p, paramOrigem: rp.origem });
+        acomp: acompanhamentoMeta(mesAt, realizado, ref), refVendas: refPorLoja[l.codigo], semExposicao: expo == null, exposicaoOrigem: expoSku != null ? "sku" : expoRegra != null ? "loja" : null, semCaixa: !fcDe.has(sku) && !solto && !fracionada, caixaCadastrada: fcDe.has(sku), solto, cdBruto: e?.cd ?? 0, reservadoCD: reservado.get(sku) ?? 0, param: rp.p, paramOrigem: rp.origem });
     }
     itens[l.codigo] = lista;
   }
