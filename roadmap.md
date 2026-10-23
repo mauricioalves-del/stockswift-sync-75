@@ -1,5 +1,8 @@
 # Correção de grupos das Baixas Operacionais
 
+## Disponibilidade: detalhes por coluna do dia
+- [ ] Abrir itens da foto diária por duplo clique, com entrada, resolução e duração da ocorrência; verificar testes e tela autenticada.
+
 ## Pedidos: aprovação somente comercial
 - [x] Remover etapa do Diretor, aprovar ressalvas e extras direto para separação, preservar estoque e retorno administrativo; tela autenticada verificada e 13 testes passaram, incluindo aprovação transacional sem persistência.
 
