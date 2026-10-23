@@ -16,6 +16,9 @@ export const GRUPO_ACABADO = "Produto Acabado";
 export const FAMILIAS_SEM_CAIXA = ["graneis"];
 const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 export const ehSolto = (familia: string) => FAMILIAS_SEM_CAIXA.includes(semAcento(familia));
+/** Lojas abastecidas em quantidade fracionada: o pedido repõe até o ideal pela unidade, sem arredondar em caixa fechada. As demais seguem a caixaria. */
+export const LOJAS_SEM_CAIXA = ["JESUINO"];
+export const lojaSemCaixa = (loja: string | null | undefined) => LOJAS_SEM_CAIXA.includes(String(loja ?? "").toUpperCase());
 
 export type Bruto = {
   lojas: { codigo: string; nome: string; almoxarifado: string }[];
@@ -137,6 +140,7 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       if (!aprovado && grupo !== GRUPO_ACABADO && !(porSortimento && grupo === GRUPO_REVENDA)) { ex.naoAcabado++; continue; }      // embalagem, em processo, local, revenda (fora do sortimento)...
       const familia = famDe.get(sku) ?? "";
       const solto = ehSolto(familia);
+      const fracionada = lojaSemCaixa(l.codigo);   // Jesuíno: sem caixa fechada no pedido
       const rp = resolverParam(b.params, b.coberturas ?? [], l.codigo, familia);   // cobertura em dias deste item (padrão / loja / família)
       const e = est.get(sku);
       const ref = refPorLoja[l.codigo] ?? o.hojeIso;
@@ -152,12 +156,12 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       const it = calcularItem2({
         sku: idCanon, descricao: b.portfolioDescricoes?.[sku] || e?.desc || m.produto || idCanon, categoria: familia, ativo: true, masterPresente: true,
         estoque: e?.lojas[l.codigo] ?? 0, exposicao: expo ?? 0, vendaDiaReal: r.cmd, consensoDia: cons, fatorRealizacao: fr ? fr.fator : null,
-        classeAbc: abcDe.get(sku) ?? null, fullCase: fcDe.get(sku) ?? 1, custo: e?.custo ?? null, saldoCD: e?.cd ?? 0,
+        classeAbc: abcDe.get(sku) ?? null, fullCase: fracionada ? 1 : fcDe.get(sku) ?? 1, custo: e?.custo ?? null, saldoCD: e?.cd ?? 0,
         emTransito: transito.get(`${l.codigo}|${sku}`) ?? 0, pedidoAberto: pedAb.get(`${l.codigo}|${sku}`) ?? 0, pedidoManual: manual ?? null,
       }, rp.p, o.base);
       if (!familia) semFamilia.push({ loja: l.codigo, sku: it.sku, descricao: it.descricao, linha: m.linha || m.tipo });
       lista.push({ ...it, loja: l.codigo, grupo, familia, linha: m.linha, tipo: m.tipo, cmd: r.cmd, tendencia: r.tendencia, consensoDia: cons, metaMes: mesAt, realizadoMes: realizado,
-        acomp: acompanhamentoMeta(mesAt, realizado, ref), refVendas: refPorLoja[l.codigo], semExposicao: expo == null, semCaixa: !fcDe.has(sku) && !solto, caixaCadastrada: fcDe.has(sku), solto, cdBruto: e?.cd ?? 0, reservadoCD: reservado.get(sku) ?? 0, param: rp.p, paramOrigem: rp.origem });
+        acomp: acompanhamentoMeta(mesAt, realizado, ref), refVendas: refPorLoja[l.codigo], semExposicao: expo == null, semCaixa: !fcDe.has(sku) && !solto && !fracionada, caixaCadastrada: fcDe.has(sku), solto, cdBruto: e?.cd ?? 0, reservadoCD: reservado.get(sku) ?? 0, param: rp.p, paramOrigem: rp.origem });
     }
     itens[l.codigo] = lista;
   }
