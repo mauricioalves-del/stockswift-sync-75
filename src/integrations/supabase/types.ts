@@ -2178,6 +2178,128 @@ export type Database = {
         }
         Relationships: []
       }
+      integracao_acoes: {
+        Row: {
+          acao: string
+          concluida: boolean
+          concluida_em: string | null
+          concluida_por: string | null
+          created_at: string
+          entregavel: string | null
+          etapa: number
+          frente: string | null
+          id: string
+          observacao: string | null
+          ordem: number
+          plano_id: string
+          prazo_dia: number
+          recorrente: boolean
+          responsavel: string | null
+          rota: string | null
+          updated_at: string
+        }
+        Insert: {
+          acao: string
+          concluida?: boolean
+          concluida_em?: string | null
+          concluida_por?: string | null
+          created_at?: string
+          entregavel?: string | null
+          etapa: number
+          frente?: string | null
+          id?: string
+          observacao?: string | null
+          ordem?: number
+          plano_id: string
+          prazo_dia?: number
+          recorrente?: boolean
+          responsavel?: string | null
+          rota?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acao?: string
+          concluida?: boolean
+          concluida_em?: string | null
+          concluida_por?: string | null
+          created_at?: string
+          entregavel?: string | null
+          etapa?: number
+          frente?: string | null
+          id?: string
+          observacao?: string | null
+          ordem?: number
+          plano_id?: string
+          prazo_dia?: number
+          recorrente?: boolean
+          responsavel?: string | null
+          rota?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integracao_acoes_plano_id_fkey"
+            columns: ["plano_id"]
+            isOneToOne: false
+            referencedRelation: "integracao_planos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integracao_planos: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          data_inicio: string
+          etapa_atual: number
+          gestor_nome: string | null
+          id: string
+          indicadores: Json
+          observacao: string | null
+          padrinho_nome: string | null
+          pessoa_id: string | null
+          pessoa_nome: string
+          portoes: Json
+          status: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          data_inicio: string
+          etapa_atual?: number
+          gestor_nome?: string | null
+          id?: string
+          indicadores?: Json
+          observacao?: string | null
+          padrinho_nome?: string | null
+          pessoa_id?: string | null
+          pessoa_nome: string
+          portoes?: Json
+          status?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          data_inicio?: string
+          etapa_atual?: number
+          gestor_nome?: string | null
+          id?: string
+          indicadores?: Json
+          observacao?: string | null
+          padrinho_nome?: string | null
+          pessoa_id?: string | null
+          pessoa_nome?: string
+          portoes?: Json
+          status?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       inventario: {
         Row: {
           acuracidade: number | null

@@ -197,6 +197,13 @@
       "when": 1792618840760,
       "tag": "0027_teste_aprovacao_comercial_transacional",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792770199436,
+      "tag": "0028_plano_integracao",
+      "breakpoints": true
     }
   ]
 }
