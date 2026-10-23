@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { caixaDoProduto, chaveSku, erroQtdExtra, filtrarCatalogo, mapaSaldos, passoQtd, qtdInicial, qtdValida, resumoSugestoes, saldoParaExtra, type CatProduto, type SaldoProduto, type SugRessalva } from "@/lib/abastecimento-ressalva";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
-import { ehSolto, nk } from "@/lib/abastecimento-dados";
+import { ehSolto, lojaSemCaixa, nk } from "@/lib/abastecimento-dados";
 
 type PedidoRessalva = { id: string; numero: number; loja: string; almox_origem?: string | null; itens: { id_produto: string; qtd_pedida: number; aceito: boolean | null; origem: string }[] };
 const un = (n: number) => Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
@@ -54,8 +54,9 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
   const caixaDe = useMemo(() => {
     const fc = new Map<string, unknown>((bruto.data?.produtos ?? []).map((x) => [nk(x.id_produto), x.full_case]));
     const fam = new Map<string, string>((bruto.data?.familias ?? []).map((x) => [nk(x.codigo_produto), x.familia]));
-    return (sku: string) => caixaDoProduto(fc.get(nk(sku)), ehSolto(fam.get(nk(sku)) ?? ""));
-  }, [bruto.data]);
+    const fracionada = lojaSemCaixa(p.loja);   // loja abastecida sem caixa fechada (Jesuíno)
+    return (sku: string) => (fracionada ? 1 : caixaDoProduto(fc.get(nk(sku)), ehSolto(fam.get(nk(sku)) ?? "")));
+  }, [bruto.data, p.loja]);
   // Disponível no CD para extra = saldo do banco (já sem os outros pedidos) menos o que este pedido já leva do SKU
   const qtdNoPedido = useMemo(() => { const m = new Map<string, number>(); for (const i of validos) m.set(chaveSku(i.id_produto), (m.get(chaveSku(i.id_produto)) ?? 0) + Number(i.qtd_pedida)); return m; }, [p.itens]);
   const saldoDe = (sku: string) => saldoParaExtra(saldos.get(chaveSku(sku)), qtdNoPedido.get(chaveSku(sku)) ?? 0);
