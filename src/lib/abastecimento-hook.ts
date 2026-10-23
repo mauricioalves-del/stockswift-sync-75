@@ -64,6 +64,8 @@ export function useAbastBruto(habilitado: boolean) {
         consenso, grupos, familias, abc: abcRaw.map((x: any) => ({ codigo_produto: x.codigo_produto, classe: x.classe })), periodos: periodos as Bruto["periodos"],
         consumo, estoque, notas: notasRaw.filter((n: any) => n.nota_cancelada !== "S").map((n: any) => ({ cod_prod: n.cod_prod, almox: n.almox, qtd: Number(n.qtd) || 0, dt: n.dt_emissao ? String(n.dt_emissao).slice(0, 10) : null, nf: n.nr_nf == null ? null : String(n.nr_nf), vt: Number(n.vt_total_item) || 0, empresa: n.empresa ?? null })),
         pedidosAbertos: pedidos, produtos, exposicoes,
+        // Regra de exposição por loja (abast_config: expo_padrao_<LOJA> = unidades por SKU)
+        expoPadrao: Object.fromEntries(Object.entries(c).filter(([k, v]) => k.startsWith("expo_padrao_") && v !== "" && v != null && Number.isFinite(Number(v))).map(([k, v]) => [k.slice("expo_padrao_".length), Number(v)])) as Record<string, number>,
       };
     },
   });
