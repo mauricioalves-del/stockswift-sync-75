@@ -10,8 +10,7 @@ import {
   PackageCheck, Hourglass, Gem, SearchCheck, Store, FileSpreadsheet,
  TrendingDown,
  ReceiptText,
- SlidersHorizontal,
-} from "lucide-react";
+ SlidersHorizontal, UserPlus } from "lucide-react";
 import oncaIcono from "@/assets/onca-icono.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -133,6 +132,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/gestao/minhas-tarefas", label: "Minhas Tarefas", icon: ClipboardList, role: "any" },
       { to: "/gestao/planejamento", label: "Planejamento", icon: Target, role: "write" },
       { to: "/gestao/modelos-checklist", label: "Modelos de Checklist", icon: FolderTree, role: "write" },
+      { to: "/gestao/plano-integracao", label: "Plano de Integração", icon: UserPlus, role: "any" },
       { to: "/baixas", label: "Baixas Operacionais", icon: PackageMinus, role: "write" },
       { to: "/baixas/dashboard", label: "Dashboard Baixas", icon: BarChart3, role: "any" },
     { to: "/baixas/investimento-operacional", label: "Investimento Operacional", icon: Sparkles, role: "any" },
