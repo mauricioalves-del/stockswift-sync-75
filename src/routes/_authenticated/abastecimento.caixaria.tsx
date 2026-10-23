@@ -26,6 +26,8 @@ function CaixariaPage() {
   const qc = useQueryClient();
   const bruto = useAbastBruto(pode);
   const lojas = bruto.data?.lojas ?? [];
+  const regras = bruto.data?.expoPadrao ?? {};   // regra de exposição por loja (un por SKU)
+  const semExpoNaLoja = (l: LinhaCaixaria, cod: string) => l.expo[cod]?.valor == null && regras[cod] == null;
   const [quick, setQuick] = useState<"TODOS" | "SEM_CAIXA" | "SEM_EXPO" | "FORA">("TODOS");
   const [ordem, setOrdem] = useState<Ordem>(null);
   const [filtros, setFiltros] = useState<Record<string, Filtro>>({});
@@ -43,14 +45,14 @@ function CaixariaPage() {
     ...lojas.map((x) => ({ k: "expo_" + x.codigo, r: "Expo. " + x.nome.replace(/^Loja /, ""), t: "num" as const, al: "right" as const, v: (l: LinhaCaixaria) => l.expo[x.codigo]?.valor ?? null })),
   ], [lojas]);
 
-  const baseLinhas = useMemo(() => todas.filter((l) => quick === "TODOS" ? true : quick === "SEM_CAIXA" ? l.caixa == null && !l.solto : quick === "SEM_EXPO" ? lojas.some((x) => l.expo[x.codigo]?.valor == null) : !l.noUniverso), [todas, quick, lojas]);
+  const baseLinhas = useMemo(() => todas.filter((l) => quick === "TODOS" ? true : quick === "SEM_CAIXA" ? l.caixa == null && !l.solto : quick === "SEM_EXPO" ? lojas.some((x) => semExpoNaLoja(l, x.codigo)) : !l.noUniverso), [todas, quick, lojas, regras]);
   const linhas = useMemo(() => {
     const col = ordem ? cols.find((c) => c.k === ordem.k) : undefined;
     return baseLinhas.filter((l) => passaFiltros(l, cols, filtros)).sort((a, b) => (col && ordem ? comparar(a, b, col, ordem.dir) : 0));
   }, [baseLinhas, filtros, ordem, cols]);
   const nFiltros = Object.values(filtros).filter((f) => filtroAtivo(f)).length;
   const semCaixa = todas.filter((l) => l.caixa == null && !l.solto).length;
-  const semExpo = todas.filter((l) => lojas.some((x) => l.expo[x.codigo]?.valor == null)).length;
+  const semExpo = todas.filter((l) => lojas.some((x) => semExpoNaLoja(l, x.codigo))).length;
   const fora = todas.filter((l) => !l.noUniverso).length;
 
   const atualizar = () => qc.invalidateQueries({ queryKey: ["abast-v2"] });
@@ -64,6 +66,21 @@ function CaixariaPage() {
     if (n !== null && n < 0) { toast.error("A exposição não pode ser negativa."); return; }
     const { error } = await (supabase as any).from("abast_produto_loja").upsert({ loja, id_produto: l.expo[loja]?.idDb ?? l.id, exposicao: n, atualizado_em: new Date().toISOString() }, { onConflict: "loja,id_produto" });
     if (error) toast.error("Não consegui salvar a exposição: " + error.message); else { toast.success(n === null ? `Exposição de ${l.id} removida.` : `Exposição de ${l.id} salva: ${n} un.`); atualizar(); }
+  }
+  async function salvarRegra(loja: string, n: number | null) {
+    if (n !== null && (n < 0 || !Number.isFinite(n))) { toast.error("A exposição da regra não pode ser negativa."); return; }
+    const sb = supabase as any; const chave = `expo_padrao_${loja}`;
+    // vazio = sem regra (o carregamento ignora valor vazio)
+    const { error } = await sb.from("abast_config").upsert({ chave, valor: n === null ? "" : String(n), atualizado_em: new Date().toISOString() }, { onConflict: "chave" });
+    if (error) toast.error("Não consegui salvar a regra: " + error.message);
+    else { toast.success(n === null ? `Regra de exposição de ${loja} removida.` : `Regra de ${loja}: ${n} un por SKU.`); atualizar(); }
+  }
+  async function aplicarRegraATodos(loja: string, nome: string) {
+    const n = todas.filter((l) => l.expo[loja]?.valor != null).length;
+    if (!n) return;
+    if (!window.confirm(`Aplicar a regra da ${nome} (${regras[loja]} un) a todos os SKUs?\n\n${n} SKU(s) com exposição própria nesta loja voltam a seguir a regra. As outras lojas não mudam.`)) return;
+    const { error } = await (supabase as any).from("abast_produto_loja").update({ exposicao: null, atualizado_em: new Date().toISOString() }).eq("loja", loja).not("exposicao", "is", null);
+    if (error) toast.error("Não consegui aplicar: " + error.message); else { toast.success(`${nome}: ${n} SKU(s) passaram a seguir a regra.`); atualizar(); }
   }
   async function excluir(l: LinhaCaixaria) {
     if (!l.idCaixaDb) return;
@@ -87,7 +104,7 @@ function CaixariaPage() {
   function exportar() {
     const esc = (s: unknown) => `"${String(s ?? "").replace(/"/g, '""')}"`;
     const cab = ["SKU", "Produto", "Família", "Cadastro", "Saldo CD", "Unidades por caixa", ...lojas.map((x) => "Exposição " + x.nome)];
-    const corpo = linhas.map((l) => [l.id, l.descricao, l.familia, l.caixa == null ? (l.solto ? "Solto (granel)" : "Sem caixa") : "Com caixa", String(l.saldoCD).replace(".", ","), l.caixa ?? "", ...lojas.map((x) => l.expo[x.codigo]?.valor ?? "")].map(esc).join(";"));
+    const corpo = linhas.map((l) => [l.id, l.descricao, l.familia, l.caixa == null ? (l.solto ? "Solto (granel)" : "Sem caixa") : "Com caixa", String(l.saldoCD).replace(".", ","), l.caixa ?? "", ...lojas.map((x) => l.expo[x.codigo]?.valor ?? (regras[x.codigo] != null ? `${regras[x.codigo]} (regra)` : ""))].map(esc).join(";"));
     const url = URL.createObjectURL(new Blob(["\uFEFF" + [cab.map(esc).join(";"), ...corpo].join("\r\n")], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = "Caixaria_Exposicao.csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
@@ -98,7 +115,7 @@ function CaixariaPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><Boxes className="size-6" /> Caixaria e Exposição</h1>
         <p className="text-sm text-muted-foreground">
-          Cadastro das <strong>unidades por caixa</strong> (a Reposição sugere em caixa fechada) e da <strong>exposição por loja</strong> (unidades que ficam na vitrine e não contam como vendável). Vale para produto acabado com meta no consenso. {isAdmin ? "Edite direto nas células (Enter ou sair do campo salva); a lixeira exclui a caixaria do item." : "Somente o administrador edita; você pode consultar e exportar."}
+          Cadastro das <strong>unidades por caixa</strong> (a Reposição sugere em caixa fechada) e da <strong>exposição por loja</strong> (unidades que ficam na vitrine e não contam como vendável). Cada loja tem a sua <strong>regra de exposição</strong> (unidades por SKU); o valor digitado num SKU é uma exceção que prevalece sobre a regra. Vale para produto acabado com meta no consenso. {isAdmin ? "Edite direto nas células (Enter ou sair do campo salva); a lixeira exclui a caixaria do item." : "Somente o administrador edita; você pode consultar e exportar."}
         </p>
       </div>
 
@@ -117,6 +134,26 @@ function CaixariaPage() {
             <div><div className="text-xs text-muted-foreground mb-1">Unidades por caixa</div><Input className="w-32" inputMode="numeric" placeholder="ex.: 50" value={novo.caixa} onChange={(e) => setNovo({ ...novo, caixa: e.target.value })} /></div>
             <Button onClick={criar} disabled={criando} className="gap-1"><Plus className="size-4" /> {criando ? "Salvando..." : "Cadastrar"}</Button>
           </CardContent></Card>)}
+
+      <Card><CardHeader className="pb-2"><CardTitle className="text-base">Regra de exposição por loja</CardTitle>
+        <CardDescription>Quantidade fixa em exposição para cada SKU da loja. Vale para todo SKU sem exposição própria; o valor digitado na tabela é uma exceção do SKU. A exposição soma ao mínimo e não conta como vendável.</CardDescription></CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {lojas.map((x) => {
+            const exc = todas.filter((l) => l.expo[x.codigo]?.valor != null).length;
+            return (
+              <div key={x.codigo} className="rounded-md border p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-medium">{x.nome}</div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">{isAdmin ? <CelulaNum valor={regras[x.codigo] ?? null} placeholder="—" vazioLimpa titulo={`Unidades em exposição por SKU na ${x.nome} (vazio remove a regra)`} aoSalvar={(n) => salvarRegra(x.codigo, n)} /> : <strong className="text-foreground">{n1(regras[x.codigo] ?? null)}</strong>} un/SKU</div>
+                </div>
+                <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span>{regras[x.codigo] == null ? "Sem regra: vale só o cadastro do SKU." : `${exc} SKU(s) com exceção própria`}</span>
+                  {isAdmin && regras[x.codigo] != null && exc > 0 && <button type="button" className="text-primary hover:underline" onClick={() => aplicarRegraATodos(x.codigo, x.nome)}>Aplicar a todos</button>}
+                </div>
+              </div>
+            );
+          })}
+        </CardContent></Card>
 
       <div className="flex flex-wrap items-center gap-2">
         {([["TODOS", "Todos"], ["SEM_CAIXA", `Sem caixa (${semCaixa})`], ["SEM_EXPO", `Sem exposição (${semExpo})`], ["FORA", `Fora do universo (${fora})`]] as const).map(([k, r]) => (
@@ -141,7 +178,7 @@ function CaixariaPage() {
               <td className="p-2"><span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold ${l.caixa == null ? (l.solto ? "bg-slate-100 text-slate-600 border-slate-200" : "bg-amber-100 text-amber-800 border-amber-200") : l.noUniverso ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{l.caixa == null ? (l.solto ? "Solto (granel)" : "Sem caixa") : l.noUniverso ? "Com caixa" : "Fora do universo"}</span></td>
               <td className="p-2 text-right">{n1(l.saldoCD)}{l.caixa && l.caixa > 1 ? <span className="ml-1 text-[10px] text-muted-foreground">({Math.floor(l.saldoCD / l.caixa)} cx)</span> : null}</td>
               <td className="p-2 text-right">{isAdmin ? <CelulaNum valor={l.caixa} placeholder="1" titulo="Unidades por caixa fechada" aoSalvar={(n) => salvarCaixa(l, n)} /> : n1(l.caixa)}</td>
-              {lojas.map((x) => <td key={x.codigo} className="p-2 text-right">{isAdmin ? <CelulaNum valor={l.expo[x.codigo]?.valor ?? null} placeholder="0" vazioLimpa titulo={`Exposição na loja ${x.nome} (vazio remove)`} aoSalvar={(n) => salvarExpo(l, x.codigo, n)} /> : n1(l.expo[x.codigo]?.valor ?? null)}</td>)}
+              {lojas.map((x) => <td key={x.codigo} className="p-2 text-right">{isAdmin ? <CelulaNum valor={l.expo[x.codigo]?.valor ?? null} placeholder={regras[x.codigo] != null ? String(regras[x.codigo]) : "0"} vazioLimpa titulo={regras[x.codigo] != null ? `Exposição na ${x.nome}: vazio segue a regra da loja (${regras[x.codigo]} un); digite um valor para criar exceção` : `Exposição na loja ${x.nome} (vazio remove)`} aoSalvar={(n) => salvarExpo(l, x.codigo, n)} /> : n1(l.expo[x.codigo]?.valor ?? regras[x.codigo] ?? null)}</td>)}
               {isAdmin && <td className="p-2 text-right">{l.idCaixaDb ? <button type="button" title="Excluir a caixaria deste item" aria-label={`Excluir caixaria de ${l.id}`} className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600" onClick={() => excluir(l)}><Trash2 className="size-4" /></button> : null}</td>}
             </tr>))}
         </tbody>
