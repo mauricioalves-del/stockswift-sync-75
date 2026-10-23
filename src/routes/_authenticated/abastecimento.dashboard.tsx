@@ -17,7 +17,7 @@ import { NOME, Secao, type Categoria, type Escopo, type Filtro } from "@/compone
 
 export const Route = createFileRoute("/_authenticated/abastecimento/dashboard")({
   component: DashboardPage,
-  head: () => ({ meta: [{ title: "Disponibilidade de Estoque — Abastecimento" }] }),
+  head: () => ({ meta: [{ title: "Disponibilidade de Estoque — Abastecimento" }, { name: "description", content: "Disponibilidade de estoque por loja, evolução diária e histórico de resolução das rupturas." }, { property: "og:title", content: "Disponibilidade de Estoque — Abastecimento" }, { property: "og:description", content: "Consulte as fotos diárias de estoque e os detalhes de cada ruptura." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
 
 const hojeBrt = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });

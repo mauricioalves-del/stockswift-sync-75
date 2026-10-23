@@ -1,5 +1,8 @@
 # Correção de grupos das Baixas Operacionais
 
+## Disponibilidade: detalhes por coluna do dia
+- [x] Abrir itens da foto diária por duplo clique, com entrada, resolução e duração da ocorrência; quatro testes passaram e a tela autenticada confirmou o SKU 05004048 em ruptura em 16/10, resolvido em 17/10 (1 dia), sem alterar fotos.
+
 ## Pedidos: aprovação somente comercial
 - [x] Remover etapa do Diretor, aprovar ressalvas e extras direto para separação, preservar estoque e retorno administrativo; tela autenticada verificada e 13 testes passaram, incluindo aprovação transacional sem persistência.
 
