@@ -11,7 +11,7 @@ import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { CLASSES_PORTFOLIO } from "@/lib/abastecimento-portfolio";
 import { TabelaRolavel } from "@/components/abast-dash/comum";
 import { nomeCurtoLoja } from "@/lib/abastecimento-nomes";
-import { montarItens, nk, SALDO_DE_PARA, type ItemRep } from "@/lib/abastecimento-dados";
+import { lojaSemCaixa, montarItens, nk, SALDO_DE_PARA, type ItemRep } from "@/lib/abastecimento-dados";
 import { COLUNAS, origemDe as origemColuna } from "@/lib/abastecimento-estoque-geral";
 import { ConsultaEstoqueSku, valorOrigemColuna } from "@/components/abast-dash/ConsultaEstoqueSku";
 import { STATUS2, LIMITE_COBERTURA_AVISO, resumirLoja2, type Status2, type Base2 } from "@/lib/abastecimento-motor2";
@@ -203,7 +203,7 @@ function ReposicaoPage() {
         const nf = (bruto.data.coberturas ?? []).filter((c) => c.escopo === "FAMILIA").length;
         return (
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>Cobertura em uso ({loja.nome}): mínimo <strong>{rp.p.diasMin}</strong> · ideal <strong>{rp.p.diasIdeal}</strong> · máximo <strong>{rp.p.diasMax}</strong> · segurança <strong>{rp.p.diasSeguranca}</strong> dias{rp.origem === "loja" ? " (regra da loja)" : ""}{nf > 0 ? ` · ${nf} família(s) com cobertura própria` : ""}</span>
+            <span>Cobertura em uso ({loja.nome}): mínimo <strong>{rp.p.diasMin}</strong> · ideal <strong>{rp.p.diasIdeal}</strong> · máximo <strong>{rp.p.diasMax}</strong> · segurança <strong>{rp.p.diasSeguranca}</strong> dias{rp.origem === "loja" ? " (regra da loja)" : ""}{nf > 0 ? ` · ${nf} família(s) com cobertura própria` : ""}{lojaSemCaixa(loja.codigo) ? " · pedido fracionado (sem caixa fechada)" : ""}</span>
             <Link to="/abastecimento/cobertura" className="text-primary hover:underline">{isAdmin ? "Alterar" : "Ver"} parâmetros de cobertura</Link>
           </div>);
       })()}
