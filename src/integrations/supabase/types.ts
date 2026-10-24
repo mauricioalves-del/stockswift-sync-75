@@ -769,6 +769,1859 @@ export type Database = {
         }
         Relationships: []
       }
+      atlas_acoes_pos_inventario: {
+        Row: {
+          acao_descricao: string | null
+          almoxarifado: string | null
+          checklist: Json | null
+          concluido_em: string | null
+          criado_em: string | null
+          criado_por: string | null
+          descricao_produto: string | null
+          fechamento_id: number | null
+          id: number
+          item_fechamento_id: number | null
+          observacao_conclusao: string | null
+          origem_automatica: boolean | null
+          prazo: string | null
+          responsavel: string | null
+          sku: string | null
+          status: string | null
+        }
+        Insert: {
+          acao_descricao?: string | null
+          almoxarifado?: string | null
+          checklist?: Json | null
+          concluido_em?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao_produto?: string | null
+          fechamento_id?: number | null
+          id?: number
+          item_fechamento_id?: number | null
+          observacao_conclusao?: string | null
+          origem_automatica?: boolean | null
+          prazo?: string | null
+          responsavel?: string | null
+          sku?: string | null
+          status?: string | null
+        }
+        Update: {
+          acao_descricao?: string | null
+          almoxarifado?: string | null
+          checklist?: Json | null
+          concluido_em?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao_produto?: string | null
+          fechamento_id?: number | null
+          id?: number
+          item_fechamento_id?: number | null
+          observacao_conclusao?: string | null
+          origem_automatica?: boolean | null
+          prazo?: string | null
+          responsavel?: string | null
+          sku?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      atlas_ajustes_inventario_oficial: {
+        Row: {
+          ajuste_qtd: number | null
+          almoxarifado: string | null
+          almoxarifado_origem: string | null
+          arquivo_origem: string | null
+          categoria_produto: string | null
+          conta_como_ajuste_inventario: boolean | null
+          criado_em: string | null
+          criado_por: string | null
+          custo_unitario: number | null
+          descricao_produto: string | null
+          dt_invent: string | null
+          id: number
+          id_invent: number | null
+          id_lote: string | null
+          inventario_flag_bruto: string | null
+          lote_id: number | null
+          observacao: string | null
+          qtd_contagem: number | null
+          qtd_sistema: number | null
+          sku: string | null
+          status: string | null
+          valor_total: number | null
+        }
+        Insert: {
+          ajuste_qtd?: number | null
+          almoxarifado?: string | null
+          almoxarifado_origem?: string | null
+          arquivo_origem?: string | null
+          categoria_produto?: string | null
+          conta_como_ajuste_inventario?: boolean | null
+          criado_em?: string | null
+          criado_por?: string | null
+          custo_unitario?: number | null
+          descricao_produto?: string | null
+          dt_invent?: string | null
+          id?: number
+          id_invent?: number | null
+          id_lote?: string | null
+          inventario_flag_bruto?: string | null
+          lote_id?: number | null
+          observacao?: string | null
+          qtd_contagem?: number | null
+          qtd_sistema?: number | null
+          sku?: string | null
+          status?: string | null
+          valor_total?: number | null
+        }
+        Update: {
+          ajuste_qtd?: number | null
+          almoxarifado?: string | null
+          almoxarifado_origem?: string | null
+          arquivo_origem?: string | null
+          categoria_produto?: string | null
+          conta_como_ajuste_inventario?: boolean | null
+          criado_em?: string | null
+          criado_por?: string | null
+          custo_unitario?: number | null
+          descricao_produto?: string | null
+          dt_invent?: string | null
+          id?: number
+          id_invent?: number | null
+          id_lote?: string | null
+          inventario_flag_bruto?: string | null
+          lote_id?: number | null
+          observacao?: string | null
+          qtd_contagem?: number | null
+          qtd_sistema?: number | null
+          sku?: string | null
+          status?: string | null
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
+      atlas_almoxarifados: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          nome_exibicao: string | null
+          participa_contagem_diaria: boolean | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          nome_exibicao?: string | null
+          participa_contagem_diaria?: boolean | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          nome_exibicao?: string | null
+          participa_contagem_diaria?: boolean | null
+        }
+        Relationships: []
+      }
+      atlas_anexos_justificativa: {
+        Row: {
+          conteudo: string
+          enviado_em: string | null
+          enviado_por: string | null
+          id: number
+          justificativa_id: number
+          nome_arquivo: string
+          tamanho_bytes: number | null
+          tipo_conteudo: string | null
+        }
+        Insert: {
+          conteudo: string
+          enviado_em?: string | null
+          enviado_por?: string | null
+          id?: number
+          justificativa_id: number
+          nome_arquivo: string
+          tamanho_bytes?: number | null
+          tipo_conteudo?: string | null
+        }
+        Update: {
+          conteudo?: string
+          enviado_em?: string | null
+          enviado_por?: string | null
+          id?: number
+          justificativa_id?: number
+          nome_arquivo?: string
+          tamanho_bytes?: number | null
+          tipo_conteudo?: string | null
+        }
+        Relationships: []
+      }
+      atlas_auditorias_fefo: {
+        Row: {
+          almoxarifado: string | null
+          arquivo_origem: string | null
+          data: string
+          descricao_produto: string | null
+          fonte: string
+          id: number
+          importado_em: string | null
+          importado_por: string | null
+          lote_mais_antigo_disponivel: string | null
+          lote_movimentado: string | null
+          movimento: string | null
+          qtd_lote_mais_antigo_disponivel: number | null
+          qtd_lote_movimentado: number | null
+          quebra_fefo: boolean | null
+          sku: string | null
+          status: string | null
+          validade_lote_movimentado: string | null
+          validade_mais_antiga_disponivel: string | null
+        }
+        Insert: {
+          almoxarifado?: string | null
+          arquivo_origem?: string | null
+          data: string
+          descricao_produto?: string | null
+          fonte: string
+          id?: number
+          importado_em?: string | null
+          importado_por?: string | null
+          lote_mais_antigo_disponivel?: string | null
+          lote_movimentado?: string | null
+          movimento?: string | null
+          qtd_lote_mais_antigo_disponivel?: number | null
+          qtd_lote_movimentado?: number | null
+          quebra_fefo?: boolean | null
+          sku?: string | null
+          status?: string | null
+          validade_lote_movimentado?: string | null
+          validade_mais_antiga_disponivel?: string | null
+        }
+        Update: {
+          almoxarifado?: string | null
+          arquivo_origem?: string | null
+          data?: string
+          descricao_produto?: string | null
+          fonte?: string
+          id?: number
+          importado_em?: string | null
+          importado_por?: string | null
+          lote_mais_antigo_disponivel?: string | null
+          lote_movimentado?: string | null
+          movimento?: string | null
+          qtd_lote_mais_antigo_disponivel?: number | null
+          qtd_lote_movimentado?: number | null
+          quebra_fefo?: boolean | null
+          sku?: string | null
+          status?: string | null
+          validade_lote_movimentado?: string | null
+          validade_mais_antiga_disponivel?: string | null
+        }
+        Relationships: []
+      }
+      atlas_baixas_operacionais: {
+        Row: {
+          almoxarifado: string | null
+          almoxarifado_origem: string | null
+          atualizado_em: string | null
+          data_baixa: string | null
+          divergencia_vinculada_id: number | null
+          hipotese_aplicada: string | null
+          ia_gen_analisado_em: string | null
+          ia_gen_categoria: string | null
+          ia_gen_prioridade: string | null
+          ia_gen_resumo: string | null
+          id: number
+          motivo_baixa_bruto: string | null
+          origem_id: string | null
+          payload_bruto: Json | null
+          quantidade: number | null
+          recebido_em: string | null
+          sku: string | null
+          solicitante_nome: string | null
+          status_fluxo: string | null
+          valor_total: number | null
+        }
+        Insert: {
+          almoxarifado?: string | null
+          almoxarifado_origem?: string | null
+          atualizado_em?: string | null
+          data_baixa?: string | null
+          divergencia_vinculada_id?: number | null
+          hipotese_aplicada?: string | null
+          ia_gen_analisado_em?: string | null
+          ia_gen_categoria?: string | null
+          ia_gen_prioridade?: string | null
+          ia_gen_resumo?: string | null
+          id?: number
+          motivo_baixa_bruto?: string | null
+          origem_id?: string | null
+          payload_bruto?: Json | null
+          quantidade?: number | null
+          recebido_em?: string | null
+          sku?: string | null
+          solicitante_nome?: string | null
+          status_fluxo?: string | null
+          valor_total?: number | null
+        }
+        Update: {
+          almoxarifado?: string | null
+          almoxarifado_origem?: string | null
+          atualizado_em?: string | null
+          data_baixa?: string | null
+          divergencia_vinculada_id?: number | null
+          hipotese_aplicada?: string | null
+          ia_gen_analisado_em?: string | null
+          ia_gen_categoria?: string | null
+          ia_gen_prioridade?: string | null
+          ia_gen_resumo?: string | null
+          id?: number
+          motivo_baixa_bruto?: string | null
+          origem_id?: string | null
+          payload_bruto?: Json | null
+          quantidade?: number | null
+          recebido_em?: string | null
+          sku?: string | null
+          solicitante_nome?: string | null
+          status_fluxo?: string | null
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
+      atlas_casos_ml_feedback: {
+        Row: {
+          almoxarifado: string | null
+          categoria_produto: string | null
+          criado_em: string | null
+          data_deteccao: string | null
+          divergencia_id: number | null
+          divergencia_qtd: number | null
+          hipotese_confirmada: string | null
+          id: number
+          sku: string | null
+          valor_estimado: number | null
+        }
+        Insert: {
+          almoxarifado?: string | null
+          categoria_produto?: string | null
+          criado_em?: string | null
+          data_deteccao?: string | null
+          divergencia_id?: number | null
+          divergencia_qtd?: number | null
+          hipotese_confirmada?: string | null
+          id?: number
+          sku?: string | null
+          valor_estimado?: number | null
+        }
+        Update: {
+          almoxarifado?: string | null
+          categoria_produto?: string | null
+          criado_em?: string | null
+          data_deteccao?: string | null
+          divergencia_id?: number | null
+          divergencia_qtd?: number | null
+          hipotese_confirmada?: string | null
+          id?: number
+          sku?: string | null
+          valor_estimado?: number | null
+        }
+        Relationships: []
+      }
+      atlas_checagens_fefo: {
+        Row: {
+          almoxarifado_destino: string | null
+          almoxarifado_origem: string | null
+          calculado_em: string | null
+          data_saida: string | null
+          descricao_produto: string | null
+          dias_uteis_em_aberto: number | null
+          id: number
+          lote_mais_antigo_sku: string | null
+          quantidade_remanescente_lote_antigo: number | null
+          quantidade_transferida: number | null
+          resultado: string | null
+          sku: string | null
+          transferencia_id: number
+          validade_lote_mais_antigo: string | null
+        }
+        Insert: {
+          almoxarifado_destino?: string | null
+          almoxarifado_origem?: string | null
+          calculado_em?: string | null
+          data_saida?: string | null
+          descricao_produto?: string | null
+          dias_uteis_em_aberto?: number | null
+          id?: number
+          lote_mais_antigo_sku?: string | null
+          quantidade_remanescente_lote_antigo?: number | null
+          quantidade_transferida?: number | null
+          resultado?: string | null
+          sku?: string | null
+          transferencia_id: number
+          validade_lote_mais_antigo?: string | null
+        }
+        Update: {
+          almoxarifado_destino?: string | null
+          almoxarifado_origem?: string | null
+          calculado_em?: string | null
+          data_saida?: string | null
+          descricao_produto?: string | null
+          dias_uteis_em_aberto?: number | null
+          id?: number
+          lote_mais_antigo_sku?: string | null
+          quantidade_remanescente_lote_antigo?: number | null
+          quantidade_transferida?: number | null
+          resultado?: string | null
+          sku?: string | null
+          transferencia_id?: number
+          validade_lote_mais_antigo?: string | null
+        }
+        Relationships: []
+      }
+      atlas_checagens_fefo_movimento: {
+        Row: {
+          almoxarifado_destino: string | null
+          calculado_em: string | null
+          data: string
+          descricao_produto: string | null
+          id: number
+          lote_mais_antigo_disponivel: string | null
+          lote_movimentado: string | null
+          movimentacao_lote_diaria_id: number
+          movimento: string | null
+          qtd_lote_mais_antigo_disponivel: number | null
+          qtd_lote_movimentado: number | null
+          quebra_fefo: boolean | null
+          sku: string | null
+          status: string | null
+          validade_lote_movimentado: string | null
+          validade_mais_antiga_disponivel: string | null
+        }
+        Insert: {
+          almoxarifado_destino?: string | null
+          calculado_em?: string | null
+          data: string
+          descricao_produto?: string | null
+          id?: number
+          lote_mais_antigo_disponivel?: string | null
+          lote_movimentado?: string | null
+          movimentacao_lote_diaria_id: number
+          movimento?: string | null
+          qtd_lote_mais_antigo_disponivel?: number | null
+          qtd_lote_movimentado?: number | null
+          quebra_fefo?: boolean | null
+          sku?: string | null
+          status?: string | null
+          validade_lote_movimentado?: string | null
+          validade_mais_antiga_disponivel?: string | null
+        }
+        Update: {
+          almoxarifado_destino?: string | null
+          calculado_em?: string | null
+          data?: string
+          descricao_produto?: string | null
+          id?: number
+          lote_mais_antigo_disponivel?: string | null
+          lote_movimentado?: string | null
+          movimentacao_lote_diaria_id?: number
+          movimento?: string | null
+          qtd_lote_mais_antigo_disponivel?: number | null
+          qtd_lote_movimentado?: number | null
+          quebra_fefo?: boolean | null
+          sku?: string | null
+          status?: string | null
+          validade_lote_movimentado?: string | null
+          validade_mais_antiga_disponivel?: string | null
+        }
+        Relationships: []
+      }
+      atlas_conciliacoes_ciencia: {
+        Row: {
+          data_assinatura: string | null
+          fechamento_id: number | null
+          gestor_nome: string | null
+          gestor_username: string | null
+          id: number
+          itens_divergentes_snapshot: Json | null
+          observacao: string | null
+          papel_assinatura: string | null
+          resumo_acuracia_snapshot: Json | null
+          total_itens_divergentes: number | null
+          valor_total_divergente: number | null
+        }
+        Insert: {
+          data_assinatura?: string | null
+          fechamento_id?: number | null
+          gestor_nome?: string | null
+          gestor_username?: string | null
+          id?: number
+          itens_divergentes_snapshot?: Json | null
+          observacao?: string | null
+          papel_assinatura?: string | null
+          resumo_acuracia_snapshot?: Json | null
+          total_itens_divergentes?: number | null
+          valor_total_divergente?: number | null
+        }
+        Update: {
+          data_assinatura?: string | null
+          fechamento_id?: number | null
+          gestor_nome?: string | null
+          gestor_username?: string | null
+          id?: number
+          itens_divergentes_snapshot?: Json | null
+          observacao?: string | null
+          papel_assinatura?: string | null
+          resumo_acuracia_snapshot?: Json | null
+          total_itens_divergentes?: number | null
+          valor_total_divergente?: number | null
+        }
+        Relationships: []
+      }
+      atlas_conferencias_realizadas: {
+        Row: {
+          almoxarifado: string | null
+          data: string | null
+          id: number
+          origem: string | null
+          quantidade_ajustada: number | null
+          sku: string | null
+        }
+        Insert: {
+          almoxarifado?: string | null
+          data?: string | null
+          id?: number
+          origem?: string | null
+          quantidade_ajustada?: number | null
+          sku?: string | null
+        }
+        Update: {
+          almoxarifado?: string | null
+          data?: string | null
+          id?: number
+          origem?: string | null
+          quantidade_ajustada?: number | null
+          sku?: string | null
+        }
+        Relationships: []
+      }
+      atlas_consumo_op: {
+        Row: {
+          data_producao: string | null
+          data_registro: string | null
+          descricao_material: string | null
+          id: number
+          numero_op: string | null
+          qtd_consumo: number | null
+          qtd_diferenca: number | null
+          qtd_previsto: number | null
+          sku_material: string | null
+          sku_produto_final: string | null
+          status: string | null
+        }
+        Insert: {
+          data_producao?: string | null
+          data_registro?: string | null
+          descricao_material?: string | null
+          id?: number
+          numero_op?: string | null
+          qtd_consumo?: number | null
+          qtd_diferenca?: number | null
+          qtd_previsto?: number | null
+          sku_material?: string | null
+          sku_produto_final?: string | null
+          status?: string | null
+        }
+        Update: {
+          data_producao?: string | null
+          data_registro?: string | null
+          descricao_material?: string | null
+          id?: number
+          numero_op?: string | null
+          qtd_consumo?: number | null
+          qtd_diferenca?: number | null
+          qtd_previsto?: number | null
+          sku_material?: string | null
+          sku_produto_final?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      atlas_dashboards_externos: {
+        Row: {
+          chave: string
+          enviado_em: string | null
+          enviado_por: string | null
+          html_content: string
+          id: number
+          nome_arquivo_original: string | null
+          nome_exibicao: string
+        }
+        Insert: {
+          chave: string
+          enviado_em?: string | null
+          enviado_por?: string | null
+          html_content: string
+          id?: number
+          nome_arquivo_original?: string | null
+          nome_exibicao: string
+        }
+        Update: {
+          chave?: string
+          enviado_em?: string | null
+          enviado_por?: string | null
+          html_content?: string
+          id?: number
+          nome_arquivo_original?: string | null
+          nome_exibicao?: string
+        }
+        Relationships: []
+      }
+      atlas_dias_operacionais: {
+        Row: {
+          almoxarifado: string | null
+          data: string | null
+          id: number
+        }
+        Insert: {
+          almoxarifado?: string | null
+          data?: string | null
+          id?: number
+        }
+        Update: {
+          almoxarifado?: string | null
+          data?: string | null
+          id?: number
+        }
+        Relationships: []
+      }
+      atlas_divergencias: {
+        Row: {
+          almoxarifado: string | null
+          casos_similares: Json | null
+          categoria_produto: string | null
+          confianca_ia: number | null
+          confianca_ml: number | null
+          confianca_regras: number | null
+          criado_em: string | null
+          data_deteccao: string | null
+          distribuicao_probabilidades: Json | null
+          divergencia_qtd: number | null
+          evidencias: Json | null
+          hipotese_confirmada: string | null
+          hipotese_ia: string | null
+          hipotese_ml: string | null
+          hipotese_regras: string | null
+          ia_gen_analisado_em: string | null
+          ia_gen_resumo: string | null
+          id: number
+          lote_importacao_id: number | null
+          observacao_investigacao: string | null
+          observacao_investigacao_em: string | null
+          observacao_investigacao_por: string | null
+          observacao_origem: string | null
+          origem: string | null
+          resolvido_em: string | null
+          responsavel: string | null
+          saldo_fisico: number | null
+          saldo_sistema: number | null
+          sku: string | null
+          solucao_aplicada: string | null
+          status: string | null
+          tempo_resolucao_minutos: number | null
+          valor_estimado: number | null
+        }
+        Insert: {
+          almoxarifado?: string | null
+          casos_similares?: Json | null
+          categoria_produto?: string | null
+          confianca_ia?: number | null
+          confianca_ml?: number | null
+          confianca_regras?: number | null
+          criado_em?: string | null
+          data_deteccao?: string | null
+          distribuicao_probabilidades?: Json | null
+          divergencia_qtd?: number | null
+          evidencias?: Json | null
+          hipotese_confirmada?: string | null
+          hipotese_ia?: string | null
+          hipotese_ml?: string | null
+          hipotese_regras?: string | null
+          ia_gen_analisado_em?: string | null
+          ia_gen_resumo?: string | null
+          id?: number
+          lote_importacao_id?: number | null
+          observacao_investigacao?: string | null
+          observacao_investigacao_em?: string | null
+          observacao_investigacao_por?: string | null
+          observacao_origem?: string | null
+          origem?: string | null
+          resolvido_em?: string | null
+          responsavel?: string | null
+          saldo_fisico?: number | null
+          saldo_sistema?: number | null
+          sku?: string | null
+          solucao_aplicada?: string | null
+          status?: string | null
+          tempo_resolucao_minutos?: number | null
+          valor_estimado?: number | null
+        }
+        Update: {
+          almoxarifado?: string | null
+          casos_similares?: Json | null
+          categoria_produto?: string | null
+          confianca_ia?: number | null
+          confianca_ml?: number | null
+          confianca_regras?: number | null
+          criado_em?: string | null
+          data_deteccao?: string | null
+          distribuicao_probabilidades?: Json | null
+          divergencia_qtd?: number | null
+          evidencias?: Json | null
+          hipotese_confirmada?: string | null
+          hipotese_ia?: string | null
+          hipotese_ml?: string | null
+          hipotese_regras?: string | null
+          ia_gen_analisado_em?: string | null
+          ia_gen_resumo?: string | null
+          id?: number
+          lote_importacao_id?: number | null
+          observacao_investigacao?: string | null
+          observacao_investigacao_em?: string | null
+          observacao_investigacao_por?: string | null
+          observacao_origem?: string | null
+          origem?: string | null
+          resolvido_em?: string | null
+          responsavel?: string | null
+          saldo_fisico?: number | null
+          saldo_sistema?: number | null
+          sku?: string | null
+          solucao_aplicada?: string | null
+          status?: string | null
+          tempo_resolucao_minutos?: number | null
+          valor_estimado?: number | null
+        }
+        Relationships: []
+      }
+      atlas_estado_treino_ml: {
+        Row: {
+          casos_feedback_no_ultimo_retreino: number | null
+          id: number
+          origem_ultimo_retreino: string | null
+          ultimo_retreino_em: string | null
+        }
+        Insert: {
+          casos_feedback_no_ultimo_retreino?: number | null
+          id?: number
+          origem_ultimo_retreino?: string | null
+          ultimo_retreino_em?: string | null
+        }
+        Update: {
+          casos_feedback_no_ultimo_retreino?: number | null
+          id?: number
+          origem_ultimo_retreino?: string | null
+          ultimo_retreino_em?: string | null
+        }
+        Relationships: []
+      }
+      atlas_execucoes_rotina: {
+        Row: {
+          concluido_em: string | null
+          concluido_por: string | null
+          criado_em: string | null
+          data_referencia: string
+          id: number
+          observacao: string | null
+          rotina_id: number
+          status: string | null
+        }
+        Insert: {
+          concluido_em?: string | null
+          concluido_por?: string | null
+          criado_em?: string | null
+          data_referencia: string
+          id?: number
+          observacao?: string | null
+          rotina_id: number
+          status?: string | null
+        }
+        Update: {
+          concluido_em?: string | null
+          concluido_por?: string | null
+          criado_em?: string | null
+          data_referencia?: string
+          id?: number
+          observacao?: string | null
+          rotina_id?: number
+          status?: string | null
+        }
+        Relationships: []
+      }
+      atlas_faturamento: {
+        Row: {
+          data_faturamento: string | null
+          descricao: string | null
+          id: number
+          origem: string | null
+          quantidade: number | null
+          sku: string | null
+        }
+        Insert: {
+          data_faturamento?: string | null
+          descricao?: string | null
+          id?: number
+          origem?: string | null
+          quantidade?: number | null
+          sku?: string | null
+        }
+        Update: {
+          data_faturamento?: string | null
+          descricao?: string | null
+          id?: number
+          origem?: string | null
+          quantidade?: number | null
+          sku?: string | null
+        }
+        Relationships: []
+      }
+      atlas_fechamentos_inventario: {
+        Row: {
+          almoxarifado: string | null
+          aprovado_manual: boolean | null
+          aprovado_manual_em: string | null
+          aprovado_manual_por: string | null
+          arquivo_origem: string | null
+          criado_em: string | null
+          criado_por: string | null
+          data_fechamento: string | null
+          id: number
+          total_divergentes: number | null
+          total_itens: number | null
+          valor_total_divergente: number | null
+        }
+        Insert: {
+          almoxarifado?: string | null
+          aprovado_manual?: boolean | null
+          aprovado_manual_em?: string | null
+          aprovado_manual_por?: string | null
+          arquivo_origem?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          data_fechamento?: string | null
+          id?: number
+          total_divergentes?: number | null
+          total_itens?: number | null
+          valor_total_divergente?: number | null
+        }
+        Update: {
+          almoxarifado?: string | null
+          aprovado_manual?: boolean | null
+          aprovado_manual_em?: string | null
+          aprovado_manual_por?: string | null
+          arquivo_origem?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          data_fechamento?: string | null
+          id?: number
+          total_divergentes?: number | null
+          total_itens?: number | null
+          valor_total_divergente?: number | null
+        }
+        Relationships: []
+      }
+      atlas_fechamentos_stock_savvy: {
+        Row: {
+          arquivo_pptx: string
+          enviado_em: string | null
+          enviado_por: string | null
+          id: number
+          mes: string
+          nome_arquivo_original: string | null
+        }
+        Insert: {
+          arquivo_pptx: string
+          enviado_em?: string | null
+          enviado_por?: string | null
+          id?: number
+          mes: string
+          nome_arquivo_original?: string | null
+        }
+        Update: {
+          arquivo_pptx?: string
+          enviado_em?: string | null
+          enviado_por?: string | null
+          id?: number
+          mes?: string
+          nome_arquivo_original?: string | null
+        }
+        Relationships: []
+      }
+      atlas_ficha_tecnica_bom: {
+        Row: {
+          categoria: string | null
+          custo: number | null
+          descricao_item: string | null
+          gera_oc: boolean | null
+          id: number
+          linha_producao: string | null
+          produto_final: string | null
+          qtd_padrao: number | null
+          sku_item: string | null
+          sku_produto_final: string | null
+          sku_subconjunto: string | null
+          subconjunto: string | null
+          tem_filho: boolean | null
+          unidade: string | null
+        }
+        Insert: {
+          categoria?: string | null
+          custo?: number | null
+          descricao_item?: string | null
+          gera_oc?: boolean | null
+          id?: number
+          linha_producao?: string | null
+          produto_final?: string | null
+          qtd_padrao?: number | null
+          sku_item?: string | null
+          sku_produto_final?: string | null
+          sku_subconjunto?: string | null
+          subconjunto?: string | null
+          tem_filho?: boolean | null
+          unidade?: string | null
+        }
+        Update: {
+          categoria?: string | null
+          custo?: number | null
+          descricao_item?: string | null
+          gera_oc?: boolean | null
+          id?: number
+          linha_producao?: string | null
+          produto_final?: string | null
+          qtd_padrao?: number | null
+          sku_item?: string | null
+          sku_produto_final?: string | null
+          sku_subconjunto?: string | null
+          subconjunto?: string | null
+          tem_filho?: boolean | null
+          unidade?: string | null
+        }
+        Relationships: []
+      }
+      atlas_fornecedores: {
+        Row: {
+          ativo: boolean | null
+          cnpj: string | null
+          contato: string | null
+          id: number
+          nome: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          cnpj?: string | null
+          contato?: string | null
+          id?: number
+          nome?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          cnpj?: string | null
+          contato?: string | null
+          id?: number
+          nome?: string | null
+        }
+        Relationships: []
+      }
+      atlas_hipoteses: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          descricao: string | null
+          nome: string | null
+          peso_padrao: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          descricao?: string | null
+          nome?: string | null
+          peso_padrao?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          descricao?: string | null
+          nome?: string | null
+          peso_padrao?: number | null
+        }
+        Relationships: []
+      }
+      atlas_importacoes: {
+        Row: {
+          gerado_em: string | null
+          id: string
+          importado_em: string
+          importado_por: string | null
+          linhas_backup: number | null
+          linhas_importadas: number | null
+          tabela: string
+        }
+        Insert: {
+          gerado_em?: string | null
+          id?: string
+          importado_em?: string
+          importado_por?: string | null
+          linhas_backup?: number | null
+          linhas_importadas?: number | null
+          tabela: string
+        }
+        Update: {
+          gerado_em?: string | null
+          id?: string
+          importado_em?: string
+          importado_por?: string | null
+          linhas_backup?: number | null
+          linhas_importadas?: number | null
+          tabela?: string
+        }
+        Relationships: []
+      }
+      atlas_itens_fechamento: {
+        Row: {
+          almoxarifado: string | null
+          categoria_produto: string | null
+          descricao_produto: string | null
+          destaque_recorrente: boolean | null
+          divergencia_id: number | null
+          divergencia_qtd: number | null
+          divergente: boolean | null
+          fechamento_id: number | null
+          id: number
+          movimentacao_historico_id: number | null
+          observacao_extra: string | null
+          observacao_pos_inventario: string | null
+          percentual_acuracia: number | null
+          qtd_contagem: number | null
+          qtd_sistema: number | null
+          recorrencias_anteriores: number | null
+          resumo_planilha: string | null
+          sku: string | null
+          valor_estimado: number | null
+        }
+        Insert: {
+          almoxarifado?: string | null
+          categoria_produto?: string | null
+          descricao_produto?: string | null
+          destaque_recorrente?: boolean | null
+          divergencia_id?: number | null
+          divergencia_qtd?: number | null
+          divergente?: boolean | null
+          fechamento_id?: number | null
+          id?: number
+          movimentacao_historico_id?: number | null
+          observacao_extra?: string | null
+          observacao_pos_inventario?: string | null
+          percentual_acuracia?: number | null
+          qtd_contagem?: number | null
+          qtd_sistema?: number | null
+          recorrencias_anteriores?: number | null
+          resumo_planilha?: string | null
+          sku?: string | null
+          valor_estimado?: number | null
+        }
+        Update: {
+          almoxarifado?: string | null
+          categoria_produto?: string | null
+          descricao_produto?: string | null
+          destaque_recorrente?: boolean | null
+          divergencia_id?: number | null
+          divergencia_qtd?: number | null
+          divergente?: boolean | null
+          fechamento_id?: number | null
+          id?: number
+          movimentacao_historico_id?: number | null
+          observacao_extra?: string | null
+          observacao_pos_inventario?: string | null
+          percentual_acuracia?: number | null
+          qtd_contagem?: number | null
+          qtd_sistema?: number | null
+          recorrencias_anteriores?: number | null
+          resumo_planilha?: string | null
+          sku?: string | null
+          valor_estimado?: number | null
+        }
+        Relationships: []
+      }
+      atlas_justificativas_ajuste_inventario: {
+        Row: {
+          ajuste_id: number | null
+          almoxarifado: string | null
+          baixa_operacional_id: number | null
+          checklist: Json | null
+          concluido_em: string | null
+          criado_em: string | null
+          criado_por: string | null
+          descricao_produto: string | null
+          divergencia_qtd: number | null
+          id: number
+          id_lote: string | null
+          justificativa: string | null
+          prazo: string | null
+          qtd_contagem: number | null
+          qtd_sistema: number | null
+          responsavel: string | null
+          sku: string | null
+          solucao_aplicada: string | null
+          status: string | null
+          valor_estimado: number | null
+        }
+        Insert: {
+          ajuste_id?: number | null
+          almoxarifado?: string | null
+          baixa_operacional_id?: number | null
+          checklist?: Json | null
+          concluido_em?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao_produto?: string | null
+          divergencia_qtd?: number | null
+          id?: number
+          id_lote?: string | null
+          justificativa?: string | null
+          prazo?: string | null
+          qtd_contagem?: number | null
+          qtd_sistema?: number | null
+          responsavel?: string | null
+          sku?: string | null
+          solucao_aplicada?: string | null
+          status?: string | null
+          valor_estimado?: number | null
+        }
+        Update: {
+          ajuste_id?: number | null
+          almoxarifado?: string | null
+          baixa_operacional_id?: number | null
+          checklist?: Json | null
+          concluido_em?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao_produto?: string | null
+          divergencia_qtd?: number | null
+          id?: number
+          id_lote?: string | null
+          justificativa?: string | null
+          prazo?: string | null
+          qtd_contagem?: number | null
+          qtd_sistema?: number | null
+          responsavel?: string | null
+          sku?: string | null
+          solucao_aplicada?: string | null
+          status?: string | null
+          valor_estimado?: number | null
+        }
+        Relationships: []
+      }
+      atlas_log_auditoria: {
+        Row: {
+          acao: string | null
+          criado_em: string | null
+          detalhes: Json | null
+          entidade: string | null
+          entidade_id: string | null
+          id: number
+          username: string | null
+        }
+        Insert: {
+          acao?: string | null
+          criado_em?: string | null
+          detalhes?: Json | null
+          entidade?: string | null
+          entidade_id?: string | null
+          id?: number
+          username?: string | null
+        }
+        Update: {
+          acao?: string | null
+          criado_em?: string | null
+          detalhes?: Json | null
+          entidade?: string | null
+          entidade_id?: string | null
+          id?: number
+          username?: string | null
+        }
+        Relationships: []
+      }
+      atlas_lotes_ajuste_inventario: {
+        Row: {
+          aba_usada: string | null
+          arquivo_origem: string | null
+          contadas_como_ajuste_inventario: number | null
+          criado_em: string | null
+          criado_por: string | null
+          id: number
+          ignoradas_flag_nao: number | null
+          ignoradas_legado_pre_separacao: number | null
+          importadas: number | null
+          total_linhas: number | null
+          valor_total_ajustes_contados: number | null
+        }
+        Insert: {
+          aba_usada?: string | null
+          arquivo_origem?: string | null
+          contadas_como_ajuste_inventario?: number | null
+          criado_em?: string | null
+          criado_por?: string | null
+          id?: number
+          ignoradas_flag_nao?: number | null
+          ignoradas_legado_pre_separacao?: number | null
+          importadas?: number | null
+          total_linhas?: number | null
+          valor_total_ajustes_contados?: number | null
+        }
+        Update: {
+          aba_usada?: string | null
+          arquivo_origem?: string | null
+          contadas_como_ajuste_inventario?: number | null
+          criado_em?: string | null
+          criado_por?: string | null
+          id?: number
+          ignoradas_flag_nao?: number | null
+          ignoradas_legado_pre_separacao?: number | null
+          importadas?: number | null
+          total_linhas?: number | null
+          valor_total_ajustes_contados?: number | null
+        }
+        Relationships: []
+      }
+      atlas_lotes_importacao: {
+        Row: {
+          almoxarifado: string | null
+          arquivo_origem: string | null
+          criado_em: string | null
+          divergencias_criadas: number | null
+          historico_criado: number | null
+          id: number
+          linhas_processadas: number | null
+          tipo: string | null
+          usuario: string | null
+        }
+        Insert: {
+          almoxarifado?: string | null
+          arquivo_origem?: string | null
+          criado_em?: string | null
+          divergencias_criadas?: number | null
+          historico_criado?: number | null
+          id?: number
+          linhas_processadas?: number | null
+          tipo?: string | null
+          usuario?: string | null
+        }
+        Update: {
+          almoxarifado?: string | null
+          arquivo_origem?: string | null
+          criado_em?: string | null
+          divergencias_criadas?: number | null
+          historico_criado?: number | null
+          id?: number
+          linhas_processadas?: number | null
+          tipo?: string | null
+          usuario?: string | null
+        }
+        Relationships: []
+      }
+      atlas_lotes_shelf_life: {
+        Row: {
+          almoxarifado: string | null
+          almoxarifado_origem: string | null
+          ativo: boolean | null
+          atualizado_em: string | null
+          criado_em: string | null
+          criado_por: string | null
+          custo_unitario: number | null
+          data_validade: string | null
+          descricao_produto: string | null
+          grupo_produto: string | null
+          id: number
+          lote: string | null
+          origem_cadastro: string | null
+          peso_kg: number | null
+          quantidade: number | null
+          sku: string | null
+          tipo_material: string | null
+          unidade: string | null
+        }
+        Insert: {
+          almoxarifado?: string | null
+          almoxarifado_origem?: string | null
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          custo_unitario?: number | null
+          data_validade?: string | null
+          descricao_produto?: string | null
+          grupo_produto?: string | null
+          id?: number
+          lote?: string | null
+          origem_cadastro?: string | null
+          peso_kg?: number | null
+          quantidade?: number | null
+          sku?: string | null
+          tipo_material?: string | null
+          unidade?: string | null
+        }
+        Update: {
+          almoxarifado?: string | null
+          almoxarifado_origem?: string | null
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          custo_unitario?: number | null
+          data_validade?: string | null
+          descricao_produto?: string | null
+          grupo_produto?: string | null
+          id?: number
+          lote?: string | null
+          origem_cadastro?: string | null
+          peso_kg?: number | null
+          quantidade?: number | null
+          sku?: string | null
+          tipo_material?: string | null
+          unidade?: string | null
+        }
+        Relationships: []
+      }
+      atlas_movimentacoes_brutas: {
+        Row: {
+          almoxarifado: string | null
+          data: string | null
+          descricao: string | null
+          doc: string | null
+          id: number
+          id_doc: string | null
+          operacao: string | null
+          qtd_ent: number | null
+          qtd_sai: number | null
+          saldo: number | null
+          sku: string | null
+        }
+        Insert: {
+          almoxarifado?: string | null
+          data?: string | null
+          descricao?: string | null
+          doc?: string | null
+          id?: number
+          id_doc?: string | null
+          operacao?: string | null
+          qtd_ent?: number | null
+          qtd_sai?: number | null
+          saldo?: number | null
+          sku?: string | null
+        }
+        Update: {
+          almoxarifado?: string | null
+          data?: string | null
+          descricao?: string | null
+          doc?: string | null
+          id?: number
+          id_doc?: string | null
+          operacao?: string | null
+          qtd_ent?: number | null
+          qtd_sai?: number | null
+          saldo?: number | null
+          sku?: string | null
+        }
+        Relationships: []
+      }
+      atlas_movimentacoes_historico: {
+        Row: {
+          almoxarifado: string | null
+          categoria_produto: string | null
+          data_movimento: string | null
+          divergencia: number | null
+          entrada: number | null
+          hipotese_confirmada: string | null
+          id: number
+          lote_importacao_id: number | null
+          observacao_original: string | null
+          origem: string | null
+          prejuizo_confirmado: boolean | null
+          saida: number | null
+          saldo_fisico: number | null
+          saldo_sistema: number | null
+          sku: string | null
+          status: string | null
+          unidade: string | null
+          valor_divergencia: number | null
+        }
+        Insert: {
+          almoxarifado?: string | null
+          categoria_produto?: string | null
+          data_movimento?: string | null
+          divergencia?: number | null
+          entrada?: number | null
+          hipotese_confirmada?: string | null
+          id?: number
+          lote_importacao_id?: number | null
+          observacao_original?: string | null
+          origem?: string | null
+          prejuizo_confirmado?: boolean | null
+          saida?: number | null
+          saldo_fisico?: number | null
+          saldo_sistema?: number | null
+          sku?: string | null
+          status?: string | null
+          unidade?: string | null
+          valor_divergencia?: number | null
+        }
+        Update: {
+          almoxarifado?: string | null
+          categoria_produto?: string | null
+          data_movimento?: string | null
+          divergencia?: number | null
+          entrada?: number | null
+          hipotese_confirmada?: string | null
+          id?: number
+          lote_importacao_id?: number | null
+          observacao_original?: string | null
+          origem?: string | null
+          prejuizo_confirmado?: boolean | null
+          saida?: number | null
+          saldo_fisico?: number | null
+          saldo_sistema?: number | null
+          sku?: string | null
+          status?: string | null
+          unidade?: string | null
+          valor_divergencia?: number | null
+        }
+        Relationships: []
+      }
+      atlas_movimentacoes_lote_diaria: {
+        Row: {
+          almoxarifado_raw: string | null
+          arquivo_origem: string | null
+          data: string
+          descricao_produto: string | null
+          documento: string | null
+          id: number
+          importado_em: string | null
+          importado_por: string | null
+          lote_movimentado: string | null
+          movimento: string | null
+          quantidade: number | null
+          sku: string | null
+        }
+        Insert: {
+          almoxarifado_raw?: string | null
+          arquivo_origem?: string | null
+          data: string
+          descricao_produto?: string | null
+          documento?: string | null
+          id?: number
+          importado_em?: string | null
+          importado_por?: string | null
+          lote_movimentado?: string | null
+          movimento?: string | null
+          quantidade?: number | null
+          sku?: string | null
+        }
+        Update: {
+          almoxarifado_raw?: string | null
+          arquivo_origem?: string | null
+          data?: string
+          descricao_produto?: string | null
+          documento?: string | null
+          id?: number
+          importado_em?: string | null
+          importado_por?: string | null
+          lote_movimentado?: string | null
+          movimento?: string | null
+          quantidade?: number | null
+          sku?: string | null
+        }
+        Relationships: []
+      }
+      atlas_ordens_producao: {
+        Row: {
+          data_producao: string | null
+          data_registro: string | null
+          descricao_produto: string | null
+          numero_op: string
+          qtd_prevista: number | null
+          qtd_produzida: number | null
+          qtd_saldo: number | null
+          sku_produto_final: string | null
+          status: string | null
+        }
+        Insert: {
+          data_producao?: string | null
+          data_registro?: string | null
+          descricao_produto?: string | null
+          numero_op: string
+          qtd_prevista?: number | null
+          qtd_produzida?: number | null
+          qtd_saldo?: number | null
+          sku_produto_final?: string | null
+          status?: string | null
+        }
+        Update: {
+          data_producao?: string | null
+          data_registro?: string | null
+          descricao_produto?: string | null
+          numero_op?: string
+          qtd_prevista?: number | null
+          qtd_produzida?: number | null
+          qtd_saldo?: number | null
+          sku_produto_final?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      atlas_pedidos_compra: {
+        Row: {
+          almoxarifado_destino: string | null
+          criado_em: string | null
+          criado_por: string | null
+          data_pedido: string | null
+          descricao_produto: string | null
+          fornecedor_id: number | null
+          id: number
+          numero_pedido: string | null
+          observacao: string | null
+          prazo_entrega_previsto: string | null
+          quantidade_pedida: number | null
+          sku: string | null
+          status: string | null
+          unidade: string | null
+        }
+        Insert: {
+          almoxarifado_destino?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          data_pedido?: string | null
+          descricao_produto?: string | null
+          fornecedor_id?: number | null
+          id?: number
+          numero_pedido?: string | null
+          observacao?: string | null
+          prazo_entrega_previsto?: string | null
+          quantidade_pedida?: number | null
+          sku?: string | null
+          status?: string | null
+          unidade?: string | null
+        }
+        Update: {
+          almoxarifado_destino?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          data_pedido?: string | null
+          descricao_produto?: string | null
+          fornecedor_id?: number | null
+          id?: number
+          numero_pedido?: string | null
+          observacao?: string | null
+          prazo_entrega_previsto?: string | null
+          quantidade_pedida?: number | null
+          sku?: string | null
+          status?: string | null
+          unidade?: string | null
+        }
+        Relationships: []
+      }
+      atlas_perguntas_padrao_personalizadas: {
+        Row: {
+          ativo: boolean | null
+          chave: string
+          criado_em: string | null
+          criado_por: string | null
+          gatilhos: Json
+          id: number
+          instrucao_extra: string | null
+          pergunta: string
+          rotulo: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          chave: string
+          criado_em?: string | null
+          criado_por?: string | null
+          gatilhos: Json
+          id?: number
+          instrucao_extra?: string | null
+          pergunta: string
+          rotulo: string
+        }
+        Update: {
+          ativo?: boolean | null
+          chave?: string
+          criado_em?: string | null
+          criado_por?: string | null
+          gatilhos?: Json
+          id?: number
+          instrucao_extra?: string | null
+          pergunta?: string
+          rotulo?: string
+        }
+        Relationships: []
+      }
+      atlas_produtos: {
+        Row: {
+          ativo: boolean | null
+          categoria_produto: string | null
+          custo_unitario: number | null
+          descricao: string | null
+          sku: string
+          unidade: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          categoria_produto?: string | null
+          custo_unitario?: number | null
+          descricao?: string | null
+          sku: string
+          unidade?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          categoria_produto?: string | null
+          custo_unitario?: number | null
+          descricao?: string | null
+          sku?: string
+          unidade?: string | null
+        }
+        Relationships: []
+      }
+      atlas_recebimentos_pedido: {
+        Row: {
+          criado_em: string | null
+          data_recebimento: string | null
+          id: number
+          numero_nota_fiscal: string | null
+          observacao: string | null
+          pedido_id: number | null
+          quantidade_recebida: number | null
+          recebido_por: string | null
+        }
+        Insert: {
+          criado_em?: string | null
+          data_recebimento?: string | null
+          id?: number
+          numero_nota_fiscal?: string | null
+          observacao?: string | null
+          pedido_id?: number | null
+          quantidade_recebida?: number | null
+          recebido_por?: string | null
+        }
+        Update: {
+          criado_em?: string | null
+          data_recebimento?: string | null
+          id?: number
+          numero_nota_fiscal?: string | null
+          observacao?: string | null
+          pedido_id?: number | null
+          quantidade_recebida?: number | null
+          recebido_por?: string | null
+        }
+        Relationships: []
+      }
+      atlas_resumos_movimentacao_mensal: {
+        Row: {
+          almoxarifado: string | null
+          atualizado_em: string | null
+          id: number
+          itens_analisados: number | null
+          itens_com_divergencia: number | null
+          itens_sem_divergencia: number | null
+          mes: string | null
+          pct_acuracia: number | null
+          valor_total_divergencias: number | null
+        }
+        Insert: {
+          almoxarifado?: string | null
+          atualizado_em?: string | null
+          id?: number
+          itens_analisados?: number | null
+          itens_com_divergencia?: number | null
+          itens_sem_divergencia?: number | null
+          mes?: string | null
+          pct_acuracia?: number | null
+          valor_total_divergencias?: number | null
+        }
+        Update: {
+          almoxarifado?: string | null
+          atualizado_em?: string | null
+          id?: number
+          itens_analisados?: number | null
+          itens_com_divergencia?: number | null
+          itens_sem_divergencia?: number | null
+          mes?: string | null
+          pct_acuracia?: number | null
+          valor_total_divergencias?: number | null
+        }
+        Relationships: []
+      }
+      atlas_resumos_transferencias_mensal: {
+        Row: {
+          atualizado_em: string | null
+          id: number
+          mes: string | null
+          quantidade_total: number | null
+          quebras_fefo: number | null
+          taxa_quebra_fefo_pct: number | null
+          total_transferencias: number | null
+          transferencias_fabrica_avaliadas: number | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          id?: number
+          mes?: string | null
+          quantidade_total?: number | null
+          quebras_fefo?: number | null
+          taxa_quebra_fefo_pct?: number | null
+          total_transferencias?: number | null
+          transferencias_fabrica_avaliadas?: number | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          id?: number
+          mes?: string | null
+          quantidade_total?: number | null
+          quebras_fefo?: number | null
+          taxa_quebra_fefo_pct?: number | null
+          total_transferencias?: number | null
+          transferencias_fabrica_avaliadas?: number | null
+        }
+        Relationships: []
+      }
+      atlas_rotinas: {
+        Row: {
+          ativo: boolean | null
+          criado_em: string | null
+          criado_por: string | null
+          descricao: string | null
+          frequencia: string | null
+          id: number
+          nome: string
+          responsavel_padrao: string | null
+          setor: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          frequencia?: string | null
+          id?: number
+          nome: string
+          responsavel_padrao?: string | null
+          setor?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          frequencia?: string | null
+          id?: number
+          nome?: string
+          responsavel_padrao?: string | null
+          setor?: string | null
+        }
+        Relationships: []
+      }
+      atlas_transferencias: {
+        Row: {
+          almoxarifado_destino: string | null
+          almoxarifado_origem: string | null
+          data_entrada: string | null
+          data_saida: string | null
+          descricao: string | null
+          documento: string | null
+          id: number
+          lote: string | null
+          quantidade: number | null
+          sku: string | null
+        }
+        Insert: {
+          almoxarifado_destino?: string | null
+          almoxarifado_origem?: string | null
+          data_entrada?: string | null
+          data_saida?: string | null
+          descricao?: string | null
+          documento?: string | null
+          id?: number
+          lote?: string | null
+          quantidade?: number | null
+          sku?: string | null
+        }
+        Update: {
+          almoxarifado_destino?: string | null
+          almoxarifado_origem?: string | null
+          data_entrada?: string | null
+          data_saida?: string | null
+          descricao?: string | null
+          documento?: string | null
+          id?: number
+          lote?: string | null
+          quantidade?: number | null
+          sku?: string | null
+        }
+        Relationships: []
+      }
+      atlas_usuarios: {
+        Row: {
+          almoxarifados_permitidos: Json | null
+          ativo: boolean | null
+          bloqueado_ate: string | null
+          criado_em: string | null
+          google_conectado_email: string | null
+          id: number
+          nome_exibicao: string | null
+          papel: string
+          profile_id: string | null
+          slack_conectado_team_id: string | null
+          slack_conectado_user_id: string | null
+          tentativas_falhas: number | null
+          username: string
+        }
+        Insert: {
+          almoxarifados_permitidos?: Json | null
+          ativo?: boolean | null
+          bloqueado_ate?: string | null
+          criado_em?: string | null
+          google_conectado_email?: string | null
+          id?: number
+          nome_exibicao?: string | null
+          papel: string
+          profile_id?: string | null
+          slack_conectado_team_id?: string | null
+          slack_conectado_user_id?: string | null
+          tentativas_falhas?: number | null
+          username: string
+        }
+        Update: {
+          almoxarifados_permitidos?: Json | null
+          ativo?: boolean | null
+          bloqueado_ate?: string | null
+          criado_em?: string | null
+          google_conectado_email?: string | null
+          id?: number
+          nome_exibicao?: string | null
+          papel?: string
+          profile_id?: string | null
+          slack_conectado_team_id?: string | null
+          slack_conectado_user_id?: string | null
+          tentativas_falhas?: number | null
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atlas_usuarios_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           acao: string
@@ -4941,6 +6794,7 @@ export type Database = {
         Returns: Json
       }
       almoxarifados_permitidos: { Args: { _uid: string }; Returns: string[] }
+      atlas_ajustar_sequencias: { Args: never; Returns: number }
       atualizar_custos_contabeis: { Args: { p_linhas: Json }; Returns: Json }
       congelar_producao_consumo: { Args: never; Returns: number }
       equipe_aprovada_para_leitura: { Args: { _uid: string }; Returns: boolean }
