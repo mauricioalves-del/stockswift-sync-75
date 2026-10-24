@@ -51,6 +51,7 @@ import { Route as AuthenticatedAbastecimentoProjecaoCdRouteImport } from './rout
 import { Route as AuthenticatedAbastecimentoReposicaoRouteImport } from './routes/_authenticated/abastecimento.reposicao'
 import { Route as AuthenticatedAbastecimentoValidacaoRouteImport } from './routes/_authenticated/abastecimento.validacao'
 import { Route as AuthenticatedAtlasCadastrosRouteImport } from './routes/_authenticated/atlas.cadastros'
+import { Route as AuthenticatedAtlasDivergenciasRouteImport } from './routes/_authenticated/atlas.divergencias'
 import { Route as AuthenticatedAtlasImportarRouteImport } from './routes/_authenticated/atlas.importar'
 import { Route as AuthenticatedAtlasImportarBackupRouteImport } from './routes/_authenticated/atlas.importar-backup'
 import { Route as AuthenticatedAtlasInicioRouteImport } from './routes/_authenticated/atlas.inicio'
@@ -339,6 +340,12 @@ const AuthenticatedAtlasCadastrosRoute =
   AuthenticatedAtlasCadastrosRouteImport.update({
     id: '/atlas/cadastros',
     path: '/atlas/cadastros',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAtlasDivergenciasRoute =
+  AuthenticatedAtlasDivergenciasRouteImport.update({
+    id: '/atlas/divergencias',
+    path: '/atlas/divergencias',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAtlasImportarRoute =
@@ -719,6 +726,7 @@ export interface FileRoutesByFullPath {
   '/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/abastecimento/validacao': typeof AuthenticatedAbastecimentoValidacaoRoute
   '/atlas/cadastros': typeof AuthenticatedAtlasCadastrosRoute
+  '/atlas/divergencias': typeof AuthenticatedAtlasDivergenciasRoute
   '/atlas/importar': typeof AuthenticatedAtlasImportarRoute
   '/atlas/importar-backup': typeof AuthenticatedAtlasImportarBackupRoute
   '/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
@@ -818,6 +826,7 @@ export interface FileRoutesByTo {
   '/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/abastecimento/validacao': typeof AuthenticatedAbastecimentoValidacaoRoute
   '/atlas/cadastros': typeof AuthenticatedAtlasCadastrosRoute
+  '/atlas/divergencias': typeof AuthenticatedAtlasDivergenciasRoute
   '/atlas/importar': typeof AuthenticatedAtlasImportarRoute
   '/atlas/importar-backup': typeof AuthenticatedAtlasImportarBackupRoute
   '/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
@@ -919,6 +928,7 @@ export interface FileRoutesById {
   '/_authenticated/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/_authenticated/abastecimento/validacao': typeof AuthenticatedAbastecimentoValidacaoRoute
   '/_authenticated/atlas/cadastros': typeof AuthenticatedAtlasCadastrosRoute
+  '/_authenticated/atlas/divergencias': typeof AuthenticatedAtlasDivergenciasRoute
   '/_authenticated/atlas/importar': typeof AuthenticatedAtlasImportarRoute
   '/_authenticated/atlas/importar-backup': typeof AuthenticatedAtlasImportarBackupRoute
   '/_authenticated/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
@@ -1020,6 +1030,7 @@ export interface FileRouteTypes {
     | '/abastecimento/reposicao'
     | '/abastecimento/validacao'
     | '/atlas/cadastros'
+    | '/atlas/divergencias'
     | '/atlas/importar'
     | '/atlas/importar-backup'
     | '/atlas/inicio'
@@ -1119,6 +1130,7 @@ export interface FileRouteTypes {
     | '/abastecimento/reposicao'
     | '/abastecimento/validacao'
     | '/atlas/cadastros'
+    | '/atlas/divergencias'
     | '/atlas/importar'
     | '/atlas/importar-backup'
     | '/atlas/inicio'
@@ -1219,6 +1231,7 @@ export interface FileRouteTypes {
     | '/_authenticated/abastecimento/reposicao'
     | '/_authenticated/abastecimento/validacao'
     | '/_authenticated/atlas/cadastros'
+    | '/_authenticated/atlas/divergencias'
     | '/_authenticated/atlas/importar'
     | '/_authenticated/atlas/importar-backup'
     | '/_authenticated/atlas/inicio'
@@ -1587,6 +1600,13 @@ declare module '@tanstack/react-router' {
       path: '/atlas/cadastros'
       fullPath: '/atlas/cadastros'
       preLoaderRoute: typeof AuthenticatedAtlasCadastrosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/atlas/divergencias': {
+      id: '/_authenticated/atlas/divergencias'
+      path: '/atlas/divergencias'
+      fullPath: '/atlas/divergencias'
+      preLoaderRoute: typeof AuthenticatedAtlasDivergenciasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/atlas/importar': {
@@ -2038,6 +2058,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbastecimentoReposicaoRoute: typeof AuthenticatedAbastecimentoReposicaoRoute
   AuthenticatedAbastecimentoValidacaoRoute: typeof AuthenticatedAbastecimentoValidacaoRoute
   AuthenticatedAtlasCadastrosRoute: typeof AuthenticatedAtlasCadastrosRoute
+  AuthenticatedAtlasDivergenciasRoute: typeof AuthenticatedAtlasDivergenciasRoute
   AuthenticatedAtlasImportarRoute: typeof AuthenticatedAtlasImportarRoute
   AuthenticatedAtlasImportarBackupRoute: typeof AuthenticatedAtlasImportarBackupRoute
   AuthenticatedAtlasInicioRoute: typeof AuthenticatedAtlasInicioRoute
@@ -2141,6 +2162,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAbastecimentoValidacaoRoute:
     AuthenticatedAbastecimentoValidacaoRoute,
   AuthenticatedAtlasCadastrosRoute: AuthenticatedAtlasCadastrosRoute,
+  AuthenticatedAtlasDivergenciasRoute: AuthenticatedAtlasDivergenciasRoute,
   AuthenticatedAtlasImportarRoute: AuthenticatedAtlasImportarRoute,
   AuthenticatedAtlasImportarBackupRoute: AuthenticatedAtlasImportarBackupRoute,
   AuthenticatedAtlasInicioRoute: AuthenticatedAtlasInicioRoute,
