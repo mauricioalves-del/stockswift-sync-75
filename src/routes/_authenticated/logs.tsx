@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useRole } from "@/hooks/useRole";
+import { AtlasLogHistorico } from "@/components/atlas/AtlasLogHistorico";
 
 export const Route = createFileRoute("/_authenticated/logs")({
   component: LogsPage,
@@ -64,6 +65,7 @@ function LogsPage() {
           </Table>
         </CardContent>
       </Card>
+      <AtlasLogHistorico />
     </div>
   );
 }
