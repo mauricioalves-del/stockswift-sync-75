@@ -10,7 +10,7 @@ import {
   PackageCheck, Hourglass, Gem, SearchCheck, Store, FileSpreadsheet,
  TrendingDown,
  ReceiptText,
- SlidersHorizontal, UserPlus } from "lucide-react";
+ SlidersHorizontal, UserPlus, Orbit, DatabaseBackup, Scale, ListChecks, Upload, Database } from "lucide-react";
 import oncaIcono from "@/assets/onca-icono.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -146,8 +146,24 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/dashboard", label: "Dashboard Executivo", icon: LayoutDashboard, role: "any" },
       { to: "/fechamento-mensal", label: "Fechamento Mensal", icon: CalendarCheck, role: "any" },
       { to: "/relatorios", label: "Relatório de Inventário", icon: FileBarChart2, role: "any" },
-      { to: "/usuarios", label: "Usuários", icon: UsersIcon, role: "admin" },
+    ],
+  },
+  {
+    id: "atlas", label: "Atlas", icon: Orbit, role: "any",
+    items: [
+      { to: "/atlas/inicio", label: "Início", icon: Orbit, role: "any" },
+      { to: "/atlas/modulo/painel", label: "Painel", icon: LayoutDashboard, role: "any" },
+      { to: "/atlas/modulo/divergencias", label: "Divergências", icon: ListChecks, role: "any" },
+      { to: "/atlas/modulo/mapeamento-passivos", label: "Mapeamento de Passivos", icon: AlertTriangle, role: "any" },
+      { to: "/atlas/modulo/importar", label: "Importar", icon: Upload, role: "write" },
+      { to: "/atlas/modulo/painel-inventario", label: "Painel Inventário", icon: BarChart3, role: "any" },
+      { to: "/atlas/modulo/acuracia-ponderada", label: "Acurácia Ponderada", icon: Scale, role: "any" },
+      { to: "/atlas/modulo/fechamento-inventario", label: "Fechamento Inventário", icon: CalendarCheck, role: "any" },
+      { to: "/atlas/modulo/pos-inventario", label: "Pós-Inventário", icon: ClipboardList, role: "any" },
+      { to: "/atlas/modulo/cadastros", label: "Cadastros", icon: Database, role: "write" },
       { to: "/logs", label: "Auditoria", icon: ScrollText, role: "admin" },
+      { to: "/usuarios", label: "Usuários", icon: UsersIcon, role: "admin" },
+      { to: "/atlas/importar-backup", label: "Importar backup do Atlas", icon: DatabaseBackup, role: "gestor" },
     ],
   },
   // { to: "/emails", label: "Cadastro de E-mails", icon: Mail, role: "admin" } as NavItem,
