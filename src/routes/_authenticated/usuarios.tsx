@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { Shield, ExternalLink, UserCheck, Trash2, Clock, UserPlus, ShieldPlus } from "lucide-react";
 import { deleteUsuario, createUsuario } from "@/lib/usuarios.functions";
 import type { Database } from "@/integrations/supabase/types";
+import { AtlasUsuariosMapa } from "@/components/atlas/AtlasUsuariosMapa";
 
 type Role = Database["public"]["Enums"]["app_role"];
 
@@ -339,6 +340,8 @@ function UsuariosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AtlasUsuariosMapa />
 
       <NovoPerfilDialog open={novoPerfilOpen} onOpenChange={setNovoPerfilOpen} onSave={criarPerfil} />
       <NovoUsuarioDialog
