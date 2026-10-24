@@ -55,6 +55,7 @@ import { Route as AuthenticatedAtlasDivergenciasRouteImport } from './routes/_au
 import { Route as AuthenticatedAtlasImportarRouteImport } from './routes/_authenticated/atlas.importar'
 import { Route as AuthenticatedAtlasImportarBackupRouteImport } from './routes/_authenticated/atlas.importar-backup'
 import { Route as AuthenticatedAtlasInicioRouteImport } from './routes/_authenticated/atlas.inicio'
+import { Route as AuthenticatedAtlasPainelRouteImport } from './routes/_authenticated/atlas.painel'
 import { Route as AuthenticatedBaixasIndexRouteImport } from './routes/_authenticated/baixas.index'
 import { Route as AuthenticatedBaixasDashboardRouteImport } from './routes/_authenticated/baixas.dashboard'
 import { Route as AuthenticatedBaixasInvestimentoOperacionalRouteImport } from './routes/_authenticated/baixas.investimento-operacional'
@@ -364,6 +365,12 @@ const AuthenticatedAtlasInicioRoute =
   AuthenticatedAtlasInicioRouteImport.update({
     id: '/atlas/inicio',
     path: '/atlas/inicio',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAtlasPainelRoute =
+  AuthenticatedAtlasPainelRouteImport.update({
+    id: '/atlas/painel',
+    path: '/atlas/painel',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedBaixasIndexRoute =
@@ -730,6 +737,7 @@ export interface FileRoutesByFullPath {
   '/atlas/importar': typeof AuthenticatedAtlasImportarRoute
   '/atlas/importar-backup': typeof AuthenticatedAtlasImportarBackupRoute
   '/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
+  '/atlas/painel': typeof AuthenticatedAtlasPainelRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
   '/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
@@ -830,6 +838,7 @@ export interface FileRoutesByTo {
   '/atlas/importar': typeof AuthenticatedAtlasImportarRoute
   '/atlas/importar-backup': typeof AuthenticatedAtlasImportarBackupRoute
   '/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
+  '/atlas/painel': typeof AuthenticatedAtlasPainelRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
   '/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
@@ -932,6 +941,7 @@ export interface FileRoutesById {
   '/_authenticated/atlas/importar': typeof AuthenticatedAtlasImportarRoute
   '/_authenticated/atlas/importar-backup': typeof AuthenticatedAtlasImportarBackupRoute
   '/_authenticated/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
+  '/_authenticated/atlas/painel': typeof AuthenticatedAtlasPainelRoute
   '/_authenticated/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
   '/_authenticated/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/_authenticated/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
@@ -1034,6 +1044,7 @@ export interface FileRouteTypes {
     | '/atlas/importar'
     | '/atlas/importar-backup'
     | '/atlas/inicio'
+    | '/atlas/painel'
     | '/baixas/dashboard'
     | '/baixas/investimento-operacional'
     | '/config/aparencia'
@@ -1134,6 +1145,7 @@ export interface FileRouteTypes {
     | '/atlas/importar'
     | '/atlas/importar-backup'
     | '/atlas/inicio'
+    | '/atlas/painel'
     | '/baixas/dashboard'
     | '/baixas/investimento-operacional'
     | '/config/aparencia'
@@ -1235,6 +1247,7 @@ export interface FileRouteTypes {
     | '/_authenticated/atlas/importar'
     | '/_authenticated/atlas/importar-backup'
     | '/_authenticated/atlas/inicio'
+    | '/_authenticated/atlas/painel'
     | '/_authenticated/baixas/dashboard'
     | '/_authenticated/baixas/investimento-operacional'
     | '/_authenticated/config/aparencia'
@@ -1628,6 +1641,13 @@ declare module '@tanstack/react-router' {
       path: '/atlas/inicio'
       fullPath: '/atlas/inicio'
       preLoaderRoute: typeof AuthenticatedAtlasInicioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/atlas/painel': {
+      id: '/_authenticated/atlas/painel'
+      path: '/atlas/painel'
+      fullPath: '/atlas/painel'
+      preLoaderRoute: typeof AuthenticatedAtlasPainelRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/baixas/': {
@@ -2062,6 +2082,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAtlasImportarRoute: typeof AuthenticatedAtlasImportarRoute
   AuthenticatedAtlasImportarBackupRoute: typeof AuthenticatedAtlasImportarBackupRoute
   AuthenticatedAtlasInicioRoute: typeof AuthenticatedAtlasInicioRoute
+  AuthenticatedAtlasPainelRoute: typeof AuthenticatedAtlasPainelRoute
   AuthenticatedBaixasDashboardRoute: typeof AuthenticatedBaixasDashboardRoute
   AuthenticatedBaixasInvestimentoOperacionalRoute: typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   AuthenticatedConfigAparenciaRoute: typeof AuthenticatedConfigAparenciaRoute
@@ -2166,6 +2187,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAtlasImportarRoute: AuthenticatedAtlasImportarRoute,
   AuthenticatedAtlasImportarBackupRoute: AuthenticatedAtlasImportarBackupRoute,
   AuthenticatedAtlasInicioRoute: AuthenticatedAtlasInicioRoute,
+  AuthenticatedAtlasPainelRoute: AuthenticatedAtlasPainelRoute,
   AuthenticatedBaixasDashboardRoute: AuthenticatedBaixasDashboardRoute,
   AuthenticatedBaixasInvestimentoOperacionalRoute:
     AuthenticatedBaixasInvestimentoOperacionalRoute,
