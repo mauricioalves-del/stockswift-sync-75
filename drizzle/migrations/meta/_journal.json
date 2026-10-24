@@ -211,6 +211,13 @@
       "when": 1792854490004,
       "tag": "0029_atlas_historico",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792856424298,
+      "tag": "0030_atlas_fase2",
+      "breakpoints": true
     }
   ]
 }

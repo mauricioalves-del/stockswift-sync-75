@@ -905,18 +905,21 @@ export type Database = {
         Row: {
           ativo: boolean | null
           codigo: string
+          codigo_origem: string | null
           nome_exibicao: string | null
           participa_contagem_diaria: boolean | null
         }
         Insert: {
           ativo?: boolean | null
           codigo: string
+          codigo_origem?: string | null
           nome_exibicao?: string | null
           participa_contagem_diaria?: boolean | null
         }
         Update: {
           ativo?: boolean | null
           codigo?: string
+          codigo_origem?: string | null
           nome_exibicao?: string | null
           participa_contagem_diaria?: boolean | null
         }
