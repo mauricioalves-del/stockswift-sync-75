@@ -152,7 +152,7 @@ const NAV: (NavItem | NavGroup)[] = [
     id: "atlas", label: "Atlas", icon: Orbit, role: "any",
     items: [
       { to: "/atlas/inicio", label: "Início", icon: Orbit, role: "any" },
-      { to: "/atlas/modulo/painel", label: "Painel", icon: LayoutDashboard, role: "any" },
+      { to: "/atlas/painel", label: "Painel", icon: LayoutDashboard, role: "any" },
       { to: "/atlas/divergencias", label: "Divergências", icon: ListChecks, role: "any" },
       { to: "/atlas/modulo/mapeamento-passivos", label: "Mapeamento de Passivos", icon: AlertTriangle, role: "any" },
       { to: "/atlas/importar", label: "Importar", icon: Upload, role: "write" },
