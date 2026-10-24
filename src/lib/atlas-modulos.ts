@@ -5,6 +5,7 @@ export type AtlasModulo = {
   id: string; nome: string; fase: number; descricao: string;
   tabelas: string[];             // tabelas atlas_* (sem o prefixo) que guardam o histórico do módulo
   unificadoCom?: { rota: string; nome: string };   // módulo que passa a usar a tela equivalente do Stock Savvy
+  rota?: string;                 // tela já reescrita no Stock Savvy (módulo concluído)
 };
 
 export const ATLAS_FASES: Record<number, string> = {
@@ -25,11 +26,13 @@ export const ATLAS_MODULOS: AtlasModulo[] = [
   { id: "acuracia-ponderada", nome: "Acurácia Ponderada", fase: 4, descricao: "Acurácia ponderada por valor, por mês e almoxarifado.", tabelas: ["ajustes_inventario_oficial", "movimentacoes_brutas", "conferencias_realizadas", "dias_operacionais"] },
   { id: "fechamento-inventario", nome: "Fechamento Inventário", fase: 4, descricao: "Fechamento com dupla assinatura (Diretor de Operações e Coordenador Financeiro), ciência e PDF.", tabelas: ["fechamentos_inventario", "itens_fechamento", "conciliacoes_ciencia", "fechamentos_stock_savvy"] },
   { id: "pos-inventario", nome: "Pós-Inventário", fase: 4, descricao: "Ações corretivas abertas a partir dos itens do fechamento, com checklist e prazo.", tabelas: ["acoes_pos_inventario", "itens_fechamento"] },
-  { id: "cadastros", nome: "Cadastros", fase: 2, descricao: "Produtos, almoxarifados, hipóteses e fornecedores do Atlas, unificados com os cadastros do Stock Savvy.", tabelas: ["produtos", "almoxarifados", "hipoteses", "fornecedores"] },
-  { id: "auditoria", nome: "Auditoria", fase: 2, descricao: "Log de ações. Unificado com a Auditoria do Stock Savvy; o log histórico do Atlas fica preservado.", tabelas: ["log_auditoria"], unificadoCom: { rota: "/logs", nome: "Auditoria" } },
-  { id: "usuarios", nome: "Usuários", fase: 2, descricao: "Login pelo Stock Savvy; os papéis dos 11 usuários do Atlas são mapeados para os perfis do Stock Savvy.", tabelas: ["usuarios"], unificadoCom: { rota: "/usuarios", nome: "Usuários" } },
+  { id: "cadastros", nome: "Cadastros", fase: 2, descricao: "Produtos, almoxarifados, hipóteses e fornecedores do Atlas, unificados com os cadastros do Stock Savvy.", tabelas: ["produtos", "almoxarifados", "hipoteses", "fornecedores"], rota: "/atlas/cadastros" },
+  { id: "auditoria", nome: "Auditoria", fase: 2, descricao: "Log de ações. Unificado com a Auditoria do Stock Savvy, que mostra também o histórico do Atlas.", tabelas: ["log_auditoria"], unificadoCom: { rota: "/logs", nome: "Auditoria" }, rota: "/logs" },
+  { id: "usuarios", nome: "Usuários", fase: 2, descricao: "Login pelo Stock Savvy; cada usuário do Atlas é ligado a um usuário daqui, com o papel sugerido.", tabelas: ["usuarios"], unificadoCom: { rota: "/usuarios", nome: "Usuários" }, rota: "/usuarios" },
 ];
 
 export const moduloAtlas = (id: string) => ATLAS_MODULOS.find((m) => m.id === id);
+/** Fase em andamento: a menor fase com algum módulo ainda sem tela no Stock Savvy (a fase 1 depende do histórico importado). */
+export const faseEmAndamento = (historicoOk: boolean) => (!historicoOk ? 1 : Math.min(...ATLAS_MODULOS.filter((m) => !m.rota).map((m) => m.fase), 6));
 /** Endereço do Atlas original, que segue no ar até a última fase ser aprovada. */
 export const ATLAS_RENDER_URL = "https://atlas-re9d.onrender.com";
