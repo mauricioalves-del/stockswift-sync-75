@@ -160,7 +160,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/atlas/modulo/acuracia-ponderada", label: "Acurácia Ponderada", icon: Scale, role: "any" },
       { to: "/atlas/modulo/fechamento-inventario", label: "Fechamento Inventário", icon: CalendarCheck, role: "any" },
       { to: "/atlas/modulo/pos-inventario", label: "Pós-Inventário", icon: ClipboardList, role: "any" },
-      { to: "/atlas/modulo/cadastros", label: "Cadastros", icon: Database, role: "write" },
+      { to: "/atlas/cadastros", label: "Cadastros", icon: Database, role: "write" },
       { to: "/logs", label: "Auditoria", icon: ScrollText, role: "admin" },
       { to: "/usuarios", label: "Usuários", icon: UsersIcon, role: "admin" },
       { to: "/atlas/importar-backup", label: "Importar backup do Atlas", icon: DatabaseBackup, role: "gestor" },
