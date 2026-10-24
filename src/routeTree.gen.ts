@@ -51,6 +51,7 @@ import { Route as AuthenticatedAbastecimentoProjecaoCdRouteImport } from './rout
 import { Route as AuthenticatedAbastecimentoReposicaoRouteImport } from './routes/_authenticated/abastecimento.reposicao'
 import { Route as AuthenticatedAbastecimentoValidacaoRouteImport } from './routes/_authenticated/abastecimento.validacao'
 import { Route as AuthenticatedAtlasCadastrosRouteImport } from './routes/_authenticated/atlas.cadastros'
+import { Route as AuthenticatedAtlasImportarRouteImport } from './routes/_authenticated/atlas.importar'
 import { Route as AuthenticatedAtlasImportarBackupRouteImport } from './routes/_authenticated/atlas.importar-backup'
 import { Route as AuthenticatedAtlasInicioRouteImport } from './routes/_authenticated/atlas.inicio'
 import { Route as AuthenticatedBaixasIndexRouteImport } from './routes/_authenticated/baixas.index'
@@ -338,6 +339,12 @@ const AuthenticatedAtlasCadastrosRoute =
   AuthenticatedAtlasCadastrosRouteImport.update({
     id: '/atlas/cadastros',
     path: '/atlas/cadastros',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAtlasImportarRoute =
+  AuthenticatedAtlasImportarRouteImport.update({
+    id: '/atlas/importar',
+    path: '/atlas/importar',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAtlasImportarBackupRoute =
@@ -712,6 +719,7 @@ export interface FileRoutesByFullPath {
   '/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/abastecimento/validacao': typeof AuthenticatedAbastecimentoValidacaoRoute
   '/atlas/cadastros': typeof AuthenticatedAtlasCadastrosRoute
+  '/atlas/importar': typeof AuthenticatedAtlasImportarRoute
   '/atlas/importar-backup': typeof AuthenticatedAtlasImportarBackupRoute
   '/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
@@ -810,6 +818,7 @@ export interface FileRoutesByTo {
   '/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/abastecimento/validacao': typeof AuthenticatedAbastecimentoValidacaoRoute
   '/atlas/cadastros': typeof AuthenticatedAtlasCadastrosRoute
+  '/atlas/importar': typeof AuthenticatedAtlasImportarRoute
   '/atlas/importar-backup': typeof AuthenticatedAtlasImportarBackupRoute
   '/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
@@ -910,6 +919,7 @@ export interface FileRoutesById {
   '/_authenticated/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/_authenticated/abastecimento/validacao': typeof AuthenticatedAbastecimentoValidacaoRoute
   '/_authenticated/atlas/cadastros': typeof AuthenticatedAtlasCadastrosRoute
+  '/_authenticated/atlas/importar': typeof AuthenticatedAtlasImportarRoute
   '/_authenticated/atlas/importar-backup': typeof AuthenticatedAtlasImportarBackupRoute
   '/_authenticated/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
   '/_authenticated/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
@@ -1010,6 +1020,7 @@ export interface FileRouteTypes {
     | '/abastecimento/reposicao'
     | '/abastecimento/validacao'
     | '/atlas/cadastros'
+    | '/atlas/importar'
     | '/atlas/importar-backup'
     | '/atlas/inicio'
     | '/baixas/dashboard'
@@ -1108,6 +1119,7 @@ export interface FileRouteTypes {
     | '/abastecimento/reposicao'
     | '/abastecimento/validacao'
     | '/atlas/cadastros'
+    | '/atlas/importar'
     | '/atlas/importar-backup'
     | '/atlas/inicio'
     | '/baixas/dashboard'
@@ -1207,6 +1219,7 @@ export interface FileRouteTypes {
     | '/_authenticated/abastecimento/reposicao'
     | '/_authenticated/abastecimento/validacao'
     | '/_authenticated/atlas/cadastros'
+    | '/_authenticated/atlas/importar'
     | '/_authenticated/atlas/importar-backup'
     | '/_authenticated/atlas/inicio'
     | '/_authenticated/baixas/dashboard'
@@ -1574,6 +1587,13 @@ declare module '@tanstack/react-router' {
       path: '/atlas/cadastros'
       fullPath: '/atlas/cadastros'
       preLoaderRoute: typeof AuthenticatedAtlasCadastrosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/atlas/importar': {
+      id: '/_authenticated/atlas/importar'
+      path: '/atlas/importar'
+      fullPath: '/atlas/importar'
+      preLoaderRoute: typeof AuthenticatedAtlasImportarRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/atlas/importar-backup': {
@@ -2018,6 +2038,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbastecimentoReposicaoRoute: typeof AuthenticatedAbastecimentoReposicaoRoute
   AuthenticatedAbastecimentoValidacaoRoute: typeof AuthenticatedAbastecimentoValidacaoRoute
   AuthenticatedAtlasCadastrosRoute: typeof AuthenticatedAtlasCadastrosRoute
+  AuthenticatedAtlasImportarRoute: typeof AuthenticatedAtlasImportarRoute
   AuthenticatedAtlasImportarBackupRoute: typeof AuthenticatedAtlasImportarBackupRoute
   AuthenticatedAtlasInicioRoute: typeof AuthenticatedAtlasInicioRoute
   AuthenticatedBaixasDashboardRoute: typeof AuthenticatedBaixasDashboardRoute
@@ -2120,6 +2141,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAbastecimentoValidacaoRoute:
     AuthenticatedAbastecimentoValidacaoRoute,
   AuthenticatedAtlasCadastrosRoute: AuthenticatedAtlasCadastrosRoute,
+  AuthenticatedAtlasImportarRoute: AuthenticatedAtlasImportarRoute,
   AuthenticatedAtlasImportarBackupRoute: AuthenticatedAtlasImportarBackupRoute,
   AuthenticatedAtlasInicioRoute: AuthenticatedAtlasInicioRoute,
   AuthenticatedBaixasDashboardRoute: AuthenticatedBaixasDashboardRoute,
