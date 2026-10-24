@@ -2,9 +2,10 @@
 // portado para TypeScript. Parte pura (investigar/reconciliar sobre uma "Base" já carregada) separada da parte que lê e
 // grava no banco, para dar para testar com o backup.
 //
-// Diferença em relação ao Atlas: o modelo estatístico (Random Forest em Python) ainda não roda aqui — reconciliar() recebe
-// só o motor de regras, então hipotese_ia = hipótese de regras. A distribuição e a confiança seguem o mesmo cálculo.
+// O modelo estatístico (Random Forest) é treinado no navegador ao carregar a Base (atlas-ml.ts) e entra em reconciliar()
+// com o mesmo peso 50/50 do Atlas.
 import { supabase } from "@/integrations/supabase/client";
+import { prever, treinarModelo, type Caso, type Modelo } from "./atlas-ml";
 
 const sb = supabase as any;
 
@@ -92,6 +93,7 @@ export type Base = {
   resolvidas: { id: number; sku: string; almoxarifado: string; data: string; hipotese: string | null; qtd: number | null; valor: number | null; solucao: string | null; responsavel: string | null }[];
   historicoConfirmado: { sku: string; almoxarifado: string; categoria: string | null; data: string; hipotese: string; qtd: number | null; valor: number | null }[];
   baixas: Baixa[];
+  modelo?: Modelo | null;
 };
 
 const dias = (a: string, b: string) => Math.round((Date.parse(a.slice(0, 10)) - Date.parse(b.slice(0, 10))) / 86400000);
@@ -281,7 +283,7 @@ async function carregarBaixas(): Promise<Baixa[]> {
 }
 
 export async function carregarBase(): Promise<Base> {
-  const [hip, prod, transf, pedidos, receb, ops, consumo, bom, fat, divs, hist, baixas] = await Promise.all([
+  const [hip, prod, transf, pedidos, receb, ops, consumo, bom, fat, divs, hist, baixas, feedback] = await Promise.all([
     lerTudo<any>("atlas_hipoteses", "codigo, peso_padrao", undefined, "codigo"),
     lerTudo<any>("atlas_produtos", "sku, descricao", undefined, "sku"),
     lerTudo<any>("atlas_transferencias", "sku, almoxarifado_origem, almoxarifado_destino", (q) => q.is("data_entrada", null)),
@@ -294,6 +296,7 @@ export async function carregarBase(): Promise<Base> {
     lerTudo<any>("atlas_divergencias", "id, sku, almoxarifado, data_deteccao, hipotese_confirmada, divergencia_qtd, valor_estimado, solucao_aplicada, responsavel", (q) => q.eq("status", "Resolvida")),
     lerTudo<any>("atlas_movimentacoes_historico", "sku, almoxarifado, categoria_produto, data_movimento, hipotese_confirmada, divergencia, valor_divergencia", (q) => q.not("hipotese_confirmada", "is", null)),
     carregarBaixas(),
+    lerTudo<any>("atlas_casos_ml_feedback", "sku, almoxarifado, categoria_produto, data_deteccao, divergencia_qtd, valor_estimado, hipotese_confirmada", (q) => q.not("hipotese_confirmada", "is", null)),
   ]);
   const recebido = new Map<number, number>();
   for (const r of receb) recebido.set(r.pedido_id, (recebido.get(r.pedido_id) ?? 0) + (Number(r.quantidade_recebida) || 0));
@@ -303,7 +306,7 @@ export async function carregarBase(): Promise<Base> {
   for (const b of bom) if (!bomMap.has(b.sku_item)) bomMap.set(b.sku_item, !!b.gera_oc);
   const fatMap = new Map<string, { data: string; origem: string | null }[]>();
   for (const f of fat) { if (!f.sku || !f.data_faturamento) continue; (fatMap.get(f.sku) ?? fatMap.set(f.sku, []).get(f.sku)!).push({ data: String(f.data_faturamento).slice(0, 10), origem: f.origem }); }
-  return {
+  const base: Base = {
     pesos: new Map(hip.map((h: any) => [h.codigo, Number(h.peso_padrao ?? 20)])),
     descricoes: new Map(prod.map((p: any) => [p.sku, p.descricao])),
     transfPendentes: transf.map((t: any) => ({ sku: t.sku, origem: t.almoxarifado_origem, destino: t.almoxarifado_destino })),
@@ -315,6 +318,13 @@ export async function carregarBase(): Promise<Base> {
     historicoConfirmado: hist.map((x: any) => ({ sku: x.sku, almoxarifado: x.almoxarifado, categoria: x.categoria_produto, data: String(x.data_movimento ?? "").slice(0, 10), hipotese: x.hipotese_confirmada, qtd: x.divergencia, valor: x.valor_divergencia })),
     baixas,
   };
+  // modelo estatístico: casos históricos categorizados + casos confirmados pela equipe
+  const casos: Caso[] = [
+    ...base.historicoConfirmado.map((h) => ({ sku: h.sku, almoxarifado: h.almoxarifado, categoria: h.categoria, data: h.data, qtd: Number(h.qtd) || 0, valor: Number(h.valor) || 0, hipotese: h.hipotese })),
+    ...feedback.map((c: any) => ({ sku: c.sku, almoxarifado: c.almoxarifado, categoria: c.categoria_produto, data: c.data_deteccao ? String(c.data_deteccao).slice(0, 10) : null, qtd: Number(c.divergencia_qtd) || 0, valor: Number(c.valor_estimado) || 0, hipotese: c.hipotese_confirmada })),
+  ];
+  try { base.modelo = treinarModelo(base, casos); } catch { base.modelo = null; }   // sem modelo, o motor de regras segue sozinho (como no Atlas)
+  return base;
 }
 
 // ---------- gravação ----------
@@ -343,10 +353,12 @@ export async function resolverDivergencia(base: Base, d: Div, hipotese: string, 
 /** Roda o motor e grava o diagnóstico; se houver baixa APROVADA compatível, resolve automaticamente. */
 export async function investigarEGravar(base: Base, d: Div, usuario: string): Promise<{ hipotese: string | null; confianca: number | null; resolvidaPorBaixa: boolean }> {
   const r = investigar(base, d);
-  const [hip, conf] = reconciliar(r.scores);
+  const ml = base.modelo ? prever(base.modelo, base, d) : null;
+  const [hip, conf] = reconciliar(r.scores, ml?.distribuicao ?? []);
   const { error } = await sb.from("atlas_divergencias").update({
     hipotese_regras: r.hipotese_regras, confianca_regras: r.confianca_regras, evidencias: r.evidencias, casos_similares: r.casos_similares,
-    hipotese_ml: null, confianca_ml: null, distribuicao_probabilidades: Object.entries(r.scores).map(([hipotese, confianca]) => ({ hipotese, confianca })).sort((a, b) => b.confianca - a.confianca),
+    hipotese_ml: ml?.hipotese ?? null, confianca_ml: ml?.confianca ?? null,
+    distribuicao_probabilidades: ml ? ml.distribuicao : Object.entries(r.scores).map(([hipotese, confianca]) => ({ hipotese, confianca })).sort((a, b) => b.confianca - a.confianca),
     hipotese_ia: hip, confianca_ia: conf,
   }).eq("id", d.id);
   if (error) throw new Error(`Divergência #${d.id}: ${error.message}`);
