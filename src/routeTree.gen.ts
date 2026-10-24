@@ -50,6 +50,8 @@ import { Route as AuthenticatedAbastecimentoPortfolioRouteImport } from './route
 import { Route as AuthenticatedAbastecimentoProjecaoCdRouteImport } from './routes/_authenticated/abastecimento.projecao-cd'
 import { Route as AuthenticatedAbastecimentoReposicaoRouteImport } from './routes/_authenticated/abastecimento.reposicao'
 import { Route as AuthenticatedAbastecimentoValidacaoRouteImport } from './routes/_authenticated/abastecimento.validacao'
+import { Route as AuthenticatedAtlasImportarBackupRouteImport } from './routes/_authenticated/atlas.importar-backup'
+import { Route as AuthenticatedAtlasInicioRouteImport } from './routes/_authenticated/atlas.inicio'
 import { Route as AuthenticatedBaixasIndexRouteImport } from './routes/_authenticated/baixas.index'
 import { Route as AuthenticatedBaixasDashboardRouteImport } from './routes/_authenticated/baixas.dashboard'
 import { Route as AuthenticatedBaixasInvestimentoOperacionalRouteImport } from './routes/_authenticated/baixas.investimento-operacional'
@@ -94,6 +96,7 @@ import { Route as ApiPublicImportEstoqueSistemicoRouteImport } from './routes/ap
 import { Route as ApiPublicImportFichaTecnicaBomRouteImport } from './routes/api/public/import-ficha-tecnica-bom'
 import { Route as ApiPublicImportMovimentacaoFefoRouteImport } from './routes/api/public/import-movimentacao-fefo'
 import { Route as ApiPublicImportRecebimentoTransferenciaRouteImport } from './routes/api/public/import-recebimento-transferencia'
+import { Route as AuthenticatedAtlasModuloIdRouteImport } from './routes/_authenticated/atlas.modulo.$id'
 import { Route as AuthenticatedProducaoMaterialMaterialRouteImport } from './routes/_authenticated/producao.material.$material'
 import { Route as AuthenticatedSuprimentosFefoIndexRouteImport } from './routes/_authenticated/suprimentos.fefo.index'
 import { Route as AuthenticatedSuprimentosFefoConfigRouteImport } from './routes/_authenticated/suprimentos.fefo.config'
@@ -328,6 +331,18 @@ const AuthenticatedAbastecimentoValidacaoRoute =
   AuthenticatedAbastecimentoValidacaoRouteImport.update({
     id: '/abastecimento/validacao',
     path: '/abastecimento/validacao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAtlasImportarBackupRoute =
+  AuthenticatedAtlasImportarBackupRouteImport.update({
+    id: '/atlas/importar-backup',
+    path: '/atlas/importar-backup',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAtlasInicioRoute =
+  AuthenticatedAtlasInicioRouteImport.update({
+    id: '/atlas/inicio',
+    path: '/atlas/inicio',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedBaixasIndexRoute =
@@ -593,6 +608,12 @@ const ApiPublicImportRecebimentoTransferenciaRoute =
     path: '/api/public/import-recebimento-transferencia',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedAtlasModuloIdRoute =
+  AuthenticatedAtlasModuloIdRouteImport.update({
+    id: '/atlas/modulo/$id',
+    path: '/atlas/modulo/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProducaoMaterialMaterialRoute =
   AuthenticatedProducaoMaterialMaterialRouteImport.update({
     id: '/producao/material/$material',
@@ -683,6 +704,8 @@ export interface FileRoutesByFullPath {
   '/abastecimento/projecao-cd': typeof AuthenticatedAbastecimentoProjecaoCdRoute
   '/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/abastecimento/validacao': typeof AuthenticatedAbastecimentoValidacaoRoute
+  '/atlas/importar-backup': typeof AuthenticatedAtlasImportarBackupRoute
+  '/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
   '/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
@@ -727,6 +750,7 @@ export interface FileRoutesByFullPath {
   '/baixas/': typeof AuthenticatedBaixasIndexRoute
   '/config/': typeof AuthenticatedConfigIndexRoute
   '/missoes/': typeof AuthenticatedMissoesIndexRoute
+  '/atlas/modulo/$id': typeof AuthenticatedAtlasModuloIdRoute
   '/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
   '/suprimentos/fefo/config': typeof AuthenticatedSuprimentosFefoConfigRoute
   '/suprimentos/fefo/movimentacoes': typeof AuthenticatedSuprimentosFefoMovimentacoesRoute
@@ -777,6 +801,8 @@ export interface FileRoutesByTo {
   '/abastecimento/projecao-cd': typeof AuthenticatedAbastecimentoProjecaoCdRoute
   '/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/abastecimento/validacao': typeof AuthenticatedAbastecimentoValidacaoRoute
+  '/atlas/importar-backup': typeof AuthenticatedAtlasImportarBackupRoute
+  '/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
   '/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
@@ -821,6 +847,7 @@ export interface FileRoutesByTo {
   '/baixas': typeof AuthenticatedBaixasIndexRoute
   '/config': typeof AuthenticatedConfigIndexRoute
   '/missoes': typeof AuthenticatedMissoesIndexRoute
+  '/atlas/modulo/$id': typeof AuthenticatedAtlasModuloIdRoute
   '/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
   '/suprimentos/fefo/config': typeof AuthenticatedSuprimentosFefoConfigRoute
   '/suprimentos/fefo/movimentacoes': typeof AuthenticatedSuprimentosFefoMovimentacoesRoute
@@ -873,6 +900,8 @@ export interface FileRoutesById {
   '/_authenticated/abastecimento/projecao-cd': typeof AuthenticatedAbastecimentoProjecaoCdRoute
   '/_authenticated/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/_authenticated/abastecimento/validacao': typeof AuthenticatedAbastecimentoValidacaoRoute
+  '/_authenticated/atlas/importar-backup': typeof AuthenticatedAtlasImportarBackupRoute
+  '/_authenticated/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
   '/_authenticated/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
   '/_authenticated/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/_authenticated/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
@@ -917,6 +946,7 @@ export interface FileRoutesById {
   '/_authenticated/baixas/': typeof AuthenticatedBaixasIndexRoute
   '/_authenticated/config/': typeof AuthenticatedConfigIndexRoute
   '/_authenticated/missoes/': typeof AuthenticatedMissoesIndexRoute
+  '/_authenticated/atlas/modulo/$id': typeof AuthenticatedAtlasModuloIdRoute
   '/_authenticated/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
   '/_authenticated/suprimentos/fefo/config': typeof AuthenticatedSuprimentosFefoConfigRoute
   '/_authenticated/suprimentos/fefo/movimentacoes': typeof AuthenticatedSuprimentosFefoMovimentacoesRoute
@@ -969,6 +999,8 @@ export interface FileRouteTypes {
     | '/abastecimento/projecao-cd'
     | '/abastecimento/reposicao'
     | '/abastecimento/validacao'
+    | '/atlas/importar-backup'
+    | '/atlas/inicio'
     | '/baixas/dashboard'
     | '/baixas/investimento-operacional'
     | '/config/aparencia'
@@ -1013,6 +1045,7 @@ export interface FileRouteTypes {
     | '/baixas/'
     | '/config/'
     | '/missoes/'
+    | '/atlas/modulo/$id'
     | '/producao/material/$material'
     | '/suprimentos/fefo/config'
     | '/suprimentos/fefo/movimentacoes'
@@ -1063,6 +1096,8 @@ export interface FileRouteTypes {
     | '/abastecimento/projecao-cd'
     | '/abastecimento/reposicao'
     | '/abastecimento/validacao'
+    | '/atlas/importar-backup'
+    | '/atlas/inicio'
     | '/baixas/dashboard'
     | '/baixas/investimento-operacional'
     | '/config/aparencia'
@@ -1107,6 +1142,7 @@ export interface FileRouteTypes {
     | '/baixas'
     | '/config'
     | '/missoes'
+    | '/atlas/modulo/$id'
     | '/producao/material/$material'
     | '/suprimentos/fefo/config'
     | '/suprimentos/fefo/movimentacoes'
@@ -1158,6 +1194,8 @@ export interface FileRouteTypes {
     | '/_authenticated/abastecimento/projecao-cd'
     | '/_authenticated/abastecimento/reposicao'
     | '/_authenticated/abastecimento/validacao'
+    | '/_authenticated/atlas/importar-backup'
+    | '/_authenticated/atlas/inicio'
     | '/_authenticated/baixas/dashboard'
     | '/_authenticated/baixas/investimento-operacional'
     | '/_authenticated/config/aparencia'
@@ -1202,6 +1240,7 @@ export interface FileRouteTypes {
     | '/_authenticated/baixas/'
     | '/_authenticated/config/'
     | '/_authenticated/missoes/'
+    | '/_authenticated/atlas/modulo/$id'
     | '/_authenticated/producao/material/$material'
     | '/_authenticated/suprimentos/fefo/config'
     | '/_authenticated/suprimentos/fefo/movimentacoes'
@@ -1517,6 +1556,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAbastecimentoValidacaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/atlas/importar-backup': {
+      id: '/_authenticated/atlas/importar-backup'
+      path: '/atlas/importar-backup'
+      fullPath: '/atlas/importar-backup'
+      preLoaderRoute: typeof AuthenticatedAtlasImportarBackupRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/atlas/inicio': {
+      id: '/_authenticated/atlas/inicio'
+      path: '/atlas/inicio'
+      fullPath: '/atlas/inicio'
+      preLoaderRoute: typeof AuthenticatedAtlasInicioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/baixas/': {
       id: '/_authenticated/baixas/'
       path: '/baixas'
@@ -1825,6 +1878,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicImportRecebimentoTransferenciaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/atlas/modulo/$id': {
+      id: '/_authenticated/atlas/modulo/$id'
+      path: '/atlas/modulo/$id'
+      fullPath: '/atlas/modulo/$id'
+      preLoaderRoute: typeof AuthenticatedAtlasModuloIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/producao/material/$material': {
       id: '/_authenticated/producao/material/$material'
       path: '/producao/material/$material'
@@ -1937,6 +1997,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbastecimentoProjecaoCdRoute: typeof AuthenticatedAbastecimentoProjecaoCdRoute
   AuthenticatedAbastecimentoReposicaoRoute: typeof AuthenticatedAbastecimentoReposicaoRoute
   AuthenticatedAbastecimentoValidacaoRoute: typeof AuthenticatedAbastecimentoValidacaoRoute
+  AuthenticatedAtlasImportarBackupRoute: typeof AuthenticatedAtlasImportarBackupRoute
+  AuthenticatedAtlasInicioRoute: typeof AuthenticatedAtlasInicioRoute
   AuthenticatedBaixasDashboardRoute: typeof AuthenticatedBaixasDashboardRoute
   AuthenticatedBaixasInvestimentoOperacionalRoute: typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   AuthenticatedConfigAparenciaRoute: typeof AuthenticatedConfigAparenciaRoute
@@ -1973,6 +2035,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedBaixasIndexRoute: typeof AuthenticatedBaixasIndexRoute
   AuthenticatedConfigIndexRoute: typeof AuthenticatedConfigIndexRoute
   AuthenticatedMissoesIndexRoute: typeof AuthenticatedMissoesIndexRoute
+  AuthenticatedAtlasModuloIdRoute: typeof AuthenticatedAtlasModuloIdRoute
   AuthenticatedProducaoMaterialMaterialRoute: typeof AuthenticatedProducaoMaterialMaterialRoute
   AuthenticatedSuprimentosFefoConfigRoute: typeof AuthenticatedSuprimentosFefoConfigRoute
   AuthenticatedSuprimentosFefoMovimentacoesRoute: typeof AuthenticatedSuprimentosFefoMovimentacoesRoute
@@ -2035,6 +2098,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedAbastecimentoReposicaoRoute,
   AuthenticatedAbastecimentoValidacaoRoute:
     AuthenticatedAbastecimentoValidacaoRoute,
+  AuthenticatedAtlasImportarBackupRoute: AuthenticatedAtlasImportarBackupRoute,
+  AuthenticatedAtlasInicioRoute: AuthenticatedAtlasInicioRoute,
   AuthenticatedBaixasDashboardRoute: AuthenticatedBaixasDashboardRoute,
   AuthenticatedBaixasInvestimentoOperacionalRoute:
     AuthenticatedBaixasInvestimentoOperacionalRoute,
@@ -2080,6 +2145,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBaixasIndexRoute: AuthenticatedBaixasIndexRoute,
   AuthenticatedConfigIndexRoute: AuthenticatedConfigIndexRoute,
   AuthenticatedMissoesIndexRoute: AuthenticatedMissoesIndexRoute,
+  AuthenticatedAtlasModuloIdRoute: AuthenticatedAtlasModuloIdRoute,
   AuthenticatedProducaoMaterialMaterialRoute:
     AuthenticatedProducaoMaterialMaterialRoute,
   AuthenticatedSuprimentosFefoConfigRoute:
