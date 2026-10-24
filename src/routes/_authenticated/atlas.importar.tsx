@@ -12,6 +12,7 @@ import {
   FONTES_CONTEXTO, abrirPlanilha, carregarContexto, excluirLote, importarContexto, importarCustosPlanilhaPreco, importarCustosSimples,
   importarLivroCaixa, importarMovimentacao, type FonteContexto, type Planilha,
 } from "@/lib/atlas-importar";
+import { investigarLote } from "@/lib/atlas-investigacao";
 
 export const Route = createFileRoute("/_authenticated/atlas/importar")({
   component: AtlasImportar,
@@ -107,7 +108,7 @@ function AtlasImportar() {
     <div className="w-full space-y-4">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold"><Upload className="size-6" /> Importar</h1>
-        <p className="text-sm text-muted-foreground">Mesmas importações do Atlas, gravando direto no histórico do Atlas dentro do Stock Savvy. As divergências criadas pela movimentação entram como <strong>Abertas</strong> com a investigação pendente; o diagnóstico automático (regras + modelo) roda na tela de Divergências, na fase 3. {ocupado && prog ? <span className="font-medium text-foreground"> {prog}</span> : null}</p>
+        <p className="text-sm text-muted-foreground">Mesmas importações do Atlas, gravando direto no histórico do Atlas dentro do Stock Savvy. Cada divergência criada pela movimentação já passa pelo motor de investigação do Atlas (hipótese, evidências e casos similares); baixa aprovada compatível resolve a divergência automaticamente. {ocupado && prog ? <span className="font-medium text-foreground"> {prog}</span> : null}</p>
       </div>
 
       <Card>
@@ -119,7 +120,9 @@ function AtlasImportar() {
             {movArq && movArq.planilha.abas[0] !== "CSV" && listaAlmox(movAlmox, setMovAlmox)}
             <Botao chave="mov" ok={!!movArq && (movArq.planilha.abas[0] === "CSV" || !!movAlmox)} onClick={() => rodar("mov", async (ctx) => {
               const r = await importarMovimentacao(movArq!.planilha, movArq!.nome, movArq!.planilha.abas[0] === "CSV" ? null : movAlmox, movAba || null, ctx);
-              return `Importação #${r.loteId}: ${un(r.linhas)} linhas · ${un(r.historico)} no histórico · ${un(r.divergencias)} divergências.${r.erros.length ? `\n${r.erros.length} linha(s) com erro: ${r.erros.slice(0, 8).join(" | ")}${r.erros.length > 8 ? " …" : ""}` : ""}`;
+              // mesma sequência do Atlas: cada divergência nova já passa pelo motor de investigação
+              const inv = r.divergencias ? await investigarLote((q) => q.eq("lote_importacao_id", r.loteId), ctx.usuario, (a, t) => setProg(`investigando ${a}/${t}…`)) : null;
+              return `Importação #${r.loteId}: ${un(r.linhas)} linhas · ${un(r.historico)} no histórico · ${un(r.divergencias)} divergências${inv ? ` (investigadas: ${inv.ok}${inv.porBaixa ? `, ${inv.porBaixa} resolvida(s) por baixa aprovada` : ""}${inv.erros.length ? `, ${inv.erros.length} com erro — use Investigar pendentes` : ""})` : ""}.${r.erros.length ? `\n${r.erros.length} linha(s) com erro: ${r.erros.slice(0, 8).join(" | ")}${r.erros.length > 8 ? " …" : ""}` : ""}`;
             }, setMovRes)} />
           </div>
           <Resultado texto={movRes.texto} erro={movRes.erro} />
