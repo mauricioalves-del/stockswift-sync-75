@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
-import { Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AtlasGrafico, atlasCores } from "@/components/atlas/AtlasGrafico";
 import { AlertTriangle, Download, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,14 +13,14 @@ import { CATEGORIAS, carregarPassivos, evolucao, linhasExcel, motivos, opcoesFil
 
 export const Route = createFileRoute("/_authenticated/atlas/mapeamento-passivos")({
   component: MapeamentoPassivos,
-  head: () => ({ meta: [{ title: "Mapeamento de Passivos — Atlas" }] }),
+  head: () => ({ meta: [{ title: "Mapeamento de Passivos — Atlas" }, { name: "description", content: "Evolução dos passivos aprovados, fluxo de inventário e motivos de baixa no Atlas." }, { property: "og:title", content: "Mapeamento de Passivos — Atlas" }, { property: "og:description", content: "Evolução dos passivos aprovados, fluxo de inventário e motivos de baixa no Atlas." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
 
 const brl = (n: number | null | undefined, d = 0) => (n == null ? "—" : Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: d, minimumFractionDigits: d }));
 const un = (n: number | null | undefined, d = 0) => (n == null ? "—" : Number(n).toLocaleString("pt-BR", { maximumFractionDigits: d }));
 const dt = (s: string | null) => (s ? s.split("-").reverse().join("/") : "—");
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-const CORES = ["#4E7F84", "#C2763A", "#7A8F3B", "#8E5A9B", "#B5484B", "#3F6FA8", "#9A9A9A"];
+const CORES = [atlasCores.blue, atlasCores.success, atlasCores.danger, atlasCores.warning, atlasCores.purple, atlasCores.cyan, atlasCores.muted];
 
 function MapeamentoPassivos() {
   const q = useQuery({ queryKey: ["atlas-passivos"], queryFn: carregarPassivos, staleTime: 120000 });
@@ -97,33 +97,19 @@ function MapeamentoPassivos() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Evolução mensal das baixas aprovadas</CardTitle></CardHeader>
-              <CardContent className="h-72"><ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={r.evo}><CartesianGrid strokeDasharray="3 3" className="stroke-muted" /><XAxis dataKey="rotulo" tick={{ fontSize: 11 }} /><YAxis yAxisId="v" tick={{ fontSize: 11 }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} /><YAxis yAxisId="t" orientation="right" domain={[0, 100]} unit="%" tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: any, n: any) => (n === "Resolução automática" ? [`${un(v, 1)}%`, n] : [brl(v), n])} /><Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar yAxisId="v" dataKey="valor_operacional" stackId="a" name="Operacional" fill={CORES[0]} /><Bar yAxisId="v" dataKey="valor_inventario" stackId="a" name="Via inventário" fill={CORES[1]} />
-                  <Line yAxisId="t" dataKey="taxa" name="Resolução automática" stroke={CORES[4]} dot={false} />
-                </ComposedChart>
-              </ResponsiveContainer></CardContent>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Evolução mensal de passivos e inventário</CardTitle></CardHeader>
+              <CardContent className="h-72"><AtlasGrafico data={r.evo.map((m, i, all) => ({ ...m, inventarioAbs: Math.abs(m.resultado), acumulado: all.slice(0, i + 1).reduce((total, x) => total + x.valor + Math.abs(x.resultado), 0) }))} category="rotulo" money series={[{key: "inventarioAbs", name: "Resultado do Fluxo de Inventário (valor absoluto)", color: atlasCores.blue, stack: "total", money: true, labels: false},{key: "valor", name: "Passivos do mês (R$)", color: atlasCores.danger, stack: "total", money: true, labels: false},{key: "acumulado", name: "Curva de evolução (valor acumulado)", color: atlasCores.warning, line: true, money: true}]} /></CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">Fluxo de inventário (Entradas × Saídas)</CardTitle></CardHeader>
-              <CardContent className="h-72"><ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={r.evo.filter((m) => m.entradas || m.saidas)}><CartesianGrid strokeDasharray="3 3" className="stroke-muted" /><XAxis dataKey="rotulo" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} /><Tooltip formatter={(v: any, n: any) => [brl(v), n]} /><Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="entradas" name="Entradas" fill={CORES[2]} /><Bar dataKey="saidas" name="Saídas" fill={CORES[4]} /><Line dataKey="resultado" name="Resultado" stroke={CORES[5]} strokeWidth={2} dot />
-                </ComposedChart>
-              </ResponsiveContainer></CardContent>
+              <CardContent className="h-72"><AtlasGrafico data={r.evo.filter((m) => m.entradas || m.saidas).map((m) => ({ ...m, saidas: Math.abs(m.saidas) }))} category="rotulo" money series={[{key: "entradas", name: "Entradas (R$)", color: atlasCores.success, money: true, labels: false},{key: "saidas", name: "Saídas (R$)", color: atlasCores.danger, money: true, labels: false},{key: "resultado", name: "Resultado do Mês", color: atlasCores.blue, line: true, money: true}]} /></CardContent>
             </Card>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">Motivos de baixa por mês (sem as baixas via inventário)</CardTitle></CardHeader>
-              <CardContent className="h-72"><ResponsiveContainer width="100%" height="100%">
-                <BarChart data={r.mot.serie.map((x) => ({ ...x, rotulo: `${String(x.mes).slice(5)}/${String(x.mes).slice(2, 4)}` }))}><CartesianGrid strokeDasharray="3 3" className="stroke-muted" /><XAxis dataKey="rotulo" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} /><Tooltip formatter={(v: any, n: any) => [brl(v), n]} /><Legend wrapperStyle={{ fontSize: 11 }} />
-                  {r.mot.chaves.map((k, i) => <Bar key={k} dataKey={k} stackId="m" fill={CORES[i % CORES.length]} />)}
-                </BarChart>
-              </ResponsiveContainer>{r.mot.agrupados.length > 0 && <p className="text-[11px] text-muted-foreground">Outros: {r.mot.agrupados.join(", ")}</p>}</CardContent>
+              <CardContent className="h-72"><AtlasGrafico data={r.mot.serie.map((x) => ({ ...x, rotulo: `${String(x.mes).slice(5)}/${String(x.mes).slice(2, 4)}` }))} category="rotulo" horizontal money height={260} series={r.mot.chaves.map((k, i) => ({ key: k, name: k, color: CORES[i % CORES.length], stack: "motivos", money: true, labels: false }))} />{r.mot.agrupados.length > 0 && <p className="text-[11px] text-muted-foreground">Outros: {r.mot.agrupados.join(", ")}</p>}</CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">Resumo por motivo</CardTitle></CardHeader>
@@ -133,11 +119,7 @@ function MapeamentoPassivos() {
 
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">Onde estão as maiores perdas (passivos + resultado de inventário)</CardTitle></CardHeader>
-            <CardContent style={{ height: Math.max(180, r.almox.length * 34 + 40) }}><ResponsiveContainer width="100%" height="100%">
-              <BarChart data={r.almox} layout="vertical" margin={{ left: 40 }}><CartesianGrid strokeDasharray="3 3" className="stroke-muted" /><XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} /><YAxis type="category" dataKey="almox" width={150} tick={{ fontSize: 10 }} /><Tooltip formatter={(v: any, n: any, p: any) => (n === "Inventário" ? [`${brl(p.payload.resultado)} (resultado)`, n] : [brl(v), n])} /><Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="passivos" stackId="x" name="Passivos" fill={CORES[1]} /><Bar dataKey="inventarioAbs" stackId="x" name="Inventário" fill={CORES[0]} />
-              </BarChart>
-            </ResponsiveContainer></CardContent>
+            <CardContent style={{ height: Math.max(180, r.almox.length * 34 + 40) }}><AtlasGrafico data={r.almox} category="almox" horizontal money height={Math.max(260, r.almox.length * 34)} series={[{key: "passivos", name: "Passivos (R$)", color: atlasCores.danger, stack: "total", money: true, labels: false},{key: "inventarioAbs", name: "Resultado de Inventário (valor absoluto, R$)", color: atlasCores.blue, stack: "total", money: true, labels: false}]} /></CardContent>
           </Card>
 
           <div className="grid gap-4 lg:grid-cols-2">

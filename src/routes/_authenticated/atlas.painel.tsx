@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Bar, BarChart, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AtlasGrafico, AtlasCausas, atlasCores } from "@/components/atlas/AtlasGrafico";
 import { LayoutDashboard, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export const Route = createFileRoute("/_authenticated/atlas/painel")({
   component: AtlasPainel,
-  head: () => ({ meta: [{ title: "Painel — Atlas" }] }),
+  head: () => ({ meta: [{ title: "Painel de Divergências — Atlas" }, { name: "description", content: "Acurácia diária, causas confirmadas e evolução mensal das divergências do Atlas." }, { property: "og:title", content: "Painel de Divergências — Atlas" }, { property: "og:description", content: "Acurácia diária, causas confirmadas e evolução mensal das divergências do Atlas." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
 
 const sb = supabase as any;
@@ -141,38 +141,29 @@ function AtlasPainel() {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">Acurácia por dia {almox !== "todos" ? `· ${almox}` : ""}</CardTitle></CardHeader>
             <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={r.dia}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="rotulo" tick={{ fontSize: 11 }} minTickGap={16} />
-                  <YAxis yAxisId="i" tick={{ fontSize: 11 }} />
-                  <YAxis yAxisId="a" orientation="right" domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-                  <Tooltip formatter={(v: any, n: any) => (n === "acuracia" ? [`${un(v, 2)}%`, "Acurácia"] : [un(v), "Itens contados"])} labelFormatter={(_, p: any) => (p?.[0] ? dt(p[0].payload.data) : "")} />
-                  <Bar yAxisId="i" dataKey="itens" fill="var(--muted-foreground)" opacity={0.35} />
-                  <Line yAxisId="a" dataKey="acuracia" stroke="var(--primary)" dot={false} strokeWidth={2} />
-                </ComposedChart>
-              </ResponsiveContainer>
+              <AtlasGrafico data={r.dia} category="rotulo" rightPercent series={[{key: "itens", name: "Itens Inventariados", color: atlasCores.accent, opacity: 0.55, labels: false},{key: "acuracia", name: "Acurácia %", color: atlasCores.success, line: true, right: true, percent: true}]} />
             </CardContent>
           </Card>
 
+<Card><CardHeader><CardTitle>Tendência de Acurácia</CardTitle></CardHeader><CardContent><AtlasGrafico data={r.dia} category="rotulo" percent series={[{key: "acuracia", name: "Acurácia real", color: atlasCores.blue, line: true, percent: true}]} /></CardContent></Card>
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">Acurácia mensal (variação MoM em p.p.)</CardTitle></CardHeader>
               <CardContent>
-                <div className="h-48"><ResponsiveContainer width="100%" height="100%"><BarChart data={r.mes}><CartesianGrid strokeDasharray="3 3" className="stroke-muted" /><XAxis dataKey="rotulo" tick={{ fontSize: 11 }} /><YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" /><Tooltip formatter={(v: any) => [`${un(v, 2)}%`, "Acurácia"]} /><Bar dataKey="acuracia" fill="var(--primary)" /></BarChart></ResponsiveContainer></div>
+                <div className="h-60"><AtlasGrafico data={r.mes} category="rotulo" percent height={240} series={[{key: "acuracia", name: "Acurácia do mês", color: atlasCores.blue, percent: true},{key: "varPp", name: "Variação MoM (p.p.)", color: atlasCores.warning, line: true, right: true}]} /></div>
                 <table className="mt-2 w-full text-xs"><tbody>{[...r.mes].reverse().slice(0, 6).map((m) => <tr key={m.mes} className="border-b last:border-0"><td className="p-1">{m.rotulo}</td><td className="p-1 text-right">{un(m.acuracia, 2)}%</td><td className={`p-1 text-right ${m.varPp == null ? "" : m.varPp >= 0 ? "text-emerald-700" : "text-destructive"}`}>{m.varPp == null ? "—" : `${m.varPp > 0 ? "+" : ""}${un(m.varPp, 2)} p.p.`}</td><td className="p-1 text-right text-muted-foreground">{un(m.itens)} itens</td></tr>)}</tbody></table>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">Acurácia acumulada por almoxarifado</CardTitle></CardHeader>
-              <CardContent className="h-72"><ResponsiveContainer width="100%" height="100%"><BarChart data={r.almoxL} layout="vertical" margin={{ left: 40 }}><CartesianGrid strokeDasharray="3 3" className="stroke-muted" /><XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" /><YAxis type="category" dataKey="almox" width={140} tick={{ fontSize: 10 }} /><Tooltip formatter={(v: any, _n: any, p: any) => [`${un(v, 2)}% · ${un(p.payload.itens)} itens`, "Acurácia"]} /><Bar dataKey="acuracia" fill="var(--primary)" /></BarChart></ResponsiveContainer></CardContent>
+              <CardContent className="h-72"><AtlasGrafico data={r.almoxL} category="almox" horizontal percent legend={false} height={260} series={[{key: "acuracia", name: "Acurácia acumulada %", color: atlasCores.warning, percent: true}]} /></CardContent>
             </Card>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">Causas confirmadas</CardTitle></CardHeader>
-              <CardContent className="h-80"><ResponsiveContainer width="100%" height="100%"><BarChart data={r.causasL.slice(0, 12)} layout="vertical" margin={{ left: 60 }}><CartesianGrid strokeDasharray="3 3" className="stroke-muted" /><XAxis type="number" tick={{ fontSize: 11 }} /><YAxis type="category" dataKey="hipotese" width={170} tick={{ fontSize: 10 }} /><Tooltip /><Bar dataKey="n" name="Casos" fill="var(--primary)" /></BarChart></ResponsiveContainer></CardContent>
+              <CardContent><AtlasCausas data={r.causasL.slice(0, 12)} /></CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">Almoxarifado × hipótese</CardTitle></CardHeader>
