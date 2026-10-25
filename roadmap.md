@@ -1,8 +1,8 @@
 # Correção de grupos das Baixas Operacionais
 
 ## Atlas: formato dos gráficos
-- [ ] Ajustar os gráficos dos quatro painéis ao formato dos HTML enviados, sem alterar cálculos ou dados.
-- [ ] Verificar as quatro telas autenticadas e preservar as regras de leitura do Atlas.
+- [x] Ajustar os gráficos dos quatro painéis ao formato dos HTML enviados, preservando os dados e cálculos de origem.
+- [x] Verificar as quatro telas autenticadas e o filtro mensal: gráficos renderizados e sem erros; regras de leitura preservadas por decisão do usuário, três alertas permanecem ativos.
 
 ## Disponibilidade: detalhes por coluna do dia
 - [x] Abrir itens da foto diária por duplo clique, com entrada, resolução e duração da ocorrência; quatro testes passaram e a tela autenticada confirmou o SKU 05004048 em ruptura em 16/10, resolvido em 17/10 (1 dia), sem alterar fotos.
