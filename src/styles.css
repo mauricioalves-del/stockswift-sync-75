@@ -58,6 +58,15 @@
 }
 
 :root {
+  /* Atlas export palette — chart-only roles shared across Atlas panels. */
+  --atlas-accent: #4e7f84;
+  --atlas-blue: #34436c;
+  --atlas-support: #b1bfe2;
+  --atlas-success: #2e7d32;
+  --atlas-warning: #f9a825;
+  --atlas-danger: #c62828;
+  --atlas-purple: #8e5b9e;
+  --atlas-cyan: #3fb6c9;
   --radius: 0.75rem;
 
   /* Surfaces — Bege Natural */
@@ -119,6 +128,11 @@
 }
 
 .dark {
+  --atlas-accent: #6fa3a8;
+  --atlas-blue: #5b75ac;
+  --atlas-support: #7c93c2;
+  --atlas-success: #4caf50;
+  --atlas-danger: #e5534b;
   --background: oklch(0.17 0.025 145);
   --foreground: oklch(0.97 0.015 90);
   --card: oklch(0.22 0.04 145);
@@ -245,6 +259,11 @@
 }
 
 [data-theme="magio-escuro"] {
+  --atlas-accent: #6fa3a8;
+  --atlas-blue: #5b75ac;
+  --atlas-support: #7c93c2;
+  --atlas-success: #4caf50;
+  --atlas-danger: #e5534b;
   --radius: 1.25rem;
   --font-app: "TT Chocolates", "Inter", "Poppins", ui-sans-serif, system-ui, sans-serif;
 
