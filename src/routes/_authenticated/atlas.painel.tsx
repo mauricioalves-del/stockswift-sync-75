@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AtlasGrafico, AtlasCausas, atlasCores } from "@/components/atlas/AtlasGrafico";
+import { AtlasTendencia } from "@/components/atlas/AtlasTendencia";
 import { LayoutDashboard, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -145,7 +146,13 @@ function AtlasPainel() {
             </CardContent>
           </Card>
 
-<Card><CardHeader><CardTitle>Tendência de Acurácia</CardTitle></CardHeader><CardContent><AtlasGrafico data={r.dia} category="rotulo" percent series={[{key: "acuracia", name: "Acurácia real", color: atlasCores.blue, line: true, percent: true}]} /></CardContent></Card>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <AtlasTendencia dias={r.dia} />
+            <Card className="min-w-0">
+              <CardHeader className="pb-2"><CardTitle className="text-base">Causas confirmadas</CardTitle></CardHeader>
+              <CardContent><AtlasCausas data={r.causasL.slice(0, 12)} /></CardContent>
+            </Card>
+          </div>
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">Acurácia mensal (variação MoM em p.p.)</CardTitle></CardHeader>
@@ -160,11 +167,7 @@ function AtlasPainel() {
             </Card>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Causas confirmadas</CardTitle></CardHeader>
-              <CardContent><AtlasCausas data={r.causasL.slice(0, 12)} /></CardContent>
-            </Card>
+          <div>
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">Almoxarifado × hipótese</CardTitle></CardHeader>
               <CardContent className="overflow-x-auto">
