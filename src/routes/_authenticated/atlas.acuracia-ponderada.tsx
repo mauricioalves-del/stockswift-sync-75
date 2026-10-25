@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AtlasGrafico, atlasCores } from "@/components/atlas/AtlasGrafico";
 import { Loader2, Scale } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FiltrosInv } from "@/components/atlas/FiltrosInv";
@@ -9,14 +9,14 @@ import { carregarInventario, comparativo, comparativoPorAlmox, comparativoPorGru
 
 export const Route = createFileRoute("/_authenticated/atlas/acuracia-ponderada")({
   component: AcuraciaPonderada,
-  head: () => ({ meta: [{ title: "Acurácia Ponderada — Atlas" }] }),
+  head: () => ({ meta: [{ title: "Acurácia Ponderada — Atlas" }, { name: "description", content: "Comparativo dos modelos de acurácia, Pareto, magnitude e evolução mensal do Atlas." }, { property: "og:title", content: "Acurácia Ponderada — Atlas" }, { property: "og:description", content: "Comparativo dos modelos de acurácia, Pareto, magnitude e evolução mensal do Atlas." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
 
 const brl = (n: number | null | undefined) => (n == null ? "—" : Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }));
 const un = (n: number | null | undefined, d = 0) => (n == null ? "—" : Number(n).toLocaleString("pt-BR", { maximumFractionDigits: d }));
 const pct = (n: number | null | undefined) => (n == null ? "—" : `${un(n, 2)}%`);
 const pp = (n: number | null | undefined) => (n == null ? "—" : `${n > 0 ? "+" : ""}${un(n, 2)} p.p.`);
-const C = { item: "#9A9A9A", iaq: "#3F6FA8", iap: "#4E7F84" };
+
 
 function AcuraciaPonderada() {
   const q = useQuery({ queryKey: ["atlas-inventario"], queryFn: carregarInventario, staleTime: 120000 });
@@ -46,25 +46,11 @@ function AcuraciaPonderada() {
             <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Cobertura de custo</div><div className="mt-1 text-2xl font-semibold">{pct(r.c.cobertura)}</div><div className="text-[11px] text-muted-foreground">{brl(r.c.divergenteValor)} divergente de {brl(r.c.portfolio)} avaliado</div></CardContent></Card>
           </div>
 
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Evolução mensal dos três modelos {almox ? `· ${almox}` : ""}</CardTitle></CardHeader>
-            <CardContent>
-              <div className="h-64"><ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={r.evo}><CartesianGrid strokeDasharray="3 3" className="stroke-muted" /><XAxis dataKey="rotulo" tick={{ fontSize: 11 }} /><YAxis yAxisId="a" domain={[0, 100]} unit="%" tick={{ fontSize: 11 }} /><YAxis yAxisId="v" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
-                  <Tooltip formatter={(v: any, n: any) => (n === "Valor divergente" ? [brl(v), n] : [pct(v), n])} /><Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar yAxisId="v" dataKey="valorMod" name="Valor divergente" fill="#C2763A" opacity={0.4} />
-                  <Line yAxisId="a" dataKey="item" name="Item a item" stroke={C.item} strokeWidth={2} /><Line yAxisId="a" dataKey="iaq" name="IAQ" stroke={C.iaq} strokeWidth={2} /><Line yAxisId="a" dataKey="iap" name="IAP" stroke={C.iap} strokeWidth={2} />
-                </ComposedChart>
-              </ResponsiveContainer></div>
-              <table className="mt-2 w-full text-xs"><thead><tr className="text-left text-muted-foreground"><th className="p-1">Mês</th><th className="p-1 text-right">Item a item</th><th className="p-1 text-right">IAQ</th><th className="p-1 text-right">IAP</th><th className="p-1 text-right">Valor divergente</th><th className="p-1 text-right">Δ valor</th></tr></thead>
-                <tbody>{[...r.evo].reverse().map((m) => <tr key={m.mes} className="border-t"><td className="p-1">{m.rotulo}</td><td className="p-1 text-right">{pct(m.item)} <span className="text-muted-foreground">{pp(m.varItem)}</span></td><td className="p-1 text-right">{pct(m.iaq)} <span className="text-muted-foreground">{pp(m.varIaq)}</span></td><td className="p-1 text-right">{pct(m.iap)} <span className="text-muted-foreground">{pp(m.varIap)}</span></td><td className="p-1 text-right">{brl(m.valorMod)}</td><td className={`p-1 text-right ${m.varMod == null ? "" : m.varMod <= 0 ? "text-emerald-700" : "text-destructive"}`}>{m.varMod == null ? "—" : brl(m.varMod)}</td></tr>)}</tbody></table>
-            </CardContent>
-          </Card>
-
+          <Card><CardHeader><CardTitle>Os três modelos, lado a lado</CardTitle></CardHeader><CardContent><AtlasGrafico data={[{ modelo: "Item a item", valor: r.c.item }, { modelo: "IAQ", valor: r.c.iaq }, { modelo: "IAP", valor: r.c.iap }]} category="modelo" horizontal percent legend={false} height={180} series={[{key: "valor", name: "Acurácia", color: atlasCores.success, percent: true}]} /></CardContent></Card>
           <div className="grid gap-4 lg:grid-cols-2">
             {([["Por grupo de produto", r.grupo], [`Por almoxarifado${mes ? ` · ${mes.slice(5)}/${mes.slice(0, 4)}` : ""}`, r.porAlmox]] as const).map(([t, l]) => (
               <Card key={t}><CardHeader className="pb-2"><CardTitle className="text-base">{t}</CardTitle></CardHeader>
-                <CardContent className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-left text-muted-foreground"><th className="p-1" /><th className="p-1 text-right">Item a item</th><th className="p-1 text-right">IAQ</th><th className="p-1 text-right">IAP</th></tr></thead>
+                <CardContent className="overflow-x-auto"><AtlasGrafico data={l} category="chave" horizontal percent height={Math.max(260, l.length * 62)} series={[{key: "item", name: "Item a item", color: atlasCores.warning, percent: true, labels: false},{key: "iaq", name: "IAQ (quantidade)", color: atlasCores.success, percent: true, labels: false},{key: "iap", name: "IAP (valor)", color: atlasCores.blue, percent: true, labels: false}]} /><table className="w-full text-xs"><thead><tr className="text-left text-muted-foreground"><th className="p-1" /><th className="p-1 text-right">Item a item</th><th className="p-1 text-right">IAQ</th><th className="p-1 text-right">IAP</th></tr></thead>
                   <tbody>{l.map((x) => <tr key={x.chave} className="border-t"><td className="p-1">{x.chave}</td><td className="p-1 text-right">{pct(x.item)}</td><td className="p-1 text-right">{pct(x.iaq)}</td><td className="p-1 text-right">{pct(x.iap)}</td></tr>)}</tbody></table></CardContent></Card>
             ))}
           </div>
@@ -74,17 +60,27 @@ function AcuraciaPonderada() {
               <CardHeader className="pb-2"><CardTitle className="text-base">Concentração do valor divergente</CardTitle></CardHeader>
               <CardContent>
                 <p className="mb-2 text-xs text-muted-foreground">Os {r.conc.topN} maiores itens somam <strong className="text-foreground">{r.conc.topNPct == null ? "—" : `${un(r.conc.topNPct, 1)}%`}</strong> do valor divergente ({brl(r.conc.valorTotal)} em {un(r.conc.total)} itens).</p>
-                <div className="h-56"><ResponsiveContainer width="100%" height="100%"><LineChart data={r.conc.curva}><CartesianGrid strokeDasharray="3 3" className="stroke-muted" /><XAxis dataKey="posicao" tick={{ fontSize: 11 }} /><YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 11 }} /><Tooltip formatter={(v: any) => [`${un(v, 1)}% do valor`, "Acumulado"]} labelFormatter={(_, p: any) => (p?.[0] ? `${p[0].payload.posicao}º · ${p[0].payload.sku} · ${brl(p[0].payload.valor)}` : "")} /><Line dataKey="pctValor" stroke={C.iap} strokeWidth={2} dot={false} /></LineChart></ResponsiveContainer></div>
+                <div className="h-56"><AtlasGrafico data={r.conc.curva} category="posicao" money rightPercent height={224} series={[{key: "valor", name: "Valor (R$)", color: atlasCores.accent, money: true, labels: false, opacity: 0.6},{key: "pctValor", name: "% acumulado do valor", color: atlasCores.warning, line: true, right: true, percent: true}]} /></div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">Divergências por tamanho (unidades)</CardTitle></CardHeader>
               <CardContent>
                 <p className="mb-2 text-xs text-muted-foreground">{r.mag.pctPequenas == null ? "—" : `${un(r.mag.pctPequenas, 1)}%`} das divergências são pequenas (até 5 un.).</p>
-                <div className="h-56"><ResponsiveContainer width="100%" height="100%"><BarChart data={r.mag.faixas}><CartesianGrid strokeDasharray="3 3" className="stroke-muted" /><XAxis dataKey="faixa" tick={{ fontSize: 11 }} /><YAxis yAxisId="i" tick={{ fontSize: 11 }} /><YAxis yAxisId="v" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} /><Tooltip formatter={(v: any, n: any) => (n === "Valor" ? [brl(v), n] : [un(v), n])} /><Legend wrapperStyle={{ fontSize: 11 }} /><Bar yAxisId="i" dataKey="itens" name="Itens" fill={C.iaq} /><Bar yAxisId="v" dataKey="valor" name="Valor" fill="#C2763A" /></BarChart></ResponsiveContainer></div>
+                <div className="h-56"><AtlasGrafico data={r.mag.faixas} category="faixa" height={224} series={[{key: "itens", name: "Nº de itens", color: atlasCores.blue},{key: "valor", name: "Valor (R$)", color: atlasCores.danger, line: true, right: true, money: true}]} /></div>
               </CardContent>
             </Card>
           </div>
+
+<Card><CardHeader><CardTitle>Análise MoM — Acurácia Ponderada</CardTitle></CardHeader><CardContent><AtlasGrafico data={r.evo} category="rotulo" percent series={[{key: "iap", name: "Acurácia do mês — IAP (valor)", color: atlasCores.success, percent: true},{key: "varIap", name: "Variação MoM (p.p.)", color: atlasCores.warning, line: true, right: true}]} /></CardContent></Card>
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-base">Evolução mensal dos três modelos {almox ? `· ${almox}` : ""}</CardTitle></CardHeader>
+            <CardContent>
+              <div className="h-64"><AtlasGrafico data={r.evo} category="rotulo" percent series={[{key: "item", name: "Item a item", color: atlasCores.blue, line: true, percent: true},{key: "iaq", name: "IAQ", color: atlasCores.success, line: true, percent: true},{key: "iap", name: "IAP", color: atlasCores.warning, line: true, percent: true}]} /></div>
+              <table className="mt-2 w-full text-xs"><thead><tr className="text-left text-muted-foreground"><th className="p-1">Mês</th><th className="p-1 text-right">Item a item</th><th className="p-1 text-right">IAQ</th><th className="p-1 text-right">IAP</th><th className="p-1 text-right">Valor divergente</th><th className="p-1 text-right">Δ valor</th></tr></thead>
+                <tbody>{[...r.evo].reverse().map((m) => <tr key={m.mes} className="border-t"><td className="p-1">{m.rotulo}</td><td className="p-1 text-right">{pct(m.item)} <span className="text-muted-foreground">{pp(m.varItem)}</span></td><td className="p-1 text-right">{pct(m.iaq)} <span className="text-muted-foreground">{pp(m.varIaq)}</span></td><td className="p-1 text-right">{pct(m.iap)} <span className="text-muted-foreground">{pp(m.varIap)}</span></td><td className="p-1 text-right">{brl(m.valorMod)}</td><td className={`p-1 text-right ${m.varMod == null ? "" : m.varMod <= 0 ? "text-emerald-700" : "text-destructive"}`}>{m.varMod == null ? "—" : brl(m.varMod)}</td></tr>)}</tbody></table>
+            </CardContent>
+          </Card>
 
           <div className="grid gap-4 lg:grid-cols-3">
             {([["Maiores faltas", r.fs.falta, `${un(r.fs.qtdFalta)} itens · ${brl(r.fs.valorFalta)}`, "text-destructive"], ["Maiores sobras", r.fs.sobra, `${un(r.fs.qtdSobra)} itens · ${brl(r.fs.valorSobra)}`, "text-emerald-700"]] as const).map(([t, l, sub, cls]) => (

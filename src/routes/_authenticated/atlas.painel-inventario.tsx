@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Bar, BarChart, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AtlasGrafico, atlasCores } from "@/components/atlas/AtlasGrafico";
 import { BarChart3, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FiltrosInv } from "@/components/atlas/FiltrosInv";
@@ -9,7 +9,7 @@ import { carregarInventario, evolucaoMensal, kpis, opcoesInv, porAlmox, porGrupo
 
 export const Route = createFileRoute("/_authenticated/atlas/painel-inventario")({
   component: PainelInventario,
-  head: () => ({ meta: [{ title: "Painel Inventário — Atlas" }] }),
+  head: () => ({ meta: [{ title: "Painel de Inventário — Atlas" }, { name: "description", content: "Acurácia dos fechamentos, evolução mensal e rankings financeiros do inventário Atlas." }, { property: "og:title", content: "Painel de Inventário — Atlas" }, { property: "og:description", content: "Acurácia dos fechamentos, evolução mensal e rankings financeiros do inventário Atlas." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
 
 const brl = (n: number | null | undefined) => (n == null ? "—" : Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }));
@@ -46,12 +46,7 @@ function PainelInventario() {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">Evolução mensal {almox ? `· ${almox}` : ""}</CardTitle></CardHeader>
             <CardContent>
-              <div className="h-64"><ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={r.evo}><CartesianGrid strokeDasharray="3 3" className="stroke-muted" /><XAxis dataKey="rotulo" tick={{ fontSize: 11 }} /><YAxis yAxisId="a" domain={[0, 100]} unit="%" tick={{ fontSize: 11 }} /><YAxis yAxisId="v" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
-                  <Tooltip formatter={(v: any, n: any) => (n === "Acurácia" ? [`${un(v, 2)}%`, n] : [brl(v), n])} />
-                  <Bar yAxisId="v" dataKey="valor" name="Valor divergente" fill="#C2763A" opacity={0.5} /><Line yAxisId="a" dataKey="acuracia" name="Acurácia" stroke="#4E7F84" strokeWidth={2} />
-                </ComposedChart>
-              </ResponsiveContainer></div>
+              <div className="h-64"><AtlasGrafico data={r.evo} category="rotulo" percent series={[{key: "acuracia", name: "Acurácia %", color: atlasCores.blue, percent: true},{key: "fechamentos", name: "Fechamentos realizados", color: atlasCores.warning, line: true, right: true}]} /></div>
               <table className="mt-2 w-full text-xs"><thead><tr className="text-left text-muted-foreground"><th className="p-1">Mês</th><th className="p-1 text-right">Acurácia</th><th className="p-1 text-right">MoM</th><th className="p-1 text-right">Fechamentos</th><th className="p-1 text-right">Almox. avaliados</th><th className="p-1 text-right">Valor divergente</th></tr></thead>
                 <tbody>{[...r.evo].reverse().map((m) => <tr key={m.mes} className="border-t"><td className="p-1">{mesRot(m.mes)}</td><td className="p-1 text-right">{un(m.acuracia, 2)}%</td><td className={`p-1 text-right ${m.varPp == null ? "" : m.varPp >= 0 ? "text-emerald-700" : "text-destructive"}`}>{m.varPp == null ? "—" : `${m.varPp > 0 ? "+" : ""}${un(m.varPp, 2)} p.p.`}</td><td className="p-1 text-right">{m.fechamentos}</td><td className="p-1 text-right">{m.almoxarifados}</td><td className="p-1 text-right">{brl(m.valor)}</td></tr>)}</tbody></table>
             </CardContent>
@@ -60,18 +55,18 @@ function PainelInventario() {
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">Acurácia por grupo de produto</CardTitle></CardHeader>
-              <CardContent style={{ height: Math.max(200, r.grupo.length * 26 + 40) }}><ResponsiveContainer width="100%" height="100%"><BarChart data={r.grupo} layout="vertical" margin={{ left: 40 }}><CartesianGrid strokeDasharray="3 3" className="stroke-muted" /><XAxis type="number" domain={[0, 100]} unit="%" tick={{ fontSize: 11 }} /><YAxis type="category" dataKey="chave" width={150} tick={{ fontSize: 10 }} /><Tooltip formatter={(v: any, _n: any, p: any) => [`${un(v, 2)}% · ${un(p.payload.total)} itens · ${un(p.payload.acima95, 1)}% ≥ 95%`, "Acurácia"]} /><Bar dataKey="acuracia" fill="#4E7F84" /></BarChart></ResponsiveContainer></CardContent>
+              <CardContent style={{ height: Math.max(200, r.grupo.length * 26 + 40) }}><AtlasGrafico data={r.grupo} category="chave" horizontal percent legend={false} height={Math.max(260, r.grupo.length * 30)} series={[{key: "acuracia", name: "Acurácia %", color: atlasCores.success, percent: true}]} /></CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">Acurácia por almoxarifado {mes ? `· ${mesRot(mes)}` : ""}</CardTitle></CardHeader>
-              <CardContent style={{ height: Math.max(200, r.almox.length * 30 + 40) }}><ResponsiveContainer width="100%" height="100%"><BarChart data={r.almox} layout="vertical" margin={{ left: 40 }}><CartesianGrid strokeDasharray="3 3" className="stroke-muted" /><XAxis type="number" domain={[0, 100]} unit="%" tick={{ fontSize: 11 }} /><YAxis type="category" dataKey="chave" width={150} tick={{ fontSize: 10 }} /><Tooltip formatter={(v: any, _n: any, p: any) => [`${un(v, 2)}% · ${un(p.payload.total)} itens`, "Acurácia"]} /><Bar dataKey="acuracia" fill="#7A8F3B" /></BarChart></ResponsiveContainer></CardContent>
+              <CardContent style={{ height: Math.max(200, r.almox.length * 30 + 40) }}><AtlasGrafico data={r.almox} category="chave" horizontal percent legend={false} height={Math.max(260, r.almox.length * 30)} series={[{key: "acuracia", name: "Acurácia %", color: atlasCores.success, percent: true}]} /></CardContent>
             </Card>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             {([["Maiores faltas (R$)", r.fin.faltas, "text-destructive"], ["Maiores sobras (R$)", r.fin.sobras, "text-emerald-700"]] as const).map(([t, l, cls]) => (
               <Card key={t}><CardHeader className="pb-2"><CardTitle className="text-base">{t}</CardTitle></CardHeader>
-                <CardContent><table className="w-full text-xs"><tbody>{l.map((x) => <tr key={x.sku} className="border-b last:border-0"><td className="p-1 font-mono">{x.sku}</td><td className="max-w-[260px] truncate p-1 text-muted-foreground">{x.descricao}</td><td className={`p-1 text-right ${cls}`}>{brl(x.valor)}</td></tr>)}</tbody></table></CardContent></Card>
+                <CardContent><AtlasGrafico data={l} category="sku" horizontal money legend={false} height={Math.max(220, l.length * 28)} series={[{key: "valor", name: "Valor (R$)", color: t === "Maiores sobras (R$)" ? atlasCores.success : atlasCores.danger, money: true}]} /><table className="w-full text-xs"><tbody>{l.map((x) => <tr key={x.sku} className="border-b last:border-0"><td className="p-1 font-mono">{x.sku}</td><td className="max-w-[260px] truncate p-1 text-muted-foreground">{x.descricao}</td><td className={`p-1 text-right ${cls}`}>{brl(x.valor)}</td></tr>)}</tbody></table></CardContent></Card>
             ))}
           </div>
 
