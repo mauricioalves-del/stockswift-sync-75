@@ -50,6 +50,7 @@ import { Route as AuthenticatedAbastecimentoPortfolioRouteImport } from './route
 import { Route as AuthenticatedAbastecimentoProjecaoCdRouteImport } from './routes/_authenticated/abastecimento.projecao-cd'
 import { Route as AuthenticatedAbastecimentoReposicaoRouteImport } from './routes/_authenticated/abastecimento.reposicao'
 import { Route as AuthenticatedAbastecimentoValidacaoRouteImport } from './routes/_authenticated/abastecimento.validacao'
+import { Route as AuthenticatedAtlasAcuraciaPonderadaRouteImport } from './routes/_authenticated/atlas.acuracia-ponderada'
 import { Route as AuthenticatedAtlasCadastrosRouteImport } from './routes/_authenticated/atlas.cadastros'
 import { Route as AuthenticatedAtlasDivergenciasRouteImport } from './routes/_authenticated/atlas.divergencias'
 import { Route as AuthenticatedAtlasImportarRouteImport } from './routes/_authenticated/atlas.importar'
@@ -57,6 +58,7 @@ import { Route as AuthenticatedAtlasImportarBackupRouteImport } from './routes/_
 import { Route as AuthenticatedAtlasInicioRouteImport } from './routes/_authenticated/atlas.inicio'
 import { Route as AuthenticatedAtlasMapeamentoPassivosRouteImport } from './routes/_authenticated/atlas.mapeamento-passivos'
 import { Route as AuthenticatedAtlasPainelRouteImport } from './routes/_authenticated/atlas.painel'
+import { Route as AuthenticatedAtlasPainelInventarioRouteImport } from './routes/_authenticated/atlas.painel-inventario'
 import { Route as AuthenticatedBaixasIndexRouteImport } from './routes/_authenticated/baixas.index'
 import { Route as AuthenticatedBaixasDashboardRouteImport } from './routes/_authenticated/baixas.dashboard'
 import { Route as AuthenticatedBaixasInvestimentoOperacionalRouteImport } from './routes/_authenticated/baixas.investimento-operacional'
@@ -338,6 +340,12 @@ const AuthenticatedAbastecimentoValidacaoRoute =
     path: '/abastecimento/validacao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAtlasAcuraciaPonderadaRoute =
+  AuthenticatedAtlasAcuraciaPonderadaRouteImport.update({
+    id: '/atlas/acuracia-ponderada',
+    path: '/atlas/acuracia-ponderada',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAtlasCadastrosRoute =
   AuthenticatedAtlasCadastrosRouteImport.update({
     id: '/atlas/cadastros',
@@ -378,6 +386,12 @@ const AuthenticatedAtlasPainelRoute =
   AuthenticatedAtlasPainelRouteImport.update({
     id: '/atlas/painel',
     path: '/atlas/painel',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAtlasPainelInventarioRoute =
+  AuthenticatedAtlasPainelInventarioRouteImport.update({
+    id: '/atlas/painel-inventario',
+    path: '/atlas/painel-inventario',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedBaixasIndexRoute =
@@ -739,6 +753,7 @@ export interface FileRoutesByFullPath {
   '/abastecimento/projecao-cd': typeof AuthenticatedAbastecimentoProjecaoCdRoute
   '/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/abastecimento/validacao': typeof AuthenticatedAbastecimentoValidacaoRoute
+  '/atlas/acuracia-ponderada': typeof AuthenticatedAtlasAcuraciaPonderadaRoute
   '/atlas/cadastros': typeof AuthenticatedAtlasCadastrosRoute
   '/atlas/divergencias': typeof AuthenticatedAtlasDivergenciasRoute
   '/atlas/importar': typeof AuthenticatedAtlasImportarRoute
@@ -746,6 +761,7 @@ export interface FileRoutesByFullPath {
   '/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
   '/atlas/mapeamento-passivos': typeof AuthenticatedAtlasMapeamentoPassivosRoute
   '/atlas/painel': typeof AuthenticatedAtlasPainelRoute
+  '/atlas/painel-inventario': typeof AuthenticatedAtlasPainelInventarioRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
   '/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
@@ -841,6 +857,7 @@ export interface FileRoutesByTo {
   '/abastecimento/projecao-cd': typeof AuthenticatedAbastecimentoProjecaoCdRoute
   '/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/abastecimento/validacao': typeof AuthenticatedAbastecimentoValidacaoRoute
+  '/atlas/acuracia-ponderada': typeof AuthenticatedAtlasAcuraciaPonderadaRoute
   '/atlas/cadastros': typeof AuthenticatedAtlasCadastrosRoute
   '/atlas/divergencias': typeof AuthenticatedAtlasDivergenciasRoute
   '/atlas/importar': typeof AuthenticatedAtlasImportarRoute
@@ -848,6 +865,7 @@ export interface FileRoutesByTo {
   '/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
   '/atlas/mapeamento-passivos': typeof AuthenticatedAtlasMapeamentoPassivosRoute
   '/atlas/painel': typeof AuthenticatedAtlasPainelRoute
+  '/atlas/painel-inventario': typeof AuthenticatedAtlasPainelInventarioRoute
   '/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
   '/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
@@ -945,6 +963,7 @@ export interface FileRoutesById {
   '/_authenticated/abastecimento/projecao-cd': typeof AuthenticatedAbastecimentoProjecaoCdRoute
   '/_authenticated/abastecimento/reposicao': typeof AuthenticatedAbastecimentoReposicaoRoute
   '/_authenticated/abastecimento/validacao': typeof AuthenticatedAbastecimentoValidacaoRoute
+  '/_authenticated/atlas/acuracia-ponderada': typeof AuthenticatedAtlasAcuraciaPonderadaRoute
   '/_authenticated/atlas/cadastros': typeof AuthenticatedAtlasCadastrosRoute
   '/_authenticated/atlas/divergencias': typeof AuthenticatedAtlasDivergenciasRoute
   '/_authenticated/atlas/importar': typeof AuthenticatedAtlasImportarRoute
@@ -952,6 +971,7 @@ export interface FileRoutesById {
   '/_authenticated/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
   '/_authenticated/atlas/mapeamento-passivos': typeof AuthenticatedAtlasMapeamentoPassivosRoute
   '/_authenticated/atlas/painel': typeof AuthenticatedAtlasPainelRoute
+  '/_authenticated/atlas/painel-inventario': typeof AuthenticatedAtlasPainelInventarioRoute
   '/_authenticated/baixas/dashboard': typeof AuthenticatedBaixasDashboardRoute
   '/_authenticated/baixas/investimento-operacional': typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   '/_authenticated/config/aparencia': typeof AuthenticatedConfigAparenciaRoute
@@ -1049,6 +1069,7 @@ export interface FileRouteTypes {
     | '/abastecimento/projecao-cd'
     | '/abastecimento/reposicao'
     | '/abastecimento/validacao'
+    | '/atlas/acuracia-ponderada'
     | '/atlas/cadastros'
     | '/atlas/divergencias'
     | '/atlas/importar'
@@ -1056,6 +1077,7 @@ export interface FileRouteTypes {
     | '/atlas/inicio'
     | '/atlas/mapeamento-passivos'
     | '/atlas/painel'
+    | '/atlas/painel-inventario'
     | '/baixas/dashboard'
     | '/baixas/investimento-operacional'
     | '/config/aparencia'
@@ -1151,6 +1173,7 @@ export interface FileRouteTypes {
     | '/abastecimento/projecao-cd'
     | '/abastecimento/reposicao'
     | '/abastecimento/validacao'
+    | '/atlas/acuracia-ponderada'
     | '/atlas/cadastros'
     | '/atlas/divergencias'
     | '/atlas/importar'
@@ -1158,6 +1181,7 @@ export interface FileRouteTypes {
     | '/atlas/inicio'
     | '/atlas/mapeamento-passivos'
     | '/atlas/painel'
+    | '/atlas/painel-inventario'
     | '/baixas/dashboard'
     | '/baixas/investimento-operacional'
     | '/config/aparencia'
@@ -1254,6 +1278,7 @@ export interface FileRouteTypes {
     | '/_authenticated/abastecimento/projecao-cd'
     | '/_authenticated/abastecimento/reposicao'
     | '/_authenticated/abastecimento/validacao'
+    | '/_authenticated/atlas/acuracia-ponderada'
     | '/_authenticated/atlas/cadastros'
     | '/_authenticated/atlas/divergencias'
     | '/_authenticated/atlas/importar'
@@ -1261,6 +1286,7 @@ export interface FileRouteTypes {
     | '/_authenticated/atlas/inicio'
     | '/_authenticated/atlas/mapeamento-passivos'
     | '/_authenticated/atlas/painel'
+    | '/_authenticated/atlas/painel-inventario'
     | '/_authenticated/baixas/dashboard'
     | '/_authenticated/baixas/investimento-operacional'
     | '/_authenticated/config/aparencia'
@@ -1621,6 +1647,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAbastecimentoValidacaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/atlas/acuracia-ponderada': {
+      id: '/_authenticated/atlas/acuracia-ponderada'
+      path: '/atlas/acuracia-ponderada'
+      fullPath: '/atlas/acuracia-ponderada'
+      preLoaderRoute: typeof AuthenticatedAtlasAcuraciaPonderadaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/atlas/cadastros': {
       id: '/_authenticated/atlas/cadastros'
       path: '/atlas/cadastros'
@@ -1668,6 +1701,13 @@ declare module '@tanstack/react-router' {
       path: '/atlas/painel'
       fullPath: '/atlas/painel'
       preLoaderRoute: typeof AuthenticatedAtlasPainelRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/atlas/painel-inventario': {
+      id: '/_authenticated/atlas/painel-inventario'
+      path: '/atlas/painel-inventario'
+      fullPath: '/atlas/painel-inventario'
+      preLoaderRoute: typeof AuthenticatedAtlasPainelInventarioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/baixas/': {
@@ -2097,6 +2137,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAbastecimentoProjecaoCdRoute: typeof AuthenticatedAbastecimentoProjecaoCdRoute
   AuthenticatedAbastecimentoReposicaoRoute: typeof AuthenticatedAbastecimentoReposicaoRoute
   AuthenticatedAbastecimentoValidacaoRoute: typeof AuthenticatedAbastecimentoValidacaoRoute
+  AuthenticatedAtlasAcuraciaPonderadaRoute: typeof AuthenticatedAtlasAcuraciaPonderadaRoute
   AuthenticatedAtlasCadastrosRoute: typeof AuthenticatedAtlasCadastrosRoute
   AuthenticatedAtlasDivergenciasRoute: typeof AuthenticatedAtlasDivergenciasRoute
   AuthenticatedAtlasImportarRoute: typeof AuthenticatedAtlasImportarRoute
@@ -2104,6 +2145,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAtlasInicioRoute: typeof AuthenticatedAtlasInicioRoute
   AuthenticatedAtlasMapeamentoPassivosRoute: typeof AuthenticatedAtlasMapeamentoPassivosRoute
   AuthenticatedAtlasPainelRoute: typeof AuthenticatedAtlasPainelRoute
+  AuthenticatedAtlasPainelInventarioRoute: typeof AuthenticatedAtlasPainelInventarioRoute
   AuthenticatedBaixasDashboardRoute: typeof AuthenticatedBaixasDashboardRoute
   AuthenticatedBaixasInvestimentoOperacionalRoute: typeof AuthenticatedBaixasInvestimentoOperacionalRoute
   AuthenticatedConfigAparenciaRoute: typeof AuthenticatedConfigAparenciaRoute
@@ -2203,6 +2245,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedAbastecimentoReposicaoRoute,
   AuthenticatedAbastecimentoValidacaoRoute:
     AuthenticatedAbastecimentoValidacaoRoute,
+  AuthenticatedAtlasAcuraciaPonderadaRoute:
+    AuthenticatedAtlasAcuraciaPonderadaRoute,
   AuthenticatedAtlasCadastrosRoute: AuthenticatedAtlasCadastrosRoute,
   AuthenticatedAtlasDivergenciasRoute: AuthenticatedAtlasDivergenciasRoute,
   AuthenticatedAtlasImportarRoute: AuthenticatedAtlasImportarRoute,
@@ -2211,6 +2255,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAtlasMapeamentoPassivosRoute:
     AuthenticatedAtlasMapeamentoPassivosRoute,
   AuthenticatedAtlasPainelRoute: AuthenticatedAtlasPainelRoute,
+  AuthenticatedAtlasPainelInventarioRoute:
+    AuthenticatedAtlasPainelInventarioRoute,
   AuthenticatedBaixasDashboardRoute: AuthenticatedBaixasDashboardRoute,
   AuthenticatedBaixasInvestimentoOperacionalRoute:
     AuthenticatedBaixasInvestimentoOperacionalRoute,
