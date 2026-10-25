@@ -1,6 +1,7 @@
 # Correção de grupos das Baixas Operacionais
 
 ## Atlas: formato dos gráficos
+- [ ] Manter A; posicionar Tendência (B) e Causas (C) lado a lado, com Mensal (D) e Almoxarifado (E) abaixo; calcular e verificar projeção estatística de cinco dias conforme Atlas original.
 - [x] Ajustar os gráficos dos quatro painéis ao formato dos HTML enviados, preservando os dados e cálculos de origem.
 - [x] Verificar as quatro telas autenticadas e o filtro mensal: gráficos renderizados e sem erros; regras de leitura preservadas por decisão do usuário, três alertas permanecem ativos.
 
