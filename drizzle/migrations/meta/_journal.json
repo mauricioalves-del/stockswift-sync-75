@@ -218,6 +218,13 @@
       "when": 1792856424298,
       "tag": "0030_atlas_fase2",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792966720605,
+      "tag": "0031_atlas_assinatura_fechamento",
+      "breakpoints": true
     }
   ]
 }
