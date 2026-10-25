@@ -17,7 +17,7 @@ export const ATLAS_FASES: Record<number, string> = {
 };
 
 export const ATLAS_MODULOS: AtlasModulo[] = [
-  { id: "inicio", nome: "Início", fase: 5, descricao: "Mapa de módulos, comandos de voz e Assistente Atlas (perguntas padrão e resumo do dia).", tabelas: ["perguntas_padrao_personalizadas", "dashboards_externos", "estado_treino_ml"] },
+  { id: "inicio", nome: "Início", fase: 5, descricao: "Mapa de módulos, comandos de voz e Assistente Atlas (perguntas padrão e resumo do dia).", tabelas: ["perguntas_padrao_personalizadas", "dashboards_externos", "estado_treino_ml"] , rota: "/atlas/inicio" },
   { id: "painel", nome: "Painel", fase: 3, descricao: "KPIs de acurácia, acurácia por dia, mensal e por almoxarifado, causas, mapa de calor e ranking de divergências.", tabelas: ["divergencias", "movimentacoes_historico", "dias_operacionais", "conferencias_realizadas", "lotes_importacao"], rota: "/atlas/painel" },
   { id: "divergencias", nome: "Divergências", fase: 3, descricao: "Investigação das divergências com hipóteses por regra, modelo de ML e IA, evidências e solução aplicada.", tabelas: ["divergencias", "hipoteses", "casos_ml_feedback", "baixas_operacionais"], rota: "/atlas/divergencias" },
   { id: "mapeamento-passivos", nome: "Mapeamento de Passivos", fase: 3, descricao: "Baixas aprovadas (passivos) × resultado de inventário, por motivo, mês e almoxarifado, com resumo executivo e exportação em Excel.", tabelas: ["baixas_operacionais", "ajustes_inventario_oficial", "divergencias"], rota: "/atlas/mapeamento-passivos" },
