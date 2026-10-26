@@ -1,5 +1,10 @@
 # Correção de grupos das Baixas Operacionais
 
+## Reposição: baixas operacionais em aberto
+- [ ] Vincular baixas em aberto por produto e almoxarifado, descontar do saldo de planejamento e respeitar saldo líquido da origem ao criar/aprovar pedidos.
+- [ ] Testar estados de baixa, vínculo por local, limites de saldo e verificar a tela autenticada.
+- [ ] Tratar os três alertas Atlas sem alterar a leitura já autorizada pelo usuário.
+
 ## Pedidos: insumos
 - [x] Incluir revenda, embalagens e matérias-primas em Adicionar Produto; tela autenticada verificada com inclusão de embalagem e 13 testes passaram, incluindo aprovação dos três grupos, requisição e bloqueio de excesso sem persistir pedidos de teste. Regras de leitura do Atlas preservadas por decisão explícita; três alertas permanecem ativos.
 
