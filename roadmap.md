@@ -1,5 +1,8 @@
 # Correção de grupos das Baixas Operacionais
 
+## Pedidos: descrição e estoque nos extras
+- [x] Exibir descrição completa e saldo disponível na origem, inclusive para catálogo com saldo zero; dividir consultas abaixo do limite de 500 SKUs. Pedido 30 autenticado confirmou embalagem 0190213058, descrição e 1.000 disponíveis, sem erros; 11 testes passaram. Produtos sem descrição cadastrada são identificados; alertas Atlas preservados conforme decisão anterior.
+
 ## Reposição: baixas operacionais em aberto
 - [x] Vincular os quatro estados da fila em aberto por produto e almoxarifado; descontar do planejamento, CD e origens alternativas; validar criação/aprovação no banco sem alterar estoque ou fotos históricas.
 - [x] 26 testes passaram, incluindo bloqueios transacionais sem persistência; tela autenticada confirmou SKU 05004139 no Pátio: 72 no sistema, 12 em baixas, 60 líquidos, sem erros.
