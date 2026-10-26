@@ -1,9 +1,9 @@
 # Correção de grupos das Baixas Operacionais
 
 ## Reposição: baixas operacionais em aberto
-- [ ] Vincular baixas em aberto por produto e almoxarifado, descontar do saldo de planejamento e respeitar saldo líquido da origem ao criar/aprovar pedidos.
-- [ ] Testar estados de baixa, vínculo por local, limites de saldo e verificar a tela autenticada.
-- [ ] Tratar os três alertas Atlas sem alterar a leitura já autorizada pelo usuário.
+- [x] Vincular os quatro estados da fila em aberto por produto e almoxarifado; descontar do planejamento, CD e origens alternativas; validar criação/aprovação no banco sem alterar estoque ou fotos históricas.
+- [x] 26 testes passaram, incluindo bloqueios transacionais sem persistência; tela autenticada confirmou SKU 05004139 no Pátio: 72 no sistema, 12 em baixas, 60 líquidos, sem erros.
+- [ ] Três alertas Atlas: regras preservadas conforme decisão anterior; aguarda aprovação para registrar como leitura intencional.
 
 ## Pedidos: insumos
 - [x] Incluir revenda, embalagens e matérias-primas em Adicionar Produto; tela autenticada verificada com inclusão de embalagem e 13 testes passaram, incluindo aprovação dos três grupos, requisição e bloqueio de excesso sem persistir pedidos de teste. Regras de leitura do Atlas preservadas por decisão explícita; três alertas permanecem ativos.
