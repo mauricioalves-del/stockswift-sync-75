@@ -15,6 +15,7 @@
 - Replenishment displays portfolio classes from the same immutable approved snapshot used for each store's SKU list, never from current classification or ABC, to preserve approval provenance.
 - Order status rollback uses an admin-validated database RPC and a transition stack; it audits the previous order and synchronizes linked requisitions to prevent approval bypass and duplicate active requests.
 - Commercial approval atomically accepts validated extras and generates the separation requisition; legacy director-pending orders remain commercial-actionable and rollback skips the retired director stage. Per-item fractioning bypasses only case multiples, never stock limits.
+- Order extras combine the approved store portfolio with explicitly allowed operational supply groups in both UI and transactional approval, without adding supplies to the planning portfolio.
 - Daily rupture drill-down loads the selected SKUs' full snapshot history on demand; resolution dates come from snapshots, while live stock changes only displayed status, never historical photos.
 - Atlas panels use shared chart presentation with Atlas-specific semantic palette tokens and existing computed datasets, keeping reference chart formatting independent of business calculations.
 - Atlas accuracy forecasts use least-squares regression over all valid filtered daily observations with calendar-day distances and five calendar-day predictions bounded to 0–100%, keeping observed data unchanged and showing insufficient history without invented estimates.
