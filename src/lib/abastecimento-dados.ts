@@ -9,6 +9,7 @@ import { consensoMedioNaJanela } from "./abastecimento-consenso";
 import type { PeriodoSazonal } from "./sazonalidade";
 import { fatorRealizacao } from "./abastecimento-realizacao";
 import type { ClassePortfolio } from "./abastecimento-portfolio";
+import { chaveSaldoBaixa, somarBaixasEmAberto, saldoLiquidoBaixas, type BaixaReposicao } from "./abastecimento-baixas";
 
 export const nk = (s: unknown): string => String(s ?? "").trim().replace(/^0+/, "");
 export const GRUPO_ACABADO = "Produto Acabado";
@@ -32,6 +33,7 @@ export type Bruto = {
   periodos: PeriodoSazonal[];
   consumo: { origem: string; sku: string; data_movimento: string; quantidade: number }[];
   estoque: { id_produto: string; descricao?: string | null; origem: string; quantidade: number; custo_unitario?: number | null }[];
+  baixas?: BaixaReposicao[];
   notas: { cod_prod: string; almox: string; qtd: number; dt?: string | null; nf?: string | null; vt?: number; empresa?: string | null }[];
   pedidosAbertos: { loja: string; id_produto: string; qtd: number; status: string; separada?: number }[];
   produtos: { id_produto: string; full_case: number | null }[];
@@ -47,6 +49,7 @@ export type Bruto = {
 };
 
 export type ItemRep = Item2 & {
+  estoqueBruto: number; baixasPendentes: number; baixasCD: number;
   loja: string; grupo: string; familia: string; linha: string; tipo: string;
   cmd: number; tendencia: number; consensoDia: number | null; metaMes: number; realizadoMes: number; acomp: AcompMeta; refVendas: string | null; semExposicao: boolean; exposicaoOrigem: "sku" | "loja" | null; semCaixa: boolean; caixaCadastrada: boolean; solto: boolean; cdBruto: number; reservadoCD: number; param: Param2; paramOrigem: string;
 };
@@ -70,7 +73,10 @@ const META_VAZIA = { porMes: {} as Record<string, number>, tipo: "", produto: ""
 export const ALMOX_PROCESSO = "Alm_SP_Processo";
 export const SALDO_DE_PARA: Record<string, string> = { "5104132": "05304043" };
 
-export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador; hojeIso: string; manuais?: Record<string, number | null>; universo?: "meta" | "sortimento" }): Montagem {
+export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador; hojeIso: string; manuais?: Record<string, number | null>; universo?: "meta" | "sortimento"; considerarBaixas?: boolean }): Montagem {
+  const pendentes = o.considerarBaixas ? b.baixas ?? [] : [];
+  const baixas = somarBaixasEmAberto(pendentes, (sku) => SALDO_DE_PARA[nk(sku)] ?? sku);
+  const baixasCd = somarBaixasEmAberto(pendentes.filter((baixa) => baixa.id_local === (SALDO_DE_PARA[nk(baixa.codigo_produto)] ? ALMOX_PROCESSO : b.cd)).map((baixa) => ({ ...baixa, id_local: b.cd })), (sku) => SALDO_DE_PARA[nk(sku)] ?? sku);
   const grupoDe = new Map<string, string>(); for (const g of b.grupos) grupoDe.set(nk(g.codigo_produto), g.grupo);
   const famDe = new Map<string, string>(); for (const f of b.familias) famDe.set(nk(f.codigo_produto), f.familia);
   const abcDe = new Map<string, string>(); for (const a of b.abc) abcDe.set(nk(a.codigo_produto), a.classe);
@@ -158,20 +164,23 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       const manual = o.manuais?.[`${l.codigo}|${sku}`];
       // Sem registro de estoque o código vem sem zeros (consenso): completa pelo padrão (8 dígitos; 9 viram 10).
       const idCanon = e?.canon ?? (sku.length < 8 ? sku.padStart(8, "0") : sku.length === 9 ? sku.padStart(10, "0") : sku);
+      const estoqueBruto = e?.lojas[l.codigo] ?? 0;
+      const baixasPendentes = baixas.get(chaveSaldoBaixa(sku, l.almoxarifado)) ?? 0;
+      const baixasCD = baixasCd.get(chaveSaldoBaixa(sku, b.cd)) ?? 0;
       const it = calcularItem2({
         sku: idCanon, descricao: b.portfolioDescricoes?.[sku] || e?.desc || m.produto || idCanon, categoria: familia, ativo: true, masterPresente: true,
-        estoque: e?.lojas[l.codigo] ?? 0, exposicao: expo ?? 0, vendaDiaReal: r.cmd, consensoDia: cons, fatorRealizacao: fr ? fr.fator : null,
-        classeAbc: abcDe.get(sku) ?? null, fullCase: fracionada ? 1 : fcDe.get(sku) ?? 1, custo: e?.custo ?? null, saldoCD: e?.cd ?? 0,
+        estoque: saldoLiquidoBaixas(estoqueBruto, baixasPendentes), exposicao: expo ?? 0, vendaDiaReal: r.cmd, consensoDia: cons, fatorRealizacao: fr ? fr.fator : null,
+        classeAbc: abcDe.get(sku) ?? null, fullCase: fracionada ? 1 : fcDe.get(sku) ?? 1, custo: e?.custo ?? null, saldoCD: saldoLiquidoBaixas(e?.cd ?? 0, baixasCD),
         emTransito: transito.get(`${l.codigo}|${sku}`) ?? 0, pedidoAberto: pedAb.get(`${l.codigo}|${sku}`) ?? 0, pedidoManual: manual ?? null,
       }, rp.p, o.base);
       if (!familia) semFamilia.push({ loja: l.codigo, sku: it.sku, descricao: it.descricao, linha: m.linha || m.tipo });
-      lista.push({ ...it, loja: l.codigo, grupo, familia, linha: m.linha, tipo: m.tipo, cmd: r.cmd, tendencia: r.tendencia, consensoDia: cons, metaMes: mesAt, realizadoMes: realizado,
+      lista.push({ ...it, estoqueBruto, baixasPendentes, baixasCD, loja: l.codigo, grupo, familia, linha: m.linha, tipo: m.tipo, cmd: r.cmd, tendencia: r.tendencia, consensoDia: cons, metaMes: mesAt, realizadoMes: realizado,
         acomp: acompanhamentoMeta(mesAt, realizado, ref), refVendas: refPorLoja[l.codigo], semExposicao: expo == null, exposicaoOrigem: expoSku != null ? "sku" : expoRegra != null ? "loja" : null, semCaixa: !fcDe.has(sku) && !solto && !fracionada, caixaCadastrada: fcDe.has(sku), solto, cdBruto: e?.cd ?? 0, reservadoCD: reservado.get(sku) ?? 0, param: rp.p, paramOrigem: rp.origem });
     }
     itens[l.codigo] = lista;
   }
   // limite pelo saldo do CD, entre todas as lojas
-  const cdPorSku = new Map<string, number>(); for (const [k, v] of est) cdPorSku.set(v.canon, Math.max(0, v.cd - (reservado.get(k) ?? 0)));
+  const cdPorSku = new Map<string, number>(); for (const [k, v] of est) cdPorSku.set(v.canon, Math.max(0, v.cd - (baixasCd.get(chaveSaldoBaixa(k, b.cd)) ?? 0) - (reservado.get(k) ?? 0)));
   alocarCD(Object.values(itens).flat(), cdPorSku);
   return { itens, refPorLoja, excluidos: ex, semFamilia };
 }
