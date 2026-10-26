@@ -239,6 +239,13 @@
       "when": 1793045153766,
       "tag": "0033_pedidos_extras_insumos",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793045251099,
+      "tag": "0034_teste_pedidos_insumos_transacional",
+      "breakpoints": true
     }
   ]
 }
