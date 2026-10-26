@@ -5,6 +5,8 @@ import { fetchAll } from "@/lib/fetch-all";
 import type { Bruto } from "@/lib/abastecimento-dados";
 import { classesDoPortfolioAprovado, type ClassePortfolio } from "@/lib/abastecimento-portfolio";
 
+import { BAIXAS_EM_ABERTO, type BaixaReposicao } from "@/lib/abastecimento-baixas";
+
 async function seguro<T>(f: () => Promise<T>, vazio: T): Promise<T> { try { return await f(); } catch { return vazio; } }
 
 export function useAbastBruto(habilitado: boolean) {
@@ -22,7 +24,7 @@ export function useAbastBruto(habilitado: boolean) {
       const dias = (v: any, padrao: number) => (v === undefined || v === null || v === "" || !Number.isFinite(Number(v)) ? padrao : Number(v));   // 0 é valor válido
       const almox = (lojas ?? []).map((l: any) => l.almoxarifado);
       const desde = new Date(Date.now() - 130 * 86400000).toISOString().slice(0, 10);
-      const [consenso, grupos, familias, abcRaw, periodos, consumo, estoque, notasRaw, produtos, exposicoes, pedidos] = await Promise.all([
+      const [consenso, grupos, familias, abcRaw, periodos, consumo, estoque, notasRaw, produtos, exposicoes, pedidos, baixas] = await Promise.all([
         seguro(() => fetchAll<any>((f, t) => sb.from("abast_consenso").select("loja, id_produto, mes, unidades, tipo, produto, linha").order("loja").order("id_produto").order("mes").range(f, t)), []),
         seguro(() => fetchAll<any>((f, t) => sb.from("grupo_produtos").select("grupo, codigo_produto").order("codigo_produto").range(f, t)), []),
         seguro(() => fetchAll<any>((f, t) => sb.from("familias").select("codigo_produto, familia").order("codigo_produto").range(f, t)), []),
@@ -41,6 +43,7 @@ export function useAbastBruto(habilitado: boolean) {
           const m = new Map<string, any>(ps.map((p: any) => [p.id, p]));
           return (its ?? []).filter((i: any) => i.aceito !== false).map((i: any) => ({ loja: m.get(i.pedido_id).loja, id_produto: i.id_produto, qtd: Number(i.qtd_pedida), separada: Number(i.qtd_separada) || 0, status: m.get(i.pedido_id).status }));
         }, [] as any[]),
+        fetchAll<BaixaReposicao>((f, t) => sb.from("baixa_operacional").select("codigo_produto, id_local, quantidade, status_fluxo, data_execucao").in("status_fluxo", BAIXAS_EM_ABERTO).is("data_execucao", null).order("id").range(f, t)),
       ]);
       // Portfólio validado pelo gestor (última validação ativa por loja): só esses SKUs entram no planejamento e nos indicadores
       const vals = await seguro(async () => ((await sb.from("abast_validacoes_portfolio").select("loja, itens, aprovado_em, competencia, versao, aprovador_nome").eq("status", "VALIDADA").order("aprovado_em", { ascending: false })).data ?? []) as any[], []);
@@ -63,7 +66,7 @@ export function useAbastBruto(habilitado: boolean) {
         params: { diasMin: dias(c.dias_min, 5), diasIdeal: Math.max(1, dias(c.dias_ideal, 10)), diasMax: dias(c.dias_max, 15), diasSeguranca: dias(c.dias_seguranca, 0) }, coberturas,
         consenso, grupos, familias, abc: abcRaw.map((x: any) => ({ codigo_produto: x.codigo_produto, classe: x.classe })), periodos: periodos as Bruto["periodos"],
         consumo, estoque, notas: notasRaw.filter((n: any) => n.nota_cancelada !== "S").map((n: any) => ({ cod_prod: n.cod_prod, almox: n.almox, qtd: Number(n.qtd) || 0, dt: n.dt_emissao ? String(n.dt_emissao).slice(0, 10) : null, nf: n.nr_nf == null ? null : String(n.nr_nf), vt: Number(n.vt_total_item) || 0, empresa: n.empresa ?? null })),
-        pedidosAbertos: pedidos, produtos, exposicoes,
+        pedidosAbertos: pedidos, produtos, exposicoes, baixas,
         // Regra de exposição por loja (abast_config: expo_padrao_<LOJA> = unidades por SKU)
         expoPadrao: Object.fromEntries(Object.entries(c).filter(([k, v]) => k.startsWith("expo_padrao_") && v !== "" && v != null && Number.isFinite(Number(v))).map(([k, v]) => [k.slice("expo_padrao_".length), Number(v)])) as Record<string, number>,
       };

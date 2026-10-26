@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/inventory";
 import { useRole } from "@/hooks/useRole";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
+import { chaveSaldoBaixa, somarBaixasEmAberto, saldoLiquidoBaixas } from "@/lib/abastecimento-baixas";
 import { CLASSES_PORTFOLIO } from "@/lib/abastecimento-portfolio";
 import { TabelaRolavel } from "@/components/abast-dash/comum";
 import { nomeCurtoLoja } from "@/lib/abastecimento-nomes";
@@ -48,7 +49,8 @@ const COLS: ColDef<ItemRep>[] = [
   { k: "sku", r: "SKU", t: "txt", v: (i) => i.sku },
   { k: "produto", r: "Produto", t: "txt", v: (i) => i.descricao },
   { k: "status", r: "Status", t: "cat", v: (i) => STATUS2[i.status].rotulo },
-  { k: "estoque", r: "Estoque", t: "num", al: "right", v: (i) => i.estoque },
+  { k: "estoque", r: "Estoque líquido", dica: "Estoque no sistema menos baixas operacionais em aberto", t: "num", al: "right", v: (i) => i.estoque },
+  { k: "baixas", r: "Baixas abertas", t: "num", al: "right", v: (i) => i.baixasPendentes },
   { k: "expo", r: "Expo.", t: "num", al: "right", v: (i) => i.exposicao },
   { k: "caminho", r: "Transi", dica: "A caminho: unidades em trânsito + pedidos em aberto", t: "num", al: "right", v: (i) => i.emTransito + i.pedidoAberto },
   { k: "demanda", r: "CMD", dica: "CMD: demanda média por dia (unidades por dia)", t: "num", al: "right", v: (i) => i.demandaDia },
@@ -82,7 +84,7 @@ function ReposicaoPage() {
 
   const manuais = useMemo(() => { const m: Record<string, number | null> = {}; for (const [k, v] of Object.entries(manuaisTxt)) { const n = Number(v.replace(",", ".")); if (v.trim() !== "" && Number.isFinite(n) && n >= 0) m[k] = n; } return m; }, [manuaisTxt]);
   const hojeIso = new Date().toLocaleDateString("en-CA");
-  const mont = useMemo(() => (bruto.data ? montarItens(bruto.data, { base, denominador: "calendario", hojeIso, manuais }) : null), [bruto.data, base, manuais, hojeIso]);
+  const mont = useMemo(() => (bruto.data ? montarItens(bruto.data, { base, denominador: "calendario", hojeIso, manuais, considerarBaixas: true }) : null), [bruto.data, base, manuais, hojeIso]);
   const loja = bruto.data?.lojas.find((l) => l.codigo === lojaSel) ?? bruto.data?.lojas[0];
   const classes = bruto.data?.portfolioClasses?.[loja?.codigo ?? ""];
   const classeDe = (i: ItemRep) => { const classe = classes?.[nk(i.sku)]; return classe ? CLASSES_PORTFOLIO[classe] : "Sem validação"; };
@@ -91,7 +93,8 @@ function ReposicaoPage() {
   const opcoesAlmox = useMemo(() => {
     if (!bruto.data) return [] as { valor: string; almox: string; rotulo: string; nome: string }[];
     return COLUNAS.filter((c) => c.k !== "CD").map((c) => {
-      const almox = origemColuna(c, bruto.data!); const valor = valorOrigemColuna(c.k, almox, c.plano);
+      const d = bruto.data; if (!d) return { valor: "", almox: "", nome: "", rotulo: "" };
+      const almox = origemColuna(c, d); const valor = valorOrigemColuna(c.k, almox, c.plano);
       const nome = c.plano ? nomeLoja(c.plano) : c.rot;
       return { valor, almox, nome, rotulo: c.plano ? nomeCurtoLoja(c.plano, nome) : c.rot };
     });
@@ -103,6 +106,8 @@ function ReposicaoPage() {
       const k = nk(SALDO_DE_PARA[nk(e.id_produto)] ?? e.id_produto);
       const mm = m.get(k) ?? new Map(); mm.set(e.origem, (mm.get(e.origem) ?? 0) + q); m.set(k, mm);
     }
+    const baixas = somarBaixasEmAberto(bruto.data?.baixas ?? [], (sku) => SALDO_DE_PARA[nk(sku)] ?? sku);
+    for (const [sku, locais] of m) for (const [almox, q] of locais) locais.set(almox, saldoLiquidoBaixas(q, baixas.get(chaveSaldoBaixa(sku, almox)) ?? 0));
     return m;
   }, [bruto.data]);
   const [consulta, setConsulta] = useState<ItemRep | null>(null);
@@ -137,7 +142,7 @@ function ReposicaoPage() {
   }
 
   async function gerarPedido() {
-    if (!loja || paraPedido.length === 0) return;
+    if (!loja || paraPedido.length === 0 || bruto.isError) return;
     setGerando(true);
     const msgs: string[] = [];
     try {
@@ -166,8 +171,8 @@ function ReposicaoPage() {
   function exportar() {
     const f = (n: unknown) => (n == null ? "" : String(n).replace(".", ","));
     const esc = (s: unknown) => `"${String(s ?? "").replace(/"/g, '""')}"`;
-    const cab = ["SKU", "Produto", "Classe", "Status", "Estoque", "Exposição", "Em trânsito", "Pedido em aberto", "Demanda/dia", "Meta do mês", "Realizado no mês", "Mínimo", "Ideal", "Máximo", "Sugestão (un)", "Pedido (un)", "CD atende (un)", "Falta no CD", "Saldo CD"];
-    const corpo = linhas.map((i) => [i.sku, i.descricao, classeDe(i), STATUS2[i.status].rotulo, f(i.estoque), f(i.exposicao), f(i.emTransito), f(i.pedidoAberto), f(i.demandaDia == null ? null : Math.round(i.demandaDia * 100) / 100), f(i.metaMes), f(i.realizadoMes), f(i.minQ), f(i.idealQ), f(i.maxQ), f(i.sugestao), f(i.qtdPedido), f(i.qtdAtendida), f(i.faltaCD), f(i.saldoCD)].map(esc).join(";"));
+    const cab = ["SKU", "Produto", "Classe", "Status", "Estoque líquido", "Baixas abertas", "Estoque no sistema", "Exposição", "Em trânsito", "Pedido em aberto", "Demanda/dia", "Meta do mês", "Realizado no mês", "Mínimo", "Ideal", "Máximo", "Sugestão (un)", "Pedido (un)", "CD atende (un)", "Falta no CD", "Saldo CD"];
+    const corpo = linhas.map((i) => [i.sku, i.descricao, classeDe(i), STATUS2[i.status].rotulo, f(i.estoque), f(i.baixasPendentes), f(i.estoqueBruto), f(i.exposicao), f(i.emTransito), f(i.pedidoAberto), f(i.demandaDia == null ? null : Math.round(i.demandaDia * 100) / 100), f(i.metaMes), f(i.realizadoMes), f(i.minQ), f(i.idealQ), f(i.maxQ), f(i.sugestao), f(i.qtdPedido), f(i.qtdAtendida), f(i.faltaCD), f(i.saldoCD)].map(esc).join(";"));
     const url = URL.createObjectURL(new Blob(["\uFEFF" + [cab.map(esc).join(";"), ...corpo].join("\r\n")], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = `Reposicao_${loja?.codigo}_${hojeIso}.csv`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
@@ -210,6 +215,7 @@ function ReposicaoPage() {
 
       {semDados && <Card className="border-warning/30 bg-warning/10"><CardContent className="pt-4 text-sm text-foreground">Nenhum produto acabado com meta no consenso para esta loja. Envie o consenso em <strong>Projeção do CD</strong>.</CardContent></Card>}
 
+      {bruto.isError && <p role="alert" className="text-sm text-destructive">Não foi possível atualizar as baixas em aberto. A geração de pedidos está bloqueada até atualizar os dados.</p>}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5 2xl:grid-cols-10">
         <Kpi t="Disponibilidade" v={resumo.disponibilidade == null ? "—" : `${(resumo.disponibilidade * 100).toFixed(1)}%`} />
         <Kpi t="SKUs" v={String(resumo.ativos)} />
@@ -231,7 +237,7 @@ function ReposicaoPage() {
         <select className="h-8 rounded-md border bg-background px-2 text-xs" value={famFiltro} onChange={(e) => setFamFiltro(e.target.value)}><option value="">Todas as famílias</option>{familias.map((f) => <option key={f} value={f}>{f}</option>)}</select>
         <Input className="h-8 w-52" placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} />
         <Button size="sm" variant="outline" className="gap-1 ml-auto" onClick={exportar}><Download className="size-4" /> CSV</Button>
-        {gestor && <Button size="sm" className="gap-1" disabled={gerando || paraPedido.length === 0} onClick={gerarPedido}><PackagePlus className="size-4" /> {gerando ? "Gerando..." : `Gerar pedido (${paraPedido.length} itens · ${totalPedido.toLocaleString("pt-BR")} un)`}</Button>}
+        {gestor && <Button size="sm" className="gap-1" disabled={gerando || bruto.isError || bruto.isFetching || paraPedido.length === 0} onClick={gerarPedido}><PackagePlus className="size-4" /> {gerando ? "Gerando..." : `Gerar pedido (${paraPedido.length} itens · ${totalPedido.toLocaleString("pt-BR")} un)`}</Button>}
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
@@ -257,7 +263,7 @@ function ReposicaoPage() {
                 <TableCell className="min-w-[240px] text-xs leading-snug whitespace-normal break-words">{i.descricao || "—"}{i.semExposicao && <span className="ml-1 text-[10px] text-warning">sem exposição</span>}{i.semCaixa && <span className="ml-1 text-[10px] text-warning">sem caixa</span>}{i.solto && !i.caixaCadastrada && <span className="ml-1 text-[10px] text-muted-foreground">granel: sem caixa</span>}{i.solto && i.caixaCadastrada && <span className="ml-1 text-[10px] text-muted-foreground">granel</span>}</TableCell>
                 <TableCell className="text-xs whitespace-nowrap">{classeDe(i)}</TableCell>
                 <TableCell><span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${COR[i.status]}`}>{STATUS2[i.status].rotulo}</span></TableCell>
-                <TableCell className="text-right">{n1(i.estoque)}</TableCell><TableCell className="text-right">{isAdmin ? <CelulaEdit valor={i.exposicaoOrigem === "sku" ? i.exposicao : null} placeholder={i.exposicaoOrigem === "loja" ? String(i.exposicao) : "0"} titulo={i.exposicaoOrigem === "loja" ? `Exposição pela regra da loja (${i.exposicao} un). Digite um valor para criar uma exceção deste SKU.` : "Exposição: unidades que ficam na vitrine (não contam como vendável)"} aoSalvar={(n) => salvarExposicao(i, n)} /> : n1(i.exposicao)}</TableCell>
+                <TableCell className="text-right" title={`No sistema: ${n1(i.estoqueBruto)} un`}>{n1(i.estoque)}</TableCell><TableCell className={`text-right ${i.baixasPendentes > 0 ? "text-warning font-semibold" : "text-muted-foreground"}`}>{n1(i.baixasPendentes)}</TableCell><TableCell className="text-right">{isAdmin ? <CelulaEdit valor={i.exposicaoOrigem === "sku" ? i.exposicao : null} placeholder={i.exposicaoOrigem === "loja" ? String(i.exposicao) : "0"} titulo={i.exposicaoOrigem === "loja" ? `Exposição pela regra da loja (${i.exposicao} un). Digite um valor para criar uma exceção deste SKU.` : "Exposição: unidades que ficam na vitrine (não contam como vendável)"} aoSalvar={(n) => salvarExposicao(i, n)} /> : n1(i.exposicao)}</TableCell>
                 <TableCell className="text-right">{i.emTransito + i.pedidoAberto > 0 ? n1(i.emTransito + i.pedidoAberto) : "—"}</TableCell>
                 <TableCell className="text-right">{n2(i.demandaDia)}{i.fatorRealizacao !== null && i.baseUsada === "ajustada" && <span className="ml-1 text-[10px] text-muted-foreground" title="venda real ÷ malha do consenso">×{n2(i.fatorRealizacao)}</span>}</TableCell>
                 <TableCell className="text-right text-xs">{i.metaMes > 0 ? `${n1(i.realizadoMes)} / ${n1(i.metaMes)}` : "—"}</TableCell>
@@ -266,7 +272,7 @@ function ReposicaoPage() {
                 <TableCell className="text-right">{gestor ? <div className="flex flex-col items-end gap-0.5"><Input className="h-7 w-20 text-right" inputMode="numeric" placeholder={i.sugestao > 0 ? String(i.sugestao) : "0"} value={manuaisTxt[`${i.loja}|${nk(i.sku)}`] ?? ""} onChange={(e) => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: e.target.value })} />{maxCD(i) > 0 && <button type="button" className="text-[10px] text-primary hover:underline" title="Preenche o pedido com o máximo que o CD consegue mandar (em caixas fechadas quando há caixa)" onClick={() => setManuaisTxt({ ...manuaisTxt, [`${i.loja}|${nk(i.sku)}`]: String(maxCD(i)) })}>usar CD: {n1(maxCD(i))}</button>}</div> : n1(i.qtdPedido)}</TableCell>
                 <TableCell className="text-xs" onDoubleClick={(e) => e.stopPropagation()}>{(() => { const o = origemDe(i); if (!gestor) return <span className="text-muted-foreground">{nomeOrigem(o)}</span>; return <div className="flex flex-col gap-0.5"><select className="h-7 rounded-md border bg-background px-1 text-xs" title="De onde sai o estoque: CD (padrão) ou qualquer outro almoxarifado" value={o} onChange={(e) => setOrigemSel({ ...origemSel, [k]: e.target.value })}><option value="CD">CD ({n1(i.saldoCD ?? 0)})</option>{opcoesAlmox.filter((x) => x.valor !== i.loja).map((x) => <option key={x.valor} value={x.valor} title={x.nome}>{x.rotulo} ({n1(saldoEm(i, x.valor))})</option>)}</select>{o !== "CD" && <span className="text-[10px] text-primary">transferir {n1(qtdEnvio(i))}</span>}</div>; })()}</TableCell>
                 <TableCell className="text-right">{i.qtdPedido > 0 ? <>{n1(i.qtdAtendida)}{i.faltaCD > 0 && <AlertTriangle className="inline size-3 ml-1 text-warning" aria-label="CD não cobre" />}{i.fracionado && <div className="text-[10px] text-primary" title="O CD não tem caixa fechada: enviando o saldo solto">solto</div>}{(i.saldoCD ?? 0) <= 0 && <div className="text-[10px] text-destructive" title="Sem saldo no CD: depende de produção (veja a Projeção do CD)">produzir</div>}</> : "—"}</TableCell>
-                <TableCell className="text-right text-xs">{i.saldoCD == null ? "—" : `${n1(i.saldoCD)}${i.caixa > 1 ? ` (${i.caixasCD} cx)` : ""}`}{i.reservadoCD > 0 && <div className="text-[10px] text-muted-foreground" title="Pedidos ABERTOS (ainda não expedidos) já reservam parte do saldo do CD">reservado: {n1(i.reservadoCD)}</div>}{i.qtdPedido > 0 && i.disponivelCD != null && i.disponivelCD < i.qtdPedido && <div className="text-[10px] text-warning" title="O que sobra do CD para esta loja depois das lojas de maior prioridade">disp. p/ esta: {n1(i.disponivelCD)}</div>}</TableCell>
+                <TableCell className="text-right text-xs">{i.saldoCD == null ? "—" : `${n1(i.saldoCD)}${i.caixa > 1 ? ` (${i.caixasCD} cx)` : ""}`}{i.baixasCD > 0 && <div className="text-[10px] text-warning">baixas: {n1(i.baixasCD)}</div>}{i.reservadoCD > 0 && <div className="text-[10px] text-muted-foreground" title="Pedidos ABERTOS (ainda não expedidos) já reservam parte do saldo do CD">reservado: {n1(i.reservadoCD)}</div>}{i.qtdPedido > 0 && i.disponivelCD != null && i.disponivelCD < i.qtdPedido && <div className="text-[10px] text-warning" title="O que sobra do CD para esta loja depois das lojas de maior prioridade">disp. p/ esta: {n1(i.disponivelCD)}</div>}</TableCell>
                 <TableCell className={`text-right text-xs ${i.avisoCobertura ? "text-warning font-semibold" : ""}`} title={i.avisoCobertura ? `Mais de ${LIMITE_COBERTURA_AVISO} dias de cobertura depois do pedido (aviso: o pedido continua sugerido)` : ""}>{i.avisoCobertura && <AlertTriangle className="inline size-3 mr-1" aria-label="Cobertura alta" />}{i.cobPosPedido == null ? "—" : n1(i.cobPosPedido)}</TableCell>
               </TableRow>);
           })}
