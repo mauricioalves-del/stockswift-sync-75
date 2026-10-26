@@ -343,6 +343,31 @@ function MissaoExecucaoPage() {
     }
   }
 
+  async function baixarFicha() {
+    if (!missao) return;
+    if (!lotesQ.data || !linhasQ.data) {
+      toast.info("Aguarde o carregamento dos dados da missão e tente novamente");
+      return;
+    }
+    try {
+      const codigos = Array.from(new Set(itens.map((i) => i.codigo_produto)));
+      const grupoPorSku = new Map<string, string>();
+      for (let i = 0; i < codigos.length; i += 500) {
+        const { data } = await (supabase as any).from("grupo_produtos")
+          .select("codigo_produto, grupo").in("codigo_produto", codigos.slice(i, i + 500));
+        for (const r of data ?? []) if (r.grupo && !grupoPorSku.has(r.codigo_produto)) grupoPorSku.set(r.codigo_produto, r.grupo);
+      }
+      const { baixarFichaInventario } = await import("@/lib/ficha-inventario");
+      const n = baixarFichaInventario({
+        titulo: missao.titulo, itens: itens as any, linhasPorItem: linhasQ.data as any,
+        lotesPorSku: lotesQ.data as any, grupoPorSku,
+      });
+      toast.success(`Ficha de inventário gerada — ${n} linha(s)`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao gerar a ficha");
+    }
+  }
+
 
 
 
@@ -362,6 +387,9 @@ function MissaoExecucaoPage() {
           <Badge className="text-[10px]">{missao.status}</Badge>
           <Button variant="outline" size="sm" onClick={baixarExcel} disabled={itens.length === 0}>
             <FileDown className="size-4 mr-1.5" /> Baixar Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={baixarFicha} disabled={itens.length === 0}>
+            <FileDown className="size-4 mr-1.5" /> Ficha de inventário
           </Button>
           <Button asChild variant="outline" size="sm">
             <Link to="/scanner"><ScanLine className="size-4 mr-1.5" /> Scanner</Link>
