@@ -19,7 +19,7 @@ test("Baixa executada ou sem almoxarifado não gera reserva", () => {
   expect(saldoLiquidoBaixas(1, 4)).toBe(0);
 });
 const bruto = (): Bruto => ({ lojas: [{ codigo: "LOJA", nome: "Loja", almoxarifado: "Loja" }], cd: "CD", params: PARAM2_PADRAO,
-  consenso: [{ loja: "LOJA", id_produto: "05004001", mes: "2026-10", unidades: 31 }], grupos: [{ codigo_produto: "05004001", grupo: "Produto Acabado" }], familias: [], abc: [], periodos: [], consumo: [],
+  consenso: [{ loja: "LOJA", id_produto: "05004001", mes: "2026-10", unidades: 31 }, { loja: "LOJA", id_produto: "05004001", mes: "2026-11", unidades: 30 }], grupos: [{ codigo_produto: "05004001", grupo: "Produto Acabado" }], familias: [], abc: [], periodos: [], consumo: [],
   estoque: [{ id_produto: "05004001", origem: "Loja", quantidade: 6 }, { id_produto: "05004001", origem: "CD", quantidade: 20 }], notas: [], pedidosAbertos: [], produtos: [], exposicoes: [], baixas: [baixa("PENDENTE", 6), baixa("AGUARDANDO_ADMIN", 15, "CD")],
 });
 test("Baixas antecipam ruptura e sugestão, limitando atendimento pelo saldo líquido do CD", () => {
