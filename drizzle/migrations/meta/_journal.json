@@ -246,6 +246,13 @@
       "when": 1793045251099,
       "tag": "0034_teste_pedidos_insumos_transacional",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1793045292229,
+      "tag": "0035_teste_insumos_numero_identidade",
+      "breakpoints": true
     }
   ]
 }
