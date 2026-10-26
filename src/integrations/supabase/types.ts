@@ -6783,6 +6783,7 @@ export type Database = {
         }[]
       }
       abast_testar_aprovacao_comercial: { Args: never; Returns: Json }
+      abast_testar_baixas_reposicao: { Args: never; Returns: Json }
       abast_testar_insumos_pedido: { Args: never; Returns: Json }
       abast_validar_cd: {
         Args: { p_competencia: string; p_observacao: string }

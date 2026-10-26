@@ -260,6 +260,13 @@
       "when": 1793046066472,
       "tag": "0036_abastecimento_baixas_em_aberto",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793046156330,
+      "tag": "0037_teste_abastecimento_baixas_sem_persistencia",
+      "breakpoints": true
     }
   ]
 }
