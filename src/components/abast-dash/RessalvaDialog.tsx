@@ -11,6 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { caixaDoProduto, chaveSku, erroQtdExtra, filtrarCatalogo, mapaSaldos, passoQtd, qtdInicial, qtdValida, resumoSugestoes, saldoParaExtra, type CatProduto, type SaldoProduto, type SugRessalva } from "@/lib/abastecimento-ressalva";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { ehSolto, lojaSemCaixa, nk } from "@/lib/abastecimento-dados";
+import { catalogoComInsumos, GRUPOS_INSUMOS } from "@/lib/abastecimento-insumos";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type PedidoRessalva = { id: string; numero: number; loja: string; almox_origem?: string | null; itens: { id_produto: string; qtd_pedida: number; aceito: boolean | null; origem: string }[] };
 const un = (n: number) => Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
@@ -30,27 +32,30 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
   const [busca, setBusca] = useState(""); const [sel, setSel] = useState<CatProduto | null>(null); const [qtd, setQtd] = useState("1");
   const [salvando, setSalvando] = useState(false);
   const [fracionar, setFracionar] = useState(false);
+  const [grupo, setGrupo] = useState("TODOS");
   const buscaRef = useRef<HTMLInputElement>(null);
 
   const cat = useQuery({
     queryKey: ["abast-catalogo-aprovado", p.loja],
     queryFn: async () => {
-      const { data } = await sb.from("abast_validacoes_portfolio").select("itens, competencia").eq("loja", p.loja).eq("status", "VALIDADA").order("competencia", { ascending: false }).order("aprovado_em", { ascending: false }).limit(1);
+      const { data, error } = await sb.from("abast_validacoes_portfolio").select("itens, competencia").eq("loja", p.loja).eq("status", "VALIDADA").order("competencia", { ascending: false }).order("aprovado_em", { ascending: false }).limit(1);
+      if (error) throw error;
       const itens = (data?.[0]?.itens ?? []) as any[];
       return itens.filter((i) => i.ativo !== false).map((i) => ({ sku: String(i.sku), descricao: String(i.descricao ?? i.sku) })) as CatProduto[];
     },
   });
-  const catalogo = cat.data ?? [];
+  const bruto = useAbastBruto(true);
+  const catalogo = useMemo(() => catalogoComInsumos(cat.data ?? [], bruto.data?.grupos ?? [], bruto.data?.estoque ?? []), [cat.data, bruto.data]);
+  const catalogoFiltrado = useMemo(() => catalogo.filter((c) => grupo === "TODOS" || (grupo === "APROVADO" ? c.aprovado : c.grupo === grupo)), [catalogo, grupo]);
   const skus = useMemo(() => catalogo.map((c) => c.sku), [catalogo]);
   // quanto há disponível no origem de cada produto do catálogo (a tela segue sem a informação se a função não responder)
   const saldosQ = useQuery({
-    enabled: skus.length > 0, staleTime: 30000, queryKey: ["abast-ressalva-saldos", p.id, skus.length],
+    enabled: skus.length > 0, staleTime: 30000, queryKey: ["abast-ressalva-saldos", p.id, skus],
     queryFn: async () => { const { data } = await sb.rpc("abast_saldo_produtos", { p_pedido: p.id, p_skus: skus }); return mapaSaldos(data); },
   });
   const saldos = saldosQ.data ?? new Map<string, SaldoProduto>();
   const validos = p.itens.filter((i) => i.aceito !== false && !(i.origem === "SUGESTAO_COMERCIAL" && i.aceito == null));
   // Caixaria: mesma regra do motor (abast_produto.full_case; família vendida solta não tem caixa). Dados já em cache na tela de Pedidos.
-  const bruto = useAbastBruto(true);
   const caixaDe = useMemo(() => {
     const fc = new Map<string, unknown>((bruto.data?.produtos ?? []).map((x) => [nk(x.id_produto), x.full_case]));
     const fam = new Map<string, string>((bruto.data?.familias ?? []).map((x) => [nk(x.codigo_produto), x.familia]));
@@ -63,7 +68,7 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
   const carregandoCaixa = bruto.isLoading;
   const noPedido = useMemo(() => new Set(validos.map((i) => chaveSku(i.id_produto))), [p.itens]);
   const jaSugeridos = useMemo(() => new Set(sugs.map((s) => chaveSku(s.id_produto))), [sugs]);
-  const resultados = useMemo(() => filtrarCatalogo(catalogo, busca, jaSugeridos), [catalogo, busca, jaSugeridos]);
+  const resultados = useMemo(() => filtrarCatalogo(catalogoFiltrado, busca, jaSugeridos), [catalogoFiltrado, busca, jaSugeridos]);
   const resumo = resumoSugestoes(sugs);
   const origem = p.almox_origem ?? "origem";
   const unidadesPedido = validos.reduce((a, i) => a + Number(i.qtd_pedida), 0);
@@ -117,9 +122,17 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
           <section className="space-y-3">
             <div>
               <h3 className="flex items-center gap-2 text-sm font-semibold"><PackagePlus className="size-4" /> Produtos extras <span className="font-normal text-muted-foreground">(opcional)</span></h3>
-              <p className="text-xs text-muted-foreground">Catálogo aprovado de {p.loja}{catalogo.length ? ` · ${catalogo.length} produtos` : ""}. Origem: {origem}. Disponibilidade líquida dos pedidos em andamento (inclusive este).</p>
+              <p className="text-xs text-muted-foreground">{catalogo.length} produtos · Origem: {origem}</p>
             </div>
-            {cat.isLoading ? <p className="text-xs text-muted-foreground">Carregando catálogo…</p> : !catalogo.length ? <p className="rounded-md border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">Esta loja não tem portfólio aprovado; não é possível sugerir produtos.</p> : (
+            <Select value={grupo} onValueChange={(v) => { setGrupo(v); setSel(null); setBusca(""); }}>
+              <SelectTrigger aria-label="Grupo de produtos"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos os produtos e insumos</SelectItem>
+                <SelectItem value="APROVADO">Catálogo aprovado</SelectItem>
+                {GRUPOS_INSUMOS.map((g) => <SelectItem key={g.valor} value={g.valor}>{g.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {cat.isLoading || bruto.isLoading ? <p className="text-xs text-muted-foreground">Carregando catálogo…</p> : cat.error || bruto.error ? <p className="text-xs text-destructive">Não foi possível carregar os produtos.</p> : !catalogo.length ? <p className="rounded-md border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">Nenhum produto ou insumo cadastrado.</p> : (
               <div className="overflow-hidden rounded-md border">
                 {sel ? (
                   <div className="space-y-2 bg-primary/5 px-3 py-3">
@@ -143,12 +156,12 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
                     <div className="relative border-b"><Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input ref={buscaRef} value={busca} onChange={(e) => setBusca(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && resultados[0]) escolher(resultados[0]); }} placeholder="Buscar por nome ou SKU" aria-label="Buscar produto" className="h-10 rounded-none border-0 pl-9 focus-visible:ring-0" /></div>
                     <ul className="max-h-52 divide-y overflow-y-auto">
                       {resultados.map((c) => (
-                        <li key={c.sku}><button type="button" onClick={() => escolher(c)} className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-muted">
+                        <li key={c.sku}><Button type="button" variant="ghost" onClick={() => escolher(c)} className="h-auto w-full justify-start rounded-none gap-3 px-3 py-2 text-left font-normal">
                           <span className="w-20 shrink-0 font-mono text-[11px] text-muted-foreground">{c.sku}</span>
                           <span className="min-w-0 flex-1 truncate text-sm">{c.descricao}</span>
                           {noPedido.has(chaveSku(c.sku)) && <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">já no pedido</span>}
                           <Disp s={saldoDe(c.sku)} caixa={caixaDe(c.sku)} />
-                        </button></li>))}
+                        </Button></li>))}
                       {resultados.length === 0 && <li className="px-3 py-6 text-center text-xs text-muted-foreground">{busca ? "Nenhum produto encontrado para essa busca." : "Todos os produtos do catálogo já foram sugeridos."}</li>}
                     </ul>
                   </>
