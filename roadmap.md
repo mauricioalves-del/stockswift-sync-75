@@ -1,5 +1,9 @@
 # Correção de grupos das Baixas Operacionais
 
+## Farol de recebimento: nota 18412
+- [ ] Diagnosticar saldo pendente divergente e corrigir atualização das notas recebidas, sem excluir registros.
+- [ ] Testar regressão e conferir o Farol autenticado; preservar regras de leitura do Atlas.
+
 ## Atlas: formato dos gráficos
 - [x] Manter A; posicionar Tendência (B) e Causas (C) lado a lado, com Mensal (D) e Almoxarifado (E) abaixo; projeção por regressão linear em dias reais verificada com cinco testes e painel autenticado, incluindo filtro mensal; regras de leitura intactas.
 - [x] Ajustar os gráficos dos quatro painéis ao formato dos HTML enviados, preservando os dados e cálculos de origem.
