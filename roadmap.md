@@ -1,5 +1,8 @@
 # Correção de grupos das Baixas Operacionais
 
+## Pedidos: descrição e estoque nos extras
+- [ ] Exibir descrição completa e saldo disponível por produto na origem, consultando catálogo com saldo zero e dividindo consultas de saldo; verificar no pedido autenticado.
+
 ## Reposição: baixas operacionais em aberto
 - [x] Vincular os quatro estados da fila em aberto por produto e almoxarifado; descontar do planejamento, CD e origens alternativas; validar criação/aprovação no banco sem alterar estoque ou fotos históricas.
 - [x] 26 testes passaram, incluindo bloqueios transacionais sem persistência; tela autenticada confirmou SKU 05004139 no Pátio: 72 no sistema, 12 em baixas, 60 líquidos, sem erros.

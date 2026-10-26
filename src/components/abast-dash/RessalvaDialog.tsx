@@ -13,12 +13,13 @@ import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { ehSolto, lojaSemCaixa, nk } from "@/lib/abastecimento-dados";
 import { catalogoComInsumos, GRUPOS_INSUMOS } from "@/lib/abastecimento-insumos";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { fetchAll } from "@/lib/fetch-all";
 
 type PedidoRessalva = { id: string; numero: number; loja: string; almox_origem?: string | null; itens: { id_produto: string; qtd_pedida: number; aceito: boolean | null; origem: string }[] };
 const un = (n: number) => Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 
 function Disp({ s, caixa = 1 }: { s?: SaldoProduto | null; caixa?: number }) {
-  if (!s) return null;
+  if (!s) return <span className="shrink-0 text-[11px] text-muted-foreground">Saldo indisponível</span>;
   const v = s.saldo_inicial;
   const cx = caixa > 1 && v > 0 ? (v >= caixa ? ` · ${Math.floor(v / caixa)} cx` : " · solto") : "";
   return <span title={`Estoque ${un(s.estoque)} − ${un(s.reservado_outros)} em pedidos em andamento (inclui o que este pedido já leva)${caixa > 1 ? ` · caixa de ${caixa} un` : ""}`} className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${v <= 0 ? "bg-destructive/10 text-destructive" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"}`}>{v <= 0 ? "sem estoque" : `${un(v)} disponível${cx}`}</span>;
@@ -45,13 +46,31 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
     },
   });
   const bruto = useAbastBruto(true);
-  const catalogo = useMemo(() => catalogoComInsumos(cat.data ?? [], bruto.data?.grupos ?? [], bruto.data?.estoque ?? []), [cat.data, bruto.data]);
+  const descricoesQ = useQuery({
+    queryKey: ["abast-extras-descricoes"], staleTime: 30000,
+    queryFn: async () => {
+      const [estoque, produtos] = await Promise.all([
+        fetchAll<{ id_produto: string; descricao: string | null }>((f, t) => sb.from("estoque_sistemico").select("id_produto, descricao").order("id_produto").order("origem").order("lote").range(f, t)),
+        fetchAll<{ id_produto: string; descricao: string | null }>((f, t) => sb.from("abast_produto").select("id_produto, descricao").order("id_produto").range(f, t)),
+      ]);
+      return [...estoque, ...produtos];
+    },
+  });
+  const catalogo = useMemo(() => catalogoComInsumos(cat.data ?? [], bruto.data?.grupos ?? [], descricoesQ.data ?? bruto.data?.estoque ?? []), [cat.data, bruto.data, descricoesQ.data]);
   const catalogoFiltrado = useMemo(() => catalogo.filter((c) => grupo === "TODOS" || (grupo === "APROVADO" ? c.aprovado : c.grupo === grupo)), [catalogo, grupo]);
   const skus = useMemo(() => catalogo.map((c) => c.sku), [catalogo]);
-  // quanto há disponível no origem de cada produto do catálogo (a tela segue sem a informação se a função não responder)
+  // A função aceita no máximo 500 SKUs por chamada; consultar em lotes sem ocultar erros.
   const saldosQ = useQuery({
     enabled: skus.length > 0, staleTime: 30000, queryKey: ["abast-ressalva-saldos", p.id, skus],
-    queryFn: async () => { const { data } = await sb.rpc("abast_saldo_produtos", { p_pedido: p.id, p_skus: skus }); return mapaSaldos(data); },
+    queryFn: async () => {
+      const lotes = Array.from({ length: Math.ceil(skus.length / 400) }, (_, i) => skus.slice(i * 400, (i + 1) * 400));
+      const respostas = await Promise.all(lotes.map(async (lote) => {
+        const { data, error } = await sb.rpc("abast_saldo_produtos", { p_pedido: p.id, p_skus: lote });
+        if (error) throw error;
+        return data ?? [];
+      }));
+      return mapaSaldos(respostas.flat());
+    },
   });
   const saldos = saldosQ.data ?? new Map<string, SaldoProduto>();
   const validos = p.itens.filter((i) => i.aceito !== false && !(i.origem === "SUGESTAO_COMERCIAL" && i.aceito == null));
@@ -132,12 +151,14 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
                 {GRUPOS_INSUMOS.map((g) => <SelectItem key={g.valor} value={g.valor}>{g.nome}</SelectItem>)}
               </SelectContent>
             </Select>
-            {cat.isLoading || bruto.isLoading ? <p className="text-xs text-muted-foreground">Carregando catálogo…</p> : cat.error || bruto.error ? <p className="text-xs text-destructive">Não foi possível carregar os produtos.</p> : !catalogo.length ? <p className="rounded-md border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">Nenhum produto ou insumo cadastrado.</p> : (
+            {descricoesQ.error && <p className="text-xs text-destructive">Não foi possível carregar todas as descrições.</p>}
+            {saldosQ.error && <p className="text-xs text-destructive">Não foi possível consultar o estoque disponível na origem.</p>}
+            {cat.isLoading || bruto.isLoading || descricoesQ.isLoading ? <p className="text-xs text-muted-foreground">Carregando catálogo…</p> : cat.error || bruto.error ? <p className="text-xs text-destructive">Não foi possível carregar os produtos.</p> : !catalogo.length ? <p className="rounded-md border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">Nenhum produto ou insumo cadastrado.</p> : (
               <div className="overflow-hidden rounded-md border">
                 {sel ? (
                   <div className="space-y-2 bg-primary/5 px-3 py-3">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0"><div className="font-mono text-[11px] text-muted-foreground">{sel.sku}</div><div className="truncate text-sm font-medium">{sel.descricao}</div></div>
+                      <div className="min-w-0"><div className="font-mono text-[11px] text-muted-foreground">{sel.sku}</div><div className="whitespace-normal break-words text-sm font-medium">{sel.descricao === sel.sku ? "Descrição não cadastrada" : sel.descricao}</div></div>
                       <div className="flex items-center gap-2"><Disp s={saldoSel} caixa={cxSel} /><Button type="button" variant="ghost" size="sm" onClick={() => setSel(null)}>Trocar</Button></div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -156,11 +177,10 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
                     <div className="relative border-b"><Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input ref={buscaRef} value={busca} onChange={(e) => setBusca(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && resultados[0]) escolher(resultados[0]); }} placeholder="Buscar por nome ou SKU" aria-label="Buscar produto" className="h-10 rounded-none border-0 pl-9 focus-visible:ring-0" /></div>
                     <ul className="max-h-52 divide-y overflow-y-auto">
                       {resultados.map((c) => (
-                        <li key={c.sku}><Button type="button" variant="ghost" onClick={() => escolher(c)} className="h-auto w-full justify-start rounded-none gap-3 px-3 py-2 text-left font-normal">
-                          <span className="w-20 shrink-0 font-mono text-[11px] text-muted-foreground">{c.sku}</span>
-                          <span className="min-w-0 flex-1 truncate text-sm">{c.descricao}</span>
+                        <li key={c.sku}><Button type="button" variant="ghost" onClick={() => escolher(c)} className="h-auto w-full flex-wrap justify-start rounded-none gap-x-3 gap-y-1 px-3 py-2 text-left font-normal sm:flex-nowrap">
+                          <span className="min-w-0 flex-1 whitespace-normal"><span className="block font-mono text-[11px] text-muted-foreground">{c.sku}</span><span className="block break-words text-sm">{c.descricao === c.sku ? "Descrição não cadastrada" : c.descricao}</span></span>
                           {noPedido.has(chaveSku(c.sku)) && <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">já no pedido</span>}
-                          <Disp s={saldoDe(c.sku)} caixa={caixaDe(c.sku)} />
+                          {saldosQ.isLoading ? <span className="shrink-0 text-[11px] text-muted-foreground">Consultando estoque…</span> : <Disp s={saldoDe(c.sku)} caixa={caixaDe(c.sku)} />}
                         </Button></li>))}
                       {resultados.length === 0 && <li className="px-3 py-6 text-center text-xs text-muted-foreground">{busca ? "Nenhum produto encontrado para essa busca." : "Todos os produtos do catálogo já foram sugeridos."}</li>}
                     </ul>
