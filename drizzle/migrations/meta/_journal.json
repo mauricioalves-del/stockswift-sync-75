@@ -232,6 +232,27 @@
       "when": 1792985944653,
       "tag": "0032_plano_ciclico_manual_so_lotes_com_saldo",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793045153766,
+      "tag": "0033_pedidos_extras_insumos",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793045251099,
+      "tag": "0034_teste_pedidos_insumos_transacional",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1793045292229,
+      "tag": "0035_teste_insumos_numero_identidade",
+      "breakpoints": true
     }
   ]
 }

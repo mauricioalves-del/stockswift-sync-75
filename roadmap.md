@@ -1,5 +1,8 @@
 # Correção de grupos das Baixas Operacionais
 
+## Pedidos: insumos
+- [x] Incluir revenda, embalagens e matérias-primas em Adicionar Produto; tela autenticada verificada com inclusão de embalagem e 13 testes passaram, incluindo aprovação dos três grupos, requisição e bloqueio de excesso sem persistir pedidos de teste. Regras de leitura do Atlas preservadas por decisão explícita; três alertas permanecem ativos.
+
 ## Farol de recebimento: nota 18412
 - [x] Confirmar nota 1842 antiga, não atualizada desde 09/10; regularizar somente a pendência confirmada pelo usuário, preservando quantidade, valor e data não informada, com auditoria.
 - [x] Conferir o Farol autenticado: zero notas, zero itens, R$ 0,00 e nenhum erro; preservar regras de leitura do Atlas.
