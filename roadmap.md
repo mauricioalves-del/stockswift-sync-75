@@ -1,6 +1,8 @@
 # Correção de grupos das Baixas Operacionais
 
 ## Pedidos: descrição e estoque nos extras
+- [x] Corrigir prioridade da descrição registrada e fallback do estoque nativo, inclusive catálogo que repete SKU, espaços e nomes vazios; 13 testes passaram e pedido 30 autenticado mostrou descrição e 1.000 disponíveis sem erros.
+- [ ] Completar nomes de 190 insumos sem descrição nem no catálogo nem no estoque nativo (aguarda fonte com as descrições reais; manter itens visíveis, sem inventar ou apagar).
 - [x] Exibir descrição completa e saldo disponível na origem, inclusive para catálogo com saldo zero; dividir consultas abaixo do limite de 500 SKUs. Pedido 30 autenticado confirmou embalagem 0190213058, descrição e 1.000 disponíveis, sem erros; 11 testes passaram. Produtos sem descrição cadastrada são identificados; alertas Atlas preservados conforme decisão anterior.
 
 ## Reposição: baixas operacionais em aberto

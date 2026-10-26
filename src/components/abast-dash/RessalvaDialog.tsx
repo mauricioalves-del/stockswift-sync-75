@@ -47,16 +47,16 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
   });
   const bruto = useAbastBruto(true);
   const descricoesQ = useQuery({
-    queryKey: ["abast-extras-descricoes"], staleTime: 30000,
+    queryKey: ["abast-extras-descricoes", "catalogo-estoque-v2"], staleTime: 30000,
     queryFn: async () => {
       const [estoque, produtos] = await Promise.all([
         fetchAll<{ id_produto: string; descricao: string | null }>((f, t) => sb.from("estoque_sistemico").select("id_produto, descricao").order("id_produto").order("origem").order("lote").range(f, t)),
         fetchAll<{ id_produto: string; descricao: string | null }>((f, t) => sb.from("abast_produto").select("id_produto, descricao").order("id_produto").range(f, t)),
       ]);
-      return [...estoque, ...produtos];
+      return { estoque, produtos };
     },
   });
-  const catalogo = useMemo(() => catalogoComInsumos(cat.data ?? [], bruto.data?.grupos ?? [], descricoesQ.data ?? bruto.data?.estoque ?? []), [cat.data, bruto.data, descricoesQ.data]);
+  const catalogo = useMemo(() => catalogoComInsumos(cat.data ?? [], bruto.data?.grupos ?? [], descricoesQ.data?.estoque ?? bruto.data?.estoque ?? [], descricoesQ.data?.produtos ?? []), [cat.data, bruto.data, descricoesQ.data]);
   const catalogoFiltrado = useMemo(() => catalogo.filter((c) => grupo === "TODOS" || (grupo === "APROVADO" ? c.aprovado : c.grupo === grupo)), [catalogo, grupo]);
   const skus = useMemo(() => catalogo.map((c) => c.sku), [catalogo]);
   // A função aceita no máximo 500 SKUs por chamada; consultar em lotes sem ocultar erros.
