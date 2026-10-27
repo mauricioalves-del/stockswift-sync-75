@@ -274,6 +274,13 @@
       "when": 1793046209878,
       "tag": "0038_corrigir_teste_baixas_descricao",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1793112282049,
+      "tag": "0039_fefo_quebra_justificativas",
+      "breakpoints": true
     }
   ]
 }
