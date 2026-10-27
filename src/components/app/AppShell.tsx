@@ -133,6 +133,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/gestao/planejamento", label: "Planejamento", icon: Target, role: "write" },
       { to: "/gestao/modelos-checklist", label: "Modelos de Checklist", icon: FolderTree, role: "write" },
       { to: "/gestao/plano-integracao", label: "Plano de Integração", icon: UserPlus, role: "any" },
+      { to: "/gestao/pre-inventario", label: "Pré-inventário", icon: ListChecks, role: "any" },
       { to: "/baixas", label: "Baixas Operacionais", icon: PackageMinus, role: "write" },
       { to: "/baixas/dashboard", label: "Dashboard Baixas", icon: BarChart3, role: "any" },
     { to: "/baixas/investimento-operacional", label: "Investimento Operacional", icon: Sparkles, role: "any" },
