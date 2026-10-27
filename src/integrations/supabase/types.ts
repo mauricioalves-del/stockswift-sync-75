@@ -4357,6 +4357,74 @@ export type Database = {
         }
         Relationships: []
       }
+      inventarios_agendados: {
+        Row: {
+          almoxarifado: string
+          antecedencia_dias: number
+          created_at: string
+          criado_por: string | null
+          data_inventario: string
+          historico: Json
+          id: string
+          liberacao_obs: string | null
+          liberado_em: string | null
+          liberado_nome: string | null
+          liberado_por: string | null
+          observacao: string | null
+          pendencias_na_liberacao: Json | null
+          responsavel_id: string | null
+          responsavel_nome: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          almoxarifado: string
+          antecedencia_dias?: number
+          created_at?: string
+          criado_por?: string | null
+          data_inventario: string
+          historico?: Json
+          id?: string
+          liberacao_obs?: string | null
+          liberado_em?: string | null
+          liberado_nome?: string | null
+          liberado_por?: string | null
+          observacao?: string | null
+          pendencias_na_liberacao?: Json | null
+          responsavel_id?: string | null
+          responsavel_nome?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          almoxarifado?: string
+          antecedencia_dias?: number
+          created_at?: string
+          criado_por?: string | null
+          data_inventario?: string
+          historico?: Json
+          id?: string
+          liberacao_obs?: string | null
+          liberado_em?: string | null
+          liberado_nome?: string | null
+          liberado_por?: string | null
+          observacao?: string | null
+          pendencias_na_liberacao?: Json | null
+          responsavel_id?: string | null
+          responsavel_nome?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventarios_agendados_almoxarifado_fkey"
+            columns: ["almoxarifado"]
+            isOneToOne: false
+            referencedRelation: "origens"
+            referencedColumns: ["codigo_origem"]
+          },
+        ]
+      }
       itens_missao_lotes: {
         Row: {
           created_at: string
@@ -5432,6 +5500,62 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      pre_inventario_itens: {
+        Row: {
+          concluido: boolean
+          concluido_em: string | null
+          concluido_nome: string | null
+          concluido_por: string | null
+          created_at: string
+          descricao: string
+          etapa: string
+          id: string
+          inventario_id: string
+          obrigatorio: boolean
+          observacao: string | null
+          ordem: number
+          updated_at: string
+        }
+        Insert: {
+          concluido?: boolean
+          concluido_em?: string | null
+          concluido_nome?: string | null
+          concluido_por?: string | null
+          created_at?: string
+          descricao: string
+          etapa?: string
+          id?: string
+          inventario_id: string
+          obrigatorio?: boolean
+          observacao?: string | null
+          ordem?: number
+          updated_at?: string
+        }
+        Update: {
+          concluido?: boolean
+          concluido_em?: string | null
+          concluido_nome?: string | null
+          concluido_por?: string | null
+          created_at?: string
+          descricao?: string
+          etapa?: string
+          id?: string
+          inventario_id?: string
+          obrigatorio?: boolean
+          observacao?: string | null
+          ordem?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_inventario_itens_inventario_id_fkey"
+            columns: ["inventario_id"]
+            isOneToOne: false
+            referencedRelation: "inventarios_agendados"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       precos_venda: {
         Row: {
@@ -6949,6 +7073,72 @@ export type Database = {
       pode_ver_documento_baixa: {
         Args: { _path: string; _uid: string }
         Returns: boolean
+      }
+      pre_inventario_liberar: {
+        Args: { p_id: string; p_obs?: string }
+        Returns: {
+          almoxarifado: string
+          antecedencia_dias: number
+          created_at: string
+          criado_por: string | null
+          data_inventario: string
+          historico: Json
+          id: string
+          liberacao_obs: string | null
+          liberado_em: string | null
+          liberado_nome: string | null
+          liberado_por: string | null
+          observacao: string | null
+          pendencias_na_liberacao: Json | null
+          responsavel_id: string | null
+          responsavel_nome: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "inventarios_agendados"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      pre_inventario_pendencias: {
+        Args: { p_almox: string }
+        Returns: {
+          quantidade: number
+          rota: string
+          rotulo: string
+          tipo: string
+          valor: number
+        }[]
+      }
+      pre_inventario_reabrir: {
+        Args: { p_id: string; p_motivo: string }
+        Returns: {
+          almoxarifado: string
+          antecedencia_dias: number
+          created_at: string
+          criado_por: string | null
+          data_inventario: string
+          historico: Json
+          id: string
+          liberacao_obs: string | null
+          liberado_em: string | null
+          liberado_nome: string | null
+          liberado_por: string | null
+          observacao: string | null
+          pendencias_na_liberacao: Json | null
+          responsavel_id: string | null
+          responsavel_nome: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "inventarios_agendados"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       processar_fefo: {
         Args: { _data?: string }

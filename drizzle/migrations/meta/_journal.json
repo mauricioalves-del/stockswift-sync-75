@@ -281,6 +281,13 @@
       "when": 1793112282049,
       "tag": "0039_fefo_quebra_justificativas",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1793112762171,
+      "tag": "0040_pre_inventario",
+      "breakpoints": true
     }
   ]
 }
