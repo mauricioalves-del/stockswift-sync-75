@@ -29,17 +29,21 @@ export function retangulo(s: Slide, x: number, y: number, w: number, h: number, 
 }
 export const fundo = (s: Slide, cor: string) => { s.background = { color: cor }; };
 
-export function cabecalho(s: Slide, titulo: string, mesLabel: string, pagina: number, subtitulo?: string) {
+/** `alerta`: palavra destacada (marca-texto amarelo) antes do título, ex.: "Atenção – Acompanhamento Individual…". */
+export function cabecalho(s: Slide, titulo: string, mesLabel: string, pagina: number, subtitulo?: string, alerta?: string) {
   texto(s, MARGEM, 0.32, 9.5, 0.22, "RELATÓRIO EXECUTIVO · MÁGIO CHOCOLATES", { tamanho: 10, negrito: true, cor: COR.VERDE_AMAZONIA });
-  texto(s, MARGEM, 0.58, 9.7, 0.55, titulo, { tamanho: 24, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
+  if (alerta) {
+    const o = { fontFace: FONTE, fontSize: 24, bold: true, color: COR.AZUL_INSTITUCIONAL };
+    s.addText([{ text: alerta, options: { ...o, highlight: "FFFF00" } as any }, { text: ` – ${titulo}`, options: o }], { x: MARGEM, y: 0.58, w: LARGURA - MARGEM - 0.4, h: 0.45, margin: 0, valign: "top", wrap: true, fit: "none" });
+  } else texto(s, MARGEM, 0.58, 9.7, 0.55, titulo, { tamanho: 24, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
   if (subtitulo) texto(s, MARGEM, 1.1, 9.7, 0.35, subtitulo, { tamanho: 13 });
   texto(s, LARGURA - 2.9, 0.32, 2.4, 0.3, mesLabel.toUpperCase(), { tamanho: 11, negrito: true, cor: COR.VERDE_AMAZONIA, alinhamento: "right" });
   texto(s, LARGURA - 2.9, ALTURA - 0.42, 2.4, 0.3, String(pagina).padStart(2, "0"), { tamanho: 10, alinhamento: "right" });
 }
 
-export type Kpi = { valor: string; rotulo: string; cor?: string; contexto?: string | null; corContexto?: string };
+export type Kpi = { valor: string; rotulo: string; cor?: string; contexto?: string | null; corContexto?: string; borda?: string | null };
 export function cartaoKpi(s: Slide, x: number, y: number, w: number, h: number, k: Kpi, deslocRotulo: number | null = null, tamValorBase = 27) {
-  retangulo(s, x, y, w, h, { fill: COR.BRANCO, borda: COR.CINZA_CLARO, raio: 0.14 });
+  retangulo(s, x, y, w, h, { fill: COR.BRANCO, borda: k.borda ?? COR.CINZA_CLARO, raio: 0.14, esp: k.borda ? 1.5 : 0.75 });
   const pad = 0.16, lt = w - 2 * pad;
   let tv = tamValorBase, valor = k.valor;
   const maxC = (t: number, f: number) => Math.max(1, Math.floor(lt / ((t / 72) * f)));
@@ -143,6 +147,55 @@ export function graficoComboDuplo(p: Pptx, s: Slide, x: number, y: number, w: nu
     ],
     catAxes: [{ catAxisTitle: "", catAxisLabelFontSize: 9, catAxisLabelColor: COR.CINZA_TEXTO }, { catAxisHidden: true }],
   } as any);
+}
+
+/** Colunas (ou barras, `horizontal`) empilhadas por série; `percentual` = 100% empilhado; `totais` = rótulo do total no topo. */
+export function graficoEmpilhado(p: Pptx, s: Slide, x: number, y: number, w: number, h: number, cats: string[], series: { nome: string; valores: Pts; cor: string }[], o: { horizontal?: boolean; percentual?: boolean; formato?: string; totais?: Pts | null; corTotais?: string; legenda?: boolean; rotulos?: boolean; tamEixo?: number; rotacao?: number } = {}) {
+  const dados = series.map((v) => ({ name: v.nome, labels: cats, values: v.valores as number[] }));
+  const barra = { barDir: o.horizontal ? "bar" : "col", barGrouping: o.percentual ? "percentStacked" : "stacked", chartColors: series.map((v) => v.cor), barGapWidthPct: 60, overlap: 100 };
+  const base = {
+    x, y, w, h, ...eixos(o.tamEixo ?? 9), showLegend: o.legenda ?? true, legendPos: "b", legendFontSize: 9, legendColor: COR.CINZA_TEXTO, legendFontFace: FONTE,
+    showValue: !!o.rotulos, dataLabelFontSize: 8, dataLabelColor: COR.BRANCO, dataLabelFormatCode: o.formato ?? "#,##0", valAxisLabelFormatCode: o.percentual ? "0%" : o.formato ?? "#,##0",
+    catAxisOrientation: o.horizontal ? "maxMin" : "minMax", catAxisLabelRotate: o.rotacao,
+  } as any;
+  if (o.totais && !o.horizontal) {
+    const linha = { type: p.ChartType.line, data: [{ name: "Total", labels: cats, values: o.totais as number[] }], options: { chartColors: [COR.BRANCO], lineSize: 0, lineDataSymbol: "none", showValue: true, dataLabelPosition: "t", dataLabelFontSize: 8, dataLabelColor: o.corTotais ?? COR.CINZA_TEXTO, dataLabelFormatCode: o.formato ?? "#,##0" } };
+    s.addChart([{ type: p.ChartType.bar, data: dados, options: { ...barra, showValue: !!o.rotulos } }, linha] as any, { ...base, valAxes: [{ showValAxisTitle: false, valAxisLabelFormatCode: o.formato ?? "#,##0", valAxisLabelFontSize: o.tamEixo ?? 9, valAxisLabelColor: COR.CINZA_TEXTO, valGridLine: { color: COR.CINZA_CLARO, size: 0.75 } }], catAxes: [{ catAxisTitle: "", catAxisLabelFontSize: o.tamEixo ?? 9, catAxisLabelColor: COR.CINZA_TEXTO, catAxisLabelRotate: o.rotacao }] } as any);
+  } else s.addChart(p.ChartType.bar, dados, { ...base, ...barra } as any);
+}
+
+/** Barras horizontais de uma série (ranking), rótulo de valor na ponta e uma cor por barra opcional. */
+export function graficoBarrasH(p: Pptx, s: Slide, x: number, y: number, w: number, h: number, cats: string[], nome: string, valores: Pts, o: { cor?: string; cores?: string[]; formato?: string; tamEixo?: number } = {}) {
+  const cores = o.cores ?? [o.cor ?? COR.AZUL_INSTITUCIONAL];
+  s.addChart(p.ChartType.bar, [{ name: nome, labels: cats, values: valores as number[] }], {
+    x, y, w, h, ...eixos(o.tamEixo ?? 9), barDir: "bar", catAxisOrientation: "maxMin", chartColors: cores, barGapWidthPct: 60, showLegend: false,
+    showValue: true, dataLabelPosition: "outEnd", dataLabelFontSize: 8, dataLabelColor: COR.CINZA_TEXTO, dataLabelFormatCode: o.formato ?? "#,##0", valAxisHidden: true, valGridLine: { style: "none" },
+  } as any);
+}
+
+/** Rosca (ou pizza) com legenda à direita e o valor dentro de cada fatia. */
+export function graficoRosca(p: Pptx, s: Slide, x: number, y: number, w: number, h: number, nomes: string[], valores: number[], cores: string[], o: { pizza?: boolean; formato?: string } = {}) {
+  s.addChart(o.pizza ? p.ChartType.pie : p.ChartType.doughnut, [{ name: "Valor", labels: nomes, values: valores }], {
+    x, y, w, h, chartColors: cores.slice(0, Math.max(1, nomes.length)), holeSize: 50, showLegend: true, legendPos: "r", legendFontSize: 8, legendColor: COR.CINZA_TEXTO, legendFontFace: FONTE,
+    showValue: true, showPercent: false, showLabel: false, dataLabelColor: COR.BRANCO, dataLabelFontSize: 8, dataLabelFontBold: true, dataLabelFormatCode: o.formato ?? "#,##0", dataBorder: { pt: 1.5, color: COR.BRANCO },
+  } as any);
+}
+
+/** Funil de retângulos centralizados, largura proporcional ao valor. */
+export function funil(s: Slide, x: number, y: number, w: number, h: number, estagios: { nome: string; valor: number }[], cores: string[], fmt: (v: number) => string) {
+  if (!estagios.length) return;
+  const hf = h / estagios.length, max = Math.max(...estagios.map((e) => e.valor), 0) || 1, wMax = w * 0.96, wMin = w * 0.34;
+  estagios.forEach((e, i) => {
+    const wf = wMin + (wMax - wMin) * (e.valor / max), xf = x + (w - wf) / 2, yf = y + i * hf;
+    retangulo(s, xf, yf + 0.02, wf, hf - 0.05, { fill: cores[i % cores.length], arredondado: false });
+    texto(s, xf + 0.04, yf + 0.02, wf - 0.08, hf - 0.05, `${e.nome} · ${fmt(e.valor)}`, { tamanho: 8, negrito: true, cor: COR.BRANCO, alinhamento: "center", meio: true });
+  });
+}
+
+/** Etiqueta de status (pílula colorida, texto branco). */
+export function badge(s: Slide, x: number, y: number, w: number, h: number, t: string, cor: string) {
+  retangulo(s, x, y, w, h, { fill: cor, raio: 0.5 });
+  texto(s, x, y, w, h, t, { tamanho: 10.5, negrito: true, cor: COR.BRANCO, alinhamento: "center", meio: true });
 }
 
 /** Branco sobre cor escura, cinza escuro sobre cor clara. */

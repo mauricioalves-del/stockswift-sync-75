@@ -159,7 +159,7 @@ const mediaOutros = (d: DadosMbr, almox: string) => { const o = d.porAlmox.filte
 
 export function slideLoja(p: Pptx, mesLabel: string, pag: number, d: DadosMbr) {
   const s = novoSlide(p);
-  cabecalho(s, `Acompanhamento Individual — Loja (${ALMOX_LOJA})`, mesLabel, pag, "Evolução recente melhora, mas o resultado segue bem distante dos demais almoxarifados");
+  cabecalho(s, `Acompanhamento Individual — Loja (${ALMOX_LOJA})`, mesLabel, pag, "Evolução recente melhora, mas o resultado segue bem distante dos demais almoxarifados", "Atenção");
   const serie = d.evolucaoLoja, at = serie.at(-1), an = serie.at(-2), comp = d.porAlmox.find((c) => c.chave === ALMOX_LOJA);
   const item = comp ? comp.item : at?.item ?? null;
   const delta = at?.item != null && an?.item != null ? r2(at.item - an.item) : null;
@@ -193,7 +193,7 @@ export function slidePatio(p: Pptx, mesLabel: string, pag: number, d: DadosMbr) 
   const s = novoSlide(p);
   const serie = d.evolucaoPatio, primeiro = serie.length <= 1;
   const temMes = d.porAlmox.some((c) => c.chave === ALMOX_PATIO_PAULISTA);
-  cabecalho(s, `Acompanhamento Individual — ${ALMOX_PATIO_PAULISTA}`, mesLabel, pag, !temMes ? "Sem fechamento de inventário deste almoxarifado no mês" : primeiro ? "Primeiro inventário já realizado neste almoxarifado — resultado abaixo do ideal" : "Evolução do almoxarifado mês a mês nos três modelos de acurácia");
+  cabecalho(s, `Acompanhamento Individual — ${ALMOX_PATIO_PAULISTA}`, mesLabel, pag, !temMes ? "Sem fechamento de inventário deste almoxarifado no mês" : primeiro ? "Primeiro inventário já realizado neste almoxarifado — resultado abaixo do ideal" : "Evolução do almoxarifado mês a mês nos três modelos de acurácia", "Atenção");
   const at = serie.at(-1), an = serie.at(-2), comp = d.porAlmox.find((c) => c.chave === ALMOX_PATIO_PAULISTA);
   const item = comp ? comp.item : at?.item ?? null;
   const gapIap = comp?.iap != null && item != null ? r2(comp.iap - item) : null;
@@ -326,4 +326,6 @@ export function slideScorecardAlmox(p: Pptx, mesLabel: string, pag: number, d: D
     linhas.map((l): Celula[] => [{ t: l.frente, cor: COR.AZUL_INSTITUCIONAL, negrito: true }, { t: l.status.label, cor: l.status.cor, negrito: true }, l.leitura, l.passo]), { larguras: [1.6, 1, 3.6, 3.3], tamanho: tam });
 }
 
-export const ITENS_SECAO2 = ["Acurácia Ponderada (IAP)", "Acurácia Ponderada (IAQ)", "Acurácia Ponderada — Concentração de Risco", "Acurácia Ponderada — Detalhamento por Faixa", "Acompanhamento Individual — Loja", "Acompanhamento Individual — Pátio Paulista", "Inventário Item a Item", "Controle de Movimentados", "Scorecard de Inventário por Almoxarifado"];
+export const ITENS_SECAO2 = ["Acurácia Ponderada (IAP)", "Acurácia Ponderada (IAQ)", "Acurácia Ponderada — Concentração de Risco", "Acurácia Ponderada — Detalhamento por Faixa", "Inventário Item a Item", "Controle de Movimentados", "Scorecard de Inventário por Almoxarifado"];
+/** Ordem dos slides da Seção 2 no modelo final (Loja e Pátio, com o alerta "Atenção", fecham a seção). */
+export const SLIDES_SECAO2 = [slideIap, slideIaq, slideConcentracao, slideFaixas, slideItemAItem, slideMovimentados, slideScorecardAlmox, slideLoja, slidePatio];
