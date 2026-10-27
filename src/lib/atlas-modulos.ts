@@ -14,6 +14,7 @@ export const ATLAS_FASES: Record<number, string> = {
   3: "Operação: Painel, Divergências e Mapeamento de Passivos",
   4: "Inventário: Painel, Acurácia, Fechamento e Pós-Inventário",
   5: "Início: mapa de módulos, voz e assistente",
+  6: "MBR: relatório executivo mensal (.pptx)",
 };
 
 export const ATLAS_MODULOS: AtlasModulo[] = [
@@ -26,6 +27,7 @@ export const ATLAS_MODULOS: AtlasModulo[] = [
   { id: "acuracia-ponderada", nome: "Acurácia Ponderada", fase: 4, descricao: "Três modelos de acurácia (item a item, IAQ e IAP), concentração do valor divergente, tamanho das divergências e recorrentes de risco.", tabelas: ["fechamentos_inventario", "itens_fechamento", "produtos"], rota: "/atlas/acuracia-ponderada" },
   { id: "fechamento-inventario", nome: "Fechamento Inventário", fase: 4, descricao: "Importação do fechamento, itens, resumo de acurácia e as três ciências (Diretor de Operações, Coordenador Financeiro e Responsável pelo Departamento), com PDF.", tabelas: ["fechamentos_inventario", "itens_fechamento", "conciliacoes_ciencia", "fechamentos_stock_savvy"], rota: "/atlas/fechamento-inventario" },
   { id: "pos-inventario", nome: "Pós-Inventário", fase: 4, descricao: "Ações corretivas abertas a partir dos itens do fechamento, com checklist e prazo.", tabelas: ["acoes_pos_inventario", "itens_fechamento"], rota: "/atlas/pos-inventario" },
+  { id: "mbr", nome: "MBR", fase: 6, descricao: "Monthly Business Review em PowerPoint com a identidade visual do Atlas — Seção 2 (Inventários e Movimentados) já gerada; Seções 1, 3 e 4 em migração.", tabelas: ["fechamentos_inventario", "itens_fechamento", "produtos", "movimentacoes_historico", "divergencias", "resumos_movimentacao_mensal", "almoxarifados"], rota: "/atlas/mbr" },
   { id: "cadastros", nome: "Cadastros", fase: 2, descricao: "Produtos, almoxarifados, hipóteses e fornecedores do Atlas, unificados com os cadastros do Stock Savvy.", tabelas: ["produtos", "almoxarifados", "hipoteses", "fornecedores"], rota: "/atlas/cadastros" },
   { id: "auditoria", nome: "Auditoria", fase: 2, descricao: "Log de ações. Unificado com a Auditoria do Stock Savvy, que mostra também o histórico do Atlas.", tabelas: ["log_auditoria"], unificadoCom: { rota: "/logs", nome: "Auditoria" }, rota: "/logs" },
   { id: "usuarios", nome: "Usuários", fase: 2, descricao: "Login pelo Stock Savvy; cada usuário do Atlas é ligado a um usuário daqui, com o papel sugerido.", tabelas: ["usuarios"], unificadoCom: { rota: "/usuarios", nome: "Usuários" }, rota: "/usuarios" },
