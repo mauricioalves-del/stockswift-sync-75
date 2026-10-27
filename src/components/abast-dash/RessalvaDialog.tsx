@@ -47,13 +47,19 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
   });
   const bruto = useAbastBruto(true);
   const descricoesQ = useQuery({
-    queryKey: ["abast-extras-descricoes", "catalogo-estoque-v2"], staleTime: 30000,
+    queryKey: ["abast-extras-descricoes", "catalogo-estoque-v3"], staleTime: 30000,
     queryFn: async () => {
-      const [estoque, produtos] = await Promise.all([
-        fetchAll<{ id_produto: string; descricao: string | null }>((f, t) => sb.from("estoque_sistemico").select("id_produto, descricao").order("id_produto").order("origem").order("lote").range(f, t)),
-        fetchAll<{ id_produto: string; descricao: string | null }>((f, t) => sb.from("abast_produto").select("id_produto, descricao").order("id_produto").range(f, t)),
+      type Desc = { id_produto: string; descricao: string | null };
+      // Fontes secundárias: falha vira lista vazia sem bloquear o catálogo.
+      const secundaria = (p: Promise<Desc[]>) => p.catch(() => [] as Desc[]);
+      const [estoque, produtos, bom, atlas] = await Promise.all([
+        fetchAll<Desc>((f, t) => sb.from("estoque_sistemico").select("id_produto, descricao").order("id_produto").order("origem").order("lote").range(f, t)),
+        fetchAll<Desc>((f, t) => sb.from("abast_produto").select("id_produto, descricao").order("id_produto").range(f, t)),
+        secundaria(fetchAll<{ id_item: string; item: string | null }>((f, t) => sb.from("ficha_tecnica_bom").select("id_item, item").order("id").range(f, t)).then((r) => r.map((x) => ({ id_produto: x.id_item, descricao: x.item })))),
+        secundaria(fetchAll<{ sku: string; descricao: string | null }>((f, t) => sb.from("atlas_produtos").select("sku, descricao").order("sku").range(f, t)).then((r) => r.map((x) => ({ id_produto: x.sku, descricao: x.descricao })))),
       ]);
-      return { estoque, produtos };
+      // Prioridade crescente: o último nome válido prevalece (estoque nativo vence).
+      return { estoque: [...bom, ...atlas, ...estoque], produtos };
     },
   });
   const catalogo = useMemo(() => catalogoComInsumos(cat.data ?? [], bruto.data?.grupos ?? [], descricoesQ.data?.estoque ?? bruto.data?.estoque ?? [], descricoesQ.data?.produtos ?? []), [cat.data, bruto.data, descricoesQ.data]);
