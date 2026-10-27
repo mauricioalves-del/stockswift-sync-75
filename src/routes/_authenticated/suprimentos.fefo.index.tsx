@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { formatNum } from "@/lib/inventory";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid,
@@ -603,7 +605,10 @@ function ControleFefoPage() {
                 </TableCell></TableRow>
               )}
               {filtradas.slice(0, 500).map((r) => (
-                <TableRow key={r.id} className={r.quebra ? "bg-destructive/10 border-l-4 border-l-destructive" : undefined}>
+                <TableRow key={r.id}
+                  className={r.quebra ? "bg-destructive/10 border-l-4 border-l-destructive cursor-pointer" : r.status === STATUS_JUSTIFICADA ? "cursor-pointer" : undefined}
+                  title={r.quebra ? "Duplo clique para justificar a quebra" : r.justificativa ? `Justificativa: ${r.justificativa}` : undefined}
+                  onDoubleClick={() => { if (r.quebra || r.status === STATUS_JUSTIFICADA) { setJustAlvo(r); setJustMotivo(r.justificativa ?? ""); } }}>
                   <TableCell className={`text-xs whitespace-nowrap ${r.quebra ? "font-semibold text-destructive" : ""}`}>{r.data}</TableCell>
                   <TableCell className="text-xs max-w-64 truncate" title={`${r.id_produto} — ${r.descricao}`}>
                     <span className="font-mono">{r.id_produto}</span>{r.descricao ? ` — ${r.descricao}` : ""}
@@ -628,6 +633,7 @@ function ControleFefoPage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`text-[10px] ${statusTone(r.status)}`}>{r.status}</Badge>
+                    {r.justificativa && <div className="text-[10px] text-muted-foreground max-w-48 truncate mt-0.5">{r.justificativa}</div>}
                   </TableCell>
                 </TableRow>
               ))}
@@ -638,6 +644,25 @@ function ControleFefoPage() {
           )}
         </CardContent>
       </Card>
+      <Dialog open={!!justAlvo} onOpenChange={(o) => { if (!o) setJustAlvo(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Justificar quebra de FEFO</DialogTitle>
+            <DialogDescription>
+              {justAlvo ? `${justAlvo.id_produto} — ${justAlvo.descricao} · lote ${justAlvo.lote_movimentado} · ${justAlvo.data}` : ""}
+              . Ao salvar, o status passa a "Quebra justificada", indicando que não há problema na movimentação física.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea value={justMotivo} onChange={(e) => setJustMotivo(e.target.value)} rows={4}
+            placeholder="Descreva o motivo da quebra (ex.: lote mais antigo reservado para qualidade)" aria-label="Motivo da quebra" />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setJustAlvo(null)}>Cancelar</Button>
+            <Button onClick={salvarJustificativa} disabled={salvandoJust}>
+              {salvandoJust && <Loader2 className="size-4 animate-spin" />}Salvar justificativa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
