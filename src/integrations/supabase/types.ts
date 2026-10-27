@@ -3152,6 +3152,42 @@ export type Database = {
         }
         Relationships: []
       }
+      checagens_fefo_justificativas: {
+        Row: {
+          data: string
+          destino: string
+          doc: string
+          id: string
+          id_produto: string
+          justificado_em: string
+          justificado_por: string
+          lote_movimentado: string
+          motivo: string
+        }
+        Insert: {
+          data: string
+          destino?: string
+          doc?: string
+          id?: string
+          id_produto: string
+          justificado_em?: string
+          justificado_por?: string
+          lote_movimentado?: string
+          motivo: string
+        }
+        Update: {
+          data?: string
+          destino?: string
+          doc?: string
+          id?: string
+          id_produto?: string
+          justificado_em?: string
+          justificado_por?: string
+          lote_movimentado?: string
+          motivo?: string
+        }
+        Relationships: []
+      }
       checagens_fefo_lotes_snapshot: {
         Row: {
           checagem_id: string

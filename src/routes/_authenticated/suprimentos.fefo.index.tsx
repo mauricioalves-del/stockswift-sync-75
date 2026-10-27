@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { formatNum } from "@/lib/inventory";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid,
@@ -51,13 +53,20 @@ type Checagem = {
   lote_mais_antigo: string | null;
   qtd_lote_mais_antigo: number | null;
   validade_mais_antiga: string | null;
+  justificativa?: string;
+  justificado_em?: string;
 };
 
 const AUDITADO = (s: string) => s !== "Destino (não auditado)";
 const INCONCLUSIVO = (s: string) =>
   s.startsWith("Inconclusivo") || s.startsWith("Sem validade") || s === "Almox não mapeado";
 
+const STATUS_JUSTIFICADA = "QUEBRA JUSTIFICADA";
+const chaveJust = (r: { data: string; id_produto: string; doc?: string; lote_movimentado?: string; destino?: string }) =>
+  [r.data, r.id_produto, r.doc ?? "", r.lote_movimentado ?? "", r.destino ?? ""].join("|");
+
 function statusTone(s: string) {
+  if (s === STATUS_JUSTIFICADA) return "bg-sky-500/15 text-sky-700 border-sky-500/30";
   if (s.includes("QUEBRA")) return "bg-destructive/15 text-destructive border-destructive/30";
   if (s.startsWith("OK")) return "bg-emerald-500/15 text-emerald-600 border-emerald-500/30";
   if (INCONCLUSIVO(s)) return "bg-amber-500/15 text-amber-600 border-amber-500/30";
@@ -83,14 +92,49 @@ function ControleFefoPage() {
   const [status, setStatus] = useState("__all__");
   const [semEmbalagem, setSemEmbalagem] = useState(true);
   const [rodando, setRodando] = useState(false);
+  const [justAlvo, setJustAlvo] = useState<Checagem | null>(null);
+  const [justMotivo, setJustMotivo] = useState("");
+  const [salvandoJust, setSalvandoJust] = useState(false);
 
   const q = useQuery({
     queryKey: ["checagens-fefo"],
-    queryFn: async () =>
-      fetchAll<Checagem>((from, to) =>
-        (supabase as any).from("checagens_fefo").select("*").order("data", { ascending: false }).range(from, to),
-      ),
+    queryFn: async () => {
+      const [rows, justs] = await Promise.all([
+        fetchAll<Checagem>((from, to) =>
+          (supabase as any).from("checagens_fefo").select("*").order("data", { ascending: false }).range(from, to),
+        ),
+        fetchAll<any>((from, to) =>
+          (supabase as any).from("checagens_fefo_justificativas").select("*").range(from, to),
+        ),
+      ]);
+      const mapa = new Map<string, any>();
+      for (const j of justs) mapa.set(chaveJust(j), j);
+      return rows.map((r) => {
+        const j = r.quebra ? mapa.get(chaveJust(r)) : undefined;
+        return j
+          ? { ...r, quebra: false, status: STATUS_JUSTIFICADA, justificativa: j.motivo as string, justificado_em: j.justificado_em as string }
+          : r;
+      });
+    },
   });
+
+  async function salvarJustificativa() {
+    if (!justAlvo) return;
+    const motivo = justMotivo.trim();
+    if (motivo.length < 5) { toast.error("Descreva o motivo (mínimo 5 caracteres)."); return; }
+    setSalvandoJust(true);
+    const { data: u } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from("checagens_fefo_justificativas").upsert({
+      data: justAlvo.data, id_produto: justAlvo.id_produto, doc: justAlvo.doc ?? "",
+      lote_movimentado: justAlvo.lote_movimentado ?? "", destino: justAlvo.destino ?? "",
+      motivo, justificado_por: u.user?.id, justificado_em: new Date().toISOString(),
+    }, { onConflict: "data,id_produto,doc,lote_movimentado,destino" });
+    setSalvandoJust(false);
+    if (error) { toast.error("Não foi possível justificar: " + error.message); return; }
+    toast.success("Quebra justificada");
+    setJustAlvo(null); setJustMotivo("");
+    q.refetch();
+  }
 
   const gruposQ = useQuery({
     queryKey: ["grupos-catalogo-fefo"],
@@ -272,7 +316,7 @@ function ControleFefoPage() {
         lote_movimentado: r.lote_movimentado ?? "",
         lote_mais_antigo: r.lote_mais_antigo ?? "",
         status: r.status,
-        situacao: r.quebra ? "Quebra de FEFO" : r.status.startsWith("OK") ? "OK" : "Inconclusivo",
+        situacao: r.quebra ? "Quebra de FEFO" : r.status === STATUS_JUSTIFICADA ? "Quebra justificada" : r.status.startsWith("OK") ? "OK" : "Inconclusivo",
         qtd: Number(r.qtd_movimentado) || 0,
         quebra: !!r.quebra,
       })),
@@ -561,7 +605,10 @@ function ControleFefoPage() {
                 </TableCell></TableRow>
               )}
               {filtradas.slice(0, 500).map((r) => (
-                <TableRow key={r.id} className={r.quebra ? "bg-destructive/10 border-l-4 border-l-destructive" : undefined}>
+                <TableRow key={r.id}
+                  className={r.quebra ? "bg-destructive/10 border-l-4 border-l-destructive cursor-pointer" : r.status === STATUS_JUSTIFICADA ? "cursor-pointer" : undefined}
+                  title={r.quebra ? "Duplo clique para justificar a quebra" : r.justificativa ? `Justificativa: ${r.justificativa}` : undefined}
+                  onDoubleClick={() => { if (r.quebra || r.status === STATUS_JUSTIFICADA) { setJustAlvo(r); setJustMotivo(r.justificativa ?? ""); } }}>
                   <TableCell className={`text-xs whitespace-nowrap ${r.quebra ? "font-semibold text-destructive" : ""}`}>{r.data}</TableCell>
                   <TableCell className="text-xs max-w-64 truncate" title={`${r.id_produto} — ${r.descricao}`}>
                     <span className="font-mono">{r.id_produto}</span>{r.descricao ? ` — ${r.descricao}` : ""}
@@ -586,6 +633,7 @@ function ControleFefoPage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`text-[10px] ${statusTone(r.status)}`}>{r.status}</Badge>
+                    {r.justificativa && <div className="text-[10px] text-muted-foreground max-w-48 truncate mt-0.5">{r.justificativa}</div>}
                   </TableCell>
                 </TableRow>
               ))}
@@ -596,6 +644,25 @@ function ControleFefoPage() {
           )}
         </CardContent>
       </Card>
+      <Dialog open={!!justAlvo} onOpenChange={(o) => { if (!o) setJustAlvo(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Justificar quebra de FEFO</DialogTitle>
+            <DialogDescription>
+              {justAlvo ? `${justAlvo.id_produto} — ${justAlvo.descricao} · lote ${justAlvo.lote_movimentado} · ${justAlvo.data}` : ""}
+              . Ao salvar, o status passa a "Quebra justificada", indicando que não há problema na movimentação física.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea value={justMotivo} onChange={(e) => setJustMotivo(e.target.value)} rows={4}
+            placeholder="Descreva o motivo da quebra (ex.: lote mais antigo reservado para qualidade)" aria-label="Motivo da quebra" />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setJustAlvo(null)}>Cancelar</Button>
+            <Button onClick={salvarJustificativa} disabled={salvandoJust}>
+              {salvandoJust && <Loader2 className="size-4 animate-spin" />}Salvar justificativa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
