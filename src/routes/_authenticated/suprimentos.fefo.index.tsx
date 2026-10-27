@@ -316,7 +316,7 @@ function ControleFefoPage() {
         lote_movimentado: r.lote_movimentado ?? "",
         lote_mais_antigo: r.lote_mais_antigo ?? "",
         status: r.status,
-        situacao: r.quebra ? "Quebra de FEFO" : r.status.startsWith("OK") ? "OK" : "Inconclusivo",
+        situacao: r.quebra ? "Quebra de FEFO" : r.status === STATUS_JUSTIFICADA ? "Quebra justificada" : r.status.startsWith("OK") ? "OK" : "Inconclusivo",
         qtd: Number(r.qtd_movimentado) || 0,
         quebra: !!r.quebra,
       })),
