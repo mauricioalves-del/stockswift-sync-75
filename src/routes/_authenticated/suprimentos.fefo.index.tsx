@@ -51,13 +51,20 @@ type Checagem = {
   lote_mais_antigo: string | null;
   qtd_lote_mais_antigo: number | null;
   validade_mais_antiga: string | null;
+  justificativa?: string;
+  justificado_em?: string;
 };
 
 const AUDITADO = (s: string) => s !== "Destino (não auditado)";
 const INCONCLUSIVO = (s: string) =>
   s.startsWith("Inconclusivo") || s.startsWith("Sem validade") || s === "Almox não mapeado";
 
+const STATUS_JUSTIFICADA = "QUEBRA JUSTIFICADA";
+const chaveJust = (r: { data: string; id_produto: string; doc?: string; lote_movimentado?: string; destino?: string }) =>
+  [r.data, r.id_produto, r.doc ?? "", r.lote_movimentado ?? "", r.destino ?? ""].join("|");
+
 function statusTone(s: string) {
+  if (s === STATUS_JUSTIFICADA) return "bg-sky-500/15 text-sky-700 border-sky-500/30";
   if (s.includes("QUEBRA")) return "bg-destructive/15 text-destructive border-destructive/30";
   if (s.startsWith("OK")) return "bg-emerald-500/15 text-emerald-600 border-emerald-500/30";
   if (INCONCLUSIVO(s)) return "bg-amber-500/15 text-amber-600 border-amber-500/30";
@@ -83,14 +90,49 @@ function ControleFefoPage() {
   const [status, setStatus] = useState("__all__");
   const [semEmbalagem, setSemEmbalagem] = useState(true);
   const [rodando, setRodando] = useState(false);
+  const [justAlvo, setJustAlvo] = useState<Checagem | null>(null);
+  const [justMotivo, setJustMotivo] = useState("");
+  const [salvandoJust, setSalvandoJust] = useState(false);
 
   const q = useQuery({
     queryKey: ["checagens-fefo"],
-    queryFn: async () =>
-      fetchAll<Checagem>((from, to) =>
-        (supabase as any).from("checagens_fefo").select("*").order("data", { ascending: false }).range(from, to),
-      ),
+    queryFn: async () => {
+      const [rows, justs] = await Promise.all([
+        fetchAll<Checagem>((from, to) =>
+          (supabase as any).from("checagens_fefo").select("*").order("data", { ascending: false }).range(from, to),
+        ),
+        fetchAll<any>((from, to) =>
+          (supabase as any).from("checagens_fefo_justificativas").select("*").range(from, to),
+        ),
+      ]);
+      const mapa = new Map<string, any>();
+      for (const j of justs) mapa.set(chaveJust(j), j);
+      return rows.map((r) => {
+        const j = r.quebra ? mapa.get(chaveJust(r)) : undefined;
+        return j
+          ? { ...r, quebra: false, status: STATUS_JUSTIFICADA, justificativa: j.motivo as string, justificado_em: j.justificado_em as string }
+          : r;
+      });
+    },
   });
+
+  async function salvarJustificativa() {
+    if (!justAlvo) return;
+    const motivo = justMotivo.trim();
+    if (motivo.length < 5) { toast.error("Descreva o motivo (mínimo 5 caracteres)."); return; }
+    setSalvandoJust(true);
+    const { data: u } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from("checagens_fefo_justificativas").upsert({
+      data: justAlvo.data, id_produto: justAlvo.id_produto, doc: justAlvo.doc ?? "",
+      lote_movimentado: justAlvo.lote_movimentado ?? "", destino: justAlvo.destino ?? "",
+      motivo, justificado_por: u.user?.id, justificado_em: new Date().toISOString(),
+    }, { onConflict: "data,id_produto,doc,lote_movimentado,destino" });
+    setSalvandoJust(false);
+    if (error) { toast.error("Não foi possível justificar: " + error.message); return; }
+    toast.success("Quebra justificada");
+    setJustAlvo(null); setJustMotivo("");
+    q.refetch();
+  }
 
   const gruposQ = useQuery({
     queryKey: ["grupos-catalogo-fefo"],
