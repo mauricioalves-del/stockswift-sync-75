@@ -58,6 +58,7 @@ import { Route as AuthenticatedAtlasImportarRouteImport } from './routes/_authen
 import { Route as AuthenticatedAtlasImportarBackupRouteImport } from './routes/_authenticated/atlas.importar-backup'
 import { Route as AuthenticatedAtlasInicioRouteImport } from './routes/_authenticated/atlas.inicio'
 import { Route as AuthenticatedAtlasMapeamentoPassivosRouteImport } from './routes/_authenticated/atlas.mapeamento-passivos'
+import { Route as AuthenticatedAtlasMbrRouteImport } from './routes/_authenticated/atlas.mbr'
 import { Route as AuthenticatedAtlasPainelRouteImport } from './routes/_authenticated/atlas.painel'
 import { Route as AuthenticatedAtlasPainelInventarioRouteImport } from './routes/_authenticated/atlas.painel-inventario'
 import { Route as AuthenticatedAtlasPosInventarioRouteImport } from './routes/_authenticated/atlas.pos-inventario'
@@ -391,6 +392,11 @@ const AuthenticatedAtlasMapeamentoPassivosRoute =
     path: '/atlas/mapeamento-passivos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAtlasMbrRoute = AuthenticatedAtlasMbrRouteImport.update({
+  id: '/atlas/mbr',
+  path: '/atlas/mbr',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAtlasPainelRoute =
   AuthenticatedAtlasPainelRouteImport.update({
     id: '/atlas/painel',
@@ -782,6 +788,7 @@ export interface FileRoutesByFullPath {
   '/atlas/importar-backup': typeof AuthenticatedAtlasImportarBackupRoute
   '/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
   '/atlas/mapeamento-passivos': typeof AuthenticatedAtlasMapeamentoPassivosRoute
+  '/atlas/mbr': typeof AuthenticatedAtlasMbrRoute
   '/atlas/painel': typeof AuthenticatedAtlasPainelRoute
   '/atlas/painel-inventario': typeof AuthenticatedAtlasPainelInventarioRoute
   '/atlas/pos-inventario': typeof AuthenticatedAtlasPosInventarioRoute
@@ -889,6 +896,7 @@ export interface FileRoutesByTo {
   '/atlas/importar-backup': typeof AuthenticatedAtlasImportarBackupRoute
   '/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
   '/atlas/mapeamento-passivos': typeof AuthenticatedAtlasMapeamentoPassivosRoute
+  '/atlas/mbr': typeof AuthenticatedAtlasMbrRoute
   '/atlas/painel': typeof AuthenticatedAtlasPainelRoute
   '/atlas/painel-inventario': typeof AuthenticatedAtlasPainelInventarioRoute
   '/atlas/pos-inventario': typeof AuthenticatedAtlasPosInventarioRoute
@@ -998,6 +1006,7 @@ export interface FileRoutesById {
   '/_authenticated/atlas/importar-backup': typeof AuthenticatedAtlasImportarBackupRoute
   '/_authenticated/atlas/inicio': typeof AuthenticatedAtlasInicioRoute
   '/_authenticated/atlas/mapeamento-passivos': typeof AuthenticatedAtlasMapeamentoPassivosRoute
+  '/_authenticated/atlas/mbr': typeof AuthenticatedAtlasMbrRoute
   '/_authenticated/atlas/painel': typeof AuthenticatedAtlasPainelRoute
   '/_authenticated/atlas/painel-inventario': typeof AuthenticatedAtlasPainelInventarioRoute
   '/_authenticated/atlas/pos-inventario': typeof AuthenticatedAtlasPosInventarioRoute
@@ -1107,6 +1116,7 @@ export interface FileRouteTypes {
     | '/atlas/importar-backup'
     | '/atlas/inicio'
     | '/atlas/mapeamento-passivos'
+    | '/atlas/mbr'
     | '/atlas/painel'
     | '/atlas/painel-inventario'
     | '/atlas/pos-inventario'
@@ -1214,6 +1224,7 @@ export interface FileRouteTypes {
     | '/atlas/importar-backup'
     | '/atlas/inicio'
     | '/atlas/mapeamento-passivos'
+    | '/atlas/mbr'
     | '/atlas/painel'
     | '/atlas/painel-inventario'
     | '/atlas/pos-inventario'
@@ -1322,6 +1333,7 @@ export interface FileRouteTypes {
     | '/_authenticated/atlas/importar-backup'
     | '/_authenticated/atlas/inicio'
     | '/_authenticated/atlas/mapeamento-passivos'
+    | '/_authenticated/atlas/mbr'
     | '/_authenticated/atlas/painel'
     | '/_authenticated/atlas/painel-inventario'
     | '/_authenticated/atlas/pos-inventario'
@@ -1740,6 +1752,13 @@ declare module '@tanstack/react-router' {
       path: '/atlas/mapeamento-passivos'
       fullPath: '/atlas/mapeamento-passivos'
       preLoaderRoute: typeof AuthenticatedAtlasMapeamentoPassivosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/atlas/mbr': {
+      id: '/_authenticated/atlas/mbr'
+      path: '/atlas/mbr'
+      fullPath: '/atlas/mbr'
+      preLoaderRoute: typeof AuthenticatedAtlasMbrRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/atlas/painel': {
@@ -2205,6 +2224,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAtlasImportarBackupRoute: typeof AuthenticatedAtlasImportarBackupRoute
   AuthenticatedAtlasInicioRoute: typeof AuthenticatedAtlasInicioRoute
   AuthenticatedAtlasMapeamentoPassivosRoute: typeof AuthenticatedAtlasMapeamentoPassivosRoute
+  AuthenticatedAtlasMbrRoute: typeof AuthenticatedAtlasMbrRoute
   AuthenticatedAtlasPainelRoute: typeof AuthenticatedAtlasPainelRoute
   AuthenticatedAtlasPainelInventarioRoute: typeof AuthenticatedAtlasPainelInventarioRoute
   AuthenticatedAtlasPosInventarioRoute: typeof AuthenticatedAtlasPosInventarioRoute
@@ -2319,6 +2339,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAtlasInicioRoute: AuthenticatedAtlasInicioRoute,
   AuthenticatedAtlasMapeamentoPassivosRoute:
     AuthenticatedAtlasMapeamentoPassivosRoute,
+  AuthenticatedAtlasMbrRoute: AuthenticatedAtlasMbrRoute,
   AuthenticatedAtlasPainelRoute: AuthenticatedAtlasPainelRoute,
   AuthenticatedAtlasPainelInventarioRoute:
     AuthenticatedAtlasPainelInventarioRoute,
