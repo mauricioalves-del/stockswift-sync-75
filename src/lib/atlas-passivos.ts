@@ -17,7 +17,7 @@ export const CATEGORIAS = {
 } as const;
 type Cat = keyof typeof CATEGORIAS;
 
-const AJUSTE_PROCESSO = new Set(["Transferencia_Pendente", "Consumo_Parcial_OP", "Pendencia_Faturamento", "Erro_Operacional", "Erro_Cadastro", "Falha_Inventario", "Producao_Nao_Encerrada", "Ajuste_Manual_Incorreto", "Movimentacao_Duplicada", "Conversao_Unidade_Incorreta", "Erro_Fiscal", "Divergencia_Ficha_Tecnica", "Pedido_Compra_Pendente", "Sem_Divergencia_Real"]);
+export const AJUSTE_PROCESSO = new Set(["Transferencia_Pendente", "Consumo_Parcial_OP", "Pendencia_Faturamento", "Erro_Operacional", "Erro_Cadastro", "Falha_Inventario", "Producao_Nao_Encerrada", "Ajuste_Manual_Incorreto", "Movimentacao_Duplicada", "Conversao_Unidade_Incorreta", "Erro_Fiscal", "Divergencia_Ficha_Tecnica", "Pedido_Compra_Pendente", "Sem_Divergencia_Real"]);
 const PERDA_REAL = new Set(["Avaria_Perda", "Perda_Nao_Identificada"]);
 const TOP_MOTIVOS = 6;
 const r2 = (n: number) => Math.round(n * 100) / 100;
