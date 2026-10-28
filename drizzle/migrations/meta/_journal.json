@@ -288,6 +288,13 @@
       "when": 1793112762171,
       "tag": "0040_pre_inventario",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793198220057,
+      "tag": "0041_pre_inventario_pendencias_pos_inventario",
+      "breakpoints": true
     }
   ]
 }
