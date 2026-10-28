@@ -1,9 +1,9 @@
 # Correção de grupos das Baixas Operacionais
 
 ## Pré-inventário: quatro ajustes solicitados
-- [ ] Novo item com etapa, obrigatoriedade, bloqueio de duplicadas, ordem máxima e histórico; remoção confirmada com histórico, apenas gestor em AGENDADO.
-- [ ] Acrescentar os dois itens padrão e atualizar exclusivamente a função de pendências, incluindo ações pós-inventário.
-- [ ] Rodar regressões e verificar a tela autenticada; preservar políticas Atlas conforme decisão anterior.
+- [x] Novo item com etapa, obrigatoriedade, bloqueio de duplicadas, ordem máxima e histórico; remoção confirmada com histórico, apenas gestor em AGENDADO.
+- [x] Acrescentar os dois itens padrão e atualizar exclusivamente a função de pendências, incluindo ações pós-inventário.
+- [x] Onze testes passaram; tela autenticada confirmou padrões, duplicadas, etapas, confirmação de remoção e quinta pendência sem erros. Inclusão/remoção persistidas não exercitadas para não alterar o checklist real; políticas Atlas preservadas conforme decisão anterior.
 
 ## Pedidos: descrição e estoque nos extras
 - [x] Corrigir prioridade da descrição registrada e fallback do estoque nativo, inclusive catálogo que repete SKU, espaços e nomes vazios; 13 testes passaram e pedido 30 autenticado mostrou descrição e 1.000 disponíveis sem erros.
