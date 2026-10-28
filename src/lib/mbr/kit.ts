@@ -127,10 +127,13 @@ export function graficoColunas(p: Pptx, s: Slide, x: number, y: number, w: numbe
 
 /** Colunas agrupadas com várias séries e legenda embaixo. */
 export function graficoMulti(p: Pptx, s: Slide, x: number, y: number, w: number, h: number, cats: string[], series: { nome: string; valores: Pts; cor: string }[], o: { formato?: string; rotulos?: boolean } = {}) {
+  const f = o.formato ?? "#,##0", pct = /%/.test(f);
   s.addChart(p.ChartType.bar, series.map((v) => ({ name: v.nome, labels: cats, values: v.valores as number[] })), {
     x, y, w, h, ...eixos(10), chartColors: series.map((v) => v.cor), barGapWidthPct: 150,
     showLegend: true, legendPos: "b", legendFontSize: 10, legendColor: COR.CINZA_TEXTO, legendFontFace: FONTE,
-    showValue: o.rotulos ?? true, dataLabelFontSize: 9, dataLabelColor: COR.CINZA_TEXTO, dataLabelFormatCode: o.formato ?? "#,##0",
+    // rótulo vazio para zero (3ª seção do formato) — evita a fileira de "R$ 0" sobreposta em meses sem movimento
+    showValue: o.rotulos ?? true, dataLabelFontSize: 9, dataLabelColor: COR.CINZA_TEXTO, dataLabelFormatCode: `${f};-${f};`,
+    valAxisLabelFormatCode: f, ...(pct ? { valAxisMinVal: 0, valAxisMaxVal: 100 } : {}),
   } as any);
 }
 

@@ -200,10 +200,12 @@ export function slidePatio(p: Pptx, mesLabel: string, pag: number, d: DadosMbr) 
   const media = mediaOutros(d, ALMOX_PATIO_PAULISTA), dist = media != null && item != null ? r2(media - item) : null;
   const delta = at?.item != null && an?.item != null ? r2(at.item - an.item) : null;
   linhaKpis(s, 1.55, [
-    { valor: fmtPct(item), rotulo: primeiro && temMes ? "Item a item (1º inventário)" : "Item a item (mês)", cor: statusMaiorMelhor(item).cor },
+    { valor: fmtPct(item), rotulo: !temMes ? (at ? `Item a item (último: ${rotuloMes(at.mes)})` : "Item a item (mês)") : primeiro ? "Item a item (1º inventário)" : "Item a item (mês)", cor: statusMaiorMelhor(item).cor },
     { valor: comp ? fmtPct(comp.iaq) : "—", rotulo: "IAQ (quantidade)" },
     { valor: comp ? fmtPct(comp.iap) : "—", rotulo: "IAP (valor)" },
-    primeiro
+    !temMes
+      ? { valor: "—", rotulo: "Distância da média dos demais", contexto: "Sem fechamento no mês", corContexto: COR.ATENCAO }
+      : primeiro
       ? { valor: dist != null ? fmtPct(Math.abs(dist)) : "—", rotulo: "Distância da média dos demais", cor: COR.ERRO, contexto: (dist ?? 0) > 0 ? "Pior resultado do mês" : null, corContexto: COR.ERRO }
       : { valor: pctMom(delta), rotulo: "Variação vs. inventário anterior", cor: (delta ?? 0) >= 0 ? COR.SUCESSO : COR.ERRO, contexto: dist != null ? `${fmtPct(Math.abs(dist))} ${dist > 0 ? "abaixo" : "acima"} da média dos demais` : null, corContexto: COR.ATENCAO },
   ], 0.68);
