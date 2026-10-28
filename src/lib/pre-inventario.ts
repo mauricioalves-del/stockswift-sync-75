@@ -16,6 +16,11 @@ export type ItemChecklist = {
 };
 export type Pendencia = { tipo: string; rotulo: string; quantidade: number; valor: number; rota: string };
 
+export const podeGerenciarItens = (gestor: boolean, status: StatusInventario) => gestor && status === "AGENDADO";
+export const descricaoDuplicada = (itens: Pick<ItemChecklist, "descricao">[], descricao: string) =>
+  itens.some((i) => i.descricao.trim().toLocaleLowerCase("pt-BR") === descricao.trim().toLocaleLowerCase("pt-BR"));
+export const proximaOrdem = (itens: Pick<ItemChecklist, "ordem">[]) => Math.max(0, ...itens.map((i) => i.ordem)) + 1;
+
 const DIA = 86_400_000;
 const utc = (iso: string) => { const [a, m, d] = iso.slice(0, 10).split("-").map(Number); return Date.UTC(a, m - 1, d); };
 export const isoHoje = (agora = new Date()) => `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}-${String(agora.getDate()).padStart(2, "0")}`;
@@ -79,6 +84,8 @@ export const CHECKLIST_PADRAO: { etapa: string; descricao: string; obrigatorio: 
   { etapa: "Documentos e sistema", descricao: "Transferências entre almoxarifados conferidas e recebidas (nada em trânsito)", obrigatorio: true },
   { etapa: "Documentos e sistema", descricao: "Consumos de OP e requisições atendidas apontados no sistema", obrigatorio: true },
   { etapa: "Documentos e sistema", descricao: "Baixas operacionais do período lançadas e executadas", obrigatorio: true },
+  { etapa: "Documentos e sistema", descricao: "Lotes vencidos ou bloqueados baixados/bloqueados no sistema (shelf life atualizado)", obrigatorio: true },
+  { etapa: "Documentos e sistema", descricao: "Ações pós-inventário do último inventário concluídas ou justificadas", obrigatorio: false },
   { etapa: "Contagem", descricao: "Corte de movimentação comunicado (data/hora em que o almoxarifado para de movimentar)", obrigatorio: true },
   { etapa: "Contagem", descricao: "Equipe de contagem e duplas definidas", obrigatorio: true },
   { etapa: "Contagem", descricao: "Base de estoque sistêmico atualizada para gerar as listas de contagem", obrigatorio: true },
