@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import JSZip from "jszip";
 import { fmtMoeda, fmtNum, fmtPct, pontosTendencia, statusEvolucao, tendenciaLinear } from "../src/lib/mbr/formato";
 import { coletarDados, evolucaoMovimentados, prejuizoPorAlmox } from "../src/lib/mbr/dados";
 import { linhaScorecardAlmox } from "../src/lib/mbr/secao2";
@@ -56,6 +57,20 @@ test("Gera o .pptx da Seção 2 com dados mínimos", async () => {
   expect((pptx as any).slides.length).toBe(31); // sem fontes da Seção 3/4: cada slide sai com o aviso de indisponível
   const buf = (await pptx.write({ outputType: "nodebuffer" })) as Buffer;
   expect(buf.length).toBeGreaterThan(10000);
+  // PowerPoint pede "Reparar" quando o rótulo de dados usa uma posição que o tipo de gráfico não aceita (ex.: inEnd em linha)
+  const zip = await JSZip.loadAsync(buf), aceitas: Record<string, string[]> = { lineChart: ["t", "b", "l", "r", "ctr"], barChart: ["ctr", "inBase", "inEnd", "outEnd"], pieChart: ["bestFit", "ctr", "inEnd", "outEnd"] };
+  const graficos = Object.keys(zip.files).filter((f) => /^ppt\/charts\/chart\d+\.xml$/.test(f));
+  expect(graficos.length).toBeGreaterThan(0);
+  for (const f of graficos) {
+    const xml = await zip.file(f)!.async("string");
+    for (const [, tipo, corpo] of xml.matchAll(/<c:(\w+Chart)>([\s\S]*?)<\/c:\1>/g)) {
+      const empilhado = /<c:grouping val="\w*[sS]tacked"/.test(corpo);
+      for (const [, pos] of corpo.matchAll(/<c:dLblPos val="(\w+)"/g)) {
+        const ok = (aceitas[tipo] ?? []).filter((x) => !(empilhado && x === "outEnd"));
+        expect(`${f} ${tipo} ${pos}: ${ok.includes(pos)}`).toBe(`${f} ${tipo} ${pos}: true`);
+      }
+    }
+  }
 });
 
 const bx = (o: Partial<any>) => ({ id: Math.random().toString(), codigo_produto: "S1", descricao: "Produto", id_local: "Alm_A", motivo_baixa_id: "venc", contexto_baixa: null, valor_total: 10, quantidade: 1, custo_unitario: null, lote: null, data_solicitacao: "2026-09-10T12:00:00+00:00", data_ocorrencia: null, status_fluxo: "APROVADA", categoria: null, ...o });
