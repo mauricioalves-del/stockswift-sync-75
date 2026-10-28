@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowUpRight, CalendarClock, CheckCircle2, ClipboardCheck, History, Loader2, Lock, Plus, RotateCcw, ShieldCheck, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, CalendarClock, CheckCircle2, ClipboardCheck, History, Loader2, Lock, Plus, RotateCcw, ShieldCheck, Trash2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
 import { useUsuariosSistema } from "@/hooks/useUsuariosSistema";
@@ -16,13 +16,20 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  CHECKLIST_PADRAO, FASES, aberturaPreparacao, bloqueiosLiberacao, diasEntre, faseDe, fmtData, isoHoje, progresso, somaDias, totalPendencias,
+  CHECKLIST_PADRAO, FASES, aberturaPreparacao, bloqueiosLiberacao, descricaoDuplicada, diasEntre, faseDe, fmtData, isoHoje, podeGerenciarItens, progresso, proximaOrdem, somaDias, totalPendencias,
   type InventarioAgendado, type ItemChecklist, type Pendencia,
 } from "@/lib/pre-inventario";
 
 export const Route = createFileRoute("/_authenticated/gestao/pre-inventario")({
   component: PreInventarioPage,
-  head: () => ({ meta: [{ title: "Pré-inventário" }] }),
+  head: () => ({ meta: [
+    { title: "Pré-inventário | Stock Savvy" },
+    { name: "description", content: "Preparação, checklist e pendências dos inventários agendados no Stock Savvy." },
+    { property: "og:title", content: "Pré-inventário | Stock Savvy" },
+    { property: "og:description", content: "Preparação, checklist e pendências dos inventários agendados no Stock Savvy." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
 });
 
 const sb = supabase as any;
@@ -136,9 +143,13 @@ function Detalhe({ inv, itens, gestor, hoje, onMudou }: { inv: InventarioAgendad
   const [obs, setObs] = useState("");
   const [salvando, setSalvando] = useState<string | null>(null);
   const [novoItem, setNovoItem] = useState("");
+  const [novaEtapa, setNovaEtapa] = useState("Itens adicionais");
+  const [novoObrigatorio, setNovoObrigatorio] = useState(true);
+  const [alterandoItens, setAlterandoItens] = useState(false);
 
   const responsavel = !!uidQ.data && inv.responsavel_id === uidQ.data;
   const editavel = inv.status === "AGENDADO" && (gestor || responsavel);
+  const gerenciarItens = podeGerenciarItens(gestor, inv.status);
   const fase = faseDe(inv, hoje);
   const p = progresso(itens);
   const pend = pendQ.data ?? [];
@@ -157,10 +168,39 @@ function Detalhe({ inv, itens, gestor, hoje, onMudou }: { inv: InventarioAgendad
     onMudou();
   }
   async function adicionarItem() {
-    if (!novoItem.trim()) return;
-    const { error } = await sb.from("pre_inventario_itens").insert({ inventario_id: inv.id, ordem: (itens.at(-1)?.ordem ?? 0) + 1, etapa: "Itens adicionais", descricao: novoItem.trim(), obrigatorio: true });
-    if (error) return toast.error(error.message);
-    setNovoItem(""); onMudou();
+    const descricao = novoItem.trim();
+    if (!gerenciarItens || alterandoItens || !descricao) return;
+    if (descricaoDuplicada(itens, descricao)) return toast.error("Já existe um item com essa descrição no checklist.");
+    if (!meuNomeQ.data) return toast.error("Aguarde a identificação do usuário para registrar o histórico.");
+    setAlterandoItens(true);
+    try {
+      const { error } = await sb.from("pre_inventario_itens").insert({ inventario_id: inv.id, ordem: proximaOrdem(itens), etapa: novaEtapa, descricao, obrigatorio: novoObrigatorio });
+      if (error) throw error;
+      setNovoItem(""); setNovaEtapa("Itens adicionais"); setNovoObrigatorio(true);
+      await registrarItem("ITEM_ADICIONADO", descricao);
+      toast.success("Item adicionado ao checklist.");
+    } catch (e: any) { toast.error(e?.message ?? "Não consegui adicionar o item."); }
+    finally { await onMudou(); setAlterandoItens(false); }
+  }
+  async function registrarItem(evento: "ITEM_ADICIONADO" | "ITEM_REMOVIDO", descricao: string) {
+    const { data, error } = await sb.from("inventarios_agendados").select("historico").eq("id", inv.id).single();
+    if (error) throw new Error("Item alterado, mas não consegui consultar o histórico: " + error.message);
+    const historico = [...(data.historico ?? []), { evento, em: new Date().toISOString(), por: meuNomeQ.data, obs: descricao }];
+    const { error: e2 } = await sb.from("inventarios_agendados").update({ historico }).eq("id", inv.id);
+    if (e2) throw new Error("Item alterado, mas não consegui registrar o histórico: " + e2.message);
+  }
+  async function removerItem(i: ItemChecklist) {
+    if (!gerenciarItens || alterandoItens) return;
+    if (!meuNomeQ.data) return toast.error("Aguarde a identificação do usuário para registrar o histórico.");
+    if (!confirm(`Remover o item “${i.descricao}” (ID: ${i.id})?${i.obrigatorio ? "\nEste item é obrigatório para liberar o inventário." : ""}`)) return;
+    setAlterandoItens(true);
+    try {
+      const { error } = await sb.from("pre_inventario_itens").delete().eq("id", i.id).eq("inventario_id", inv.id);
+      if (error) throw error;
+      await registrarItem("ITEM_REMOVIDO", i.descricao);
+      toast.success("Item removido do checklist.");
+    } catch (e: any) { toast.error(e?.message ?? "Não consegui remover o item."); }
+    finally { await onMudou(); setAlterandoItens(false); }
   }
   async function rpc(nome: string, args: Record<string, unknown>, ok: string) {
     setSalvando(nome);
@@ -217,13 +257,24 @@ function Detalhe({ inv, itens, gestor, hoje, onMudou }: { inv: InventarioAgendad
                       <div className={`text-sm ${i.concluido ? "text-muted-foreground line-through" : ""}`}>{i.descricao}{i.obrigatorio && <span className="ml-1 text-destructive" title="Obrigatório para liberar">*</span>}</div>
                       {i.concluido && <div className="text-[11px] text-muted-foreground">{i.concluido_nome ?? "—"} · {quando(i.concluido_em)}</div>}
                     </div>
+                    {gerenciarItens && <Button variant="ghost" size="icon" className="size-7 shrink-0 text-destructive" disabled={alterandoItens} onClick={() => removerItem(i)} title={`Remover item: ${i.descricao}`} aria-label={`Remover item: ${i.descricao}`}><Trash2 className="size-4" /></Button>}
                   </li>
                 ))}
               </ul>
             </div>
           ))}
-          {gestor && inv.status === "AGENDADO" && (
-            <div className="flex gap-2"><Input value={novoItem} onChange={(e) => setNovoItem(e.target.value)} onKeyDown={(e) => e.key === "Enter" && adicionarItem()} placeholder="Adicionar item obrigatório…" /><Button variant="outline" onClick={adicionarItem} disabled={!novoItem.trim()}><Plus className="size-4" /></Button></div>
+          {gerenciarItens && (
+            <div className="space-y-3 border-t pt-3">
+              <h4 className="text-sm font-semibold">Novo item</h4>
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,14rem)]">
+                <div className="space-y-1"><Label htmlFor="novo-item-descricao">Descrição</Label><Input id="novo-item-descricao" value={novoItem} onChange={(e) => setNovoItem(e.target.value)} placeholder="Descrição do item" disabled={alterandoItens} /></div>
+                <div className="space-y-1"><Label htmlFor="novo-item-etapa">Etapa</Label><Select value={novaEtapa} onValueChange={setNovaEtapa} disabled={alterandoItens}><SelectTrigger id="novo-item-etapa"><SelectValue /></SelectTrigger><SelectContent>{[...new Set([...etapas.map(([etapa]) => etapa), "Itens adicionais"])].map((etapa) => <SelectItem key={etapa} value={etapa}>{etapa}</SelectItem>)}</SelectContent></Select></div>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <label className="flex items-center gap-2 text-sm"><Checkbox checked={novoObrigatorio} onCheckedChange={(v) => setNovoObrigatorio(v === true)} disabled={alterandoItens} />Obrigatório para liberar</label>
+                <Button variant="outline" onClick={adicionarItem} disabled={!novoItem.trim() || alterandoItens || !meuNomeQ.data} className="gap-2">{alterandoItens ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}Adicionar</Button>
+              </div>
+            </div>
           )}
           {!editavel && inv.status === "AGENDADO" && <p className="flex items-center gap-1 text-xs text-muted-foreground"><Lock className="size-3.5" /> Só o responsável ou um gestor marca o checklist.</p>}
         </CardContent>

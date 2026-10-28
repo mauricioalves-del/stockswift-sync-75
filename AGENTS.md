@@ -21,3 +21,4 @@
 - Daily rupture drill-down loads the selected SKUs' full snapshot history on demand; resolution dates come from snapshots, while live stock changes only displayed status, never historical photos.
 - Atlas panels use shared chart presentation with Atlas-specific semantic palette tokens and existing computed datasets, keeping reference chart formatting independent of business calculations.
 - Atlas accuracy forecasts use least-squares regression over all valid filtered daily observations with calendar-day distances and five calendar-day predictions bounded to 0–100%, keeping observed data unchanged and showing insufficient history without invented estimates.
+- Pre-inventory pending counts come from the existing database function and are regression-checked against authenticated operational reads, keeping checklist preparation separate from operational records.
