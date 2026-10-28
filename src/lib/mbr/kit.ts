@@ -120,7 +120,7 @@ export function graficoColunas(p: Pptx, s: Slide, x: number, y: number, w: numbe
   const base = { x, y, w, h, ...eixos(10), showLegend: false, showValue: true, dataLabelFontSize: o.rotuloDentro ? 9 : 10, dataLabelColor: o.rotuloDentro ? contraste : COR.CINZA_TEXTO, dataLabelFormatCode: o.formato ?? '0"%"', dataLabelPosition: o.rotuloDentro ? "inEnd" : "outEnd" } as any;
   if (o.tendencia) {
     const ct = o.corTendencia ?? COR.SUCESSO;
-    const linha = { type: p.ChartType.line, data: [{ name: "Tendência linear", labels: cats, values: o.tendencia as number[] }], options: { chartColors: [ct], lineSize: 1.4, lineDash: "dash", lineDataSymbol: "circle", lineDataSymbolSize: 5, lineDataSymbolLineColor: COR.BRANCO, showValue: false } };
+    const linha = { type: p.ChartType.line, data: [{ name: "Tendência linear", labels: cats, values: o.tendencia as number[] }], options: { chartColors: [ct], lineSize: 1.4, lineDash: "dash", lineDataSymbol: "circle", lineDataSymbolSize: 5, lineDataSymbolLineColor: COR.BRANCO, showValue: false, dataLabelPosition: "t" } };
     s.addChart([barra, linha] as any, { ...base, valAxes: [{ showValAxisTitle: false }], catAxes: [{ catAxisTitle: "" }] } as any);
   } else s.addChart(p.ChartType.bar, barra.data, { ...base, ...barra.options } as any);
 }
