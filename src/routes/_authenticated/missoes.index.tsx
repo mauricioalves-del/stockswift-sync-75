@@ -177,7 +177,7 @@ function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
                 <TableCell><Badge variant="outline" className="text-[10px]">{m.tipo}</Badge></TableCell>
                 <TableCell className="text-xs">{[m.grupo, m.familia].filter(Boolean).join(" / ") || "—"}</TableCell>
                 <TableCell className="text-xs">{m.origem || "—"}</TableCell>
-                <TableCell className="text-xs">{m.data_execucao ? new Date(m.data_execucao).toLocaleDateString("pt-BR") : "—"}</TableCell>
+                <TableCell className="text-xs">{m.data_execucao ? m.data_execucao.slice(0, 10).split("-").reverse().join("/") : "—"}</TableCell>
                 <TableCell><Badge className="text-[10px]">{m.status}</Badge></TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
