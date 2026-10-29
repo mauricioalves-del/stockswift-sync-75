@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CalendarClock, ClipboardCheck, Gauge, Loader2, Plus, Target, Trash2 } from "lucide-react";
-import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -175,17 +175,24 @@ function IndicadorInventarioPage() {
           </div>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Aderência acumulada no mês</CardTitle><CardDescription>Missões programadas até cada dia, comparadas à meta.</CardDescription></CardHeader>
-            <CardContent className="h-64">
-              {r.serie.some((s) => s.acumulada !== null) ? (
+            <CardHeader><CardTitle className="text-base">Aderência e acuracidade acumuladas no mês</CardTitle><CardDescription>Missões programadas e itens contados até cada dia, comparados às metas.</CardDescription></CardHeader>
+            <CardContent className="h-72">
+              {r.serie.some((s) => s.acumulada !== null || s.acuracidade !== null) ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={r.serie.map((s) => ({ dia: s.data.slice(8), v: s.acumulada === null ? null : +(s.acumulada * 100).toFixed(1) }))}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="dia" fontSize={11} />
-                    <YAxis domain={[0, 100]} fontSize={11} tickFormatter={(v) => `${v}%`} />
-                    <Tooltip formatter={(v: number) => [`${String(v).replace(".", ",")}%`, "Aderência"]} labelFormatter={(d) => `Dia ${d}`} />
-                    <ReferenceLine y={META_ADERENCIA * 100} stroke="#dc2626" strokeDasharray="4 4" label={{ value: "Meta", fontSize: 11, position: "insideTopRight" }} />
-                    <Line type="monotone" dataKey="v" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} connectNulls />
+                  <LineChart data={r.serie.map((s) => ({
+                    dia: s.data.slice(8),
+                    "Aderência": s.acumulada === null ? null : +(s.acumulada * 100).toFixed(1),
+                    "Acuracidade": s.acuracidade === null ? null : +(s.acuracidade * 100).toFixed(1),
+                  }))} margin={{ top: 12, right: 16, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="dia" tick={{ fontSize: 11 }} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
+                    <Tooltip formatter={(v: number, nome: string) => [`${String(v).replace(".", ",")}%`, nome]} labelFormatter={(d) => `Dia ${d}`} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <ReferenceLine y={META_ADERENCIA * 100} stroke="#0f766e" strokeDasharray="4 4" label={{ value: `Meta aderência ${META_ADERENCIA * 100}%`, fontSize: 10, fill: "#0f766e", position: "insideBottomRight" }} />
+                    <ReferenceLine y={META_ACURACIDADE * 100} stroke="#d97706" strokeDasharray="4 4" label={{ value: `Meta acuracidade ${META_ACURACIDADE * 100}%`, fontSize: 10, fill: "#d97706", position: "insideTopRight" }} />
+                    <Line type="monotone" dataKey="Aderência" stroke="#0f766e" strokeWidth={2.5} dot={{ r: 2 }} connectNulls />
+                    <Line type="monotone" dataKey="Acuracidade" stroke="#d97706" strokeWidth={2.5} dot={{ r: 2 }} connectNulls />
                   </LineChart>
                 </ResponsiveContainer>
               ) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Sem missões vencidas neste mês.</div>}
