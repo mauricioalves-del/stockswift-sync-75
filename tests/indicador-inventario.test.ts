@@ -43,3 +43,29 @@ test("Ação vencida só quando aberta e com prazo passado", () => {
   expect(acaoVencida({ ...base, prazo: "2026-10-01", status: "ABERTA" }, "2026-10-29")).toBe(true);
   expect(acaoVencida({ ...base, prazo: "2026-10-01", status: "CONCLUIDA" }, "2026-10-29")).toBe(false);
 });
+
+import { acuracidadeContagem, itemDivergente } from "../src/lib/indicador-inventario";
+
+test("Divergência pela quantidade, mesmo com status OK", () => {
+  expect(itemDivergente({ missao_id: "a", status_item: "OK", observacao: null, quantidade_prevista: 122, quantidade_contada: 128 })).toBe(true);
+  expect(itemDivergente({ missao_id: "a", status_item: "DIVERGENTE", observacao: null, quantidade_prevista: 10, quantidade_contada: 10 })).toBe(false);
+  expect(itemDivergente({ missao_id: "a", status_item: "DIVERGENTE", observacao: null })).toBe(true);
+});
+
+test("IAQ, IAP e impacto contábil por dia", () => {
+  const ms = [M("a", "2026-10-05", "CONCLUIDA", null), M("b", "2026-10-06", "CONCLUIDA", null)];
+  const it = (missao_id: string, sku: string, p: number, c: number, status = "OK") =>
+    ({ missao_id, status_item: status, observacao: null, codigo_produto: sku, quantidade_prevista: p, quantidade_contada: c });
+  const itens = [it("a", "001", 100, 90, "DIVERGENCIA_NEGATIVA"), it("a", "002", 50, 50), it("b", "003", 10, 12, "DIVERGENCIA_POSITIVA")];
+  const custos = new Map([["001", 2], ["002", 4]]); // 003 sem custo
+  const r = acuracidadeContagem(ms, itens, custos, "2026-10");
+  expect(r.dias.map((d) => d.data)).toEqual(["2026-10-05", "2026-10-06"]);
+  const d5 = r.dias[0];
+  expect(d5.item).toBe(0.5);
+  expect(d5.iaq).toBeCloseTo(1 - 10 / 150);
+  expect(d5.iap).toBeCloseTo(1 - 20 / (200 + 200));
+  expect([d5.falta, d5.sobra, d5.liquido]).toEqual([20, 0, -20]);
+  expect(r.mes.cobertura).toBeCloseTo(2 / 3);
+  expect(r.divergencias.map((l) => [l.sku, l.impacto])).toEqual([["001", -20], ["003", null]]);
+  expect(r.divergencias[0].acuracidadeItem).toBeCloseTo(0.9);
+});
