@@ -77,6 +77,7 @@ import { Route as AuthenticatedGestaoModelosChecklistRouteImport } from './route
 import { Route as AuthenticatedGestaoPlanejamentoRouteImport } from './routes/_authenticated/gestao.planejamento'
 import { Route as AuthenticatedGestaoPlanoIntegracaoRouteImport } from './routes/_authenticated/gestao.plano-integracao'
 import { Route as AuthenticatedGestaoPreInventarioRouteImport } from './routes/_authenticated/gestao.pre-inventario'
+import { Route as AuthenticatedGestaoIndicadorInventarioRouteImport } from './routes/_authenticated/gestao.indicador-inventario'
 import { Route as AuthenticatedMissoesIndexRouteImport } from './routes/_authenticated/missoes.index'
 import { Route as AuthenticatedMissoesIdRouteImport } from './routes/_authenticated/missoes.$id'
 import { Route as AuthenticatedObsoletosAcoesRouteImport } from './routes/_authenticated/obsoletos.acoes'
@@ -505,6 +506,12 @@ const AuthenticatedGestaoPreInventarioRoute =
     path: '/gestao/pre-inventario',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedGestaoIndicadorInventarioRoute =
+  AuthenticatedGestaoIndicadorInventarioRouteImport.update({
+    id: '/gestao/indicador-inventario',
+    path: '/gestao/indicador-inventario',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMissoesIndexRoute =
   AuthenticatedMissoesIndexRouteImport.update({
     id: '/missoes/',
@@ -805,6 +812,7 @@ export interface FileRoutesByFullPath {
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/gestao/plano-integracao': typeof AuthenticatedGestaoPlanoIntegracaoRoute
   '/gestao/pre-inventario': typeof AuthenticatedGestaoPreInventarioRoute
+  '/gestao/indicador-inventario': typeof AuthenticatedGestaoIndicadorInventarioRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/obsoletos/acoes': typeof AuthenticatedObsoletosAcoesRoute
   '/obsoletos/dashboard': typeof AuthenticatedObsoletosDashboardRoute
@@ -913,6 +921,7 @@ export interface FileRoutesByTo {
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/gestao/plano-integracao': typeof AuthenticatedGestaoPlanoIntegracaoRoute
   '/gestao/pre-inventario': typeof AuthenticatedGestaoPreInventarioRoute
+  '/gestao/indicador-inventario': typeof AuthenticatedGestaoIndicadorInventarioRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/obsoletos/acoes': typeof AuthenticatedObsoletosAcoesRoute
   '/obsoletos/dashboard': typeof AuthenticatedObsoletosDashboardRoute
@@ -1023,6 +1032,7 @@ export interface FileRoutesById {
   '/_authenticated/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/_authenticated/gestao/plano-integracao': typeof AuthenticatedGestaoPlanoIntegracaoRoute
   '/_authenticated/gestao/pre-inventario': typeof AuthenticatedGestaoPreInventarioRoute
+  '/_authenticated/gestao/indicador-inventario': typeof AuthenticatedGestaoIndicadorInventarioRoute
   '/_authenticated/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/_authenticated/obsoletos/acoes': typeof AuthenticatedObsoletosAcoesRoute
   '/_authenticated/obsoletos/dashboard': typeof AuthenticatedObsoletosDashboardRoute
@@ -1133,6 +1143,7 @@ export interface FileRouteTypes {
     | '/gestao/planejamento'
     | '/gestao/plano-integracao'
     | '/gestao/pre-inventario'
+    | '/gestao/indicador-inventario'
     | '/missoes/$id'
     | '/obsoletos/acoes'
     | '/obsoletos/dashboard'
@@ -1241,6 +1252,7 @@ export interface FileRouteTypes {
     | '/gestao/planejamento'
     | '/gestao/plano-integracao'
     | '/gestao/pre-inventario'
+    | '/gestao/indicador-inventario'
     | '/missoes/$id'
     | '/obsoletos/acoes'
     | '/obsoletos/dashboard'
@@ -1350,6 +1362,7 @@ export interface FileRouteTypes {
     | '/_authenticated/gestao/planejamento'
     | '/_authenticated/gestao/plano-integracao'
     | '/_authenticated/gestao/pre-inventario'
+    | '/_authenticated/gestao/indicador-inventario'
     | '/_authenticated/missoes/$id'
     | '/_authenticated/obsoletos/acoes'
     | '/_authenticated/obsoletos/dashboard'
@@ -1887,6 +1900,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGestaoPreInventarioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/gestao/indicador-inventario': {
+      id: '/_authenticated/gestao/indicador-inventario'
+      path: '/gestao/indicador-inventario'
+      fullPath: '/gestao/indicador-inventario'
+      preLoaderRoute: typeof AuthenticatedGestaoIndicadorInventarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/missoes/': {
       id: '/_authenticated/missoes/'
       path: '/missoes'
@@ -2241,6 +2261,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGestaoPlanejamentoRoute: typeof AuthenticatedGestaoPlanejamentoRoute
   AuthenticatedGestaoPlanoIntegracaoRoute: typeof AuthenticatedGestaoPlanoIntegracaoRoute
   AuthenticatedGestaoPreInventarioRoute: typeof AuthenticatedGestaoPreInventarioRoute
+  AuthenticatedGestaoIndicadorInventarioRoute: typeof AuthenticatedGestaoIndicadorInventarioRoute
   AuthenticatedMissoesIdRoute: typeof AuthenticatedMissoesIdRoute
   AuthenticatedObsoletosAcoesRoute: typeof AuthenticatedObsoletosAcoesRoute
   AuthenticatedObsoletosDashboardRoute: typeof AuthenticatedObsoletosDashboardRoute
@@ -2360,6 +2381,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedGestaoPlanoIntegracaoRoute:
     AuthenticatedGestaoPlanoIntegracaoRoute,
   AuthenticatedGestaoPreInventarioRoute: AuthenticatedGestaoPreInventarioRoute,
+  AuthenticatedGestaoIndicadorInventarioRoute: AuthenticatedGestaoIndicadorInventarioRoute,
   AuthenticatedMissoesIdRoute: AuthenticatedMissoesIdRoute,
   AuthenticatedObsoletosAcoesRoute: AuthenticatedObsoletosAcoesRoute,
   AuthenticatedObsoletosDashboardRoute: AuthenticatedObsoletosDashboardRoute,
