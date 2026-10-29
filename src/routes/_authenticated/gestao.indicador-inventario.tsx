@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AcuracidadeContagem } from "@/components/inventario/AcuracidadeContagem";
 
 export const Route = createFileRoute("/_authenticated/gestao/indicador-inventario")({
   component: IndicadorInventarioPage,
@@ -68,19 +69,28 @@ function IndicadorInventarioPage() {
       const ids = (missoes as MissaoLinha[]).map((x) => x.id);
       const itens: ItemLinha[] = [];
       for (let i = 0; i < ids.length; i += 200) {
-        const { data, error: e2 } = await sb.from("missoes_itens").select("missao_id, status_item, observacao").in("missao_id", ids.slice(i, i + 200));
+        const { data, error: e2 } = await sb.from("missoes_itens").select("id, missao_id, status_item, observacao, codigo_produto, descricao, lote, quantidade_prevista, quantidade_contada").in("missao_id", ids.slice(i, i + 200));
         if (e2) throw e2;
         itens.push(...(data as ItemLinha[]));
       }
+      // Custo contábil (cadastro do Atlas) só dos SKUs contados no mês.
+      const skus = [...new Set(itens.map((i) => String(i.codigo_produto ?? "").trim()).filter(Boolean))];
+      const custos: [string, number][] = [];
+      for (let i = 0; i < skus.length; i += 200) {
+        const { data, error: e4 } = await sb.from("atlas_produtos").select("sku, custo_unitario").in("sku", skus.slice(i, i + 200)).not("custo_unitario", "is", null);
+        if (e4) throw e4;
+        for (const p of data as { sku: string; custo_unitario: number }[]) custos.push([String(p.sku).trim(), Number(p.custo_unitario)]);
+      }
       const { data: acoes, error: e3 } = await sb.from("processo_inventario_acoes").select("*").order("prazo", { ascending: true, nullsFirst: false });
       if (e3) semMigration = true;
-      return { missoes: (missoes as MissaoLinha[]).map((m) => ({ ...m, concluida_em: m.concluida_em ?? null })), itens, acoes: (acoes ?? []) as Acao[], semMigration };
+      return { missoes: (missoes as MissaoLinha[]).map((m) => ({ ...m, concluida_em: m.concluida_em ?? null })), itens, acoes: (acoes ?? []) as Acao[], custos, semMigration };
     },
   });
 
   const gestor = gestorRole && !q.data?.semMigration;
   const origens = useMemo(() => [...new Set((q.data?.missoes ?? []).map((m) => m.origem).filter(Boolean) as string[])].sort(), [q.data]);
   const missoes = useMemo(() => (q.data?.missoes ?? []).filter((m) => almox === TODOS || m.origem === almox), [q.data, almox]);
+  const custos = useMemo(() => new Map(q.data?.custos ?? []), [q.data]);
   const r = useMemo(() => resumir(missoes, q.data?.itens ?? [], mes, hoje), [missoes, q.data, mes, hoje]);
   const acoes = useMemo(() => (q.data?.acoes ?? []).filter((a) => almox === TODOS || !a.origem || a.origem === almox), [q.data, almox]);
   const acoesAbertas = acoes.filter(acaoAberta);
@@ -198,6 +208,8 @@ function IndicadorInventarioPage() {
               ) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Sem missões vencidas neste mês.</div>}
             </CardContent>
           </Card>
+
+          <AcuracidadeContagem missoes={missoes} itens={q.data.itens} custos={custos} mes={mes} />
 
           <div>
             <h2 className="mb-3 text-lg font-semibold">Etapas do processo</h2>
