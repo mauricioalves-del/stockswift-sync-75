@@ -34,7 +34,7 @@ export const diaBR = (d: Date | string): string =>
   new Date(d).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
 export type Grupo = { chave: string; programadas: number; falhas: number; aderencia: number | null };
-export type DiaSerie = { data: string; acumulada: number | null };
+export type DiaSerie = { data: string; acumulada: number | null; acuracidade: number | null };
 export type Resumo = {
   universo: number; noPrazo: number; comAtraso: number; atrasadasAbertas: MissaoLinha[]; futuras: number;
   aderencia: number | null; dentroDaMeta: boolean | null;
@@ -73,7 +73,12 @@ export function resumir(missoes: MissaoLinha[], itens: ItemLinha[], mes: string,
   const universo = noPrazo + comAtraso.length + atrasadasAbertas.length;
   const aderencia = universo ? noPrazo / universo : null;
 
-  // Série acumulada: para cada dia do mês até hoje, aderência das missões programadas até aquele dia.
+  const idsMes = new Set(doMes.map((m) => m.id));
+  const its = itens.filter((i) => idsMes.has(i.missao_id) && ST_CONTAGEM.has(i.status_item));
+
+  // Série acumulada: para cada dia do mês até hoje, aderência das missões programadas até aquele dia
+  // e acuracidade dos itens contados nas missões até aquele dia.
+  const dataDaMissao = new Map(doMes.map((m) => [m.id, m.data_execucao!]));
   const [a, mm] = mes.split("-").map(Number);
   const nDias = new Date(a, mm, 0).getDate();
   const serie: DiaSerie[] = [];
@@ -81,12 +86,19 @@ export function resumir(missoes: MissaoLinha[], itens: ItemLinha[], mes: string,
     const data = `${mes}-${String(d).padStart(2, "0")}`;
     if (data > hoje) break;
     const ate = cls.filter((x) => x.c !== "FUTURA" && x.m.data_execucao! <= data);
-    serie.push({ data, acumulada: ate.length ? ate.filter((x) => x.c === "NO_PRAZO").length / ate.length : null });
+    let ok = 0, dv = 0;
+    for (const i of its) {
+      if ((dataDaMissao.get(i.missao_id) ?? "9999") > data) continue;
+      if (i.status_item === "OK") ok++; else if (ST_DIV.has(i.status_item)) dv++;
+    }
+    serie.push({
+      data,
+      acumulada: ate.length ? ate.filter((x) => x.c === "NO_PRAZO").length / ate.length : null,
+      acuracidade: ok + dv ? ok / (ok + dv) : null,
+    });
   }
 
   const idsConcluidas = new Set(doMes.filter((m) => m.status === "CONCLUIDA").map((m) => m.id));
-  const idsMes = new Set(doMes.map((m) => m.id));
-  const its = itens.filter((i) => idsMes.has(i.missao_id) && ST_CONTAGEM.has(i.status_item));
   const itensOk = its.filter((i) => i.status_item === "OK").length;
   const div = its.filter((i) => ST_DIV.has(i.status_item));
   const pendentesPorMissao = new Map<string, number>();
