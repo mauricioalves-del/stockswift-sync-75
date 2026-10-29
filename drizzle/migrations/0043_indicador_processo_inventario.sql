@@ -1,4 +1,5 @@
 -- Indicador de processo de inventário (aderência ao plano de contagem) + ações por etapa do processo.
+-- Idempotente: pode ser executada mais de uma vez sem erro.
 
 -- 1) Momento da conclusão da missão, para medir execução no prazo.
 ALTER TABLE public.missoes ADD COLUMN IF NOT EXISTS concluida_em timestamptz;
@@ -42,6 +43,8 @@ CREATE INDEX IF NOT EXISTS idx_proc_inv_acoes_etapa ON public.processo_inventari
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.processo_inventario_acoes TO authenticated;
 GRANT ALL ON public.processo_inventario_acoes TO service_role;
 ALTER TABLE public.processo_inventario_acoes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "proc_inv_acoes read" ON public.processo_inventario_acoes;
+DROP POLICY IF EXISTS "proc_inv_acoes gestor" ON public.processo_inventario_acoes;
 CREATE POLICY "proc_inv_acoes read" ON public.processo_inventario_acoes FOR SELECT TO authenticated USING (true);
 CREATE POLICY "proc_inv_acoes gestor" ON public.processo_inventario_acoes FOR ALL TO authenticated
   USING (public.is_gestor(auth.uid())) WITH CHECK (public.is_gestor(auth.uid()));
