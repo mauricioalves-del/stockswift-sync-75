@@ -26,9 +26,9 @@ begin
   end if;
   if p_status = 'SEPARADO' then
     if _req is not null then
-      -- completa a separação dos itens ainda não separados (o trigger sincroniza os itens do pedido)
+      -- completa a separação dos itens (o trigger sincroniza os itens do pedido)
       update public.requisicao_itens
-         set quantidade_separada = coalesce(quantidade_separada, quantidade_aprovada, quantidade_solicitada),
+         set quantidade_separada = greatest(coalesce(quantidade_separada, 0), coalesce(quantidade_aprovada, quantidade_solicitada, 0)),
              separado_por = coalesce(separado_por, p_uid),
              separado_em = coalesce(separado_em, now())
        where requisicao_id = _req;
@@ -38,7 +38,7 @@ begin
       -- pedido sem requisição: marca os itens válidos como separados
       update public.abast_pedido_itens
          set qtd_separada = qtd_pedida
-       where pedido_id = p_id and qtd_separada is null
+       where pedido_id = p_id and coalesce(qtd_separada, 0) = 0
          and aceito is not false and not (origem = 'SUGESTAO_COMERCIAL' and aceito is null);
     end if;
   end if;
