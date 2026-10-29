@@ -14,6 +14,8 @@ import { COLS_GERAL, COLUNAS, FILTRO_VAZIO, ROTULO, contar, csvEstoque, filtrarL
 
 export const Route = createFileRoute("/_authenticated/abastecimento/estoque")({
   component: EstoquePage,
+  // ?sku=… abre a tela já filtrada em um SKU (link da tabela de divergências do Indicador de Inventário).
+  validateSearch: (s: Record<string, unknown>): { sku?: string } => (typeof s.sku === "string" && s.sku.trim() ? { sku: s.sku.trim() } : {}),
   head: () => ({ meta: [{ title: "Visão Geral de Estoque — Abastecimento" }] }),
 });
 
@@ -40,6 +42,7 @@ function CelulaTd({ c }: { c: Celula }) {
 function EstoquePage() {
   const { isAdmin, role } = useRole();
   const pode = isAdmin || role === "GERENTE" || role === "COORDENADOR_CONTROLE";
+  const { sku: skuParam } = Route.useSearch();
   const hoje = hojeBrt();
   const bruto = useAbastBruto(pode);
   const clsQ = useQuery({
@@ -59,10 +62,10 @@ function EstoquePage() {
   const cnt = useMemo(() => contar(todas), [todas]);
   const nomesCategoria = useMemo(() => [...new Set(todas.map((l) => l.categoria))].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" })), [todas]);
   const lista = useMemo(() => {
-    const base = filtrarLinhas(todas, f).filter((l) => passaFiltros(l, COLS_GERAL, filtros));
+    const base = filtrarLinhas(todas, f).filter((l) => passaFiltros(l, COLS_GERAL, filtros) && (!skuParam || nk(l.sku) === nk(skuParam)));
     const col = ordem ? COLS_GERAL.find((c) => c.k === ordem.k) : null;
     return col && ordem ? [...base].sort((a, b) => comparar(a, b, col, ordem.dir)) : base;
-  }, [todas, f, filtros, ordem]);
+  }, [todas, f, filtros, ordem, skuParam]);
   const nFiltros = Object.values(filtros).filter((x) => filtroAtivo(x)).length;
   const set = (p: Partial<FiltroGeral>) => { setF({ ...f, ...p }); setLimite(100); };
   const alterna = (e: Estado) => set({ estados: f.estados.includes(e) ? f.estados.filter((x) => x !== e) : [...f.estados, e] });
@@ -101,6 +104,13 @@ function EstoquePage() {
           {filtrando && <button type="button" onClick={() => { setF(FILTRO_VAZIO); setFiltros({}); setOrdem(null); setLimite(100); }} className="h-8 rounded-md border px-3 text-xs font-semibold hover:bg-muted">Limpar{nFiltros > 0 ? ` (${nFiltros} de coluna)` : ""}</button>}
           <button type="button" onClick={baixar} className="flex h-8 items-center gap-1 rounded-md border bg-background px-3 text-xs font-semibold hover:bg-muted"><Download className="size-3.5" /> Exportar CSV</button>
         </div>
+        {skuParam && (
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-xs">
+            <span>Filtrado pelo SKU <b className="font-mono">{skuParam}</b> (aberto pelo Indicador de Inventário).</span>
+            {bruto.data && lista.length === 0 && <span className="text-amber-700 dark:text-amber-300">Este SKU não está no portfólio aprovado desta visão.</span>}
+            <Link to="/abastecimento/estoque" search={{}} className="ml-auto font-semibold text-primary hover:underline">Mostrar todos os SKUs</Link>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
           <span>Cores (lojas e CD):</span>
           {estados.map((e) => <span key={e} className="flex items-center gap-1"><span className={`inline-block size-3 rounded-sm border ${COR[e]}`} />{ROTULO[e]}</span>)}
