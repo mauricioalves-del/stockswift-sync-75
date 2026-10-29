@@ -195,6 +195,7 @@ function PedidosPage() {
                     <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => setRessalva(p)}>Adicionar Produto</Button>
                   </>}
                   {gestor && (p.status === "ABERTO" || p.status === "EM_SEPARACAO") && p.requisicao_id && <Link to="/suprimentos/requisicoes" title={`Separar na tela Requisições (${p.requisicao_numero})`} className="inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs hover:bg-muted"><PackageCheck className="size-3.5" /> Separar</Link>}
+                  {gestor && (p.status === "ABERTO" || p.status === "EM_SEPARACAO") && <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => mudar(p, "SEPARADO")} title="Marcar como separado sem gerar a ficha de separação">Separado</Button>}
                   {gestor && (p.status === "SEPARADO" || p.status === "EM_SEPARACAO" || (p.status === "ABERTO" && !p.requisicao_id)) && <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => mudar(p, "ENVIADO")}>Marcar enviado</Button>}
                   {gestor && p.status === "ENVIADO" && <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => mudar(p, "RECEBIDO")}>Marcar recebido</Button>}
                   {gestor && (p.status === "ABERTO" || p.status === "ENVIADO" || aguardando) && <Button size="sm" variant="ghost" disabled={agindo === p.id} onClick={() => mudar(p, "CANCELADO")}>Cancelar</Button>}
