@@ -323,6 +323,13 @@
       "when": 1793374331243,
       "tag": "0045_alerta_assinatura_tela_propria",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1793383129640,
+      "tag": "0046_shelf_slack_responsaveis",
+      "breakpoints": true
     }
   ]
 }

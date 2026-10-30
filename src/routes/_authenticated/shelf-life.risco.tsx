@@ -16,7 +16,9 @@ import { chaveLote } from "@/lib/shelf-life";
 import { ConfigFiltrosCard } from "@/components/shelf-life/ConfigFiltrosCard";
 import { usePersistedState, useShelfConfig } from "@/hooks/useFiltrosShelfLife";
 import { CampanhaDialog, type CampanhaDraft } from "@/components/shelf-life/CampanhaDialog";
-import { AlertTriangle, ArrowDown, ArrowUp, CalendarClock, ChevronsUpDown, Download, HelpCircle, Plus } from "lucide-react";
+import { EnviarSlackDialog } from "@/components/shelf-life/EnviarSlackDialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { AlertTriangle, Send, ArrowDown, ArrowUp, CalendarClock, ChevronsUpDown, Download, HelpCircle, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/shelf-life/risco")({
   component: MapeamentoRisco,
@@ -50,6 +52,8 @@ function MapeamentoRisco() {
   const campanhas = useCampanhas();
   const [f, setF] = usePersistedState<FiltrosRisco>("shelf-life:risco:filtros", FILTROS_PADRAO);
   const [draft, setDraft] = useState<CampanhaDraft | null>(null);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [slackOpen, setSlackOpen] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "valor", dir: "desc" });
 
   const set = <K extends keyof FiltrosRisco>(k: K, v: FiltrosRisco[K]) => setF((p) => ({ ...p, [k]: v }));
@@ -115,6 +119,19 @@ function MapeamentoRisco() {
       total: base.reduce((s, r) => s + r.valor, 0),
     };
   }, [filtradas]);
+
+  const kRow = (r: { sku: string; lote: string; almoxarifado: string }) => `${r.sku}|${r.lote}|${r.almoxarifado}`;
+  const selecionados = useMemo(() => rows.filter((r) => sel.has(kRow(r))).map((r) => ({
+    sku: r.sku, descricao: r.descricao, lote: r.lote, almoxarifado: r.almoxarifado,
+    data_validade: r.data_validade, quantidade: r.quantidade, custo_contabil: r.valor,
+  })), [rows, sel]);
+  const todosSel = filtradas.length > 0 && filtradas.every((r) => sel.has(kRow(r)));
+  const toggleTodos = () => setSel((p) => {
+    const n = new Set(p);
+    if (todosSel) filtradas.forEach((r) => n.delete(kRow(r))); else filtradas.forEach((r) => n.add(kRow(r)));
+    return n;
+  });
+  const toggle = (k: string) => setSel((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
   function exportar() {
     const data = filtradas.map((r) => ({
@@ -200,6 +217,13 @@ function MapeamentoRisco() {
           <CardTitle className="text-base">
             {filtradas.length} lote(s) · {formatBRL(kpis.total)} em risco
           </CardTitle>
+          {sel.size > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{selecionados.length} selecionado(s) · {formatBRL(selecionados.reduce((s, r) => s + r.custo_contabil, 0))}</span>
+              <Button size="sm" variant="ghost" onClick={() => setSel(new Set())}>Limpar</Button>
+              <Button size="sm" onClick={() => setSlackOpen(true)}><Send className="size-3.5 mr-1" /> Enviar ao Slack</Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {lotes.isLoading ? (
@@ -208,6 +232,7 @@ function MapeamentoRisco() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8"><Checkbox aria-label="Selecionar todos os filtrados" checked={todosSel} onCheckedChange={toggleTodos} /></TableHead>
                   <SortHeader k="sku" label="SKU" sort={sort} setSort={setSort} />
                   <SortHeader k="descricao" label="Produto" sort={sort} setSort={setSort} />
                   <SortHeader k="lote" label="Lote" sort={sort} setSort={setSort} />
@@ -226,6 +251,7 @@ function MapeamentoRisco() {
                   const acoes = idx.get(chaveLote(r.sku, r.lote)) ?? [];
                   return (
                     <TableRow key={`${r.sku}-${r.lote}-${r.almoxarifado}-${i}`}>
+                      <TableCell><Checkbox aria-label={`Selecionar lote ${r.lote}`} checked={sel.has(kRow(r))} onCheckedChange={() => toggle(kRow(r))} /></TableCell>
                       <TableCell className="font-mono text-xs">{r.sku}</TableCell>
                       <TableCell className="max-w-[240px] truncate">{r.descricao}</TableCell>
                       <TableCell className="font-mono text-xs">{r.lote || "—"}</TableCell>
@@ -252,7 +278,7 @@ function MapeamentoRisco() {
                   );
                 })}
                 {!filtradas.length && (
-                  <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">Nenhum lote no radar com os filtros atuais.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">Nenhum lote no radar com os filtros atuais.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -263,6 +289,7 @@ function MapeamentoRisco() {
         </CardContent>
       </Card>
 
+      <EnviarSlackDialog open={slackOpen} onOpenChange={setSlackOpen} lotes={selecionados} onSent={() => setSel(new Set())} />
       <CampanhaDialog open={!!draft} onOpenChange={(v) => !v && setDraft(null)} draft={draft} />
     </div>
   );
