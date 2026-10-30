@@ -1,0 +1,1 @@
+ALTER TABLE public.shelf_slack_departamentos ADD COLUMN almoxarifados text[] NOT NULL DEFAULT '{}';

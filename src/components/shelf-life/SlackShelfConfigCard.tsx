@@ -17,13 +17,15 @@ export function SlackShelfConfigCard() {
   const q = useQuery({
     queryKey: ["shelf-slack-config"],
     queryFn: async () => {
-      const [c, d, r, p] = await Promise.all([
+      const [c, d, r, p, a] = await Promise.all([
         supabase.from("app_config").select("valor").eq("chave", "slack_canal_shelf").maybeSingle(),
-        supabase.from("shelf_slack_departamentos").select("id, nome").order("nome"),
+        supabase.from("shelf_slack_departamentos").select("id, nome, almoxarifados").order("nome"),
         supabase.from("shelf_slack_responsaveis").select("departamento_id, user_id"),
         supabase.from("profiles").select("id, nome, email").eq("aprovado", true).order("nome"),
+        supabase.from("estoque_sistemico").select("origem").gt("quantidade", 0).limit(10000),
       ]);
-      return { canal: typeof c.data?.valor === "string" ? c.data.valor : "", deps: d.data ?? [], resp: r.data ?? [], users: p.data ?? [] };
+      const almoxs = [...new Set((a.data ?? []).map((x) => x.origem).filter(Boolean) as string[])].sort();
+      return { almoxs, canal: typeof c.data?.valor === "string" ? c.data.valor : "", deps: d.data ?? [], resp: r.data ?? [], users: p.data ?? [] };
     },
   });
   useEffect(() => { if (q.data) setCanal(q.data.canal); }, [q.data]);
@@ -56,6 +58,12 @@ export function SlackShelfConfigCard() {
     refresh();
   }
 
+  async function setAlmox(depId: string, v: string[]) {
+    const { error } = await supabase.from("shelf_slack_departamentos").update({ almoxarifados: v }).eq("id", depId);
+    if (error) return toast.error(error.message);
+    refresh();
+  }
+  const almoxOpts = [...new Set([...(q.data?.almoxs ?? []), ...(q.data?.deps ?? []).flatMap((d) => d.almoxarifados ?? [])])].sort().map((x) => ({ value: x, label: x }));
   const userOpts = (q.data?.users ?? []).map((u) => ({ value: u.id, label: `${u.nome || u.email} (${u.email})` }));
 
   return (
@@ -73,10 +81,14 @@ export function SlackShelfConfigCard() {
           </div>
         </div>
         <div className="space-y-2">
-          <Label>Departamentos e responsáveis</Label>
+          <Label>Departamentos, almoxarifados vinculados e responsáveis</Label>
+          <p className="text-xs text-muted-foreground">Sem almox vinculado, o departamento é marcado para qualquer almox.</p>
           {(q.data?.deps ?? []).map((d) => (
             <div key={d.id} className="flex items-center gap-2">
               <span className="w-36 text-sm font-medium truncate">{d.nome}</span>
+              <div className="w-48">
+                <MultiSelect options={almoxOpts} value={d.almoxarifados ?? []} onChange={(v) => setAlmox(d.id, v)} allLabel="Todos os almox" />
+              </div>
               <div className="flex-1">
                 <MultiSelect options={userOpts} value={(q.data?.resp ?? []).filter((r) => r.departamento_id === d.id).map((r) => r.user_id)} onChange={(v) => setResp(d.id, v)} allLabel="Nenhum" />
               </div>

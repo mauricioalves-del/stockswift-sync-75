@@ -24,14 +24,17 @@ export function EnviarSlackDialog({ open, onOpenChange, lotes, onSent }: {
     enabled: open,
     queryFn: async () => {
       const [d, r] = await Promise.all([
-        supabase.from("shelf_slack_departamentos").select("id, nome, ativo").eq("ativo", true).order("nome"),
+        supabase.from("shelf_slack_departamentos").select("id, nome, ativo, almoxarifados").eq("ativo", true).order("nome"),
         supabase.from("shelf_slack_responsaveis").select("departamento_id, user_id"),
       ]);
       if (d.error) throw d.error;
       return { deps: d.data ?? [], resp: r.data ?? [] };
     },
   });
-  useEffect(() => { if (open && cad.data) setDeps(cad.data.deps.map((d) => d.id)); }, [open, cad.data]);
+  useEffect(() => { if (open && cad.data) {
+    const al = new Set(lotes.map((l) => l.almoxarifado));
+    setDeps(cad.data.deps.filter((d) => !d.almoxarifados?.length || d.almoxarifados.some((x) => al.has(x))).map((d) => d.id));
+  } }, [open, cad.data, lotes]);
 
   const almox = almoxDosLotes(lotes);
   const total = useMemo(() => totalCusto(lotes), [lotes]);
