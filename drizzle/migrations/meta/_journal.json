@@ -309,6 +309,13 @@
       "when": 1793290323389,
       "tag": "0043_indicador_processo_inventario",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1793371904430,
+      "tag": "0044_alerta_assinatura_inventario",
+      "breakpoints": true
     }
   ]
 }
