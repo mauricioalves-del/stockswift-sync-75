@@ -316,6 +316,13 @@
       "when": 1793371904430,
       "tag": "0044_alerta_assinatura_inventario",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1793374331243,
+      "tag": "0045_alerta_assinatura_tela_propria",
+      "breakpoints": true
     }
   ]
 }
