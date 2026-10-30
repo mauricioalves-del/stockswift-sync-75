@@ -748,6 +748,42 @@ export type Database = {
           },
         ]
       }
+      alertas_assinatura_envios: {
+        Row: {
+          data_ref: string
+          email: string
+          enviado_em: string
+          erro: string | null
+          fechamentos: number[]
+          id: number
+          ok: boolean
+          tipo: string
+          user_id: string | null
+        }
+        Insert: {
+          data_ref: string
+          email: string
+          enviado_em?: string
+          erro?: string | null
+          fechamentos?: number[]
+          id?: number
+          ok: boolean
+          tipo?: string
+          user_id?: string | null
+        }
+        Update: {
+          data_ref?: string
+          email?: string
+          enviado_em?: string
+          erro?: string | null
+          fechamentos?: number[]
+          id?: number
+          ok?: boolean
+          tipo?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       app_config: {
         Row: {
           chave: string
@@ -2424,6 +2460,44 @@ export type Database = {
           recebido_por?: string | null
         }
         Relationships: []
+      }
+      atlas_responsaveis_assinatura: {
+        Row: {
+          almoxarifado: string | null
+          ativo: boolean
+          criado_em: string
+          criado_por: string | null
+          id: number
+          papel: string
+          user_id: string
+        }
+        Insert: {
+          almoxarifado?: string | null
+          ativo?: boolean
+          criado_em?: string
+          criado_por?: string | null
+          id?: number
+          papel: string
+          user_id: string
+        }
+        Update: {
+          almoxarifado?: string | null
+          ativo?: boolean
+          criado_em?: string
+          criado_por?: string | null
+          id?: number
+          papel?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atlas_responsaveis_assinatura_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       atlas_resumos_movimentacao_mensal: {
         Row: {
@@ -7020,6 +7094,10 @@ export type Database = {
       almoxarifados_permitidos: { Args: { _uid: string }; Returns: string[] }
       atlas_ajustar_sequencias: { Args: never; Returns: number }
       atualizar_custos_contabeis: { Args: { p_linhas: Json }; Returns: Json }
+      concluir_tarefas_assinatura: {
+        Args: { p_fechamento: number; p_papel?: string }
+        Returns: number
+      }
       congelar_producao_consumo: { Args: never; Returns: number }
       equipe_aprovada_para_leitura: { Args: { _uid: string }; Returns: boolean }
       executar_plano_contagem_ciclica: {
@@ -7125,6 +7203,25 @@ export type Database = {
         Returns: boolean
       }
       is_gestor: { Args: { _user_id: string }; Returns: boolean }
+      pendencias_assinatura_inventario: {
+        Args: never
+        Returns: {
+          almoxarifado: string
+          arquivo: string
+          data_fechamento: string
+          dias_aberto: number
+          email: string
+          fechamento_id: number
+          nome: string
+          origem_responsavel: string
+          papel: string
+          papel_nome: string
+          total_divergentes: number
+          total_itens: number
+          user_id: string
+          valor_divergente: number
+        }[]
+      }
       pode_contar_item_missao: {
         Args: { _item_missao_id: string; _uid: string }
         Returns: boolean
@@ -7212,6 +7309,7 @@ export type Database = {
         Args: { p_periodo_dias?: number }
         Returns: undefined
       }
+      sincronizar_tarefas_assinatura: { Args: never; Returns: number }
       usuario_aprovado: { Args: { _uid: string }; Returns: boolean }
     }
     Enums: {
