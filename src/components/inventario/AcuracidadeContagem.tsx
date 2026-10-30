@@ -61,7 +61,7 @@ export function AcuracidadeContagem({ missoes, itens, custos, mes }: { missoes: 
           <CardTitle className="text-base">Resultado por dia de contagem</CardTitle>
           <CardDescription>Clique em um dia para ver só as divergências dele na tabela abaixo.</CardDescription>
         </CardHeader>
-        <CardContent className={diasRolagem ? "max-h-[26rem] overflow-auto" : "overflow-x-auto"}>
+        <CardContent className={diasRolagem ? "[&>div.relative]:max-h-[26rem] [&>div.relative]:overflow-auto" : "overflow-x-auto"}>
           <Table>
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
@@ -136,7 +136,7 @@ export function AcuracidadeContagem({ missoes, itens, custos, mes }: { missoes: 
             <Button size="sm" variant="outline" className="h-8 gap-1" onClick={baixar} disabled={!lista.length}><Download className="size-3.5" />CSV</Button>
           </div>
         </CardHeader>
-        <CardContent className={divRolagem ? "max-h-[32rem] overflow-auto" : "overflow-x-auto"}>
+        <CardContent className={divRolagem ? "[&>div.relative]:max-h-[32rem] [&>div.relative]:overflow-auto" : "overflow-x-auto"}>
           {lista.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma divergência para este filtro.</p> : (
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card">
