@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AtlasGrafico, atlasCores } from "@/components/atlas/AtlasGrafico";
 import { Loader2, Scale } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FiltrosInv } from "@/components/atlas/FiltrosInv";
 import { carregarInventario, comparativo, comparativoPorAlmox, comparativoPorGrupo, concentracao, evolucaoPonderada, faltaSobra, magnitude, opcoesInv, rankingSku } from "@/lib/atlas-inventario";
 
@@ -17,11 +18,21 @@ const un = (n: number | null | undefined, d = 0) => (n == null ? "—" : Number(
 const pct = (n: number | null | undefined) => (n == null ? "—" : `${un(n, 2)}%`);
 const pp = (n: number | null | undefined) => (n == null ? "—" : `${n > 0 ? "+" : ""}${un(n, 2)} p.p.`);
 
+const modelosMoM = {
+  iap: { nome: "IAP (valor)", valor: "iap", variacao: "varIap" },
+  iaq: { nome: "IAQ (quantidade)", valor: "iaq", variacao: "varIaq" },
+  item: { nome: "Item a item", valor: "item", variacao: "varItem" },
+  valorMod: { nome: "Valor Mod (R$)", valor: "valorMod", variacao: "varMod" },
+} as const;
+
 
 function AcuraciaPonderada() {
   const q = useQuery({ queryKey: ["atlas-inventario"], queryFn: carregarInventario, staleTime: 120000 });
   const [almox, setAlmox] = useState<string | null>(null);
   const [mes, setMes] = useState<string | null>(null);
+  const [modeloMoM, setModeloMoM] = useState<keyof typeof modelosMoM>("iap");
+  const modelo = modelosMoM[modeloMoM];
+  const momMonetario = modeloMoM === "valorMod";
   const r = useMemo(() => {
     if (!q.data) return null;
     const D = q.data, f = { almox, mes };
@@ -72,7 +83,19 @@ function AcuraciaPonderada() {
             </Card>
           </div>
 
-<Card><CardHeader><CardTitle>Análise MoM — Acurácia Ponderada</CardTitle></CardHeader><CardContent><AtlasGrafico data={r.evo} category="rotulo" percent series={[{key: "iap", name: "Acurácia do mês — IAP (valor)", color: atlasCores.success, percent: true},{key: "varIap", name: "Variação MoM (p.p.)", color: atlasCores.warning, line: true, right: true}]} /></CardContent></Card>
+          <Card>
+            <CardHeader className="flex flex-wrap flex-row items-center justify-between gap-3">
+              <CardTitle>Análise MoM — Acurácia Ponderada</CardTitle>
+              <Select value={modeloMoM} onValueChange={(valor) => { if (valor === "iap" || valor === "iaq" || valor === "item" || valor === "valorMod") setModeloMoM(valor); }}>
+                <SelectTrigger className="w-44" aria-label="Indicador da análise MoM"><SelectValue /></SelectTrigger>
+                <SelectContent>{Object.entries(modelosMoM).map(([valor, opcao]) => <SelectItem key={valor} value={valor}>{opcao.nome}</SelectItem>)}</SelectContent>
+              </Select>
+            </CardHeader>
+            <CardContent><AtlasGrafico data={r.evo} category="rotulo" percent={!momMonetario} money={momMonetario} series={[
+              { key: modelo.valor, name: momMonetario ? "Valor divergente do mês (R$)" : `Acurácia do mês — ${modelo.nome}`, color: atlasCores.success, percent: !momMonetario, money: momMonetario },
+              { key: modelo.variacao, name: momMonetario ? "Variação MoM (R$)" : "Variação MoM (p.p.)", color: atlasCores.warning, line: true, right: true, money: momMonetario },
+            ]} /></CardContent>
+          </Card>
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">Evolução mensal dos três modelos {almox ? `· ${almox}` : ""}</CardTitle></CardHeader>
             <CardContent>
