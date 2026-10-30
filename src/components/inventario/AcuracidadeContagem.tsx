@@ -18,7 +18,8 @@ export function AcuracidadeContagem({ missoes, itens, custos, mes }: { missoes: 
   const r = useMemo(() => acuracidadeContagem(missoes, itens, custos, mes), [missoes, itens, custos, mes]);
   const [dia, setDia] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
-  const [limite, setLimite] = useState(100);
+  const [diasExpandido, setDiasExpandido] = useState(false);
+  const [divExpandido, setDivExpandido] = useState(false);
 
   const lista = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -34,6 +35,10 @@ export function AcuracidadeContagem({ missoes, itens, custos, mes }: { missoes: 
 
   if (!r.mes.itens) return null;
   const m = r.mes;
+  const diasVisiveis = diasExpandido ? r.dias : r.dias.slice(0, 10);
+  const divVisiveis = divExpandido ? lista : lista.slice(0, 10);
+  const diasRolagem = diasExpandido && r.dias.length > 10;
+  const divRolagem = divExpandido && lista.length > 10;
 
   return (
     <div className="space-y-4">
@@ -56,9 +61,9 @@ export function AcuracidadeContagem({ missoes, itens, custos, mes }: { missoes: 
           <CardTitle className="text-base">Resultado por dia de contagem</CardTitle>
           <CardDescription>Clique em um dia para ver só as divergências dele na tabela abaixo.</CardDescription>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className={diasRolagem ? "[&>div.relative]:max-h-[26rem] [&>div.relative]:overflow-auto" : "overflow-x-auto"}>
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
                 <TableHead>Dia</TableHead><TableHead className="text-right">Missões</TableHead><TableHead className="text-right">Itens</TableHead>
                 <TableHead className="text-right">Divergentes</TableHead><TableHead className="text-right">Item a item</TableHead>
@@ -67,8 +72,8 @@ export function AcuracidadeContagem({ missoes, itens, custos, mes }: { missoes: 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {r.dias.map((d) => (
-                <TableRow key={d.data} onClick={() => { setDia(dia === d.data ? null : d.data); setLimite(100); }}
+              {diasVisiveis.map((d) => (
+                <TableRow key={d.data} onClick={() => { setDia(dia === d.data ? null : d.data); setDivExpandido(true); }}
                   className={`cursor-pointer ${dia === d.data ? "bg-primary/10" : ""}`} title="Filtrar divergências deste dia">
                   <TableCell className="text-xs font-medium">{dataBr(d.data)}</TableCell>
                   <TableCell className="text-right text-xs tabular-nums">{d.missoes}</TableCell>
@@ -98,6 +103,13 @@ export function AcuracidadeContagem({ missoes, itens, custos, mes }: { missoes: 
               </TableRow>
             </TableFooter>
           </Table>
+          {r.dias.length > 10 && (
+            <div className="mt-3 text-center">
+              <Button size="sm" variant="ghost" onClick={() => setDiasExpandido((v) => !v)}>
+                {diasExpandido ? `Mostrar menos (primeiras 10 de ${r.dias.length})` : `Mostrar todos os ${r.dias.length} dias`}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -118,16 +130,16 @@ export function AcuracidadeContagem({ missoes, itens, custos, mes }: { missoes: 
             )}
             <div className="relative">
               <Search className="absolute left-2 top-2 size-3.5 text-muted-foreground" />
-              <input value={busca} onChange={(e) => { setBusca(e.target.value); setLimite(100); }} placeholder="SKU, produto ou lote"
+              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="SKU, produto ou lote"
                 className="h-8 w-52 rounded-md border bg-background pl-7 pr-2 text-xs" />
             </div>
             <Button size="sm" variant="outline" className="h-8 gap-1" onClick={baixar} disabled={!lista.length}><Download className="size-3.5" />CSV</Button>
           </div>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className={divRolagem ? "[&>div.relative]:max-h-[32rem] [&>div.relative]:overflow-auto" : "overflow-x-auto"}>
           {lista.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma divergência para este filtro.</p> : (
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
                   <TableHead>Data</TableHead><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Lote</TableHead>
                   <TableHead className="text-right">Sistema</TableHead><TableHead className="text-right">Contado</TableHead><TableHead className="text-right">Diferença</TableHead>
@@ -136,7 +148,7 @@ export function AcuracidadeContagem({ missoes, itens, custos, mes }: { missoes: 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lista.slice(0, limite).map((l) => (
+                {divVisiveis.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell className="whitespace-nowrap text-xs">{dataBr(l.data)}</TableCell>
                     <TableCell className="text-xs">
@@ -166,9 +178,11 @@ export function AcuracidadeContagem({ missoes, itens, custos, mes }: { missoes: 
               </TableBody>
             </Table>
           )}
-          {lista.length > limite && (
+          {lista.length > 10 && (
             <div className="mt-3 text-center">
-              <Button size="sm" variant="ghost" onClick={() => setLimite(limite + 200)}>Mostrar mais ({lista.length - limite} restantes)</Button>
+              <Button size="sm" variant="ghost" onClick={() => setDivExpandido((v) => !v)}>
+                {divExpandido ? `Mostrar menos (primeiras 10 de ${lista.length})` : `Mostrar todas as ${lista.length} linhas`}
+              </Button>
             </div>
           )}
         </CardContent>
