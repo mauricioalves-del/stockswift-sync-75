@@ -72,12 +72,12 @@ import { Route as AuthenticatedConfigInventarioRouteImport } from './routes/_aut
 import { Route as AuthenticatedConfigPerfisRouteImport } from './routes/_authenticated/config.perfis'
 import { Route as AuthenticatedConfigResendRouteImport } from './routes/_authenticated/config.resend'
 import { Route as AuthenticatedConfigSazonalidadeRouteImport } from './routes/_authenticated/config.sazonalidade'
+import { Route as AuthenticatedGestaoIndicadorInventarioRouteImport } from './routes/_authenticated/gestao.indicador-inventario'
 import { Route as AuthenticatedGestaoMinhasTarefasRouteImport } from './routes/_authenticated/gestao.minhas-tarefas'
 import { Route as AuthenticatedGestaoModelosChecklistRouteImport } from './routes/_authenticated/gestao.modelos-checklist'
 import { Route as AuthenticatedGestaoPlanejamentoRouteImport } from './routes/_authenticated/gestao.planejamento'
 import { Route as AuthenticatedGestaoPlanoIntegracaoRouteImport } from './routes/_authenticated/gestao.plano-integracao'
 import { Route as AuthenticatedGestaoPreInventarioRouteImport } from './routes/_authenticated/gestao.pre-inventario'
-import { Route as AuthenticatedGestaoIndicadorInventarioRouteImport } from './routes/_authenticated/gestao.indicador-inventario'
 import { Route as AuthenticatedMissoesIndexRouteImport } from './routes/_authenticated/missoes.index'
 import { Route as AuthenticatedMissoesIdRouteImport } from './routes/_authenticated/missoes.$id'
 import { Route as AuthenticatedObsoletosAcoesRouteImport } from './routes/_authenticated/obsoletos.acoes'
@@ -476,6 +476,12 @@ const AuthenticatedConfigSazonalidadeRoute =
     path: '/config/sazonalidade',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedGestaoIndicadorInventarioRoute =
+  AuthenticatedGestaoIndicadorInventarioRouteImport.update({
+    id: '/gestao/indicador-inventario',
+    path: '/gestao/indicador-inventario',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedGestaoMinhasTarefasRoute =
   AuthenticatedGestaoMinhasTarefasRouteImport.update({
     id: '/gestao/minhas-tarefas',
@@ -504,12 +510,6 @@ const AuthenticatedGestaoPreInventarioRoute =
   AuthenticatedGestaoPreInventarioRouteImport.update({
     id: '/gestao/pre-inventario',
     path: '/gestao/pre-inventario',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedGestaoIndicadorInventarioRoute =
-  AuthenticatedGestaoIndicadorInventarioRouteImport.update({
-    id: '/gestao/indicador-inventario',
-    path: '/gestao/indicador-inventario',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedMissoesIndexRoute =
@@ -807,12 +807,12 @@ export interface FileRoutesByFullPath {
   '/config/perfis': typeof AuthenticatedConfigPerfisRoute
   '/config/resend': typeof AuthenticatedConfigResendRoute
   '/config/sazonalidade': typeof AuthenticatedConfigSazonalidadeRoute
+  '/gestao/indicador-inventario': typeof AuthenticatedGestaoIndicadorInventarioRoute
   '/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/gestao/plano-integracao': typeof AuthenticatedGestaoPlanoIntegracaoRoute
   '/gestao/pre-inventario': typeof AuthenticatedGestaoPreInventarioRoute
-  '/gestao/indicador-inventario': typeof AuthenticatedGestaoIndicadorInventarioRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/obsoletos/acoes': typeof AuthenticatedObsoletosAcoesRoute
   '/obsoletos/dashboard': typeof AuthenticatedObsoletosDashboardRoute
@@ -916,12 +916,12 @@ export interface FileRoutesByTo {
   '/config/perfis': typeof AuthenticatedConfigPerfisRoute
   '/config/resend': typeof AuthenticatedConfigResendRoute
   '/config/sazonalidade': typeof AuthenticatedConfigSazonalidadeRoute
+  '/gestao/indicador-inventario': typeof AuthenticatedGestaoIndicadorInventarioRoute
   '/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/gestao/plano-integracao': typeof AuthenticatedGestaoPlanoIntegracaoRoute
   '/gestao/pre-inventario': typeof AuthenticatedGestaoPreInventarioRoute
-  '/gestao/indicador-inventario': typeof AuthenticatedGestaoIndicadorInventarioRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/obsoletos/acoes': typeof AuthenticatedObsoletosAcoesRoute
   '/obsoletos/dashboard': typeof AuthenticatedObsoletosDashboardRoute
@@ -1027,12 +1027,12 @@ export interface FileRoutesById {
   '/_authenticated/config/perfis': typeof AuthenticatedConfigPerfisRoute
   '/_authenticated/config/resend': typeof AuthenticatedConfigResendRoute
   '/_authenticated/config/sazonalidade': typeof AuthenticatedConfigSazonalidadeRoute
+  '/_authenticated/gestao/indicador-inventario': typeof AuthenticatedGestaoIndicadorInventarioRoute
   '/_authenticated/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
   '/_authenticated/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
   '/_authenticated/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/_authenticated/gestao/plano-integracao': typeof AuthenticatedGestaoPlanoIntegracaoRoute
   '/_authenticated/gestao/pre-inventario': typeof AuthenticatedGestaoPreInventarioRoute
-  '/_authenticated/gestao/indicador-inventario': typeof AuthenticatedGestaoIndicadorInventarioRoute
   '/_authenticated/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/_authenticated/obsoletos/acoes': typeof AuthenticatedObsoletosAcoesRoute
   '/_authenticated/obsoletos/dashboard': typeof AuthenticatedObsoletosDashboardRoute
@@ -1138,12 +1138,12 @@ export interface FileRouteTypes {
     | '/config/perfis'
     | '/config/resend'
     | '/config/sazonalidade'
+    | '/gestao/indicador-inventario'
     | '/gestao/minhas-tarefas'
     | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
     | '/gestao/plano-integracao'
     | '/gestao/pre-inventario'
-    | '/gestao/indicador-inventario'
     | '/missoes/$id'
     | '/obsoletos/acoes'
     | '/obsoletos/dashboard'
@@ -1247,12 +1247,12 @@ export interface FileRouteTypes {
     | '/config/perfis'
     | '/config/resend'
     | '/config/sazonalidade'
+    | '/gestao/indicador-inventario'
     | '/gestao/minhas-tarefas'
     | '/gestao/modelos-checklist'
     | '/gestao/planejamento'
     | '/gestao/plano-integracao'
     | '/gestao/pre-inventario'
-    | '/gestao/indicador-inventario'
     | '/missoes/$id'
     | '/obsoletos/acoes'
     | '/obsoletos/dashboard'
@@ -1357,12 +1357,12 @@ export interface FileRouteTypes {
     | '/_authenticated/config/perfis'
     | '/_authenticated/config/resend'
     | '/_authenticated/config/sazonalidade'
+    | '/_authenticated/gestao/indicador-inventario'
     | '/_authenticated/gestao/minhas-tarefas'
     | '/_authenticated/gestao/modelos-checklist'
     | '/_authenticated/gestao/planejamento'
     | '/_authenticated/gestao/plano-integracao'
     | '/_authenticated/gestao/pre-inventario'
-    | '/_authenticated/gestao/indicador-inventario'
     | '/_authenticated/missoes/$id'
     | '/_authenticated/obsoletos/acoes'
     | '/_authenticated/obsoletos/dashboard'
@@ -1865,6 +1865,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfigSazonalidadeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/gestao/indicador-inventario': {
+      id: '/_authenticated/gestao/indicador-inventario'
+      path: '/gestao/indicador-inventario'
+      fullPath: '/gestao/indicador-inventario'
+      preLoaderRoute: typeof AuthenticatedGestaoIndicadorInventarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/gestao/minhas-tarefas': {
       id: '/_authenticated/gestao/minhas-tarefas'
       path: '/gestao/minhas-tarefas'
@@ -1898,13 +1905,6 @@ declare module '@tanstack/react-router' {
       path: '/gestao/pre-inventario'
       fullPath: '/gestao/pre-inventario'
       preLoaderRoute: typeof AuthenticatedGestaoPreInventarioRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/gestao/indicador-inventario': {
-      id: '/_authenticated/gestao/indicador-inventario'
-      path: '/gestao/indicador-inventario'
-      fullPath: '/gestao/indicador-inventario'
-      preLoaderRoute: typeof AuthenticatedGestaoIndicadorInventarioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/missoes/': {
@@ -2256,12 +2256,12 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedConfigPerfisRoute: typeof AuthenticatedConfigPerfisRoute
   AuthenticatedConfigResendRoute: typeof AuthenticatedConfigResendRoute
   AuthenticatedConfigSazonalidadeRoute: typeof AuthenticatedConfigSazonalidadeRoute
+  AuthenticatedGestaoIndicadorInventarioRoute: typeof AuthenticatedGestaoIndicadorInventarioRoute
   AuthenticatedGestaoMinhasTarefasRoute: typeof AuthenticatedGestaoMinhasTarefasRoute
   AuthenticatedGestaoModelosChecklistRoute: typeof AuthenticatedGestaoModelosChecklistRoute
   AuthenticatedGestaoPlanejamentoRoute: typeof AuthenticatedGestaoPlanejamentoRoute
   AuthenticatedGestaoPlanoIntegracaoRoute: typeof AuthenticatedGestaoPlanoIntegracaoRoute
   AuthenticatedGestaoPreInventarioRoute: typeof AuthenticatedGestaoPreInventarioRoute
-  AuthenticatedGestaoIndicadorInventarioRoute: typeof AuthenticatedGestaoIndicadorInventarioRoute
   AuthenticatedMissoesIdRoute: typeof AuthenticatedMissoesIdRoute
   AuthenticatedObsoletosAcoesRoute: typeof AuthenticatedObsoletosAcoesRoute
   AuthenticatedObsoletosDashboardRoute: typeof AuthenticatedObsoletosDashboardRoute
@@ -2374,6 +2374,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedConfigPerfisRoute: AuthenticatedConfigPerfisRoute,
   AuthenticatedConfigResendRoute: AuthenticatedConfigResendRoute,
   AuthenticatedConfigSazonalidadeRoute: AuthenticatedConfigSazonalidadeRoute,
+  AuthenticatedGestaoIndicadorInventarioRoute:
+    AuthenticatedGestaoIndicadorInventarioRoute,
   AuthenticatedGestaoMinhasTarefasRoute: AuthenticatedGestaoMinhasTarefasRoute,
   AuthenticatedGestaoModelosChecklistRoute:
     AuthenticatedGestaoModelosChecklistRoute,
@@ -2381,7 +2383,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedGestaoPlanoIntegracaoRoute:
     AuthenticatedGestaoPlanoIntegracaoRoute,
   AuthenticatedGestaoPreInventarioRoute: AuthenticatedGestaoPreInventarioRoute,
-  AuthenticatedGestaoIndicadorInventarioRoute: AuthenticatedGestaoIndicadorInventarioRoute,
   AuthenticatedMissoesIdRoute: AuthenticatedMissoesIdRoute,
   AuthenticatedObsoletosAcoesRoute: AuthenticatedObsoletosAcoesRoute,
   AuthenticatedObsoletosDashboardRoute: AuthenticatedObsoletosDashboardRoute,
