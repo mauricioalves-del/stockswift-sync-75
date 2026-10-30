@@ -4549,6 +4549,7 @@ export type Database = {
       }
       missoes: {
         Row: {
+          concluida_em: string | null
           created_at: string
           criado_por: string | null
           data_execucao: string | null
@@ -4568,6 +4569,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          concluida_em?: string | null
           created_at?: string
           criado_por?: string | null
           data_execucao?: string | null
@@ -4587,6 +4589,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          concluida_em?: string | null
           created_at?: string
           criado_por?: string | null
           data_execucao?: string | null
@@ -5658,6 +5661,62 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      processo_inventario_acoes: {
+        Row: {
+          concluida_em: string | null
+          created_at: string
+          criado_por: string | null
+          descricao: string | null
+          etapa: string
+          id: string
+          missao_id: string | null
+          origem: string | null
+          prazo: string | null
+          responsavel_nome: string | null
+          status: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          concluida_em?: string | null
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          etapa: string
+          id?: string
+          missao_id?: string | null
+          origem?: string | null
+          prazo?: string | null
+          responsavel_nome?: string | null
+          status?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          concluida_em?: string | null
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          etapa?: string
+          id?: string
+          missao_id?: string | null
+          origem?: string | null
+          prazo?: string | null
+          responsavel_nome?: string | null
+          status?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processo_inventario_acoes_missao_id_fkey"
+            columns: ["missao_id"]
+            isOneToOne: false
+            referencedRelation: "missoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       producao_consumo: {
         Row: {
