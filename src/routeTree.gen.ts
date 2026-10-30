@@ -108,6 +108,7 @@ import { Route as ApiPublicImportEstoqueSistemicoRouteImport } from './routes/ap
 import { Route as ApiPublicImportFichaTecnicaBomRouteImport } from './routes/api/public/import-ficha-tecnica-bom'
 import { Route as ApiPublicImportMovimentacaoFefoRouteImport } from './routes/api/public/import-movimentacao-fefo'
 import { Route as ApiPublicImportRecebimentoTransferenciaRouteImport } from './routes/api/public/import-recebimento-transferencia'
+import { Route as AuthenticatedAtlasAssinaturaFechamentoIdRouteImport } from './routes/_authenticated/atlas.assinatura-fechamento.$id'
 import { Route as AuthenticatedAtlasModuloIdRouteImport } from './routes/_authenticated/atlas.modulo.$id'
 import { Route as AuthenticatedProducaoMaterialMaterialRouteImport } from './routes/_authenticated/producao.material.$material'
 import { Route as AuthenticatedSuprimentosFefoIndexRouteImport } from './routes/_authenticated/suprimentos.fefo.index'
@@ -691,6 +692,12 @@ const ApiPublicImportRecebimentoTransferenciaRoute =
     path: '/api/public/import-recebimento-transferencia',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedAtlasAssinaturaFechamentoIdRoute =
+  AuthenticatedAtlasAssinaturaFechamentoIdRouteImport.update({
+    id: '/atlas/assinatura-fechamento/$id',
+    path: '/atlas/assinatura-fechamento/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAtlasModuloIdRoute =
   AuthenticatedAtlasModuloIdRouteImport.update({
     id: '/atlas/modulo/$id',
@@ -845,6 +852,7 @@ export interface FileRoutesByFullPath {
   '/baixas/': typeof AuthenticatedBaixasIndexRoute
   '/config/': typeof AuthenticatedConfigIndexRoute
   '/missoes/': typeof AuthenticatedMissoesIndexRoute
+  '/atlas/assinatura-fechamento/$id': typeof AuthenticatedAtlasAssinaturaFechamentoIdRoute
   '/atlas/modulo/$id': typeof AuthenticatedAtlasModuloIdRoute
   '/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
   '/suprimentos/fefo/config': typeof AuthenticatedSuprimentosFefoConfigRoute
@@ -954,6 +962,7 @@ export interface FileRoutesByTo {
   '/baixas': typeof AuthenticatedBaixasIndexRoute
   '/config': typeof AuthenticatedConfigIndexRoute
   '/missoes': typeof AuthenticatedMissoesIndexRoute
+  '/atlas/assinatura-fechamento/$id': typeof AuthenticatedAtlasAssinaturaFechamentoIdRoute
   '/atlas/modulo/$id': typeof AuthenticatedAtlasModuloIdRoute
   '/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
   '/suprimentos/fefo/config': typeof AuthenticatedSuprimentosFefoConfigRoute
@@ -1065,6 +1074,7 @@ export interface FileRoutesById {
   '/_authenticated/baixas/': typeof AuthenticatedBaixasIndexRoute
   '/_authenticated/config/': typeof AuthenticatedConfigIndexRoute
   '/_authenticated/missoes/': typeof AuthenticatedMissoesIndexRoute
+  '/_authenticated/atlas/assinatura-fechamento/$id': typeof AuthenticatedAtlasAssinaturaFechamentoIdRoute
   '/_authenticated/atlas/modulo/$id': typeof AuthenticatedAtlasModuloIdRoute
   '/_authenticated/producao/material/$material': typeof AuthenticatedProducaoMaterialMaterialRoute
   '/_authenticated/suprimentos/fefo/config': typeof AuthenticatedSuprimentosFefoConfigRoute
@@ -1176,6 +1186,7 @@ export interface FileRouteTypes {
     | '/baixas/'
     | '/config/'
     | '/missoes/'
+    | '/atlas/assinatura-fechamento/$id'
     | '/atlas/modulo/$id'
     | '/producao/material/$material'
     | '/suprimentos/fefo/config'
@@ -1285,6 +1296,7 @@ export interface FileRouteTypes {
     | '/baixas'
     | '/config'
     | '/missoes'
+    | '/atlas/assinatura-fechamento/$id'
     | '/atlas/modulo/$id'
     | '/producao/material/$material'
     | '/suprimentos/fefo/config'
@@ -1395,6 +1407,7 @@ export interface FileRouteTypes {
     | '/_authenticated/baixas/'
     | '/_authenticated/config/'
     | '/_authenticated/missoes/'
+    | '/_authenticated/atlas/assinatura-fechamento/$id'
     | '/_authenticated/atlas/modulo/$id'
     | '/_authenticated/producao/material/$material'
     | '/_authenticated/suprimentos/fefo/config'
@@ -2117,6 +2130,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicImportRecebimentoTransferenciaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/atlas/assinatura-fechamento/$id': {
+      id: '/_authenticated/atlas/assinatura-fechamento/$id'
+      path: '/atlas/assinatura-fechamento/$id'
+      fullPath: '/atlas/assinatura-fechamento/$id'
+      preLoaderRoute: typeof AuthenticatedAtlasAssinaturaFechamentoIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/atlas/modulo/$id': {
       id: '/_authenticated/atlas/modulo/$id'
       path: '/atlas/modulo/$id'
@@ -2286,6 +2306,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedBaixasIndexRoute: typeof AuthenticatedBaixasIndexRoute
   AuthenticatedConfigIndexRoute: typeof AuthenticatedConfigIndexRoute
   AuthenticatedMissoesIndexRoute: typeof AuthenticatedMissoesIndexRoute
+  AuthenticatedAtlasAssinaturaFechamentoIdRoute: typeof AuthenticatedAtlasAssinaturaFechamentoIdRoute
   AuthenticatedAtlasModuloIdRoute: typeof AuthenticatedAtlasModuloIdRoute
   AuthenticatedProducaoMaterialMaterialRoute: typeof AuthenticatedProducaoMaterialMaterialRoute
   AuthenticatedSuprimentosFefoConfigRoute: typeof AuthenticatedSuprimentosFefoConfigRoute
@@ -2413,6 +2434,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBaixasIndexRoute: AuthenticatedBaixasIndexRoute,
   AuthenticatedConfigIndexRoute: AuthenticatedConfigIndexRoute,
   AuthenticatedMissoesIndexRoute: AuthenticatedMissoesIndexRoute,
+  AuthenticatedAtlasAssinaturaFechamentoIdRoute:
+    AuthenticatedAtlasAssinaturaFechamentoIdRoute,
   AuthenticatedAtlasModuloIdRoute: AuthenticatedAtlasModuloIdRoute,
   AuthenticatedProducaoMaterialMaterialRoute:
     AuthenticatedProducaoMaterialMaterialRoute,
