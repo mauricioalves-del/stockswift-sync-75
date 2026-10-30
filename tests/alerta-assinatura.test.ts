@@ -17,7 +17,7 @@ test("Um e-mail por responsável; sem responsável vai aos administradores", () 
   ]);
   expect(assunto(envios[0])).toContain("2 fechamento(s) — 3 dia(s)");
   const h = html(envios[0], "https://app", "hoje");
-  expect(h).toContain("/atlas/fechamento-inventario?fechamento=122");
+  expect(h).toContain("/atlas/assinatura-fechamento/122?papel=Responsavel_Departamento");
   expect(h).toContain("Olá, Ana");
 });
 
