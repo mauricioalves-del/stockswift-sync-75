@@ -104,8 +104,8 @@ export function FechamentoDetalhe({ id, gestor, assina, almoxes, onClose, onMudo
           : <DialogHeader><DialogTitle>Fechamento #{id}{d?.f ? ` · ${d.f.almoxarifado} · ${dt(d.f.data_fechamento)}` : ""}</DialogTitle></DialogHeader>}
         {!d || !resumo || !st ? <Loader2 className="mx-auto size-5 animate-spin" /> : (
           <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
-              {[["Itens", un(resumo.total_itens)], ["Divergentes", un(resumo.total_divergentes)], ["Item a item", pct(resumo.item_a_item_pct)], ["IAQ", pct(resumo.iaq_pct)], ["IAP", pct(resumo.iap_pct)], ["Resultado", brl(resumo.resultado_liquido)]].map(([r, v]) => <div key={r} className="rounded-md border p-2"><div className="text-[11px] text-muted-foreground">{r}</div><div className="font-semibold">{v}</div></div>)}
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-7">
+              {[["Itens", un(resumo.total_itens)], ["Divergentes", un(resumo.total_divergentes)], ["Item a item", pct(resumo.item_a_item_pct)], ["IAQ", pct(resumo.iaq_pct)], ["IAP", pct(resumo.iap_pct)], ["Resultado", brl(resumo.resultado_liquido)], ["Valor modular", brl(resumo.valor_falta + resumo.valor_sobra)]].map(([r, v]) => <div key={r} className="rounded-md border p-2"><div className="text-[11px] text-muted-foreground">{r}</div><div className="font-semibold">{v}</div></div>)}
             </div>
             <div className="text-xs text-muted-foreground">Faltas {brl(resumo.valor_falta)} em {resumo.itens_com_falta} itens · sobras {brl(resumo.valor_sobra)} em {resumo.itens_com_sobra} itens · arquivo {d.f.arquivo_origem} · importado por {d.f.criado_por} em {dth(d.f.criado_em)}</div>
             <Tabs defaultValue="assinaturas">
