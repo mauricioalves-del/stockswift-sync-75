@@ -73,7 +73,9 @@ export const enviarRiscoShelfSlack = createServerFn({ method: "POST" })
       const { data: resp } = await supabase.from("shelf_slack_responsaveis").select("user_id").in("departamento_id", data.departamentoIds);
       const ids = Array.from(new Set((resp ?? []).map((r) => r.user_id)));
       if (ids.length) {
-        const { data: profs } = await supabase.from("profiles").select("email").in("id", ids);
+        // Emails dos responsáveis cadastrados (lidos no servidor; o cadastro é restrito a gestores)
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: profs } = await supabaseAdmin.from("profiles").select("email").in("id", ids);
         emails = Array.from(new Set((profs ?? []).map((p) => p.email).filter(Boolean)));
       }
     }
