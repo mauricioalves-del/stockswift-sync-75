@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { CalendarCheck, CheckCircle2, FileDown, FileSpreadsheet, Loader2, PenLine, Trash2, Upload } from "lucide-react";
+import { BellRing, CalendarCheck, CheckCircle2, FileDown, FileSpreadsheet, Loader2, PenLine, Trash2, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
 import { Button } from "@/components/ui/button";
@@ -15,10 +15,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { abrirPlanilha, carregarContexto, type Planilha } from "@/lib/atlas-importar";
 import { lerTudo } from "@/lib/atlas-investigacao";
+import { ResponsaveisAssinatura } from "@/components/atlas/ResponsaveisAssinatura";
 import { ABA_FECHAMENTO, PAPEIS_ASSINATURA, assinarCiencia, corrigirAlmoxarifado, excluirFechamento, importarFechamento, resumoFechamento, statusAssinatura, type ItemF } from "@/lib/atlas-fechamento";
 
 export const Route = createFileRoute("/_authenticated/atlas/fechamento-inventario")({
   component: FechamentoInventario,
+  // ?fechamento=<id> abre o fechamento direto (link do alerta diário de assinatura).
+  validateSearch: (s: Record<string, unknown>): { fechamento?: number } => {
+    const n = Number(s.fechamento);
+    return Number.isInteger(n) && n > 0 ? { fechamento: n } : {};
+  },
   head: () => ({ meta: [{ title: "Fechamento Inventário — Atlas" }] }),
 });
 
@@ -63,7 +69,9 @@ function FechamentoInventario() {
   const assina = gestor || role === "DIRETOR_OPERACOES" || role === "COORDENADOR_FINANCEIRO";
   const qc = useQueryClient();
   const [almox, setAlmox] = useState("todos");
-  const [aberto, setAberto] = useState<number | null>(null);
+  const { fechamento: fechamentoUrl } = Route.useSearch();
+  const [aberto, setAberto] = useState<number | null>(fechamentoUrl ?? null);
+  const [responsaveis, setResponsaveis] = useState(false);
   const [importando, setImportando] = useState(false);
   const q = useQuery({
     queryKey: ["atlas-fechamentos"],
@@ -99,6 +107,7 @@ function FechamentoInventario() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Select value={almox} onValueChange={setAlmox}><SelectTrigger className="h-8 w-52"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os almoxarifados</SelectItem>{(q.data?.almox ?? []).map((a) => <SelectItem key={a.codigo} value={a.codigo}>{a.nome_exibicao || a.codigo}</SelectItem>)}</SelectContent></Select>
+          {gestor && <Button size="sm" variant="outline" className="gap-1" onClick={() => setResponsaveis(true)}><BellRing className="size-4" /> Responsáveis pelas assinaturas</Button>}
           {gestor && <Button size="sm" variant="outline" onClick={aprovarLote}>Aprovação manual em lote</Button>}
           {gestor && <Button size="sm" className="gap-1" onClick={() => setImportando(true)}><Upload className="size-4" /> Importar fechamento</Button>}
         </div>
@@ -126,6 +135,7 @@ function FechamentoInventario() {
 
       {importando && <ImportarDialog onClose={() => setImportando(false)} onOk={(id) => { setImportando(false); recarregar(); setAberto(id); }} />}
       {aberto != null && <Detalhe id={aberto} gestor={gestor} assina={assina} almoxes={q.data?.almox ?? []} onClose={() => setAberto(null)} onMudou={recarregar} />}
+      {gestor && <ResponsaveisAssinatura open={responsaveis} onOpenChange={setResponsaveis} almoxarifados={[...new Set((q.data?.fechamentos ?? []).map((f: any) => f.almoxarifado).filter(Boolean) as string[])].sort()} />}
     </div>
   );
 }
