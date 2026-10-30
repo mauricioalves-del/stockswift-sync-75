@@ -91,7 +91,8 @@ export const enviarRiscoShelfSlack = createServerFn({ method: "POST" })
       const mencoes: string[] = [];
       for (const e of emails) {
         try {
-          const u = await slack("users.lookupByEmail", { email: e });
+          // users.lookupByEmail não aceita corpo JSON: envia o e-mail na URL
+          const u = await slack(`users.lookupByEmail?email=${encodeURIComponent(e)}`, {});
           mencoes.push(`<@${u.user.id}>`);
         } catch { mencoes.push(`*${e}*`); }
       }
