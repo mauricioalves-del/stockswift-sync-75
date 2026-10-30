@@ -1,5 +1,8 @@
 # Correção de grupos das Baixas Operacionais
 
+## Atlas: seletor na análise MoM
+- [ ] Adicionar IAP (valor), IAQ (quantidade), Item a item e Valor Mod (R$), preservando os cálculos e verificando as quatro opções na tela.
+
 ## Pré-inventário: quatro ajustes solicitados
 - [x] Novo item com etapa, obrigatoriedade, bloqueio de duplicadas, ordem máxima e histórico; remoção confirmada com histórico, apenas gestor em AGENDADO.
 - [x] Acrescentar os dois itens padrão e atualizar exclusivamente a função de pendências, incluindo ações pós-inventário.
