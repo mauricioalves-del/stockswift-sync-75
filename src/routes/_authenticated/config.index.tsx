@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
+import { SlackShelfConfigCard } from "@/components/shelf-life/SlackShelfConfigCard";
 import { EyeOff, Shield, ChevronRight, Warehouse, MessageSquare, Mail, Percent, Palette } from "lucide-react";
 
 
@@ -180,6 +181,8 @@ function ConfigPage() {
         </Card>
       )}
 
+
+      {podeGerirWebhook && <SlackShelfConfigCard />}
 
       {podeGerirWebhook && (
         <Card>
