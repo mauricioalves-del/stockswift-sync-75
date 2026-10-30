@@ -330,6 +330,13 @@
       "when": 1793383129640,
       "tag": "0046_shelf_slack_responsaveis",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1793385827796,
+      "tag": "0047_shelf_slack_dep_almox",
+      "breakpoints": true
     }
   ]
 }

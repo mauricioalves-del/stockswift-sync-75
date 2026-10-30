@@ -6360,18 +6360,21 @@ export type Database = {
       }
       shelf_slack_departamentos: {
         Row: {
+          almoxarifados: string[]
           ativo: boolean
           created_at: string
           id: string
           nome: string
         }
         Insert: {
+          almoxarifados?: string[]
           ativo?: boolean
           created_at?: string
           id?: string
           nome: string
         }
         Update: {
+          almoxarifados?: string[]
           ativo?: boolean
           created_at?: string
           id?: string
