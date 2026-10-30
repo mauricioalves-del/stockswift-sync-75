@@ -6358,6 +6358,101 @@ export type Database = {
         }
         Relationships: []
       }
+      shelf_slack_departamentos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      shelf_slack_envios: {
+        Row: {
+          almox: string | null
+          canal: string | null
+          created_at: string
+          departamentos: string[]
+          enviado_por: string
+          erro: string | null
+          id: string
+          link: string | null
+          lotes: Json
+          observacao: string
+          thread_ts: string | null
+          valor_total: number
+        }
+        Insert: {
+          almox?: string | null
+          canal?: string | null
+          created_at?: string
+          departamentos?: string[]
+          enviado_por?: string
+          erro?: string | null
+          id?: string
+          link?: string | null
+          lotes?: Json
+          observacao: string
+          thread_ts?: string | null
+          valor_total?: number
+        }
+        Update: {
+          almox?: string | null
+          canal?: string | null
+          created_at?: string
+          departamentos?: string[]
+          enviado_por?: string
+          erro?: string | null
+          id?: string
+          link?: string | null
+          lotes?: Json
+          observacao?: string
+          thread_ts?: string | null
+          valor_total?: number
+        }
+        Relationships: []
+      }
+      shelf_slack_responsaveis: {
+        Row: {
+          created_at: string
+          departamento_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          departamento_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          departamento_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shelf_slack_responsaveis_departamento_id_fkey"
+            columns: ["departamento_id"]
+            isOneToOne: false
+            referencedRelation: "shelf_slack_departamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solicitacoes_baixa: {
         Row: {
           created_at: string
