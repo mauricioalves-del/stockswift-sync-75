@@ -40,7 +40,7 @@ export function assunto(e: Envio): string {
 export function html(e: Envio, appUrl: string, quando: string): string {
   const linhas = e.itens.map((i) => {
     const cor = i.dias_aberto >= 5 ? "#DC2626" : i.dias_aberto >= 2 ? "#D97706" : "#111827";
-    const link = `${appUrl}/atlas/fechamento-inventario?fechamento=${i.fechamento_id}`;
+    const link = `${appUrl}/atlas/assinatura-fechamento/${i.fechamento_id}?papel=${encodeURIComponent(i.papel)}`;
     const td = 'style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px"';
     return `<tr>
       <td ${td}><b>#${i.fechamento_id}</b></td>
