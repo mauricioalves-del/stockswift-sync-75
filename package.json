@@ -99,6 +99,7 @@
   },
   "overrides": {
     "seroval": "^1.6.4",
-    "seroval-plugins": "^1.6.4"
+    "seroval-plugins": "^1.6.4",
+    "dompurify": "^3.4.17"
   }
 }

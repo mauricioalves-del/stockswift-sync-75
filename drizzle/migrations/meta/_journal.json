@@ -337,6 +337,13 @@
       "when": 1793385827796,
       "tag": "0047_shelf_slack_dep_almox",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1793387547426,
+      "tag": "0048_restrict_permissive_reads_to_approved",
+      "breakpoints": true
     }
   ]
 }
