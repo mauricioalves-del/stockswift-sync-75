@@ -1,8 +1,9 @@
 # Correção de grupos das Baixas Operacionais
 
 ## Centros de custo das baixas
-- [ ] Cadastrar centros por área/operação e almoxarifado; configurar referência dos motivos e registrar centro na baixa sem reclassificar histórico.
-- [ ] Testar prioridades, persistência e apresentação autenticada.
+- [x] Cadastrar centros por área/operação e almoxarifado; referência dos motivos e atribuição automática na baixa, sem reclassificar histórico.
+- [x] Seis testes passaram; cinco regras confirmadas no banco autenticado; cadastro salvo e relido pela tela, com valor de teste restaurado. Telas de áreas, almox, motivos e nova baixa verificadas sem erros. Nenhuma baixa real criada para teste.
+- [ ] Preencher os centros reais de áreas/operações e almoxarifados (aguarda códigos não fornecidos; exceções P10008 - PRODUTO já definidas).
 
 ## Atlas: seletor na análise MoM
 - [x] Adicionar IAP (valor), IAQ (quantidade), Item a item e Valor Mod (R$), preservando os cálculos; quatro opções verificadas na tela autenticada, sem erros.
