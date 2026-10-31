@@ -205,7 +205,7 @@ export const Route = createFileRoute('/api/public/import-estoque-sistemico')({
               origem: r.origem,
               cliente: r.cliente,
               data_validade: r.data_validade ?? validadeAtual.get(`${r.id_produto}|${r.lote}|${r.origem}`) ?? null,
-              validade_manual_em: r.data_validade ? null : undefined,
+              validade_manual_em: null,
               ean: r.ean,
               data_importacao: new Date().toISOString(),
             }))
