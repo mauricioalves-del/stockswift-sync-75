@@ -2773,6 +2773,7 @@ export type Database = {
           aprovado_diretor_operacoes_por: string | null
           aprovador_id: string | null
           categoria: string | null
+          centro_custo: string | null
           codigo_produto: string
           comentario_aprovacao: string | null
           contexto_baixa: string | null
@@ -2815,6 +2816,7 @@ export type Database = {
           aprovado_diretor_operacoes_por?: string | null
           aprovador_id?: string | null
           categoria?: string | null
+          centro_custo?: string | null
           codigo_produto: string
           comentario_aprovacao?: string | null
           contexto_baixa?: string | null
@@ -2857,6 +2859,7 @@ export type Database = {
           aprovado_diretor_operacoes_por?: string | null
           aprovador_id?: string | null
           categoria?: string | null
+          centro_custo?: string | null
           codigo_produto?: string
           comentario_aprovacao?: string | null
           contexto_baixa?: string | null
@@ -3486,6 +3489,7 @@ export type Database = {
       contexto_baixa_opcoes: {
         Row: {
           ativo: boolean
+          centro_custo: string | null
           created_at: string
           descricao: string
           id: string
@@ -3494,6 +3498,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          centro_custo?: string | null
           created_at?: string
           descricao: string
           id?: string
@@ -3502,6 +3507,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          centro_custo?: string | null
           created_at?: string
           descricao?: string
           id?: string
@@ -5176,6 +5182,7 @@ export type Database = {
       origens: {
         Row: {
           ativo: boolean
+          centro_custo: string | null
           codigo_origem: string
           created_at: string
           descricao: string
@@ -5184,6 +5191,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          centro_custo?: string | null
           codigo_origem: string
           created_at?: string
           descricao?: string
@@ -5192,6 +5200,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          centro_custo?: string | null
           codigo_origem?: string
           created_at?: string
           descricao?: string
@@ -7192,6 +7201,10 @@ export type Database = {
       almoxarifados_permitidos: { Args: { _uid: string }; Returns: string[] }
       atlas_ajustar_sequencias: { Args: never; Returns: number }
       atualizar_custos_contabeis: { Args: { p_linhas: Json }; Returns: Json }
+      baixa_resolver_centro_custo: {
+        Args: { centro_almox: string; centro_contexto: string; motivo: string }
+        Returns: string
+      }
       concluir_tarefas_assinatura: {
         Args: { p_fechamento: number; p_papel?: string }
         Returns: number
