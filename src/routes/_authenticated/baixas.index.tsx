@@ -28,6 +28,7 @@ import { extrairCodigoNumericoQR } from "@/lib/qr-estoque";
 import { ImportarBaixasDialog } from "@/components/baixas/ImportarBaixasDialog";
 import { NfeBaixaDialog } from "@/components/baixas/NfeBaixaDialog";
 import { criarSolicitacaoBaixa } from "@/lib/solicitacoes-baixa";
+import { resolverCentroCusto } from "@/lib/baixa-centro-custo";
 import { fetchAll } from "@/lib/fetch-all";
 import { readEdgeFunctionFailure } from "@/lib/edge-function-errors";
 import { useMyRoles } from "@/hooks/useMyRoles";
@@ -42,7 +43,7 @@ import { ResumoExecutivoBaixas, DetalheBaixaDialog, BadgeAprovacao } from "@/com
 
 export const Route = createFileRoute("/_authenticated/baixas/")({
   component: BaixasPage,
-  head: () => ({ meta: [{ title: "Baixas Operacionais" }] }),
+  head: () => ({ meta: [{ title: "Baixas Operacionais | Stock Savvy" }, { name: "description", content: "Solicitações de baixa, centros de custo, aprovação e histórico de estoque." }, { property: "og:title", content: "Baixas Operacionais | Stock Savvy" }, { property: "og:description", content: "Controle das baixas operacionais com centros de custo e rastreabilidade." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -129,6 +130,7 @@ function NovaBaixaForm() {
 
   const areasCortesiaQ = useContextoOpcoes("CORTESIA");
   const operacoesQ = useContextoOpcoes("DEGUSTACAO");
+  const centrosAlmoxQ = useQuery({ queryKey: ["origens-centros-custo"], queryFn: () => fetchAll<{ codigo_origem: string; centro_custo: string | null }>((from, to) => supabase.from("origens").select("codigo_origem,centro_custo").order("id").range(from, to)) });
 
   const motivosQ = useQuery({
     queryKey: ["motivo_baixa"],
@@ -234,6 +236,10 @@ function NovaBaixaForm() {
   }
 
   const motivoSelDesc = (motivosQ.data ?? []).find((m) => m.id === motivoId)?.descricao ?? "";
+  function centroDoItem(motivo: string, contexto?: string | null) {
+    const opcoes = motivo.trim().toLowerCase() === "cortesia" ? areasCortesiaQ.data : operacoesQ.data;
+    return resolverCentroCusto(motivo, opcoes?.find((o) => o.descricao === contexto)?.centro_custo, centrosAlmoxQ.data?.find((o) => o.codigo_origem.trim().toLowerCase() === origem.trim().toLowerCase())?.centro_custo);
+  }
   const ehCortesia = motivoSelDesc.trim().toLowerCase() === "cortesia";
   const ehDegustacao = motivoSelDesc.trim().toLowerCase() === "degustação";
   useEffect(() => { setContextoBaixa(""); setResponsavelBaixa(""); }, [motivoId]);
@@ -436,6 +442,7 @@ function NovaBaixaForm() {
                 </div>
               </div>
 
+              <div className="md:col-span-2"><Label>Centro de custo</Label><Input aria-label="Centro de custo da baixa" readOnly value={motivoId ? centroDoItem(motivoSelDesc, contextoBaixa) || "Não definido" : ""} className="bg-muted" /></div>
               <div>
                 <Label>SKU</Label>
                 <Input value={produto?.id_produto ?? ""} readOnly className="bg-muted font-mono" />
@@ -567,6 +574,7 @@ function NovaBaixaForm() {
                     <TableHead>Lote</TableHead>
                     <TableHead className="text-right">Qtd</TableHead>
                     <TableHead>Motivo</TableHead>
+                    <TableHead>Centro de custo</TableHead>
                     <TableHead>Observação</TableHead>
                     <TableHead className="text-right">Custo</TableHead>
                     <TableHead />
@@ -580,6 +588,7 @@ function NovaBaixaForm() {
                       <TableCell className="font-mono text-xs">{c.lote || "—"}</TableCell>
                       <TableCell className="text-right tabular-nums text-xs">{formatNum(c.quantidade)}</TableCell>
                       <TableCell className="text-xs">{c.motivo_desc}</TableCell>
+                      <TableCell className="text-xs">{centroDoItem(c.motivo_desc, c.contexto_baixa) || "Não definido"}</TableCell>
                       <TableCell className="max-w-[16rem] truncate text-xs" title={c.observacao}>{c.observacao || "—"}</TableCell>
                       <TableCell className="text-right tabular-nums text-xs">
                         {formatBRL(c.quantidade * c.custo_unitario)}
@@ -956,6 +965,7 @@ function FilaAprovacao() {
       Qtd: Number(b.quantidade ?? 0),
       Valor: Number(b.valor_total ?? 0),
       Motivo: b.motivo?.descricao ?? "",
+      "Centro de custo": b.centro_custo ?? "",
       Almox: b.id_local ?? "",
       Solicitante: nomeSolicitante(b) || "",
       Status: statusAprovacao(b) ?? "",
@@ -1141,6 +1151,7 @@ function FilaAprovacao() {
               </TableHead>
               <TableHead>Motivo</TableHead>
               <TableHead>Almox.</TableHead>
+              <TableHead>Centro de custo</TableHead>
               <TableHead>Solicitante</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -1148,7 +1159,7 @@ function FilaAprovacao() {
           </TableHeader>
           <TableBody>
             {lista.length === 0 && (
-              <TableRow><TableCell colSpan={12} className="text-center py-10 text-muted-foreground">Nenhuma baixa pendente</TableCell></TableRow>
+              <TableRow><TableCell colSpan={13} className="text-center py-10 text-muted-foreground">Nenhuma baixa pendente</TableCell></TableRow>
             )}
             {lista.map((b) => (
               <TableRow
@@ -1184,6 +1195,7 @@ function FilaAprovacao() {
                 <TableCell className="text-right tabular-nums">{formatBRL(Number(b.valor_total))}</TableCell>
                 <TableCell className="text-xs">{b.motivo?.descricao ?? "—"}</TableCell>
                 <TableCell className="text-xs">{b.id_local ?? "—"}</TableCell>
+                <TableCell className="text-xs">{b.centro_custo || "Não definido"}</TableCell>
                 <TableCell className="text-xs">{nomeSolicitante(b) || "—"}</TableCell>
                 <TableCell>
                   <div className="space-y-1">
@@ -1279,7 +1291,7 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("motivo_baixa").select("*").eq("ativo", true).order("descricao");
       if (error) throw error;
-      return data as { id: string; descricao: string }[];
+      return data as { id: string; descricao: string; centro_custo: string | null }[];
     },
   });
 
@@ -1526,6 +1538,7 @@ function Historico() {
       Quantidade: Number(b.quantidade ?? 0),
       "Valor Total": Number(b.valor_total ?? 0),
       Motivo: b.motivo?.descricao ?? "",
+      "Centro de custo": b.centro_custo ?? "",
       Status: b.status_fluxo ?? "",
       Solicitante: b.solicitante_nome ?? b.solicitante ?? "",
       Observação: b.observacao ?? "",
@@ -1636,6 +1649,7 @@ function Historico() {
                   Valor {sortBy === "valor" && (ordem === "desc" ? "↓" : "↑")}
                 </TableHead>
                 <TableHead>Motivo</TableHead>
+                <TableHead>Centro de custo</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Documento</TableHead>
                 {isAdmin && <TableHead className="w-10" />}
@@ -1644,7 +1658,7 @@ function Historico() {
             <TableBody>
               {filtrados.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 11 : 10} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 12 : 11} className="text-center py-10 text-muted-foreground">
                     Nenhum registro para os filtros aplicados
                   </TableCell>
                 </TableRow>
@@ -1659,6 +1673,7 @@ function Historico() {
                   <TableCell className="text-right tabular-nums">{formatNum(Number(b.quantidade))}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatBRL(Number(b.valor_total))}</TableCell>
                   <TableCell className="text-xs">{b.motivo?.descricao ?? "—"}</TableCell>
+                  <TableCell className="text-xs">{b.centro_custo || "Não definido"}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-[10px]">{b.status_fluxo}</Badge>
                   </TableCell>
@@ -1722,12 +1737,12 @@ function useContextoOpcoes(tipo: "CORTESIA" | "DEGUSTACAO") {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("contexto_baixa_opcoes")
-        .select("id,descricao")
+        .select("id,descricao,centro_custo")
         .eq("tipo", tipo)
         .eq("ativo", true)
         .order("descricao");
       if (error) throw error;
-      return (data ?? []) as { id: string; descricao: string }[];
+      return (data ?? []) as { id: string; descricao: string; centro_custo: string | null }[];
     },
   });
 }
