@@ -1,5 +1,9 @@
 # Correção de grupos das Baixas Operacionais
 
+## Centros de custo das baixas
+- [ ] Cadastrar centros por área/operação e almoxarifado; configurar referência dos motivos e registrar centro na baixa sem reclassificar histórico.
+- [ ] Testar prioridades, persistência e apresentação autenticada.
+
 ## Atlas: seletor na análise MoM
 - [x] Adicionar IAP (valor), IAQ (quantidade), Item a item e Valor Mod (R$), preservando os cálculos; quatro opções verificadas na tela autenticada, sem erros.
 
