@@ -183,10 +183,11 @@ export const Route = createFileRoute('/api/public/import-estoque-sistemico')({
           const setJa = new Set(jaExistem.map((e) => `${e.id_produto}|${e.lote ?? ''}|${e.origem ?? ''}`))
           const novos = payload.filter((p) => !setJa.has(`${p.id_produto}|${p.lote}|${p.origem}`)).length
           const atualizados = payload.length - novos
-          // Validade enviada manualmente pela tela prevalece sobre a integração.
-          const validadeManual = new Map<string, string | null>()
+          // A última atualização prevalece (API ou upload manual). Só mantém a
+          // validade existente quando a integração não enviar nenhuma data.
+          const validadeAtual = new Map<string, string | null>()
           for (const e of jaExistem) {
-            if (e.validade_manual_em) validadeManual.set(`${e.id_produto}|${e.lote ?? ''}|${e.origem ?? ''}`, e.data_validade)
+            validadeAtual.set(`${e.id_produto}|${e.lote ?? ''}|${e.origem ?? ''}`, e.data_validade)
           }
 
           // 5. Upsert em chunks
@@ -203,9 +204,8 @@ export const Route = createFileRoute('/api/public/import-estoque-sistemico')({
               id_local: r.id_local,
               origem: r.origem,
               cliente: r.cliente,
-              data_validade: validadeManual.has(`${r.id_produto}|${r.lote}|${r.origem}`)
-                ? validadeManual.get(`${r.id_produto}|${r.lote}|${r.origem}`) ?? r.data_validade
-                : r.data_validade,
+              data_validade: r.data_validade ?? validadeAtual.get(`${r.id_produto}|${r.lote}|${r.origem}`) ?? null,
+              validade_manual_em: null,
               ean: r.ean,
               data_importacao: new Date().toISOString(),
             }))
