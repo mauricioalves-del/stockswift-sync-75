@@ -10,11 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Plus, PackageMinus, Loader2, Pencil, Check, X } from "lucide-react";
+import { rotuloReferenciaCentroCusto } from "@/lib/baixa-centro-custo";
 import { useRole } from "@/hooks/useRole";
 
 export const Route = createFileRoute("/_authenticated/motivos-baixa")({
   component: MotivosBaixaPage,
-  head: () => ({ meta: [{ title: "Motivos de Baixa" }] }),
+  head: () => ({ meta: [{ title: "Motivos de Baixa e centros de custo | Stock Savvy" }, { name: "description", content: "Motivos de baixa com referência ao centro de custo da área, operação ou almoxarifado." }, { property: "og:title", content: "Motivos de Baixa | Stock Savvy" }, { property: "og:description", content: "Referências de centro de custo dos motivos de baixa." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
 
 function MotivosBaixaPage() {
@@ -103,12 +104,13 @@ function MotivosBaixaPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Descrição</TableHead>
+                <TableHead>Centro de custo · referência</TableHead>
                 <TableHead className="w-28 text-center">Ativo</TableHead>
                 {podeGerir && <TableHead className="w-28 text-right">Ações</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={podeGerir ? 3 : 2} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>}
+              {isLoading && <TableRow><TableCell colSpan={podeGerir ? 4 : 3} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>}
               {(motivos ?? []).map((m) => (
                 <TableRow key={m.id}>
                   <TableCell>
@@ -121,6 +123,7 @@ function MotivosBaixaPage() {
                       />
                     ) : m.descricao}
                   </TableCell>
+                  <TableCell>{rotuloReferenciaCentroCusto(m.descricao)}</TableCell>
                   <TableCell className="text-center">
                     <Switch checked={m.ativo} onCheckedChange={(v) => toggleAtivo(m.id, v)} disabled={!podeGerir} />
                   </TableCell>
@@ -141,7 +144,7 @@ function MotivosBaixaPage() {
                 </TableRow>
               ))}
               {!isLoading && (motivos ?? []).length === 0 && (
-                <TableRow><TableCell colSpan={podeGerir ? 3 : 2} className="text-center text-muted-foreground py-8">Nenhum motivo cadastrado</TableCell></TableRow>
+                <TableRow><TableCell colSpan={podeGerir ? 4 : 3} className="text-center text-muted-foreground py-8">Nenhum motivo cadastrado</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

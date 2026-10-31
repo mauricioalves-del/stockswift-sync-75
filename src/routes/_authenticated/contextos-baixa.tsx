@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Plus, Loader2, Pencil, Check, X, Tags } from "lucide-react";
+import { CentroCustoEdit } from "@/components/baixas/CentroCustoEdit";
 import { useRole } from "@/hooks/useRole";
 
 export const Route = createFileRoute("/_authenticated/contextos-baixa")({
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/contextos-baixa")({
   }),
 });
 
-type Opcao = { id: string; tipo: string; descricao: string; ativo: boolean };
+type Opcao = { id: string; tipo: string; descricao: string; ativo: boolean; centro_custo: string | null };
 
 function ContextosBaixaPage() {
   const { isAdmin, role } = useRole();
@@ -91,6 +92,7 @@ function Bloco({
   isLoading: boolean; podeGerir: boolean; onChanged: () => void;
 }) {
   const [descricao, setDescricao] = useState("");
+  const [centroCusto, setCentroCusto] = useState("");
   const [saving, setSaving] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editDesc, setEditDesc] = useState("");
@@ -99,11 +101,12 @@ function Bloco({
     const d = descricao.trim();
     if (!d) { toast.error("Descrição obrigatória"); return; }
     setSaving(true);
-    const { error } = await supabase.from("contexto_baixa_opcoes").insert({ tipo, descricao: d });
+    const { error } = await supabase.from("contexto_baixa_opcoes").insert({ tipo, descricao: d, centro_custo: centroCusto.trim() || null });
     setSaving(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Opção cadastrada");
     setDescricao("");
+    setCentroCusto("");
     onChanged();
   }
 
@@ -128,7 +131,7 @@ function Bloco({
       <CardHeader><CardTitle className="text-base">{titulo}</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         {podeGerir && (
-          <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-end">
             <div>
               <Label className="text-xs">Nova opção</Label>
               <Input
@@ -138,6 +141,7 @@ function Bloco({
                 placeholder={placeholder}
               />
             </div>
+            <div><Label className="text-xs">Centro de custo</Label><Input aria-label={`Centro de custo · ${titulo}`} value={centroCusto} onChange={(e) => setCentroCusto(e.target.value)} placeholder="Código - descrição" /></div>
             <Button onClick={add} disabled={saving || !descricao.trim()}>
               {saving ? <Loader2 className="size-4 animate-spin" /> : <><Plus className="size-4 mr-1" /> Adicionar</>}
             </Button>
@@ -148,16 +152,17 @@ function Bloco({
           <TableHeader>
             <TableRow>
               <TableHead>Descrição</TableHead>
+              <TableHead>Centro de custo</TableHead>
               <TableHead className="w-24 text-center">Ativo</TableHead>
               {podeGerir && <TableHead className="w-24 text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && (
-              <TableRow><TableCell colSpan={podeGerir ? 3 : 2} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={podeGerir ? 4 : 3} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
             )}
             {!isLoading && itens.length === 0 && (
-              <TableRow><TableCell colSpan={podeGerir ? 3 : 2} className="text-center text-muted-foreground py-6">Nenhuma opção cadastrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={podeGerir ? 4 : 3} className="text-center text-muted-foreground py-6">Nenhuma opção cadastrada.</TableCell></TableRow>
             )}
             {itens.map((o) => (
               <TableRow key={o.id}>
@@ -171,6 +176,7 @@ function Bloco({
                     />
                   ) : o.descricao}
                 </TableCell>
+                <TableCell><CentroCustoEdit tabela="contexto_baixa_opcoes" id={o.id} nome={o.descricao} valor={o.centro_custo} podeEditar={podeGerir} onSaved={onChanged} /></TableCell>
                 <TableCell className="text-center">
                   <Switch checked={o.ativo} onCheckedChange={(v) => toggleAtivo(o.id, v)} disabled={!podeGerir} />
                 </TableCell>
