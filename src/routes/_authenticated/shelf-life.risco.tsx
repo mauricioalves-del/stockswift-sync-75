@@ -17,8 +17,11 @@ import { ConfigFiltrosCard } from "@/components/shelf-life/ConfigFiltrosCard";
 import { usePersistedState, useShelfConfig } from "@/hooks/useFiltrosShelfLife";
 import { CampanhaDialog, type CampanhaDraft } from "@/components/shelf-life/CampanhaDialog";
 import { EnviarSlackDialog } from "@/components/shelf-life/EnviarSlackDialog";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { chaveEnvio, indexarEnviosPorLote, type EnvioSlack } from "@/lib/shelf-slack";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertTriangle, Send, ArrowDown, ArrowUp, CalendarClock, ChevronsUpDown, Download, HelpCircle, Plus } from "lucide-react";
+import { AlertTriangle, ExternalLink, Send, ArrowDown, ArrowUp, CalendarClock, ChevronsUpDown, Download, HelpCircle, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/shelf-life/risco")({
   component: MapeamentoRisco,
@@ -38,10 +41,11 @@ type FiltrosRisco = {
   familias: string[];
   faixas: string[];
   acao: string[];
+  slack?: string[];
   busca: string;
 };
 
-const FILTROS_PADRAO: FiltrosRisco = { almox: [], grupos: [], familias: [], faixas: [], acao: [], busca: "" };
+const FILTROS_PADRAO: FiltrosRisco = { almox: [], grupos: [], familias: [], faixas: [], acao: [], slack: [], busca: "" };
 
 type SortKey = "dias" | "valor" | "quantidade" | "sku" | "descricao" | "lote" | "almoxarifado" | "data_validade";
 
@@ -59,6 +63,19 @@ function MapeamentoRisco() {
   const set = <K extends keyof FiltrosRisco>(k: K, v: FiltrosRisco[K]) => setF((p) => ({ ...p, [k]: v }));
 
   const idx = useMemo(() => indexarCampanhasPorLote(campanhas.data), [campanhas.data]);
+  const qc = useQueryClient();
+  // Envios concluídos ao Slack (com Trend criada): numeração e link de cada lote já formalizado.
+  const envios = useQuery({
+    queryKey: ["shelf-slack-envios"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("shelf_slack_envios")
+        .select("id, numero, link, created_at, observacao, lotes").not("thread_ts", "is", null)
+        .order("created_at", { ascending: false }).limit(2000);
+      if (error) throw error;
+      return (data ?? []) as unknown as EnvioSlack[];
+    },
+  });
+  const enviosPorLote = useMemo(() => indexarEnviosPorLote(envios.data), [envios.data]);
   const rows = lotes.data ?? [];
 
   const opts = useMemo(() => {
@@ -85,10 +102,16 @@ function MapeamentoRisco() {
         if (f.acao[0] === "COM" && !temAcao) return false;
         if (f.acao[0] === "SEM" && temAcao) return false;
       }
+      const slack = f.slack ?? [];
+      if (slack.length === 1) {
+        const enviado = enviosPorLote.has(chaveEnvio(r));
+        if (slack[0] === "ENVIADO" && !enviado) return false;
+        if (slack[0] === "NAO" && enviado) return false;
+      }
       if (q && !(`${r.sku} ${r.descricao} ${r.lote}`.toUpperCase().includes(q))) return false;
       return true;
     });
-  }, [rows, f, idx]);
+  }, [rows, f, idx, enviosPorLote]);
 
   const ordenadas = useMemo(() => {
     const dir = sort.dir === "asc" ? 1 : -1;
@@ -140,6 +163,8 @@ function MapeamentoRisco() {
       Quantidade: r.quantidade, "Custo Unit.": r.custo_unitario, Valor: r.valor,
       Faixa: FAIXA_LABEL[r.faixa], Grupo: r.grupo ?? "", Família: r.familia ?? "",
       "Ação Vinculada": (idx.get(chaveLote(r.sku, r.lote)) ?? []).map((c) => c.tipo_nome).join(", "),
+      "Trend Slack": (enviosPorLote.get(chaveEnvio(r)) ?? []).map((e) => `#${e.numero}`).join(", "),
+      "Link Trend": enviosPorLote.get(chaveEnvio(r))?.[0]?.link ?? "",
     }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "Risco");
@@ -208,6 +233,14 @@ function MapeamentoRisco() {
               onChange={(v) => set("acao", v)}
             />
           </div>
+          <div>
+            <Label className="text-xs">Status no Slack</Label>
+            <MultiSelect
+              options={[{ value: "NAO", label: "Não enviado" }, { value: "ENVIADO", label: "Já em Trend" }]}
+              value={f.slack ?? []}
+              onChange={(v) => set("slack", v)}
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -238,6 +271,7 @@ function MapeamentoRisco() {
                   <SortHeader k="lote" label="Lote" sort={sort} setSort={setSort} />
                   <SortHeader k="almoxarifado" label="Almox" sort={sort} setSort={setSort} />
                   <SortHeader k="data_validade" label="Validade" sort={sort} setSort={setSort} />
+                  <TableHead>Slack</TableHead>
                   <SortHeader k="dias" label="Dias" align="right" sort={sort} setSort={setSort} />
                   <SortHeader k="quantidade" label="Qtd" align="right" sort={sort} setSort={setSort} />
                   <SortHeader k="valor" label="Valor" align="right" sort={sort} setSort={setSort} />
@@ -257,6 +291,9 @@ function MapeamentoRisco() {
                       <TableCell className="font-mono text-xs">{r.lote || "—"}</TableCell>
                       <TableCell className="text-xs">{r.almoxarifado}</TableCell>
                       <TableCell className="text-xs">{r.data_validade ? r.data_validade.slice(0, 10).split("-").reverse().join("/") : "—"}</TableCell>
+                      <TableCell className="whitespace-nowrap text-xs">
+                        <TrendSlack envios={enviosPorLote.get(chaveEnvio(r))} />
+                      </TableCell>
                       <TableCell className="text-right">{r.dias ?? "—"}</TableCell>
                       <TableCell className="text-right">{formatNum(r.quantidade)}</TableCell>
                       <TableCell className="text-right font-medium">{formatBRL(r.valor)}</TableCell>
@@ -278,7 +315,7 @@ function MapeamentoRisco() {
                   );
                 })}
                 {!filtradas.length && (
-                  <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">Nenhum lote no radar com os filtros atuais.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground py-6">Nenhum lote no radar com os filtros atuais.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -289,7 +326,8 @@ function MapeamentoRisco() {
         </CardContent>
       </Card>
 
-      <EnviarSlackDialog open={slackOpen} onOpenChange={setSlackOpen} lotes={selecionados} onSent={() => setSel(new Set())} />
+      <EnviarSlackDialog open={slackOpen} onOpenChange={setSlackOpen} lotes={selecionados} enviosPorLote={enviosPorLote}
+        onSent={() => { setSel(new Set()); qc.invalidateQueries({ queryKey: ["shelf-slack-envios"] }); }} />
       <CampanhaDialog open={!!draft} onOpenChange={(v) => !v && setDraft(null)} draft={draft} />
     </div>
   );
@@ -349,5 +387,25 @@ function Kpi({ title, value, icon, tone, hint }: { title: string; value: number;
         {hint && <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>}
       </CardContent>
     </Card>
+  );
+}
+
+/** Número da Trend em que o lote já foi enviado, com link direto para a conversa no Slack. */
+function TrendSlack({ envios }: { envios?: EnvioSlack[] }) {
+  if (!envios?.length) return <span className="text-muted-foreground">—</span>;
+  const [ultimo, ...outros] = envios;
+  const dica = envios.map((e) => `#${e.numero} · ${new Date(e.created_at).toLocaleDateString("pt-BR")} · ${e.observacao}`).join("\n");
+  return (
+    <span className="inline-flex items-center gap-1" title={dica}>
+      {ultimo.link ? (
+        <a href={ultimo.link} target="_blank" rel="noreferrer"
+          className="inline-flex items-center gap-0.5 rounded-full border border-sky-400 px-2 py-0.5 font-semibold text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-sky-950/40">
+          #{ultimo.numero} <ExternalLink className="size-3" />
+        </a>
+      ) : (
+        <span className="rounded-full border px-2 py-0.5 font-semibold">#{ultimo.numero}</span>
+      )}
+      {outros.length > 0 && <span className="text-muted-foreground">+{outros.length}</span>}
+    </span>
   );
 }
