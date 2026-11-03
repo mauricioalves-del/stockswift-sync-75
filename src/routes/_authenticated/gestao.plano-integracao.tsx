@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { destinoAcao } from "@/lib/integracao-link";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   ACOES_MODELO, CHECKPOINTS, ETAPAS, FRENTES, INDICADORES_MODELO, PREMISSAS, RISCOS,
@@ -20,7 +22,7 @@ import {
 
 export const Route = createFileRoute("/_authenticated/gestao/plano-integracao")({
   component: PlanoIntegracaoPage,
-  head: () => ({ meta: [{ title: "Plano de Integração" }] }),
+  head: () => ({ meta: [{ title: "Plano de Integração | Stock Savvy" }, { name: "description", content: "Acompanhamento das etapas, ações e indicadores do Plano de Integração." }, { property: "og:title", content: "Plano de Integração | Stock Savvy" }, { property: "og:description", content: "Acompanhamento das etapas, ações e indicadores do Plano de Integração." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
 
 type Plano = {
@@ -62,7 +64,8 @@ function PlanoIntegracaoPage() {
   const acoesQ = useQuery({
     enabled: !!plano, queryKey: ["integracao-acoes", plano?.id],
     queryFn: async () => {
-      const { data, error } = await sb.from("integracao_acoes").select("*").eq("plano_id", plano!.id).order("etapa").order("prazo_dia").order("ordem");
+      if (!plano) return [] as Acao[];
+      const { data, error } = await sb.from("integracao_acoes").select("*").eq("plano_id", plano.id).order("etapa").order("prazo_dia").order("ordem");
       if (error) throw error;
       return (data ?? []) as Acao[];
     },
@@ -189,7 +192,8 @@ function DetalheEtapa({ plano, i, acoes, hoje, gestor, podeMarcar, onMudou }: { 
   const e = ETAPAS[i]; const st = statusEtapa(i, plano.etapa_atual);
   const portao = plano.portoes?.[String(i)];
   const [obs, setObs] = useState(""); const [salvando, setSalvando] = useState(false);
-  const [nova, setNova] = useState({ acao: "", responsavel: "", prazo: dataDoDia(plano.data_inicio, Math.max(...acoes.map((a) => a.prazo_dia), 0)) });
+  const [editando, setEditando] = useState<Acao | null>(null);
+  const [nova, setNova] = useState({ acao: "", responsavel: "", rota: "", prazo: dataDoDia(plano.data_inicio, Math.max(...acoes.map((a) => a.prazo_dia), 0)) });
   const pendentes = acoes.filter((a) => !a.concluida).length;
   const liberada = st !== "bloqueada";
 
@@ -205,8 +209,9 @@ function DetalheEtapa({ plano, i, acoes, hoje, gestor, podeMarcar, onMudou }: { 
   }
   async function adicionar() {
     if (!nova.acao.trim() || !nova.prazo) { toast.error("Informe a ação e o prazo."); return; }
+    try { destinoAcao(nova.rota); } catch { toast.error("Informe um caminho do sistema ou um link http/https válido."); return; }
     const prazo_dia = diaDoCiclo(plano.data_inicio, nova.prazo);
-    const { error } = await sb.from("integracao_acoes").insert({ plano_id: plano.id, etapa: i, acao: nova.acao.trim(), responsavel: nova.responsavel.trim() || null, prazo_dia, ordem: 999 });
+    const { error } = await sb.from("integracao_acoes").insert({ plano_id: plano.id, etapa: i, acao: nova.acao.trim(), responsavel: nova.responsavel.trim() || null, rota: nova.rota.trim() || null, prazo_dia, ordem: 999 });
     if (error) toast.error(error.message); else { setNova({ ...nova, acao: "" }); onMudou(); }
   }
   async function aprovar() {
@@ -255,7 +260,8 @@ function DetalheEtapa({ plano, i, acoes, hoje, gestor, podeMarcar, onMudou }: { 
                 </div>
                 <span className="w-36 text-xs text-muted-foreground">{a.responsavel ?? "—"}</span>
                 <span className={`w-20 text-xs ${atr ? "font-medium text-destructive" : "text-muted-foreground"}`}>{atr && <AlertTriangle className="mr-1 inline size-3" />}{fmtData(dataDoDia(plano.data_inicio, a.prazo_dia))}</span>
-                <span className="w-16 text-xs">{a.rota ? <Link to={a.rota as any} className="inline-flex items-center gap-0.5 text-primary hover:underline">Abrir <ArrowUpRight className="size-3" /></Link> : null}</span>
+                <span className="w-16 text-xs"><AbrirAcao rota={a.rota} /></span>
+                {gestor && <Button size="icon" variant="ghost" className="size-7" onClick={() => setEditando(a)} aria-label={`Editar ação: ${a.acao}`} title="Editar ação"><Pencil className="size-3.5" /></Button>}
                 {gestor && <Button size="icon" variant="ghost" className="size-7" onClick={() => excluir(a)} aria-label="Excluir ação"><Trash2 className="size-3.5" /></Button>}
               </div>
             );
@@ -268,6 +274,7 @@ function DetalheEtapa({ plano, i, acoes, hoje, gestor, podeMarcar, onMudou }: { 
             <div className="min-w-[240px] flex-1"><Label className="text-xs">Nova ação nesta etapa</Label><Input value={nova.acao} onChange={(ev) => setNova({ ...nova, acao: ev.target.value })} placeholder="Revisar o checklist de FEFO com o padrinho" /></div>
             <div className="w-40"><Label className="text-xs">Responsável</Label><Input value={nova.responsavel} onChange={(ev) => setNova({ ...nova, responsavel: ev.target.value })} placeholder="Estagiária" /></div>
             <div className="w-40"><Label className="text-xs">Prazo</Label><Input type="date" value={nova.prazo} onChange={(ev) => setNova({ ...nova, prazo: ev.target.value })} /></div>
+            <div className="min-w-48 flex-1"><Label className="text-xs">Link específico</Label><Input value={nova.rota} onChange={(ev) => setNova({ ...nova, rota: ev.target.value })} placeholder="/missoes ou https://…" /></div>
             <Button variant="outline" onClick={adicionar} className="gap-1"><Plus className="size-4" /> Adicionar</Button>
           </div>
         )}
@@ -284,8 +291,52 @@ function DetalheEtapa({ plano, i, acoes, hoje, gestor, podeMarcar, onMudou }: { 
           {gestor && st === "concluida" && <div className="mt-2 pl-6"><Button size="sm" variant="ghost" onClick={reabrir} className="h-7 gap-1"><RotateCcw className="size-3.5" /> Reabrir etapa</Button></div>}
         </div>
       </CardContent>
+      {gestor && editando && <AcaoDialog acao={editando} inicio={plano.data_inicio} onClose={() => setEditando(null)} onOk={() => { setEditando(null); onMudou(); }} />}
     </Card>
   );
+}
+
+function AbrirAcao({ rota }: { rota: string | null }) {
+  let destino;
+  try { destino = destinoAcao(rota ?? ""); } catch { return null; }
+  if (!destino) return null;
+  const conteudo = <>Abrir <ArrowUpRight className="size-3" /></>;
+  const cls = "inline-flex items-center gap-0.5 text-primary hover:underline";
+  return destino.externo
+    ? <a href={destino.href} target="_blank" rel="noopener noreferrer" className={cls}>{conteudo}</a>
+    : <Link to={destino.pathname as any} search={destino.search as any} hash={destino.hash} className={cls}>{conteudo}</Link>;
+}
+
+function AcaoDialog({ acao, inicio, onClose, onOk }: { acao: Acao; inicio: string; onClose: () => void; onOk: () => void }) {
+  const [f, setF] = useState({ acao: acao.acao, responsavel: acao.responsavel ?? "", entregavel: acao.entregavel ?? "", frente: acao.frente ?? "", rota: acao.rota ?? "", prazo: dataDoDia(inicio, acao.prazo_dia), recorrente: acao.recorrente });
+  const [salvando, setSalvando] = useState(false);
+  async function salvar() {
+    if (!f.acao.trim() || !f.prazo) { toast.error("Informe a ação e o prazo."); return; }
+    try { destinoAcao(f.rota); } catch { toast.error("Informe um caminho do sistema ou um link http/https válido."); return; }
+    setSalvando(true);
+    try {
+      const { data, error } = await sb.from("integracao_acoes").update({ acao: f.acao.trim(), responsavel: f.responsavel.trim() || null, entregavel: f.entregavel.trim() || null, frente: f.frente || null, rota: f.rota.trim() || null, prazo_dia: diaDoCiclo(inicio, f.prazo), recorrente: f.recorrente }).eq("id", acao.id).eq("plano_id", acao.plano_id).select("id").single();
+      if (error) throw error;
+      if (!data) throw new Error("A ação não foi atualizada.");
+      toast.success("Ação atualizada."); onOk();
+    } catch (err: any) { toast.error("Não consegui salvar: " + (err?.message ?? err)); } finally { setSalvando(false); }
+  }
+  return <Dialog open onOpenChange={(aberto) => !aberto && !salvando && onClose()}>
+    <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Editar ação</DialogTitle></DialogHeader>
+      <div className="grid gap-3">
+        <div><Label htmlFor="acao-texto">Ação</Label><Textarea id="acao-texto" value={f.acao} onChange={(ev) => setF({ ...f, acao: ev.target.value })} /></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><Label htmlFor="acao-responsavel">Responsável</Label><Input id="acao-responsavel" value={f.responsavel} onChange={(ev) => setF({ ...f, responsavel: ev.target.value })} /></div>
+          <div><Label htmlFor="acao-prazo">Prazo</Label><Input id="acao-prazo" type="date" value={f.prazo} onChange={(ev) => setF({ ...f, prazo: ev.target.value })} /></div>
+        </div>
+        <div><Label>Frente</Label><Select value={f.frente || "nenhuma"} onValueChange={(v) => setF({ ...f, frente: v === "nenhuma" ? "" : v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="nenhuma">Sem frente</SelectItem>{Object.entries(FRENTES).map(([id, nome]) => <SelectItem key={id} value={id}>{nome}</SelectItem>)}</SelectContent></Select></div>
+        <div><Label htmlFor="acao-entregavel">Entregável</Label><Input id="acao-entregavel" value={f.entregavel} onChange={(ev) => setF({ ...f, entregavel: ev.target.value })} /></div>
+        <div><Label htmlFor="acao-link">Link específico</Label><Input id="acao-link" value={f.rota} onChange={(ev) => setF({ ...f, rota: ev.target.value })} placeholder="/missoes ou https://…" /></div>
+        <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.recorrente} onCheckedChange={(v) => setF({ ...f, recorrente: v === true })} />Rotina contínua</label>
+      </div>
+      <DialogFooter><Button variant="ghost" onClick={onClose} disabled={salvando}>Cancelar</Button><Button onClick={salvar} disabled={salvando}>{salvando ? "Salvando…" : "Salvar ação"}</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>;
 }
 
 const numOuNull = (s: string) => { const n = Number(String(s).replace(",", ".")); return s.trim() === "" || !Number.isFinite(n) ? null : n; };
