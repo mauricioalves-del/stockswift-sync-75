@@ -6405,6 +6405,7 @@ export type Database = {
           id: string
           link: string | null
           lotes: Json
+          numero: number
           observacao: string
           thread_ts: string | null
           valor_total: number
@@ -6419,6 +6420,7 @@ export type Database = {
           id?: string
           link?: string | null
           lotes?: Json
+          numero?: number
           observacao: string
           thread_ts?: string | null
           valor_total?: number
@@ -6433,6 +6435,7 @@ export type Database = {
           id?: string
           link?: string | null
           lotes?: Json
+          numero?: number
           observacao?: string
           thread_ts?: string | null
           valor_total?: number
