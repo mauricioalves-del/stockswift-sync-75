@@ -17,7 +17,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatNum } from "@/lib/inventory";
-import { CheckCircle2, ArrowLeftRight, Loader2, MessageSquareText } from "lucide-react";
+import { CheckCircle2, ArrowLeftRight, Loader2, MessageSquareText, ArrowRightLeft } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/quebras-fefo")({
   component: QuebrasFefoPage,
