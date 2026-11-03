@@ -1,5 +1,5 @@
 // Cadastro de caixaria (unidades por caixa) e exposição por loja — monta a lista de itens que o módulo mostra.
-// Universo: produto ACABADO com meta no consenso (o mesmo da Reposição) + qualquer item que já tenha caixa cadastrada.
+// Universo: apenas itens aprovados — portfólio validado de cada loja (ou consenso, quando a loja ainda não tem validação).
 import { nk, GRUPO_ACABADO, ehSolto, type Bruto } from "./abastecimento-dados";
 
 export type LinhaCaixaria = {
@@ -47,15 +47,17 @@ export function montarCaixaria(b: Bruto, o: { loja?: string | null; categorias?:
     if (!nomeConsenso.has(k) && c.produto) nomeConsenso.set(k, c.produto);
     if (Number(c.unidades) > 0 && grupoDe.get(k) === GRUPO_ACABADO) universo.add(k);
   }
-  const chaves = new Set<string>([...universo, ...caixaDe.keys()]);
+  // Catálogo: somente itens aprovados. Por loja: o portfólio validado da loja (consenso como fallback). Todas as lojas: a união dos aprovados de todas as lojas.
+  const padraoLoja = (loja: string) => b.consenso.filter((c) => c.loja === loja && Number(c.unidades) > 0 && grupoDe.get(nk(c.id_produto)) === GRUPO_ACABADO).map((c) => nk(c.id_produto));
+  const chaves = new Set<string>();
   if (o.loja) {
     const aprovado = b.portfolioAprovado?.[o.loja];
-    const cadastroLoja = new Set<string>(aprovado !== undefined
-      ? aprovado.map(nk)
-      : b.consenso.filter((c) => c.loja === o.loja && Number(c.unidades) > 0 && grupoDe.get(nk(c.id_produto)) === GRUPO_ACABADO).map((c) => nk(c.id_produto)));
-    for (const e of b.exposicoes) if (e.loja === o.loja) cadastroLoja.add(nk(e.id_produto));
-    chaves.clear();
-    for (const k of cadastroLoja) chaves.add(k);
+    for (const k of aprovado !== undefined ? aprovado.map(nk) : padraoLoja(o.loja)) chaves.add(k);
+  } else {
+    for (const l of b.lojas) {
+      const ap = b.portfolioAprovado?.[l.codigo];
+      for (const k of ap !== undefined ? ap.map(nk) : padraoLoja(l.codigo)) chaves.add(k);
+    }
   }
   const linhas: LinhaCaixaria[] = [];
   for (const k of chaves) {
