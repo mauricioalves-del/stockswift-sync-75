@@ -30,6 +30,12 @@ async function slack(method: string, body: Record<string, unknown>) {
   return j;
 }
 
+// chat.getPermalink, como users.lookupByEmail, não aceita corpo JSON no gateway: parâmetros vão na URL.
+async function permalink(channel: string, ts: string): Promise<string | null> {
+  const r = await slack(`chat.getPermalink?channel=${encodeURIComponent(channel)}&message_ts=${encodeURIComponent(ts)}`, {});
+  return (r.permalink as string) ?? null;
+}
+
 export const enviarRiscoShelfSlack = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => schema.parse(d))
@@ -124,7 +130,7 @@ export const enviarRiscoShelfSlack = createServerFn({ method: "POST" })
         await slack("chat.postMessage", { channel: ch, thread_ts: ts, text: txt });
       }
       let link: string | null = null;
-      try { link = (await slack("chat.getPermalink", { channel: ch, message_ts: ts })).permalink; } catch { /* opcional */ }
+      try { link = await permalink(ch, ts); } catch { /* opcional */ }
       // numero_no_slack: a Trend já saiu com o número no título (migration 0053).
       if (log) await (supabase as any).from("shelf_slack_envios").update({ thread_ts: ts, link, numero_no_slack: true }).eq("id", log.id);
       return { ok: true, numero: log?.numero ?? null, lotes: encontrados.length, total, link, jaEnviados, naoEncontrados: data.lotes.length - encontrados.length - jaEnviados };
@@ -206,7 +212,7 @@ export const redispararTrendShelf = createServerFn({ method: "POST" })
       await slack("chat.postMessage", { channel: ch, thread_ts: ts, text: txt });
     }
     let link: string | null = null;
-    try { link = (await slack("chat.getPermalink", { channel: ch, message_ts: ts })).permalink; } catch { /* opcional */ }
+    try { link = await permalink(ch, ts); } catch { /* opcional */ }
 
     // Apaga a Trend antiga: primeiro os comentários, depois a mensagem principal.
     let apagadas = 0, falhasApagar = 0;
@@ -224,4 +230,29 @@ export const redispararTrendShelf = createServerFn({ method: "POST" })
       thread_ts: ts, link, numero_no_slack: true, thread_ts_anterior: e.thread_ts, redisparado_em: new Date().toISOString(),
     }).eq("id", e.id);
     return { ok: true, numero: e.numero, link, apagadas, falhasApagar };
+  });
+
+
+// Preenche o link das Trends que ficaram sem ele (envios antigos e redisparos feitos antes desta correção).
+export const completarLinksTrendsShelf = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    if (!process.env["LOVABLE_API_KEY"] || !process.env["SLACK_API_KEY"]) throw new Error("Slack não conectado.");
+    const { data: gestor } = await supabase.rpc("is_gestor", { _user_id: userId });
+    if (!gestor) throw new Error("Apenas gestores.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const { data: cfg } = await supabase.from("app_config").select("valor").eq("chave", "slack_canal_shelf").maybeSingle();
+    const canalCfg = typeof cfg?.valor === "string" ? cfg.valor.trim() : "";
+    const { data: rows, error } = await admin.from("shelf_slack_envios").select("id, canal, thread_ts").not("thread_ts", "is", null).is("link", null).limit(100);
+    if (error) throw new Error(error.message);
+    let ok = 0, falhas = 0;
+    for (const r of rows ?? []) {
+      try {
+        const link = await permalink(r.canal || canalCfg, r.thread_ts);
+        if (link) { await admin.from("shelf_slack_envios").update({ link }).eq("id", r.id); ok++; } else falhas++;
+      } catch { falhas++; }
+    }
+    return { ok, falhas };
   });
