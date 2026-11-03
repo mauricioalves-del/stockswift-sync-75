@@ -6,7 +6,7 @@ export type LinhaCaixaria = {
   chave: string;                      // código sem zeros (identifica o item em qualquer formato)
   id: string;                         // código canônico (como o estoque escreve)
   idCaixaDb: string | null;           // código como está gravado em abast_produto (null = sem caixa cadastrada)
-  descricao: string; familia: string; grupo: string;
+  descricao: string; familia: string; grupo: string; categoria: string;
   caixa: number | null;               // unidades por caixa (null = sem cadastro)
   expo: Record<string, { valor: number | null; idDb: string | null }>;   // por loja
   saldoCD: number;
@@ -23,7 +23,9 @@ export function idCanonico(sku: string, doEstoque: string | undefined): string {
   return k.length < 8 ? k.padStart(8, "0") : k.length === 9 ? k.padStart(10, "0") : s;
 }
 
-export function montarCaixaria(b: Bruto): LinhaCaixaria[] {
+export type CategoriaCaixaria = { codigo_produto: string; categoria: string };
+
+export function montarCaixaria(b: Bruto, o: { loja?: string | null; categorias?: CategoriaCaixaria[] } = {}): LinhaCaixaria[] {
   const est = new Map<string, { canon: string; desc: string; cd: number }>();
   for (const e of b.estoque) {
     const k = nk(e.id_produto);
@@ -35,6 +37,7 @@ export function montarCaixaria(b: Bruto): LinhaCaixaria[] {
   }
   const grupoDe = new Map<string, string>(); for (const g of b.grupos) grupoDe.set(nk(g.codigo_produto), g.grupo);
   const famDe = new Map<string, string>(); for (const f of b.familias) famDe.set(nk(f.codigo_produto), f.familia);
+  const categoriaDe = new Map<string, string>(); for (const c of o.categorias ?? []) categoriaDe.set(nk(c.codigo_produto), c.categoria);
   const caixaDe = new Map<string, { id: string; fc: number | null }>(); for (const p of b.produtos) caixaDe.set(nk(p.id_produto), { id: p.id_produto, fc: p.full_case == null ? null : Number(p.full_case) });
   const expoDe = new Map<string, { valor: number | null; idDb: string }>(); for (const e of b.exposicoes) expoDe.set(`${e.loja}|${nk(e.id_produto)}`, { valor: e.exposicao == null ? null : Number(e.exposicao), idDb: e.id_produto });
   const nomeConsenso = new Map<string, string>();
@@ -45,6 +48,15 @@ export function montarCaixaria(b: Bruto): LinhaCaixaria[] {
     if (Number(c.unidades) > 0 && grupoDe.get(k) === GRUPO_ACABADO) universo.add(k);
   }
   const chaves = new Set<string>([...universo, ...caixaDe.keys()]);
+  if (o.loja) {
+    const aprovado = b.portfolioAprovado?.[o.loja];
+    const cadastroLoja = new Set<string>(aprovado !== undefined
+      ? aprovado.map(nk)
+      : b.consenso.filter((c) => c.loja === o.loja && Number(c.unidades) > 0 && grupoDe.get(nk(c.id_produto)) === GRUPO_ACABADO).map((c) => nk(c.id_produto)));
+    for (const e of b.exposicoes) if (e.loja === o.loja) cadastroLoja.add(nk(e.id_produto));
+    chaves.clear();
+    for (const k of cadastroLoja) chaves.add(k);
+  }
   const linhas: LinhaCaixaria[] = [];
   for (const k of chaves) {
     const e = est.get(k), cx = caixaDe.get(k);
@@ -52,7 +64,7 @@ export function montarCaixaria(b: Bruto): LinhaCaixaria[] {
     for (const l of b.lojas) { const x = expoDe.get(`${l.codigo}|${k}`); expo[l.codigo] = { valor: x ? x.valor : null, idDb: x ? x.idDb : null }; }
     linhas.push({
       chave: k, id: idCanonico(k, e?.canon), idCaixaDb: cx ? cx.id : null,
-      descricao: e?.desc || nomeConsenso.get(k) || "", familia: famDe.get(k) ?? "", grupo: grupoDe.get(k) ?? "",
+      descricao: e?.desc || nomeConsenso.get(k) || "", familia: famDe.get(k) ?? "", grupo: grupoDe.get(k) ?? "", categoria: categoriaDe.get(k) ?? "",
       caixa: cx ? cx.fc : null, expo, saldoCD: e?.cd ?? 0, noUniverso: universo.has(k), solto: ehSolto(famDe.get(k) ?? ""),
     });
   }
