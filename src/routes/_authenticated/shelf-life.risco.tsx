@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { chaveEnvio, indexarEnviosPorLote, type EnvioSlack } from "@/lib/shelf-slack";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { redispararTrendShelf } from "@/lib/shelf-slack.functions";
+import { completarLinksTrendsShelf, redispararTrendShelf } from "@/lib/shelf-slack.functions";
 import { useRole } from "@/hooks/useRole";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertTriangle, ExternalLink, Loader2, RefreshCw, Send, ArrowDown, ArrowUp, CalendarClock, ChevronsUpDown, Download, HelpCircle, Plus } from "lucide-react";
@@ -87,6 +87,14 @@ function MapeamentoRisco() {
   const redisparar = useServerFn(redispararTrendShelf);
   const [redisparando, setRedisparando] = useState<string | null>(null);
   const [confirmarRedisparo, setConfirmarRedisparo] = useState(false);
+  // Trends sem link (o permalink falhava antes da correção): completa uma vez por visita, para gestores.
+  const completarLinks = useServerFn(completarLinksTrendsShelf);
+  const linksTentados = useRef(false);
+  useEffect(() => {
+    if (!gestor || linksTentados.current || !envios.data?.some((e) => !e.link)) return;
+    linksTentados.current = true;
+    completarLinks().then((r) => { if ((r as { ok: number }).ok) qc.invalidateQueries({ queryKey: ["shelf-slack-envios"] }); }).catch(() => {});
+  }, [gestor, envios.data, completarLinks, qc]);
   const antigas = useQuery({
     queryKey: ["shelf-slack-envios-antigos"],
     enabled: gestor,
