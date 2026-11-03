@@ -20,8 +20,12 @@ import { EnviarSlackDialog } from "@/components/shelf-life/EnviarSlackDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { chaveEnvio, indexarEnviosPorLote, type EnvioSlack } from "@/lib/shelf-slack";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { redispararTrendShelf } from "@/lib/shelf-slack.functions";
+import { useRole } from "@/hooks/useRole";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertTriangle, ExternalLink, Send, ArrowDown, ArrowUp, CalendarClock, ChevronsUpDown, Download, HelpCircle, Plus } from "lucide-react";
+import { AlertTriangle, ExternalLink, Loader2, RefreshCw, Send, ArrowDown, ArrowUp, CalendarClock, ChevronsUpDown, Download, HelpCircle, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/shelf-life/risco")({
   component: MapeamentoRisco,
@@ -76,6 +80,41 @@ function MapeamentoRisco() {
     },
   });
   const enviosPorLote = useMemo(() => indexarEnviosPorLote(envios.data), [envios.data]);
+
+  // Trends criadas antes da numeração: podem ser republicadas com o número (gestores).
+  const { isAdmin, role } = useRole();
+  const gestor = isAdmin || role === "GERENTE";
+  const redisparar = useServerFn(redispararTrendShelf);
+  const [redisparando, setRedisparando] = useState<string | null>(null);
+  const [confirmarRedisparo, setConfirmarRedisparo] = useState(false);
+  const antigas = useQuery({
+    queryKey: ["shelf-slack-envios-antigos"],
+    enabled: gestor,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("shelf_slack_envios")
+        .select("id, numero").not("thread_ts", "is", null).eq("numero_no_slack", false).order("numero");
+      if (error) return [] as { id: string; numero: number }[]; // migration 0053 ainda não aplicada
+      return (data ?? []) as { id: string; numero: number }[];
+    },
+  });
+  async function redispararAntigas() {
+    const lista = antigas.data ?? [];
+    if (!lista.length) return;
+    setConfirmarRedisparo(false);
+    let ok = 0; const falhas: string[] = []; let naoApagadas = 0;
+    for (let i = 0; i < lista.length; i++) {
+      setRedisparando(`${i + 1}/${lista.length}`);
+      try {
+        const r = await redisparar({ data: { envioId: lista[i].id } });
+        ok++; naoApagadas += (r as { falhasApagar?: number }).falhasApagar ?? 0;
+      } catch (e) { falhas.push(`#${lista[i].numero}: ${e instanceof Error ? e.message : String(e)}`); }
+    }
+    setRedisparando(null);
+    qc.invalidateQueries({ queryKey: ["shelf-slack-envios"] });
+    qc.invalidateQueries({ queryKey: ["shelf-slack-envios-antigos"] });
+    if (falhas.length) toast.error(`${ok} Trend(s) republicada(s); ${falhas.length} com erro`, { description: falhas.join("\n") });
+    else toast.success(`${ok} Trend(s) republicada(s) com número`, naoApagadas ? { description: `${naoApagadas} mensagem(ns) antiga(s) não puderam ser apagadas — apague manualmente no Slack.` } : undefined);
+  }
   const rows = lotes.data ?? [];
 
   const opts = useMemo(() => {
@@ -179,9 +218,24 @@ function MapeamentoRisco() {
           <h1 className="text-2xl font-bold">Mapeamento de Risco</h1>
           <p className="text-sm text-muted-foreground">Lotes com saldo vencidos ou a vencer em até 90 dias.</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        {gestor && (antigas.data?.length ?? 0) > 0 && (confirmarRedisparo ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-400 bg-amber-50 px-3 py-1.5 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            <span>Republicar {antigas.data!.length} Trend(s) com número, marcar os responsáveis de novo e apagar as mensagens antigas?</span>
+            <Button size="sm" onClick={redispararAntigas}>Confirmar redisparo</Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirmarRedisparo(false)}>Cancelar</Button>
+          </div>
+        ) : (
+          <Button variant="outline" onClick={() => setConfirmarRedisparo(true)} disabled={!!redisparando}
+            title="Republica no Slack as Trends criadas antes da numeração, com o número do sistema, e apaga as mensagens antigas">
+            {redisparando ? <Loader2 className="size-4 mr-2 animate-spin" /> : <RefreshCw className="size-4 mr-2" />}
+            {redisparando ? `Redisparando ${redisparando}…` : `Redisparar Trends anteriores (${antigas.data!.length})`}
+          </Button>
+        ))}
         <Button variant="outline" onClick={exportar} disabled={!filtradas.length}>
           <Download className="size-4 mr-2" /> Exportar Excel
         </Button>
+        </div>
       </div>
 
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
