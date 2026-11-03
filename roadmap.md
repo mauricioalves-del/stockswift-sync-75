@@ -1,5 +1,8 @@
 # Correção de grupos das Baixas Operacionais
 
+## Caixaria e Exposição: cadastro individual
+- [ ] Selecionar a loja nos blocos destacados para consultar apenas seu cadastro e sua exposição; substituir Família pela categoria registrada e validar na tela.
+
 ## Plano de Integração: edição de ações
 - [x] Editar ação, responsável, prazo, frente, entregável, recorrência e link específico; quatro testes passaram e salvamento, releitura e abertura verificados com sessão autenticada, restaurando o destino original. Sem erros na tela.
 
