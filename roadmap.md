@@ -1,7 +1,7 @@
 # Correção de grupos das Baixas Operacionais
 
 ## Plano de Integração: edição de ações
-- [ ] Editar dados de cada ação e seu link específico; verificar salvamento e abertura do destino.
+- [x] Editar ação, responsável, prazo, frente, entregável, recorrência e link específico; quatro testes passaram e salvamento, releitura e abertura verificados com sessão autenticada, restaurando o destino original. Sem erros na tela.
 
 ## Centros de custo das baixas
 - [x] Cadastrar centros por área/operação e almoxarifado; referência dos motivos e atribuição automática na baixa, sem reclassificar histórico.
