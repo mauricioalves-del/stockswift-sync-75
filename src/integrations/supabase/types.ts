@@ -6014,6 +6014,7 @@ export type Database = {
           id_local: string | null
           item_missao_id: string | null
           missao_id: string | null
+          motivo_resolucao: string | null
           observacao: string | null
           origem: string | null
           resolvido_em: string | null
@@ -6033,6 +6034,7 @@ export type Database = {
           id_local?: string | null
           item_missao_id?: string | null
           missao_id?: string | null
+          motivo_resolucao?: string | null
           observacao?: string | null
           origem?: string | null
           resolvido_em?: string | null
@@ -6052,6 +6054,7 @@ export type Database = {
           id_local?: string | null
           item_missao_id?: string | null
           missao_id?: string | null
+          motivo_resolucao?: string | null
           observacao?: string | null
           origem?: string | null
           resolvido_em?: string | null
