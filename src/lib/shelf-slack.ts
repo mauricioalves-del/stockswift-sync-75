@@ -26,8 +26,44 @@ export function almoxDosLotes(lotes: LoteSlack[]): string {
   return Array.from(new Set(lotes.map((l) => l.almoxarifado).filter(Boolean))).sort().join(", ");
 }
 
-export function tituloTrend(observacao: string, almox: string, data: Date): string {
-  return `:warning: *Risco de Shelf* - ${observacao.trim()} - Almox - ${almox} - ${dataBR(data)}`;
+export function tituloTrend(observacao: string, almox: string, data: Date, numero?: number | null): string {
+  const n = numero ? ` #${numero}` : "";
+  return `:warning: *Risco de Shelf${n}* - ${observacao.trim()} - Almox - ${almox} - ${dataBR(data)}`;
+}
+
+// ---------- Rastreio de envios: evita abrir duas Trends para o mesmo lote ----------
+export type EnvioSlack = {
+  id: string; numero: number; link: string | null; created_at: string; observacao: string;
+  lotes: { sku: string; lote: string; almoxarifado: string }[];
+};
+
+/** Mesma chave usada na seleção da tela: SKU | lote | almoxarifado. */
+export const chaveEnvio = (l: { sku: string; lote: string | null; almoxarifado: string | null }) =>
+  `${String(l.sku ?? "").trim()}|${String(l.lote ?? "").trim()}|${String(l.almoxarifado ?? "").trim()}`;
+
+/** Índice lote → envios que já o incluíram (mais recente primeiro). */
+export function indexarEnviosPorLote(envios: EnvioSlack[] | null | undefined): Map<string, EnvioSlack[]> {
+  const idx = new Map<string, EnvioSlack[]>();
+  for (const e of envios ?? []) {
+    for (const l of e.lotes ?? []) {
+      const k = chaveEnvio(l);
+      const lista = idx.get(k) ?? [];
+      if (!lista.some((x) => x.id === e.id)) lista.push(e);
+      idx.set(k, lista);
+    }
+  }
+  for (const lista of idx.values()) lista.sort((a, b) => b.created_at.localeCompare(a.created_at) || b.numero - a.numero);
+  return idx;
+}
+
+/** Separa os lotes escolhidos entre novos e já enviados em alguma Trend. */
+export function separarJaEnviados<T extends { sku: string; lote: string; almoxarifado: string }>(lotes: T[], idx: Map<string, EnvioSlack[]>) {
+  const novos: T[] = [], enviados: { lote: T; envio: EnvioSlack }[] = [];
+  for (const l of lotes) {
+    const e = idx.get(chaveEnvio(l))?.[0];
+    if (e) enviados.push({ lote: l, envio: e }); else novos.push(l);
+  }
+  return { novos, enviados };
 }
 
 export function totalCusto(lotes: LoteSlack[]): number {
