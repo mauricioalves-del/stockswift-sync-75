@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { almoxDosLotes, brl, dividir, tabelaLotes, tituloTrend, totalCusto, type LoteSlack } from "./shelf-slack";
+import { almoxDosLotes, brl, chaveEnvio, dividir, indexarEnviosPorLote, tabelaLotes, tituloTrend, totalCusto, type EnvioSlack, type LoteSlack } from "./shelf-slack";
 
 const GATEWAY = "https://connector-gateway.lovable.dev/slack/api";
 
@@ -9,6 +9,8 @@ const schema = z.object({
   observacao: z.string().trim().min(1).max(300),
   departamentoIds: z.array(z.string().uuid()).max(50),
   lotes: z.array(z.object({ sku: z.string().max(40), lote: z.string().max(80), almoxarifado: z.string().max(120) })).min(1).max(1000),
+  // Sem marcação explícita, lotes que já estão em uma Trend são descartados (não abre outra Trend com a mesma informação).
+  reenviar: z.boolean().optional(),
 });
 
 async function slack(method: string, body: Record<string, unknown>) {
@@ -62,6 +64,19 @@ export const enviarRiscoShelfSlack = createServerFn({ method: "POST" })
       }
     }
     if (!encontrados.length) throw new Error("Nenhum dos lotes selecionados tem saldo no sistema.");
+
+    // Lotes que já foram para uma Trend (envio concluído) ficam de fora, a menos que o usuário peça reenvio.
+    let jaEnviados = 0;
+    if (!data.reenviar) {
+      const { data: prev, error: ePrev } = await supabase.from("shelf_slack_envios")
+        .select("id, numero, link, created_at, observacao, lotes").not("thread_ts", "is", null);
+      if (ePrev) throw new Error(ePrev.message);
+      const idx = indexarEnviosPorLote((prev ?? []) as unknown as EnvioSlack[]);
+      const antes = encontrados.length;
+      for (let i = encontrados.length - 1; i >= 0; i--) if (idx.has(chaveEnvio(encontrados[i]))) encontrados.splice(i, 1);
+      jaEnviados = antes - encontrados.length;
+      if (!encontrados.length) throw new Error("Todos os lotes selecionados já estão em uma Trend do Slack. Marque \"Reenviar\" para abrir outra.");
+    }
     encontrados.sort((a, b) => (a.data_validade ?? "9").localeCompare(b.data_validade ?? "9"));
 
     // Responsáveis
@@ -82,10 +97,11 @@ export const enviarRiscoShelfSlack = createServerFn({ method: "POST" })
 
     const almox = almoxDosLotes(encontrados);
     const total = totalCusto(encontrados);
-    const { data: log } = await supabase.from("shelf_slack_envios").insert({
+    // numero vem da sequência criada na migration 0051 (tipos gerados podem ainda não ter a coluna).
+    const { data: log } = await (supabase as any).from("shelf_slack_envios").insert({
       enviado_por: userId, observacao: data.observacao, almox, departamentos: deptNomes,
       lotes: encontrados as never, valor_total: total, canal,
-    }).select("id").single();
+    }).select("id, numero").single() as { data: { id: string; numero: number } | null };
 
     try {
       const mencoes: string[] = [];
@@ -96,7 +112,7 @@ export const enviarRiscoShelfSlack = createServerFn({ method: "POST" })
           mencoes.push(`<@${u.user.id}>`);
         } catch { mencoes.push(`*${e}*`); }
       }
-      const raiz = await slack("chat.postMessage", { channel: canal, text: tituloTrend(data.observacao, almox, new Date()), unfurl_links: false });
+      const raiz = await slack("chat.postMessage", { channel: canal, text: tituloTrend(data.observacao, almox, new Date(), log?.numero), unfurl_links: false });
       const ts = raiz.ts as string;
       const ch = raiz.channel as string;
       const partes = dividir(encontrados, 40);
@@ -110,7 +126,7 @@ export const enviarRiscoShelfSlack = createServerFn({ method: "POST" })
       let link: string | null = null;
       try { link = (await slack("chat.getPermalink", { channel: ch, message_ts: ts })).permalink; } catch { /* opcional */ }
       if (log) await supabase.from("shelf_slack_envios").update({ thread_ts: ts, link }).eq("id", log.id);
-      return { ok: true, lotes: encontrados.length, total, link, naoEncontrados: data.lotes.length - encontrados.length };
+      return { ok: true, numero: log?.numero ?? null, lotes: encontrados.length, total, link, jaEnviados, naoEncontrados: data.lotes.length - encontrados.length - jaEnviados };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (log) await supabase.from("shelf_slack_envios").update({ erro: msg }).eq("id", log.id);
