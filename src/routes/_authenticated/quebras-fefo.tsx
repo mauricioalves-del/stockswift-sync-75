@@ -17,7 +17,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatNum } from "@/lib/inventory";
-import { CheckCircle2, ArrowLeftRight, Loader2, MessageSquareText } from "lucide-react";
+import { CheckCircle2, ArrowLeftRight, Loader2, MessageSquareText, ArrowRightLeft } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/quebras-fefo")({
   component: QuebrasFefoPage,
@@ -87,12 +88,19 @@ function QuebrasFefoPage() {
 
   return (
     <div className="w-full space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Ocorrências de Quebra de FEFO</h1>
-        <p className="text-sm text-muted-foreground">
-          Itens em que o total do SKU está dentro da tolerância, mas a distribuição entre lotes divergiu
-          (ou houve lançamento em "Lote Não Relacionado"). Não é perda de estoque — é apontamento de processo.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Ocorrências de Quebra de FEFO</h1>
+          <p className="text-sm text-muted-foreground">
+            Itens em que o total do SKU está dentro da tolerância, mas a distribuição entre lotes divergiu
+            (ou houve lançamento em "Lote Não Relacionado"). Não é perda de estoque — é apontamento de processo.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/suprimentos/fefo">
+            <ArrowRightLeft className="size-4 mr-1" /> Ir para Controle FEFO
+          </Link>
+        </Button>
       </div>
 
       <Tabs value={aba} onValueChange={(v) => setAba(v as typeof aba)}>
