@@ -49,6 +49,7 @@ function CaixariaPage() {
   });
 
   const todas = useMemo(() => (bruto.data ? montarCaixaria(bruto.data, { loja: lojaSelecionada, categorias: categoriasQ.data }) : []), [bruto.data, lojaSelecionada, categoriasQ.data]);
+  const cadastrosTodos = useMemo(() => (bruto.data ? montarCaixaria(bruto.data) : []), [bruto.data]);
   const cols: ColDef<LinhaCaixaria>[] = useMemo(() => [
     { k: "sku", r: "SKU", t: "txt", v: (l) => l.id },
     { k: "produto", r: "Produto", t: "txt", v: (l) => l.descricao },
@@ -93,7 +94,7 @@ function CaixariaPage() {
     else { toast.success(n === null ? `Regra de exposição de ${loja} removida.` : `Regra de ${loja}: ${n} un por SKU.`); atualizar(); }
   }
   async function aplicarRegraATodos(loja: string, nome: string) {
-    const n = todas.filter((l) => l.expo[loja]?.valor != null).length;
+    const n = cadastrosTodos.filter((l) => l.expo[loja]?.valor != null).length;
     if (!n) return;
     if (!window.confirm(`Aplicar a regra da ${nome} (${regras[loja]} un) a todos os SKUs?\n\n${n} SKU(s) com exposição própria nesta loja voltam a seguir a regra. As outras lojas não mudam.`)) return;
     const { error } = await (supabase as any).from("abast_produto_loja").update({ exposicao: null, atualizado_em: new Date().toISOString() }).eq("loja", loja).not("exposicao", "is", null);
@@ -110,7 +111,7 @@ function CaixariaPage() {
     if (!sku) { toast.error("Informe o SKU."); return; }
     if (!Number.isInteger(n) || n < 1) { toast.error("Informe um número inteiro de unidades por caixa (mínimo 1)."); return; }
     const k = sku.replace(/^0+/, "");
-    const ja = todas.find((l) => l.chave === k);
+    const ja = cadastrosTodos.find((l) => l.chave === k);
     const id = ja?.idCaixaDb ?? ja?.id ?? idCanonico(k, bruto.data?.estoque.find((e) => e.id_produto.replace(/^0+/, "") === k)?.id_produto);
     setCriando(true);
     const { error } = await (supabase as any).from("abast_produto").upsert({ id_produto: id, descricao: novo.descricao.trim() || ja?.descricao || null, full_case: n, atualizado_em: new Date().toISOString() }, { onConflict: "id_produto" });
@@ -156,7 +157,7 @@ function CaixariaPage() {
         <CardDescription>Quantidade fixa em exposição para cada SKU da loja. Vale para todo SKU sem exposição própria; o valor digitado na tabela é uma exceção do SKU. A exposição soma ao mínimo e não conta como vendável.</CardDescription></CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {lojas.map((x) => {
-            const exc = todas.filter((l) => l.expo[x.codigo]?.valor != null).length;
+            const exc = cadastrosTodos.filter((l) => l.expo[x.codigo]?.valor != null).length;
             return (
               <div key={x.codigo} className={`rounded-md border p-3 ${lojaSelecionada === x.codigo ? "border-primary bg-primary/5" : ""}`} onClick={(e) => { if (!(e.target as HTMLElement).closest("input,button")) selecionarLoja(x.codigo); }}>
                 <div className="flex items-center justify-between gap-2">
