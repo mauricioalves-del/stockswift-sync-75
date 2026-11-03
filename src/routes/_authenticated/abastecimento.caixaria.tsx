@@ -30,7 +30,7 @@ const n1 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleStri
 
 function CaixariaPage() {
   const { isAdmin, role } = useRole();
-  const pode = isAdmin || role === "GERENTE" || role === "COORDENADOR_CONTROLE";
+  const pode = isAdmin || role === "GERENTE";
   const qc = useQueryClient();
   const bruto = useAbastBruto(pode);
   const lojas = bruto.data?.lojas ?? [];
@@ -133,7 +133,7 @@ function CaixariaPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><Boxes className="size-6" /> Caixaria e Exposição</h1>
         <p className="text-sm text-muted-foreground">
-          Cadastro das <strong>unidades por caixa</strong> (a Reposição sugere em caixa fechada) e da <strong>exposição por loja</strong> (unidades que ficam na vitrine e não contam como vendável). Cada loja tem a sua <strong>regra de exposição</strong> (unidades por SKU); o valor digitado num SKU é uma exceção que prevalece sobre a regra. Vale para produto acabado com meta no consenso. {isAdmin ? "Edite direto nas células (Enter ou sair do campo salva); a lixeira exclui a caixaria do item." : "Somente o administrador edita; você pode consultar e exportar."}
+          Cadastro das <strong>unidades por caixa</strong> (a Reposição sugere em caixa fechada) e da <strong>exposição por loja</strong> (unidades que ficam na vitrine e não contam como vendável). Cada loja tem a sua <strong>regra de exposição</strong> (unidades por SKU); o valor digitado num SKU é uma exceção que prevalece sobre a regra. Vale para produto acabado com meta no consenso. {pode ?? "Edite direto nas células (Enter ou sair do campo salva); a lixeira exclui a caixaria do item." : "Somente administrador ou gerente edita; você pode consultar e exportar."}
         </p>
       </div>
 
@@ -144,7 +144,7 @@ function CaixariaPage() {
         <Kpi t="Fora do universo (excluir?)" v={String(fora)} />
       </div>
 
-      {isAdmin && (
+      {pode ?&& (
         <Card><CardHeader className="pb-2"><CardTitle className="text-base">Novo item de caixaria</CardTitle><CardDescription>Cadastra (ou atualiza) as unidades por caixa de um SKU, mesmo que ele ainda não apareça na lista.</CardDescription></CardHeader>
           <CardContent className="flex flex-wrap items-end gap-3">
             <div><div className="text-xs text-muted-foreground mb-1">SKU</div><Input className="w-40" placeholder="ex.: 05104027" value={novo.sku} onChange={(e) => setNovo({ ...novo, sku: e.target.value })} /></div>
@@ -162,11 +162,11 @@ function CaixariaPage() {
               <div key={x.codigo} className={`rounded-md border p-3 ${lojaSelecionada === x.codigo ? "border-primary bg-primary/5" : ""}`} onClick={(e) => { if (!(e.target as HTMLElement).closest("input,button")) selecionarLoja(x.codigo); }}>
                 <div className="flex items-center justify-between gap-2">
                   <Button variant="ghost" size="sm" className="h-auto justify-start px-0 text-sm font-medium" aria-pressed={lojaSelecionada === x.codigo} onClick={() => selecionarLoja(x.codigo)}>{x.nome}</Button>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">{isAdmin ? <CelulaNum valor={regras[x.codigo] ?? null} placeholder="—" vazioLimpa titulo={`Unidades em exposição por SKU na ${x.nome} (vazio remove a regra)`} aoSalvar={(n) => salvarRegra(x.codigo, n)} /> : <strong className="text-foreground">{n1(regras[x.codigo] ?? null)}</strong>} un/SKU</div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">{pode ?? <CelulaNum valor={regras[x.codigo] ?? null} placeholder="—" vazioLimpa titulo={`Unidades em exposição por SKU na ${x.nome} (vazio remove a regra)`} aoSalvar={(n) => salvarRegra(x.codigo, n)} /> : <strong className="text-foreground">{n1(regras[x.codigo] ?? null)}</strong>} un/SKU</div>
                 </div>
                 <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                   <span>{regras[x.codigo] == null ? "Sem regra: vale só o cadastro do SKU." : `${exc} SKU(s) com exceção própria`}</span>
-                  {isAdmin && regras[x.codigo] != null && exc > 0 && <button type="button" className="text-primary hover:underline" onClick={() => aplicarRegraATodos(x.codigo, x.nome)}>Aplicar a todos</button>}
+                  {pode ?&& regras[x.codigo] != null && exc > 0 && <button type="button" className="text-primary hover:underline" onClick={() => aplicarRegraATodos(x.codigo, x.nome)}>Aplicar a todos</button>}
                 </div>
               </div>
             );
@@ -187,7 +187,7 @@ function CaixariaPage() {
       <Card><CardContent className="p-0"><div className="max-h-[68vh] overflow-auto"><table className="w-full caption-bottom text-sm">
         <thead><tr className="border-b">
           {cols.map((c) => <CabColG key={c.k} col={c} ordem={ordem} onOrdem={() => setOrdem(proximaOrdem(ordem, c))} filtro={filtros[c.k]} onFiltro={(f) => setFiltros({ ...filtros, [c.k]: f })} opcoes={c.t === "cat" ? opcoesCategoria(baseLinhas, c) : []} />)}
-          {isAdmin && <th className="sticky top-0 z-20 w-10 bg-card" />}
+          {pode ?&& <th className="sticky top-0 z-20 w-10 bg-card" />}
         </tr></thead>
         <tbody>
           {linhas.length === 0 && <tr><td colSpan={cols.length + 1} className="py-10 text-center text-muted-foreground">{bruto.isLoading ? "Carregando..." : "Nenhum item neste filtro."}</td></tr>}
@@ -198,9 +198,9 @@ function CaixariaPage() {
               <td className="p-2 text-xs">{l.categoria || <span className="text-muted-foreground">{categoriasQ.isLoading ? "Carregando…" : categoriasQ.isError ? "Indisponível" : "sem categoria"}</span>}</td>
               <td className="p-2"><span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold ${l.caixa == null ? (l.solto ? "bg-slate-100 text-slate-600 border-slate-200" : "bg-amber-100 text-amber-800 border-amber-200") : l.noUniverso ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{l.caixa == null ? (l.solto ? "Solto (granel)" : "Sem caixa") : l.noUniverso ? "Com caixa" : "Fora do universo"}</span></td>
               <td className="p-2 text-right">{n1(l.saldoCD)}{l.caixa && l.caixa > 1 ? <span className="ml-1 text-[10px] text-muted-foreground">({Math.floor(l.saldoCD / l.caixa)} cx)</span> : null}</td>
-              <td className="p-2 text-right">{isAdmin ? <CelulaNum valor={l.caixa} placeholder="1" titulo="Unidades por caixa fechada" aoSalvar={(n) => salvarCaixa(l, n)} /> : n1(l.caixa)}</td>
-              {lojasVisiveis.map((x) => <td key={x.codigo} className="p-2 text-right">{isAdmin ? <CelulaNum valor={l.expo[x.codigo]?.valor ?? null} placeholder={regras[x.codigo] != null ? String(regras[x.codigo]) : "0"} vazioLimpa titulo={regras[x.codigo] != null ? `Exposição na ${x.nome}: vazio segue a regra da loja (${regras[x.codigo]} un); digite um valor para criar exceção` : `Exposição na loja ${x.nome} (vazio remove)`} aoSalvar={(n) => salvarExpo(l, x.codigo, n)} /> : n1(l.expo[x.codigo]?.valor ?? regras[x.codigo] ?? null)}</td>)}
-              {isAdmin && <td className="p-2 text-right">{l.idCaixaDb ? <button type="button" title="Excluir a caixaria deste item" aria-label={`Excluir caixaria de ${l.id}`} className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600" onClick={() => excluir(l)}><Trash2 className="size-4" /></button> : null}</td>}
+              <td className="p-2 text-right">{pode ?? <CelulaNum valor={l.caixa} placeholder="1" titulo="Unidades por caixa fechada" aoSalvar={(n) => salvarCaixa(l, n)} /> : n1(l.caixa)}</td>
+              {lojasVisiveis.map((x) => <td key={x.codigo} className="p-2 text-right">{pode ?? <CelulaNum valor={l.expo[x.codigo]?.valor ?? null} placeholder={regras[x.codigo] != null ? String(regras[x.codigo]) : "0"} vazioLimpa titulo={regras[x.codigo] != null ? `Exposição na ${x.nome}: vazio segue a regra da loja (${regras[x.codigo]} un); digite um valor para criar exceção` : `Exposição na loja ${x.nome} (vazio remove)`} aoSalvar={(n) => salvarExpo(l, x.codigo, n)} /> : n1(l.expo[x.codigo]?.valor ?? regras[x.codigo] ?? null)}</td>)}
+              {pode ?&& <td className="p-2 text-right">{l.idCaixaDb ? <button type="button" title="Excluir a caixaria deste item" aria-label={`Excluir caixaria de ${l.id}`} className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600" onClick={() => excluir(l)}><Trash2 className="size-4" /></button> : null}</td>}
             </tr>))}
         </tbody>
       </table></div></CardContent></Card>
