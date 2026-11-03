@@ -351,6 +351,13 @@
       "when": 1793471300961,
       "tag": "0049_baixas_centros_custo",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1793716762422,
+      "tag": "0050_quebras_fefo_justificativa",
+      "breakpoints": true
     }
   ]
 }
