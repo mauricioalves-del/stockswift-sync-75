@@ -8,13 +8,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatNum } from "@/lib/inventory";
-import { CheckCircle2, XCircle, ArrowLeftRight, Loader2 } from "lucide-react";
+import { CheckCircle2, ArrowLeftRight, Loader2, MessageSquareText } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/quebras-fefo")({
   component: QuebrasFefoPage,
@@ -35,33 +38,52 @@ type Quebra = {
   detalhes: Detalhe[];
   status: string;
   created_at: string;
+  observacao: string | null;
+  motivo_resolucao: string | null;
+  resolvido_em: string | null;
 };
+
+// Duas soluções possíveis para cada ocorrência:
+// REALOCADO   — o saldo voltou ao almoxarifado/lote de origem depois de identificada a ruptura; corrige a distribuição entre lotes.
+// JUSTIFICADO — existe uma justificativa lógica para a causa central da ruptura; nada muda no estoque, a causa fica registrada.
+const MOTIVOS_JUSTIFICATIVA = [
+  "Movimentação lançada em lote errado",
+  "Recebimento sem lote ou com lote não cadastrado",
+  "Erro de contagem / lote identificado errado na contagem",
+  "Etiqueta ou identificação do lote ilegível",
+  "Transferência entre almoxarifados pendente de lançamento",
+  "Produção / fracionamento apontado em outro lote",
+  "Outro (descrever)",
+] as const;
+
+const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
+  REALOCADO: { label: "Realocado", cls: "border-emerald-500 text-emerald-700 dark:text-emerald-300" },
+  JUSTIFICADO: { label: "Justificado", cls: "border-sky-500 text-sky-700 dark:text-sky-300" },
+  IGNORADO: { label: "Ignorado (antigo)", cls: "text-muted-foreground" },
+};
+const quando = (iso: string | null) => (iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—");
 
 function QuebrasFefoPage() {
   const qc = useQueryClient();
   const { role, isAdmin } = useRole();
   const podeResolver = isAdmin || role === "COORDENADOR_CONTROLE";
   const [aberta, setAberta] = useState<Quebra | null>(null);
+  const [justificando, setJustificando] = useState<Quebra | null>(null);
+  const [aba, setAba] = useState<"pendentes" | "resolvidas">("pendentes");
 
   const q = useQuery({
-    queryKey: ["quebras-fefo"],
+    queryKey: ["quebras-fefo", aba],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("quebras_fefo")
-        .select("*").eq("status", "PENDENTE").order("created_at", { ascending: false });
+      let query = (supabase as any).from("quebras_fefo").select("*");
+      query = aba === "pendentes"
+        ? query.eq("status", "PENDENTE").order("created_at", { ascending: false })
+        : query.neq("status", "PENDENTE").order("resolvido_em", { ascending: false, nullsFirst: false }).limit(300);
+      const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as Quebra[];
     },
   });
-
-  async function ignorar(id: string) {
-    const uid = (await supabase.auth.getUser()).data.user?.id;
-    const { error } = await (supabase as any).from("quebras_fefo").update({
-      status: "IGNORADO", resolvido_por: uid, resolvido_em: new Date().toISOString(),
-    }).eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Ocorrência ignorada");
-    qc.invalidateQueries({ queryKey: ["quebras-fefo"] });
-  }
+  const pendentes = aba === "pendentes";
 
   return (
     <div className="w-full space-y-4">
@@ -72,6 +94,20 @@ function QuebrasFefoPage() {
           (ou houve lançamento em "Lote Não Relacionado"). Não é perda de estoque — é apontamento de processo.
         </p>
       </div>
+
+      <Tabs value={aba} onValueChange={(v) => setAba(v as typeof aba)}>
+        <TabsList>
+          <TabsTrigger value="pendentes">Pendentes</TabsTrigger>
+          <TabsTrigger value="resolvidas">Resolvidas</TabsTrigger>
+        </TabsList>
+      </Tabs>
+      {pendentes && (
+        <p className="text-xs text-muted-foreground">
+          Cada ocorrência é encerrada de uma de duas formas: <b>Realocar</b>, quando o saldo voltou ao almoxarifado de origem depois de
+          identificada a ruptura (corrige a distribuição entre lotes), ou <b>Justificar</b>, quando há uma causa lógica para a ruptura
+          (nada muda no estoque; a causa fica registrada).
+        </p>
+      )}
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
@@ -84,13 +120,15 @@ function QuebrasFefoPage() {
                 <TableHead className="text-right">Sistema</TableHead>
                 <TableHead className="text-right">Contado</TableHead>
                 <TableHead>Lotes divergentes</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                {pendentes
+                  ? <TableHead className="text-right">Ações</TableHead>
+                  : <><TableHead>Solução</TableHead><TableHead>Causa / observação</TableHead><TableHead>Quando</TableHead></>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {q.data?.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                  Nenhuma ocorrência pendente 🎉
+                <TableRow><TableCell colSpan={pendentes ? 7 : 9} className="text-center py-12 text-muted-foreground">
+                  {pendentes ? "Nenhuma ocorrência pendente 🎉" : "Nenhuma ocorrência resolvida ainda."}
                 </TableCell></TableRow>
               )}
               {(q.data ?? []).map((r) => (
@@ -109,20 +147,34 @@ function QuebrasFefoPage() {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex gap-1 justify-end">
-                      {podeResolver && (
-                        <>
-                          <Button size="sm" variant="default" onClick={() => setAberta(r)}>
-                            <ArrowLeftRight className="size-3.5 mr-1" /> Realocar
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => ignorar(r.id)} title="Ignorar">
-                            <XCircle className="size-3.5" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
+                  {pendentes ? (
+                    <TableCell className="text-right">
+                      <div className="flex gap-1 justify-end">
+                        {podeResolver && (
+                          <>
+                            <Button size="sm" variant="default" onClick={() => setAberta(r)} title="O saldo voltou ao almoxarifado de origem">
+                              <ArrowLeftRight className="size-3.5 mr-1" /> Realocar
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setJustificando(r)} title="Há uma causa lógica para a ruptura">
+                              <MessageSquareText className="size-3.5 mr-1" /> Justificar
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  ) : (
+                    <>
+                      <TableCell>
+                        <Badge variant="outline" className={`text-[10px] ${STATUS_LABEL[r.status]?.cls ?? ""}`}>{STATUS_LABEL[r.status]?.label ?? r.status}</Badge>
+                      </TableCell>
+                      <TableCell className="max-w-sm text-xs">
+                        {r.motivo_resolucao && <div className="font-medium">{r.motivo_resolucao}</div>}
+                        {r.observacao && <div className="text-muted-foreground">{r.observacao}</div>}
+                        {!r.motivo_resolucao && !r.observacao && "—"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-xs">{quando(r.resolvido_em)}</TableCell>
+                    </>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
@@ -141,7 +193,97 @@ function QuebrasFefoPage() {
           }}
         />
       )}
+      {justificando && (
+        <JustificarDialog
+          quebra={justificando}
+          onClose={() => setJustificando(null)}
+          onDone={() => {
+            setJustificando(null);
+            qc.invalidateQueries({ queryKey: ["quebras-fefo"] });
+            qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function JustificarDialog({ quebra, onClose, onDone }: { quebra: Quebra; onClose: () => void; onDone: () => void }) {
+  const [motivo, setMotivo] = useState("");
+  const [texto, setTexto] = useState("");
+  const [saving, setSaving] = useState(false);
+  const outro = motivo.startsWith("Outro");
+  const minimo = outro ? 15 : 10;
+  const valido = !!motivo && texto.trim().length >= minimo;
+
+  async function confirmar() {
+    if (!valido) return;
+    setSaving(true);
+    const uid = (await supabase.auth.getUser()).data.user?.id;
+    const { error } = await (supabase as any).from("quebras_fefo").update({
+      status: "JUSTIFICADO", motivo_resolucao: motivo, observacao: texto.trim(),
+      resolvido_por: uid, resolvido_em: new Date().toISOString(),
+    }).eq("id", quebra.id).eq("status", "PENDENTE");
+    if (error) { setSaving(false); return toast.error(error.message); }
+    await (supabase as any).from("auditoria").insert({
+      acao: "JUSTIFICAR_QUEBRA_FEFO",
+      entidade: "quebras_fefo",
+      entidade_id: quebra.item_missao_id,
+      usuario: uid,
+      observacao: `SKU ${quebra.codigo_produto} · almox ${quebra.origem ?? "—"} · ${motivo}: ${texto.trim()}`,
+      dados_antes: quebra.detalhes,
+      dados_depois: { status: "JUSTIFICADO", motivo, justificativa: texto.trim() },
+    });
+    toast.success("Ocorrência justificada — estoque não foi alterado");
+    setSaving(false);
+    onDone();
+  }
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && !saving && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Justificar ruptura — {quebra.codigo_produto}</DialogTitle>
+          <DialogDescription>
+            Use quando existe uma causa lógica para a quebra de FEFO e o saldo <b>não</b> precisa ser movido entre lotes.
+            O estoque não é alterado; a causa fica registrada no histórico da ocorrência.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="rounded border bg-muted/40 p-2 text-xs">
+            <div className="mb-1 font-semibold">{quebra.descricao} · {quebra.origem ?? "—"}</div>
+            <div className="flex flex-wrap gap-1">
+              {quebra.detalhes.map((d, i) => (
+                <Badge key={i} variant={d.eh_nao_relacionado ? "destructive" : "outline"} className="font-mono">
+                  {d.eh_nao_relacionado ? "Não Rel." : d.lote}: {formatNum(d.contado)} / sis {formatNum(d.sistemico)}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label>Causa central da ruptura</Label>
+            <Select value={motivo} onValueChange={setMotivo}>
+              <SelectTrigger><SelectValue placeholder="Escolha a causa" /></SelectTrigger>
+              <SelectContent>{MOTIVOS_JUSTIFICATIVA.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>Justificativa</Label>
+            <Textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={4}
+              placeholder="Explique o que aconteceu e como foi verificado (ex.: NF 1234 recebida sem lote; lote correto é o 0050…)." />
+            <div className={`text-right text-[11px] ${texto.trim().length >= minimo ? "text-muted-foreground" : "text-amber-600"}`}>
+              {texto.trim().length}/{minimo} caracteres mínimos
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button onClick={confirmar} disabled={!valido || saving}>
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <><CheckCircle2 className="mr-1 size-4" /> Registrar justificativa</>}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -163,6 +305,7 @@ function RealocarDialog({ quebra, onClose, onDone }: { quebra: Quebra; onClose: 
 
   const [ajustes, setAjustes] = useState<Record<string, string>>({});
   const [loteAlvo, setLoteAlvo] = useState<string>("");
+  const [obs, setObs] = useState("");
   const [saving, setSaving] = useState(false);
 
   const lotes = lotesQ.data ?? [];
@@ -224,7 +367,8 @@ function RealocarDialog({ quebra, onClose, onDone }: { quebra: Quebra; onClose: 
     });
     // Fecha ocorrência
     await (supabase as any).from("quebras_fefo").update({
-      status: "REALOCADO", resolvido_por: uid, resolvido_em: new Date().toISOString(),
+      status: "REALOCADO", motivo_resolucao: "Saldo retornou ao almoxarifado de origem",
+      observacao: obs.trim() || null, resolvido_por: uid, resolvido_em: new Date().toISOString(),
     }).eq("id", quebra.id);
 
     toast.success("Lotes realocados — saldo total do SKU preservado");
@@ -238,7 +382,7 @@ function RealocarDialog({ quebra, onClose, onDone }: { quebra: Quebra; onClose: 
         <DialogHeader>
           <DialogTitle>Realocar entre Lotes — {quebra.codigo_produto}</DialogTitle>
           <DialogDescription>
-            Ajuste a distribuição entre lotes. A soma final deve manter o total sistêmico do SKU
+            Use quando o saldo voltou ao almoxarifado de origem depois de identificada a ruptura. Ajuste a distribuição entre lotes. A soma final deve manter o total sistêmico do SKU
             ({formatNum(totalAtual)}). Isso não altera o inventário total, só corrige a distribuição.
           </DialogDescription>
         </DialogHeader>
@@ -314,6 +458,10 @@ function RealocarDialog({ quebra, onClose, onDone }: { quebra: Quebra; onClose: 
 
           <div className={`text-xs text-right tabular-nums ${Math.abs(totalNovo - totalAtual) > 0.001 ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
             Soma nova: {formatNum(totalNovo)} · alvo: {formatNum(totalAtual)}
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Observação (opcional)</Label>
+            <Textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} placeholder="Ex.: produto retornou da loja para o almoxarifado em 03/11." />
           </div>
         </div>
 
