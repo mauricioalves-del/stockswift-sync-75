@@ -9,11 +9,20 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { enviarRiscoShelfSlack } from "@/lib/shelf-slack.functions";
-import { almoxDosLotes, brl, tituloTrend, totalCusto, type LoteSlack } from "@/lib/shelf-slack";
+import { almoxDosLotes, brl, separarJaEnviados, tituloTrend, totalCusto, type EnvioSlack, type LoteSlack } from "@/lib/shelf-slack";
 
-export function EnviarSlackDialog({ open, onOpenChange, lotes, onSent }: {
-  open: boolean; onOpenChange: (v: boolean) => void; lotes: LoteSlack[]; onSent: () => void;
+export function EnviarSlackDialog({ open, onOpenChange, lotes: escolhidos, enviosPorLote, onSent }: {
+  open: boolean; onOpenChange: (v: boolean) => void; lotes: LoteSlack[]; enviosPorLote: Map<string, EnvioSlack[]>; onSent: () => void;
 }) {
+  const [reenviar, setReenviar] = useState(false);
+  const { novos, enviados } = useMemo(() => separarJaEnviados(escolhidos, enviosPorLote), [escolhidos, enviosPorLote]);
+  const lotes = reenviar ? escolhidos : novos;
+  const trendsAnteriores = useMemo(() => {
+    const m = new Map<string, { envio: EnvioSlack; qtd: number }>();
+    for (const e of enviados) { const x = m.get(e.envio.id) ?? { envio: e.envio, qtd: 0 }; x.qtd++; m.set(e.envio.id, x); }
+    return [...m.values()].sort((a, b) => b.envio.numero - a.envio.numero);
+  }, [enviados]);
+  useEffect(() => { if (open) setReenviar(false); }, [open]);
   const enviar = useServerFn(enviarRiscoShelfSlack);
   const [obs, setObs] = useState("");
   const [deps, setDeps] = useState<string[]>([]);
@@ -46,9 +55,9 @@ export function EnviarSlackDialog({ open, onOpenChange, lotes, onSent }: {
     try {
       const r = await enviar({ data: {
         observacao: obs.trim(), departamentoIds: deps,
-        lotes: lotes.map((l) => ({ sku: l.sku, lote: l.lote, almoxarifado: l.almoxarifado })),
+        lotes: lotes.map((l) => ({ sku: l.sku, lote: l.lote, almoxarifado: l.almoxarifado })), reenviar,
       } });
-      toast.success(`Trend criada no Slack com ${r.lotes} lote(s)`, r.link ? { action: { label: "Abrir", onClick: () => window.open(r.link!, "_blank") } } : undefined);
+      toast.success(`Trend ${r.numero ? `#${r.numero} ` : ""}criada no Slack com ${r.lotes} lote(s)${r.jaEnviados ? ` · ${r.jaEnviados} já enviado(s) ficaram de fora` : ""}`, r.link ? { action: { label: "Abrir", onClick: () => window.open(r.link!, "_blank") } } : undefined);
       setObs(""); onSent(); onOpenChange(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao enviar");
@@ -63,6 +72,28 @@ export function EnviarSlackDialog({ open, onOpenChange, lotes, onSent }: {
           <DialogDescription>{lotes.length} lote(s) · {brl(total)} de custo contábil · Almox: {almox || "—"}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          {enviados.length > 0 && (
+            <div className="rounded-md border border-amber-400 bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200 space-y-2">
+              <p className="font-medium">
+                {enviados.length} dos {escolhidos.length} lote(s) selecionados já estão em uma Trend do Slack
+                {reenviar ? " e serão enviados de novo." : " e vão ficar de fora deste envio."}
+              </p>
+              <ul className="space-y-0.5">
+                {trendsAnteriores.map(({ envio, qtd }) => (
+                  <li key={envio.id}>
+                    {envio.link
+                      ? <a href={envio.link} target="_blank" rel="noreferrer" className="font-semibold underline">Trend #{envio.numero}</a>
+                      : <span className="font-semibold">Trend #{envio.numero}</span>}
+                    {" "}· {new Date(envio.created_at).toLocaleDateString("pt-BR")} · {qtd} lote(s) · {envio.observacao}
+                  </li>
+                ))}
+              </ul>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox checked={reenviar} onCheckedChange={(v) => setReenviar(v === true)} />
+                Reenviar estes lotes mesmo assim (abre uma nova Trend com a mesma informação)
+              </label>
+            </div>
+          )}
           <div>
             <Label>Observação</Label>
             <Textarea value={obs} onChange={(e) => setObs(e.target.value)} maxLength={300} placeholder="Ex.: Priorizar venda em loja" />
@@ -82,13 +113,13 @@ export function EnviarSlackDialog({ open, onOpenChange, lotes, onSent }: {
           </div>
           <div className="rounded-md border bg-muted/40 p-3 text-xs space-y-1">
             <p className="font-medium">Prévia da Trend</p>
-            <p className="font-mono break-words">{tituloTrend(obs || "(observação)", almox, new Date())}</p>
+            <p className="font-mono break-words">{tituloTrend(obs || "(observação)", almox, new Date(), 0).replace("*Risco de Shelf*", "*Risco de Shelf #(nº)*")}</p>
             <p className="text-muted-foreground">Comentário: responsáveis marcados + tabela com {lotes.length} lote(s), dias para vencer e custo contábil.</p>
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={confirmar} disabled={enviando || !lotes.length}>{enviando ? "Enviando…" : "Enviar ao Slack"}</Button>
+          <Button onClick={confirmar} disabled={enviando || !lotes.length}>{enviando ? "Enviando…" : lotes.length ? `Enviar ${lotes.length} lote(s) ao Slack` : "Nada novo para enviar"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
