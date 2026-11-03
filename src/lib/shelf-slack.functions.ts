@@ -125,7 +125,8 @@ export const enviarRiscoShelfSlack = createServerFn({ method: "POST" })
       }
       let link: string | null = null;
       try { link = (await slack("chat.getPermalink", { channel: ch, message_ts: ts })).permalink; } catch { /* opcional */ }
-      if (log) await supabase.from("shelf_slack_envios").update({ thread_ts: ts, link }).eq("id", log.id);
+      // numero_no_slack: a Trend já saiu com o número no título (migration 0053).
+      if (log) await (supabase as any).from("shelf_slack_envios").update({ thread_ts: ts, link, numero_no_slack: true }).eq("id", log.id);
       return { ok: true, numero: log?.numero ?? null, lotes: encontrados.length, total, link, jaEnviados, naoEncontrados: data.lotes.length - encontrados.length - jaEnviados };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -134,4 +135,93 @@ export const enviarRiscoShelfSlack = createServerFn({ method: "POST" })
         : msg.includes("channel_not_found") ? "Canal do Slack não encontrado. Confira o nome/ID em Configurações." : msg;
       throw new Error(amigavel);
     }
+  });
+
+
+// ---------- Redisparo das Trends antigas (criadas antes da numeração) ----------
+// Republica uma Trend com o mesmo número do sistema, os mesmos lotes registrados no envio original e os responsáveis
+// marcados de novo; apaga a mensagem antiga (e os comentários dela) no Slack e passa a apontar o link para a nova.
+// Uma Trend por chamada, para não estourar o tempo de execução; a tela chama em sequência.
+
+const schemaRedisparo = z.object({ envioId: z.string().uuid() });
+
+async function mencoesDosDepartamentos(supabase: any, nomes: string[]): Promise<string[]> {
+  if (!nomes.length) return [];
+  const { data: deps } = await supabase.from("shelf_slack_departamentos").select("id").in("nome", nomes);
+  const depIds = (deps ?? []).map((d: { id: string }) => d.id);
+  if (!depIds.length) return [];
+  const { data: resp } = await supabase.from("shelf_slack_responsaveis").select("user_id").in("departamento_id", depIds);
+  const ids = Array.from(new Set((resp ?? []).map((r: { user_id: string }) => r.user_id)));
+  if (!ids.length) return [];
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: profs } = await supabaseAdmin.from("profiles").select("email").in("id", ids as string[]);
+  const emails = Array.from(new Set((profs ?? []).map((p) => p.email).filter(Boolean))) as string[];
+  const out: string[] = [];
+  for (const e of emails) {
+    try { const u = await slack(`users.lookupByEmail?email=${encodeURIComponent(e)}`, {}); out.push(`<@${u.user.id}>`); }
+    catch { out.push(`*${e}*`); }
+  }
+  return out;
+}
+
+export const redispararTrendShelf = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => schemaRedisparo.parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    if (!process.env["LOVABLE_API_KEY"] || !process.env["SLACK_API_KEY"]) throw new Error("Slack não conectado.");
+    const { data: gestor } = await supabase.rpc("is_gestor", { _user_id: userId });
+    if (!gestor) throw new Error("Apenas gestores podem redisparar Trends.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const { data: e, error } = await admin.from("shelf_slack_envios")
+      .select("id, numero, observacao, almox, departamentos, lotes, canal, thread_ts, created_at, numero_no_slack")
+      .eq("id", data.envioId).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!e) throw new Error("Envio não encontrado.");
+    if (!e.thread_ts) throw new Error(`O envio #${e.numero} nunca chegou a criar uma Trend.`);
+    if (e.numero_no_slack) return { ok: true, numero: e.numero, pulado: true };
+
+    const { data: cfg } = await supabase.from("app_config").select("valor").eq("chave", "slack_canal_shelf").maybeSingle();
+    const canal = (typeof cfg?.valor === "string" ? cfg.valor.trim() : "") || e.canal;
+    if (!canal) throw new Error("Canal do Slack não configurado em Configurações.");
+
+    const lotes = ((e.lotes ?? []) as LoteSlack[]).slice().sort((a, b) => (a.data_validade ?? "9").localeCompare(b.data_validade ?? "9"));
+    const total = totalCusto(lotes);
+    const deptNomes = (e.departamentos ?? []) as string[];
+    const mencoes = await mencoesDosDepartamentos(supabase, deptNomes);
+    const dataOriginal = new Date(e.created_at);
+
+    const raiz = await slack("chat.postMessage", { channel: canal, text: tituloTrend(e.observacao, e.almox ?? almoxDosLotes(lotes), dataOriginal, e.numero), unfurl_links: false });
+    const ts = raiz.ts as string;
+    const ch = raiz.channel as string;
+    const partes = dividir(lotes, 40);
+    const cabecalho = `*Para tratativa:* ${mencoes.length ? mencoes.join(" ") : "_sem responsáveis selecionados_"}\n` +
+      (deptNomes.length ? `Departamentos: ${deptNomes.join(", ")}\n` : "") +
+      `*${lotes.length} lote(s) · Custo contábil total: ${brl(total)}*\n` +
+      `_Reenvio da Trend #${e.numero} de ${dataOriginal.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })} para rastreabilidade; lotes e custos do envio original, dias para vencer contados hoje._`;
+    for (let i = 0; i < partes.length; i++) {
+      const txt = (i === 0 ? cabecalho + "\n" : `_Continuação ${i + 1}/${partes.length}_\n`) + tabelaLotes(partes[i]);
+      await slack("chat.postMessage", { channel: ch, thread_ts: ts, text: txt });
+    }
+    let link: string | null = null;
+    try { link = (await slack("chat.getPermalink", { channel: ch, message_ts: ts })).permalink; } catch { /* opcional */ }
+
+    // Apaga a Trend antiga: primeiro os comentários, depois a mensagem principal.
+    let apagadas = 0, falhasApagar = 0;
+    const canalAntigo = e.canal && e.canal !== canal ? e.canal : ch;
+    let respostas: string[] = [];
+    try {
+      const r = await slack(`conversations.replies?channel=${encodeURIComponent(canalAntigo)}&ts=${encodeURIComponent(e.thread_ts)}&limit=200`, {});
+      respostas = ((r.messages ?? []) as { ts: string }[]).map((m) => m.ts).filter((x) => x !== e.thread_ts);
+    } catch { /* sem permissão de leitura: apaga só a principal */ }
+    for (const t of [...respostas, e.thread_ts]) {
+      try { await slack("chat.delete", { channel: canalAntigo, ts: t }); apagadas++; } catch { falhasApagar++; }
+    }
+
+    await admin.from("shelf_slack_envios").update({
+      thread_ts: ts, link, numero_no_slack: true, thread_ts_anterior: e.thread_ts, redisparado_em: new Date().toISOString(),
+    }).eq("id", e.id);
+    return { ok: true, numero: e.numero, link, apagadas, falhasApagar };
   });
