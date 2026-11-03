@@ -372,6 +372,13 @@
       "when": 1793724004219,
       "tag": "0052_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1793734856744,
+      "tag": "0053_shelf_slack_redisparo",
+      "breakpoints": true
     }
   ]
 }
