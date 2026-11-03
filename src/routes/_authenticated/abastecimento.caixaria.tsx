@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Boxes, Trash2, Download, Plus, ArrowDown, ArrowUp, ArrowUpDown, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
-import { montarCaixaria, idCanonico, type LinhaCaixaria } from "@/lib/abastecimento-caixaria";
+import { montarCaixaria, idCanonico, type LinhaCaixaria, type CategoriaCaixaria } from "@/lib/abastecimento-caixaria";
+import { fetchAll } from "@/lib/fetch-all";
 import { passaFiltros, proximaOrdem, comparar, opcoesCategoria, filtroAtivo, type ColDef, type Filtro, type Ordem } from "@/lib/tabela-filtro";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,14 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/abastecimento/caixaria")({
   component: CaixariaPage,
-  head: () => ({ meta: [{ title: "Caixaria e Exposição — Abastecimento" }] }),
+  head: () => ({ meta: [
+    { title: "Caixaria e Exposição — Stock Savvy" },
+    { name: "description", content: "Cadastro de caixaria, categorias e exposição individual por loja." },
+    { property: "og:title", content: "Caixaria e Exposição — Stock Savvy" },
+    { property: "og:description", content: "Consulta de categorias e exposição dos produtos por loja." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
 });
 
 const n1 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("pt-BR", { maximumFractionDigits: 1 }));
@@ -33,29 +41,38 @@ function CaixariaPage() {
   const [filtros, setFiltros] = useState<Record<string, Filtro>>({});
   const [novo, setNovo] = useState({ sku: "", descricao: "", caixa: "" });
   const [criando, setCriando] = useState(false);
+  const [lojaSelecionada, setLojaSelecionada] = useState<string | null>(null);
+  const lojasVisiveis = useMemo(() => lojas.filter((x) => !lojaSelecionada || x.codigo === lojaSelecionada), [lojas, lojaSelecionada]);
+  const categoriasQ = useQuery({
+    queryKey: ["categorias-produto", "caixaria"], enabled: pode,
+    queryFn: () => fetchAll<CategoriaCaixaria>((f, t) => (supabase as any).from("categorias_produto").select("codigo_produto,categoria").order("codigo_produto").range(f, t)),
+  });
 
-  const todas = useMemo(() => (bruto.data ? montarCaixaria(bruto.data) : []), [bruto.data]);
+  const todas = useMemo(() => (bruto.data ? montarCaixaria(bruto.data, { loja: lojaSelecionada, categorias: categoriasQ.data }) : []), [bruto.data, lojaSelecionada, categoriasQ.data]);
   const cols: ColDef<LinhaCaixaria>[] = useMemo(() => [
     { k: "sku", r: "SKU", t: "txt", v: (l) => l.id },
     { k: "produto", r: "Produto", t: "txt", v: (l) => l.descricao },
-    { k: "familia", r: "Família", t: "cat", v: (l) => l.familia || "(sem família)" },
+    { k: "categoria", r: "Categoria", t: "cat", v: (l) => l.categoria || "(sem categoria)" },
     { k: "cadastro", r: "Cadastro", t: "cat", v: (l) => (l.caixa == null ? (l.solto ? "Solto (granel)" : "Sem caixa") : l.noUniverso ? "Com caixa" : "Fora do universo") },
     { k: "saldocd", r: "Saldo CD", t: "num", al: "right", v: (l) => l.saldoCD },
     { k: "caixa", r: "Unid./caixa", t: "num", al: "right", v: (l) => l.caixa },
-    ...lojas.map((x) => ({ k: "expo_" + x.codigo, r: "Expo. " + x.nome.replace(/^Loja /, ""), t: "num" as const, al: "right" as const, v: (l: LinhaCaixaria) => l.expo[x.codigo]?.valor ?? null })),
-  ], [lojas]);
+    ...lojasVisiveis.map((x) => ({ k: "expo_" + x.codigo, r: "Expo. " + x.nome.replace(/^Loja /, ""), t: "num" as const, al: "right" as const, v: (l: LinhaCaixaria) => l.expo[x.codigo]?.valor ?? null })),
+  ], [lojasVisiveis]);
 
-  const baseLinhas = useMemo(() => todas.filter((l) => quick === "TODOS" ? true : quick === "SEM_CAIXA" ? l.caixa == null && !l.solto : quick === "SEM_EXPO" ? lojas.some((x) => semExpoNaLoja(l, x.codigo)) : !l.noUniverso), [todas, quick, lojas, regras]);
+  const baseLinhas = useMemo(() => todas.filter((l) => quick === "TODOS" ? true : quick === "SEM_CAIXA" ? l.caixa == null && !l.solto : quick === "SEM_EXPO" ? lojasVisiveis.some((x) => semExpoNaLoja(l, x.codigo)) : !l.noUniverso), [todas, quick, lojasVisiveis, regras]);
   const linhas = useMemo(() => {
     const col = ordem ? cols.find((c) => c.k === ordem.k) : undefined;
     return baseLinhas.filter((l) => passaFiltros(l, cols, filtros)).sort((a, b) => (col && ordem ? comparar(a, b, col, ordem.dir) : 0));
   }, [baseLinhas, filtros, ordem, cols]);
   const nFiltros = Object.values(filtros).filter((f) => filtroAtivo(f)).length;
   const semCaixa = todas.filter((l) => l.caixa == null && !l.solto).length;
-  const semExpo = todas.filter((l) => lojas.some((x) => semExpoNaLoja(l, x.codigo))).length;
+  const semExpo = todas.filter((l) => lojasVisiveis.some((x) => semExpoNaLoja(l, x.codigo))).length;
   const fora = todas.filter((l) => !l.noUniverso).length;
 
   const atualizar = () => qc.invalidateQueries({ queryKey: ["abast-v2"] });
+  function selecionarLoja(loja: string | null) {
+    setLojaSelecionada(loja); setQuick("TODOS"); setFiltros({}); setOrdem(null);
+  }
   async function salvarCaixa(l: LinhaCaixaria, n: number | null) {
     if (n === null) return;
     if (!Number.isInteger(n) || n < 1) { toast.error("Informe um número inteiro de unidades por caixa (mínimo 1). Para remover o cadastro, use a lixeira."); return; }
@@ -103,8 +120,8 @@ function CaixariaPage() {
   }
   function exportar() {
     const esc = (s: unknown) => `"${String(s ?? "").replace(/"/g, '""')}"`;
-    const cab = ["SKU", "Produto", "Família", "Cadastro", "Saldo CD", "Unidades por caixa", ...lojas.map((x) => "Exposição " + x.nome)];
-    const corpo = linhas.map((l) => [l.id, l.descricao, l.familia, l.caixa == null ? (l.solto ? "Solto (granel)" : "Sem caixa") : "Com caixa", String(l.saldoCD).replace(".", ","), l.caixa ?? "", ...lojas.map((x) => l.expo[x.codigo]?.valor ?? (regras[x.codigo] != null ? `${regras[x.codigo]} (regra)` : ""))].map(esc).join(";"));
+    const cab = ["SKU", "Produto", "Categoria", "Cadastro", "Saldo CD", "Unidades por caixa", ...lojasVisiveis.map((x) => "Exposição " + x.nome)];
+    const corpo = linhas.map((l) => [l.id, l.descricao, l.categoria, l.caixa == null ? (l.solto ? "Solto (granel)" : "Sem caixa") : "Com caixa", String(l.saldoCD).replace(".", ","), l.caixa ?? "", ...lojasVisiveis.map((x) => l.expo[x.codigo]?.valor ?? (regras[x.codigo] != null ? `${regras[x.codigo]} (regra)` : ""))].map(esc).join(";"));
     const url = URL.createObjectURL(new Blob(["\uFEFF" + [cab.map(esc).join(";"), ...corpo].join("\r\n")], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = "Caixaria_Exposicao.csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
@@ -122,7 +139,7 @@ function CaixariaPage() {
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <Kpi t="Itens na lista" v={String(todas.length)} />
         <Kpi t="Sem caixa cadastrada" v={String(semCaixa)} tom={semCaixa > 0 ? "text-amber-600" : ""} />
-        <Kpi t="Sem exposição em alguma loja" v={String(semExpo)} tom={semExpo > 0 ? "text-amber-600" : ""} />
+        <Kpi t={lojaSelecionada ? "Sem exposição nesta loja" : "Sem exposição em alguma loja"} v={String(semExpo)} tom={semExpo > 0 ? "text-amber-600" : ""} />
         <Kpi t="Fora do universo (excluir?)" v={String(fora)} />
       </div>
 
@@ -135,15 +152,15 @@ function CaixariaPage() {
             <Button onClick={criar} disabled={criando} className="gap-1"><Plus className="size-4" /> {criando ? "Salvando..." : "Cadastrar"}</Button>
           </CardContent></Card>)}
 
-      <Card><CardHeader className="pb-2"><CardTitle className="text-base">Regra de exposição por loja</CardTitle>
+      <Card><CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-base">Regra de exposição por loja</CardTitle><Button size="sm" variant={lojaSelecionada ? "outline" : "default"} aria-pressed={!lojaSelecionada} onClick={() => selecionarLoja(null)}>Todas as lojas</Button></div>
         <CardDescription>Quantidade fixa em exposição para cada SKU da loja. Vale para todo SKU sem exposição própria; o valor digitado na tabela é uma exceção do SKU. A exposição soma ao mínimo e não conta como vendável.</CardDescription></CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {lojas.map((x) => {
             const exc = todas.filter((l) => l.expo[x.codigo]?.valor != null).length;
             return (
-              <div key={x.codigo} className="rounded-md border p-3">
+              <div key={x.codigo} className={`rounded-md border p-3 ${lojaSelecionada === x.codigo ? "border-primary bg-primary/5" : ""}`} onClick={(e) => { if (!(e.target as HTMLElement).closest("input,button")) selecionarLoja(x.codigo); }}>
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm font-medium">{x.nome}</div>
+                  <Button variant="ghost" size="sm" className="h-auto justify-start px-0 text-sm font-medium" aria-pressed={lojaSelecionada === x.codigo} onClick={() => selecionarLoja(x.codigo)}>{x.nome}</Button>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">{isAdmin ? <CelulaNum valor={regras[x.codigo] ?? null} placeholder="—" vazioLimpa titulo={`Unidades em exposição por SKU na ${x.nome} (vazio remove a regra)`} aoSalvar={(n) => salvarRegra(x.codigo, n)} /> : <strong className="text-foreground">{n1(regras[x.codigo] ?? null)}</strong>} un/SKU</div>
                 </div>
                 <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -156,12 +173,15 @@ function CaixariaPage() {
         </CardContent></Card>
 
       <div className="flex flex-wrap items-center gap-2">
+        {lojaSelecionada && <span className="text-sm font-semibold text-primary">{lojasVisiveis[0]?.nome}</span>}
         {([["TODOS", "Todos"], ["SEM_CAIXA", `Sem caixa (${semCaixa})`], ["SEM_EXPO", `Sem exposição (${semExpo})`], ["FORA", `Fora do universo (${fora})`]] as const).map(([k, r]) => (
           <button key={k} onClick={() => setQuick(k)} className={`rounded-full border px-3 py-1 text-xs ${quick === k ? "bg-primary text-primary-foreground border-primary font-semibold" : "hover:bg-muted"}`}>{r}</button>))}
         <span className="text-xs text-muted-foreground">Mostrando <strong>{linhas.length}</strong> de {todas.length}</span>
         {(nFiltros > 0 || ordem) && <button className="rounded-full border px-3 py-1 text-xs hover:bg-muted" onClick={() => { setFiltros({}); setOrdem(null); }}>Limpar filtros e ordem</button>}
         <Button size="sm" variant="outline" className="gap-1 ml-auto" onClick={exportar}><Download className="size-4" /> CSV</Button>
       </div>
+
+      {categoriasQ.isError && <p role="alert" className="text-sm text-destructive">Não foi possível carregar as categorias cadastradas. <Button variant="link" size="sm" onClick={() => categoriasQ.refetch()}>Tentar novamente</Button></p>}
 
       <Card><CardContent className="p-0"><div className="max-h-[68vh] overflow-auto"><table className="w-full caption-bottom text-sm">
         <thead><tr className="border-b">
@@ -174,11 +194,11 @@ function CaixariaPage() {
             <tr key={l.chave} className="border-b hover:bg-muted/40">
               <td className="p-2 font-mono text-xs">{l.id}</td>
               <td className="p-2 max-w-[260px] truncate" title={l.descricao}>{l.descricao || "—"}</td>
-              <td className="p-2 text-xs">{l.familia || <span className="text-amber-600">sem família</span>}</td>
+              <td className="p-2 text-xs">{l.categoria || <span className="text-muted-foreground">{categoriasQ.isLoading ? "Carregando…" : categoriasQ.isError ? "Indisponível" : "sem categoria"}</span>}</td>
               <td className="p-2"><span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold ${l.caixa == null ? (l.solto ? "bg-slate-100 text-slate-600 border-slate-200" : "bg-amber-100 text-amber-800 border-amber-200") : l.noUniverso ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{l.caixa == null ? (l.solto ? "Solto (granel)" : "Sem caixa") : l.noUniverso ? "Com caixa" : "Fora do universo"}</span></td>
               <td className="p-2 text-right">{n1(l.saldoCD)}{l.caixa && l.caixa > 1 ? <span className="ml-1 text-[10px] text-muted-foreground">({Math.floor(l.saldoCD / l.caixa)} cx)</span> : null}</td>
               <td className="p-2 text-right">{isAdmin ? <CelulaNum valor={l.caixa} placeholder="1" titulo="Unidades por caixa fechada" aoSalvar={(n) => salvarCaixa(l, n)} /> : n1(l.caixa)}</td>
-              {lojas.map((x) => <td key={x.codigo} className="p-2 text-right">{isAdmin ? <CelulaNum valor={l.expo[x.codigo]?.valor ?? null} placeholder={regras[x.codigo] != null ? String(regras[x.codigo]) : "0"} vazioLimpa titulo={regras[x.codigo] != null ? `Exposição na ${x.nome}: vazio segue a regra da loja (${regras[x.codigo]} un); digite um valor para criar exceção` : `Exposição na loja ${x.nome} (vazio remove)`} aoSalvar={(n) => salvarExpo(l, x.codigo, n)} /> : n1(l.expo[x.codigo]?.valor ?? regras[x.codigo] ?? null)}</td>)}
+              {lojasVisiveis.map((x) => <td key={x.codigo} className="p-2 text-right">{isAdmin ? <CelulaNum valor={l.expo[x.codigo]?.valor ?? null} placeholder={regras[x.codigo] != null ? String(regras[x.codigo]) : "0"} vazioLimpa titulo={regras[x.codigo] != null ? `Exposição na ${x.nome}: vazio segue a regra da loja (${regras[x.codigo]} un); digite um valor para criar exceção` : `Exposição na loja ${x.nome} (vazio remove)`} aoSalvar={(n) => salvarExpo(l, x.codigo, n)} /> : n1(l.expo[x.codigo]?.valor ?? regras[x.codigo] ?? null)}</td>)}
               {isAdmin && <td className="p-2 text-right">{l.idCaixaDb ? <button type="button" title="Excluir a caixaria deste item" aria-label={`Excluir caixaria de ${l.id}`} className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600" onClick={() => excluir(l)}><Trash2 className="size-4" /></button> : null}</td>}
             </tr>))}
         </tbody>
@@ -208,7 +228,7 @@ function CabColG<T>({ col, ordem, onOrdem, filtro, onFiltro, opcoes }: { col: Co
   const btn = useRef<HTMLButtonElement>(null);
   const ativo = filtroAtivo(filtro);
   const emOrdem = ordem?.k === col.k;
-  const Seta = !emOrdem ? ArrowUpDown : ordem!.dir === "desc" ? ArrowDown : ArrowUp;
+  const Seta = !emOrdem ? ArrowUpDown : ordem?.dir === "desc" ? ArrowDown : ArrowUp;
   return (
     <th className={`sticky top-0 z-20 bg-card h-11 px-2 align-middle font-medium whitespace-nowrap ${col.al === "right" ? "text-right" : "text-left"} ${emOrdem ? "text-foreground" : "text-muted-foreground"}`}>
       <span className="inline-flex items-center gap-1">
