@@ -13,6 +13,7 @@ import {
   importarLivroCaixa, importarMovimentacao, type FonteContexto, type Planilha,
 } from "@/lib/atlas-importar";
 import { investigarLote } from "@/lib/atlas-investigacao";
+import { ABA_PADRAO_AJUSTES, excluirLoteAjuste, importarAjustesInventario } from "@/lib/atlas-ajustes-inventario";
 
 export const Route = createFileRoute("/_authenticated/atlas/importar")({
   component: AtlasImportar,
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/_authenticated/atlas/importar")({
 
 const sb = supabase as any;
 const un = (n: number) => n.toLocaleString("pt-BR");
+const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 type Arq = { nome: string; planilha: Planilha } | null;
 
 /** Escolha de arquivo (.xlsx/.xlsm/.csv) + aba. */
@@ -65,6 +67,7 @@ function AtlasImportar() {
   const qc = useQueryClient();
   const almoxQ = useQuery({ queryKey: ["atlas-almox-ativos"], queryFn: async () => ((await sb.from("atlas_almoxarifados").select("codigo, nome_exibicao, ativo").order("codigo")).data ?? []).filter((a: any) => a.ativo !== false) as { codigo: string; nome_exibicao: string | null }[] });
   const lotesQ = useQuery({ queryKey: ["atlas-lotes"], queryFn: async () => ((await sb.from("atlas_lotes_importacao").select("*").order("criado_em", { ascending: false }).limit(50)).data ?? []) as any[] });
+  const lotesAjQ = useQuery({ queryKey: ["atlas-lotes-ajuste"], queryFn: async () => ((await sb.from("atlas_lotes_ajuste_inventario").select("*").order("id", { ascending: false }).limit(50)).data ?? []) as any[] });
   const almox = almoxQ.data ?? [];
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [prog, setProg] = useState("");
@@ -73,11 +76,13 @@ function AtlasImportar() {
     setOcupado(chave); setProg(""); setRes({});
     try { const ctx = await carregarContexto(); const texto = await fn(ctx); setRes({ texto }); toast.success("Importação concluída."); }
     catch (e: any) { setRes({ erro: e?.message ?? String(e) }); }
-    finally { setOcupado(null); setProg(""); qc.invalidateQueries({ queryKey: ["atlas-lotes"] }); qc.invalidateQueries({ queryKey: ["atlas-contagens"] }); }
+    finally { setOcupado(null); setProg(""); for (const k of ["atlas-lotes", "atlas-contagens", "atlas-lotes-ajuste", "atlas-passivos"]) qc.invalidateQueries({ queryKey: [k] }); }
   }
 
   // movimentação
   const [movArq, setMovArq] = useState<Arq>(null); const [movAba, setMovAba] = useState(""); const [movAlmox, setMovAlmox] = useState(""); const [movRes, setMovRes] = useState<{ texto?: string; erro?: string }>({});
+  // inventário sistêmico (ajustes oficiais)
+  const [ajArq, setAjArq] = useState<Arq>(null); const [ajAba, setAjAba] = useState(ABA_PADRAO_AJUSTES); const [ajRes, setAjRes] = useState<{ texto?: string; erro?: string }>({});
   // custos
   const [cArq, setCArq] = useState<Arq>(null); const [cAba, setCAba] = useState(""); const [cRes, setCRes] = useState<{ texto?: string; erro?: string }>({});
   const [ppArq, setPpArq] = useState<Arq>(null); const [ppAba, setPpAba] = useState("tabela de preço"); const [ppRes, setPpRes] = useState<{ texto?: string; erro?: string }>({});
@@ -103,6 +108,13 @@ function AtlasImportar() {
     qc.invalidateQueries({ queryKey: ["atlas-lotes"] });
   }
 
+  async function desfazerAjuste(l: any) {
+    if (!confirm(`Excluir a importação de inventário sistêmico #${l.id} (${l.arquivo_origem})?\n\nRemove as ${l.importadas ?? 0} linhas de ajuste criadas por ela — o Resultado de Inventário do Mapeamento de Passivos e do MBR é recalculado sem elas.`)) return;
+    try { const n = await excluirLoteAjuste(l.id); toast.success(`Importação excluída: ${un(n)} linha(s) de ajuste removidas.`); }
+    catch (e: any) { toast.error(e?.message ?? String(e)); }
+    qc.invalidateQueries({ queryKey: ["atlas-lotes-ajuste"] }); qc.invalidateQueries({ queryKey: ["atlas-passivos"] });
+  }
+
   if (!pode) return <div className="p-8 text-center text-muted-foreground">A importação do Atlas é feita por gestores (Administrador ou Gerente).</div>;
   return (
     <div className="w-full space-y-4">
@@ -126,6 +138,50 @@ function AtlasImportar() {
             }, setMovRes)} />
           </div>
           <Resultado texto={movRes.texto} erro={movRes.erro} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-base">Inventário sistêmico — ajustes oficiais de inventário</CardTitle>
+          <CardDescription>Planilha "Inventários" do sistema, aba <strong>Estoque</strong> (Id_Produto, Status, Id_Invent, Dt_Invent, Almox, Descricao, Id_Lote, Qtd, Cont1, Ajuste, Custo, Vlr_Total, Grupo, Obs, Inventário). Alimenta o <strong>Resultado de Inventário</strong> (Entradas − Saídas) do Mapeamento de Passivos e do MBR. Desde jul/2026 todo lançamento conta como ajuste; antes, só os marcados "Sim" na coluna Inventário. Pode reenviar a planilha acumulada: linha idêntica a uma já importada é ignorada, e o mesmo lançamento com custo novo só atualiza o custo.</CardDescription></CardHeader>
+        <CardContent className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Arquivo arq={ajArq} setArq={setAjArq} aba={ajAba} setAba={setAjAba} abaPadrao={ABA_PADRAO_AJUSTES} csv={false} />
+            <Botao chave="aj" ok={!!ajArq} onClick={() => rodar("aj", async (ctx) => {
+              const r = await importarAjustesInventario(ajArq!.planilha, ajArq!.nome, ajAba || null, ctx, setProg);
+              const l = [
+                `${r.loteId ? `Importação #${r.loteId}: ` : ""}${un(r.importadas)} de ${un(r.total)} linha(s) novas da aba "${r.aba}".`,
+                `Contadas como ajuste de inventário: ${un(r.contadas)} (${brl(r.valorContado)}).`,
+                `Fora do cálculo — coluna "Não" (já mapeada em Baixas): ${un(r.ignoradasNao)} · legado antes da separação Sim/Não: ${un(r.ignoradasLegado)}.`,
+              ];
+              if (r.duplicadasArquivo || r.duplicadasAnteriores) l.push(`Linhas idênticas ignoradas: ${un(r.duplicadasArquivo)} repetidas no próprio arquivo · ${un(r.duplicadasAnteriores)} já importadas antes.`);
+              if (r.custosCorrigidos) l.push(`${un(r.custosCorrigidos)} lançamento(s) já existentes só tiveram o custo atualizado (variação líquida de ${brl(r.valorCorrecaoCusto)}).`);
+              if (r.idsInventRepetidos.length) l.push(`Atenção: ${un(r.idsInventRepetidos.length)} Id_Invent já existiam de uma importação anterior, com valores diferentes — confira se não é envio duplicado.`);
+              if (r.erros.length) l.push(`${r.erros.length} linha(s) com erro: ${r.erros.slice(0, 8).join(" | ")}${r.erros.length > 8 ? " …" : ""}`);
+              return l.join("\n");
+            }, setAjRes)} />
+          </div>
+          <Resultado texto={ajRes.texto} erro={ajRes.erro} />
+          <div className="max-h-[32vh] overflow-auto rounded-md border">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-card"><tr className="border-b text-left text-xs text-muted-foreground"><th className="p-2">#</th><th className="p-2">Quando</th><th className="p-2">Arquivo</th><th className="p-2">Por</th><th className="p-2 text-right">Linhas</th><th className="p-2 text-right">Contadas</th><th className="p-2 text-right">Valor contado</th><th className="p-2" /></tr></thead>
+              <tbody>
+                {(lotesAjQ.data ?? []).map((l) => (
+                  <tr key={l.id} className="border-b last:border-0">
+                    <td className="p-2 text-xs">{l.id}</td>
+                    <td className="p-2 whitespace-nowrap text-xs">{l.criado_em ? new Date(String(l.criado_em).replace(" ", "T")).toLocaleString("pt-BR") : "—"}</td>
+                    <td className="p-2 max-w-[260px] truncate text-xs" title={l.arquivo_origem}>{l.arquivo_origem}</td>
+                    <td className="p-2 text-xs">{l.criado_por || "—"}</td>
+                    <td className="p-2 text-right text-xs">{un(l.importadas ?? 0)}</td>
+                    <td className="p-2 text-right text-xs">{un(l.contadas_como_ajuste_inventario ?? 0)}</td>
+                    <td className="p-2 text-right text-xs">{brl(Number(l.valor_total_ajustes_contados ?? 0))}</td>
+                    <td className="p-2 text-right"><Button size="icon" variant="ghost" className="size-7" disabled={!!ocupado} onClick={() => desfazerAjuste(l)} title="Excluir esta importação"><Trash2 className="size-3.5" /></Button></td>
+                  </tr>
+                ))}
+                {!lotesAjQ.isLoading && !(lotesAjQ.data ?? []).length && <tr><td colSpan={8} className="p-4 text-center text-xs text-muted-foreground">Nenhuma importação de inventário sistêmico.</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
 

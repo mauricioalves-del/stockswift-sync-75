@@ -1,9 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { AtlasGrafico, atlasCores } from "@/components/atlas/AtlasGrafico";
-import { AlertTriangle, Download, FileText, Loader2 } from "lucide-react";
+import { AlertTriangle, Download, FileText, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -53,7 +53,10 @@ function MapeamentoPassivos() {
           <h1 className="flex items-center gap-2 text-2xl font-bold"><AlertTriangle className="size-6" /> Mapeamento de Passivos</h1>
           <p className="max-w-4xl text-sm text-muted-foreground"><strong>Passivos</strong> = baixas aprovadas no Relatório de Baixa. <strong>Resultado de Inventário</strong> = ajustes oficiais de inventário (Entradas − Saídas). Os dois lado a lado mostram quanto da perda física medida no inventário já está explicada por baixa aprovada.</p>
         </div>
-        <Button variant="outline" size="sm" className="gap-1" disabled={!r} onClick={exportar}><Download className="size-4" /> Exportar Excel</Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-1"><Link to="/atlas/importar"><Upload className="size-4" /> Importar inventário sistêmico</Link></Button>
+          <Button variant="outline" size="sm" className="gap-1" disabled={!r} onClick={exportar}><Download className="size-4" /> Exportar Excel</Button>
+        </div>
       </div>
 
       {op && (
