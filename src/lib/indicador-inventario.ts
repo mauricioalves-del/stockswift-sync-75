@@ -77,6 +77,31 @@ function agrupar(ms: { m: MissaoLinha; c: Classe }[], chave: (m: MissaoLinha) =>
     .sort((a, b) => (a.aderencia ?? 1) - (b.aderencia ?? 1));
 }
 
+/** Período no formato "AAAA-MM" (mês), "AAAA" (ano) ou "" (todo o período): filtra por prefixo da data. */
+export const ehMes = (periodo: string) => /^\d{4}-\d{2}$/.test(periodo);
+
+/** Pontos da série: cada dia do mês; no ano ou período completo, o último dia de cada mês (acumulado até ali). */
+function pontosDaSerie(periodo: string, missoes: MissaoLinha[], hoje: string): string[] {
+  const out: string[] = [];
+  if (ehMes(periodo)) {
+    const [a, mm] = periodo.split("-").map(Number);
+    const nDias = new Date(a, mm, 0).getDate();
+    for (let d = 1; d <= nDias; d++) {
+      const data = `${periodo}-${String(d).padStart(2, "0")}`;
+      if (data > hoje) break;
+      out.push(data);
+    }
+    return out;
+  }
+  const meses = [...new Set(missoes.map((m) => m.data_execucao!.slice(0, 7)))].filter((m) => m <= hoje.slice(0, 7)).sort();
+  for (const m of meses) {
+    const [a, mm] = m.split("-").map(Number);
+    const fim = `${m}-${String(new Date(a, mm, 0).getDate()).padStart(2, "0")}`;
+    out.push(fim > hoje ? hoje : fim);
+  }
+  return out;
+}
+
 export function resumir(missoes: MissaoLinha[], itens: ItemLinha[], mes: string, hoje = diaBR(new Date())): Resumo {
   const doMes = missoes.filter((m) => m.status !== "CANCELADA" && m.data_execucao?.startsWith(mes));
   const cls = doMes.map((m) => ({ m, c: classificar(m, hoje) }));
@@ -91,12 +116,8 @@ export function resumir(missoes: MissaoLinha[], itens: ItemLinha[], mes: string,
   // Série acumulada: para cada dia do mês até hoje, aderência das missões programadas até aquele dia
   // e acuracidade dos itens contados nas missões até aquele dia.
   const dataDaMissao = new Map(doMes.map((m) => [m.id, m.data_execucao!]));
-  const [a, mm] = mes.split("-").map(Number);
-  const nDias = new Date(a, mm, 0).getDate();
   const serie: DiaSerie[] = [];
-  for (let d = 1; d <= nDias; d++) {
-    const data = `${mes}-${String(d).padStart(2, "0")}`;
-    if (data > hoje) break;
+  for (const data of pontosDaSerie(mes, doMes, hoje)) {
     const ate = cls.filter((x) => x.c !== "FUTURA" && x.m.data_execucao! <= data);
     let ok = 0, dv = 0;
     for (const i of its) {
@@ -187,8 +208,10 @@ export function acuracidadeContagem(missoes: MissaoLinha[], itens: ItemLinha[], 
     .filter((i) => doMes.has(i.missao_id) && ST_CONTAGEM.has(i.status_item) && temQtd(i))
     .map((it) => ({ it, missao: it.missao_id, data: doMes.get(it.missao_id)!.data_execucao!.slice(0, 10) }));
 
+  // No mês, uma linha por dia de contagem; no ano ou período completo, uma linha por mês.
+  const chave = (data: string) => (ehMes(mes) ? data : data.slice(0, 7));
   const porDia = new Map<string, typeof linhas>();
-  for (const l of linhas) porDia.set(l.data, [...(porDia.get(l.data) ?? []), l]);
+  for (const l of linhas) porDia.set(chave(l.data), [...(porDia.get(chave(l.data)) ?? []), l]);
   const dias: DiaAcur[] = [...porDia.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([data, ls]) => ({ data, ...calcAcur(ls, custos) }));
 
   const divergencias: LinhaDivergencia[] = linhas.filter((l) => itemDivergente(l.it)).map(({ it, data }) => {
