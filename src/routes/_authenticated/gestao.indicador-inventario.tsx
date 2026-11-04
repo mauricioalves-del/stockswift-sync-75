@@ -41,7 +41,20 @@ function IndicadorInventarioPage() {
   const { almoxes } = useMeusAlmoxarifados();
   const qc = useQueryClient();
   const hoje = diaBR(new Date());
+  // Período da análise: "AAAA-MM" (um mês), "AAAA" (ano inteiro) ou "" (todo o período).
   const [mes, setMes] = useState(() => hoje.slice(0, 7));
+  const opcoesPeriodo = useMemo(() => {
+    const ano = Number(hoje.slice(0, 4)), mesAtual = Number(hoje.slice(5, 7));
+    const nomeMes = (a: number, m: number) => new Date(a, m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    const meses: { v: string; l: string }[] = [];
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(ano, mesAtual - 1 - i, 1);
+      meses.push({ v: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, l: nomeMes(d.getFullYear(), d.getMonth() + 1) });
+    }
+    return [{ v: "TUDO", l: "Todo o período" }, { v: String(ano), l: `Ano ${ano}` }, { v: String(ano - 1), l: `Ano ${ano - 1}` }, ...meses];
+  }, [hoje]);
+  const periodoMes = /^\d{4}-\d{2}$/.test(mes);
+  const rotuloPeriodo = periodoMes ? "no mês" : mes === "" ? "no período" : `em ${mes}`; // ano: "em 2026"
   const [almox, setAlmox] = useState(TODOS);
   const [filtroEtapa, setFiltroEtapa] = useState<EtapaId | "TODAS">("TODAS");
   const [mostrarFechadas, setMostrarFechadas] = useState(false);
@@ -51,8 +64,11 @@ function IndicadorInventarioPage() {
     queryKey: ["indicador-inventario", mes, almoxes?.join(",") ?? "all"],
     refetchInterval: 300000,
     queryFn: async () => {
-      const [a, m] = mes.split("-").map(Number);
-      const ini = `${mes}-01`, fim = `${mes}-${String(new Date(a, m, 0).getDate()).padStart(2, "0")}`;
+      let ini = "0000-01-01", fim = "9999-12-31";
+      if (/^\d{4}-\d{2}$/.test(mes)) {
+        const [a, m] = mes.split("-").map(Number);
+        ini = `${mes}-01`; fim = `${mes}-${String(new Date(a, m, 0).getDate()).padStart(2, "0")}`;
+      } else if (/^\d{4}$/.test(mes)) { ini = `${mes}-01-01`; fim = `${mes}-12-31`; }
       const buscar = (cols: string) => {
         let qm = sb.from("missoes").select(cols).gte("data_execucao", ini).lte("data_execucao", fim);
         if (almoxes) qm = qm.in("origem", almoxes.length ? almoxes : ["__nenhum__"]);
@@ -103,7 +119,7 @@ function IndicadorInventarioPage() {
 
   const etapaMetricas: Record<EtapaId, { label: string; valor: string; alerta?: boolean }[]> = {
     PLANEJAMENTO: [
-      { label: "Programadas no mês", valor: String(r.universo + r.futuras) },
+      { label: `Programadas ${rotuloPeriodo}`, valor: String(r.universo + r.futuras) },
       { label: "Ainda por vencer", valor: String(r.futuras) },
     ],
     EXECUCAO: [
@@ -122,7 +138,7 @@ function IndicadorInventarioPage() {
     ],
     ENCERRAMENTO: [
       { label: "Concluídas com itens pendentes", valor: String(r.encerradasIncompletas.length), alerta: r.encerradasIncompletas.length > 0 },
-      { label: "Itens pendentes no mês", valor: String(r.itensPendentes) },
+      { label: `Itens pendentes ${rotuloPeriodo}`, valor: String(r.itensPendentes) },
     ],
   };
 
@@ -148,7 +164,12 @@ function IndicadorInventarioPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
-          <div className="space-y-1"><Label className="text-xs">Mês</Label><Input type="month" value={mes} onChange={(e) => e.target.value && setMes(e.target.value)} className="w-40" /></div>
+          <div className="space-y-1"><Label className="text-xs">Período</Label>
+            <Select value={mes === "" ? "TUDO" : mes} onValueChange={(v) => setMes(v === "TUDO" ? "" : v)}>
+              <SelectTrigger className="w-48 capitalize"><SelectValue /></SelectTrigger>
+              <SelectContent className="max-h-80">{opcoesPeriodo.map((o) => <SelectItem key={o.v} value={o.v} className="capitalize">{o.l}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
           <div className="space-y-1">
             <Label className="text-xs">Almoxarifado</Label>
             <Select value={almox} onValueChange={setAlmox}>
@@ -175,29 +196,29 @@ function IndicadorInventarioPage() {
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Kpi icon={Gauge} titulo="Aderência ao plano" valor={pct(r.aderencia)} cor={corMeta(r.aderencia, META_ADERENCIA)}
-              detalhe={r.universo ? `${r.noPrazo} de ${r.universo} missões no prazo · meta ${pct(META_ADERENCIA, 0)}` : "Nenhuma missão vencida no mês"} />
+              detalhe={r.universo ? `${r.noPrazo} de ${r.universo} missões no prazo · meta ${pct(META_ADERENCIA, 0)}` : `Nenhuma missão vencida ${rotuloPeriodo}`} />
             <Kpi icon={Target} titulo="Acuracidade de contagem" valor={pct(r.acuracidade)} cor={corMeta(r.acuracidade, META_ACURACIDADE)}
               detalhe={`${r.itensOk} itens OK · ${r.itensDiv} divergentes · meta ${pct(META_ACURACIDADE, 0)}`} />
             <Kpi icon={CalendarClock} titulo="Missões atrasadas em aberto" valor={String(r.atrasadasAbertas.length)} cor={r.atrasadasAbertas.length ? "text-red-600" : "text-emerald-600"}
-              detalhe={`${r.comAtraso} concluídas com atraso no mês`} />
+              detalhe={`${r.comAtraso} concluídas com atraso ${rotuloPeriodo}`} />
             <Kpi icon={ClipboardCheck} titulo="Ações abertas" valor={String(acoesAbertas.length)} cor={acoesVencidas.length ? "text-red-600" : ""}
               detalhe={acoesVencidas.length ? `${acoesVencidas.length} com prazo vencido` : "Nenhuma vencida"} />
           </div>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Aderência e acuracidade acumuladas no mês</CardTitle><CardDescription>Missões programadas e itens contados até cada dia, comparados às metas.</CardDescription></CardHeader>
+            <CardHeader><CardTitle className="text-base">{periodoMes ? "Aderência e acuracidade acumuladas no mês" : "Aderência e acuracidade acumuladas até cada mês"}</CardTitle><CardDescription>Missões programadas e itens contados até cada dia, comparados às metas.</CardDescription></CardHeader>
             <CardContent className="h-72">
               {r.serie.some((s) => s.acumulada !== null || s.acuracidade !== null) ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={r.serie.map((s) => ({
-                    dia: s.data.slice(8),
+                    dia: periodoMes ? s.data.slice(8) : s.data.slice(5, 7) + "/" + s.data.slice(2, 4),
                     "Aderência": s.acumulada === null ? null : +(s.acumulada * 100).toFixed(1),
                     "Acuracidade": s.acuracidade === null ? null : +(s.acuracidade * 100).toFixed(1),
                   }))} margin={{ top: 12, right: 16, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                     <XAxis dataKey="dia" tick={{ fontSize: 11 }} />
                     <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-                    <Tooltip formatter={(v: number, nome: string) => [`${String(v).replace(".", ",")}%`, nome]} labelFormatter={(d) => `Dia ${d}`} />
+                    <Tooltip formatter={(v: number, nome: string) => [`${String(v).replace(".", ",")}%`, nome]} labelFormatter={(d) => (periodoMes ? `Dia ${d}` : `Até ${d}`)} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                     <ReferenceLine y={META_ADERENCIA * 100} stroke="#0f766e" strokeDasharray="4 4" label={{ value: `Meta aderência ${META_ADERENCIA * 100}%`, fontSize: 10, fill: "#0f766e", position: "insideBottomRight" }} />
                     <ReferenceLine y={META_ACURACIDADE * 100} stroke="#d97706" strokeDasharray="4 4" label={{ value: `Meta acuracidade ${META_ACURACIDADE * 100}%`, fontSize: 10, fill: "#d97706", position: "insideTopRight" }} />
@@ -205,7 +226,7 @@ function IndicadorInventarioPage() {
                     <Line type="monotone" dataKey="Acuracidade" stroke="#d97706" strokeWidth={2.5} dot={{ r: 2 }} connectNulls />
                   </LineChart>
                 </ResponsiveContainer>
-              ) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Sem missões vencidas neste mês.</div>}
+              ) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Sem missões vencidas neste período.</div>}
             </CardContent>
           </Card>
 
