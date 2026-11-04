@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ArrowUpRight, Coins, Download, Scale, Search, Target, X } from "lucide-react";
-import { META_ACURACIDADE, acuracidadeContagem, csvDivergencias, type ItemLinha, type MissaoLinha } from "@/lib/indicador-inventario";
+import { META_ACURACIDADE, acuracidadeContagem, ehMes, csvDivergencias, type ItemLinha, type MissaoLinha } from "@/lib/indicador-inventario";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 const pct = (v: number | null | undefined, casas = 1) => (v == null ? "—" : `${(v * 100).toFixed(casas).replace(".", ",")}%`);
 const brl = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }));
 const qtd = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
-const dataBr = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
+const dataBr = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/"); // "2026-11" vira "11/2026"
 const cor = (v: number | null) => (v == null ? "" : v >= META_ACURACIDADE ? "text-emerald-600" : v >= META_ACURACIDADE - 0.05 ? "text-amber-600" : "text-red-600");
 const corValor = (v: number | null) => (v == null || Math.abs(v) < 0.005 ? "" : v < 0 ? "text-red-600" : "text-blue-600");
 
@@ -23,7 +23,7 @@ export function AcuracidadeContagem({ missoes, itens, custos, mes }: { missoes: 
 
   const lista = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return r.divergencias.filter((l) => (!dia || l.data === dia) && (!q || l.sku.toLowerCase().includes(q) || (l.descricao ?? "").toLowerCase().includes(q) || (l.lote ?? "").toLowerCase().includes(q)));
+    return r.divergencias.filter((l) => (!dia || l.data.startsWith(dia)) && (!q || l.sku.toLowerCase().includes(q) || (l.descricao ?? "").toLowerCase().includes(q) || (l.lote ?? "").toLowerCase().includes(q)));
   }, [r.divergencias, dia, busca]);
   const okComDif = r.divergencias.filter((l) => l.okComDiferenca).length;
 
@@ -53,19 +53,19 @@ export function AcuracidadeContagem({ missoes, itens, custos, mes }: { missoes: 
         <Kpi icon={Scale} titulo="IAQ — por quantidade" valor={pct(m.iaq)} cls={cor(m.iaq)} detalhe={`Meta ${pct(META_ACURACIDADE, 0)} · ${m.itens} itens contados`} />
         <Kpi icon={Coins} titulo="IAP — por valor" valor={pct(m.iap)} cls={cor(m.iap)} detalhe={`Cobertura de custo: ${pct(m.cobertura, 0)} dos itens`} />
         <Kpi icon={Target} titulo="Item a item" valor={pct(m.item)} cls={cor(m.item)} detalhe={`${m.divergentes} de ${m.itens} itens com diferença`} />
-        <Kpi icon={Coins} titulo="Impacto contábil no mês" valor={brl(m.liquido)} cls={corValor(m.liquido)} detalhe={`Falta ${brl(m.falta)} · sobra ${brl(m.sobra)}`} />
+        <Kpi icon={Coins} titulo={ehMes(mes) ? "Impacto contábil no mês" : "Impacto contábil no período"} valor={brl(m.liquido)} cls={corValor(m.liquido)} detalhe={`Falta ${brl(m.falta)} · sobra ${brl(m.sobra)}`} />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Resultado por dia de contagem</CardTitle>
-          <CardDescription>Clique em um dia para ver só as divergências dele na tabela abaixo.</CardDescription>
+          <CardTitle className="text-base">{ehMes(mes) ? "Resultado por dia de contagem" : "Resultado por mês de contagem"}</CardTitle>
+          <CardDescription>Clique em uma linha para ver só as divergências dela na tabela abaixo.</CardDescription>
         </CardHeader>
         <CardContent className={diasRolagem ? "[&>div.relative]:max-h-[26rem] [&>div.relative]:overflow-auto" : "overflow-x-auto"}>
           <Table>
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
-                <TableHead>Dia</TableHead><TableHead className="text-right">Missões</TableHead><TableHead className="text-right">Itens</TableHead>
+                <TableHead>{ehMes(mes) ? "Dia" : "Mês"}</TableHead><TableHead className="text-right">Missões</TableHead><TableHead className="text-right">Itens</TableHead>
                 <TableHead className="text-right">Divergentes</TableHead><TableHead className="text-right">Item a item</TableHead>
                 <TableHead className="text-right">IAQ</TableHead><TableHead className="text-right">IAP</TableHead>
                 <TableHead className="text-right">Falta</TableHead><TableHead className="text-right">Sobra</TableHead><TableHead className="text-right">Impacto líquido</TableHead>
@@ -90,7 +90,7 @@ export function AcuracidadeContagem({ missoes, itens, custos, mes }: { missoes: 
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell className="text-xs font-semibold">Mês</TableCell>
+                <TableCell className="text-xs font-semibold">{ehMes(mes) ? "Mês" : "Total"}</TableCell>
                 <TableCell className="text-right text-xs tabular-nums">{m.missoes}</TableCell>
                 <TableCell className="text-right text-xs tabular-nums">{m.itens}</TableCell>
                 <TableCell className="text-right text-xs tabular-nums">{m.divergentes}</TableCell>
@@ -125,7 +125,7 @@ export function AcuracidadeContagem({ missoes, itens, custos, mes }: { missoes: 
           <div className="flex flex-wrap items-center gap-2">
             {dia && (
               <Button size="sm" variant="secondary" className="h-8 gap-1" onClick={() => setDia(null)}>
-                Dia {dataBr(dia)} <X className="size-3" />
+                {ehMes(mes) ? "Dia" : "Mês"} {dataBr(dia)} <X className="size-3" />
               </Button>
             )}
             <div className="relative">
