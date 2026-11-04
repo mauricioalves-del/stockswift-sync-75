@@ -1,5 +1,9 @@
 # Correção de grupos das Baixas Operacionais
 
+## Menu Atlas e Configurações
+- [x] Renomear Painel para Movimentados; mover Auditoria e Usuários para Configurações; ocultar Importar backup do Atlas, preservando rotas e permissões.
+- [x] Verificar os três ajustes no menu autenticado: Movimentados no Atlas, Auditoria e Usuários em Configurações e backup oculto; sem erros de compilação.
+
 ## Caixaria e Exposição: cadastro individual
 - [x] Selecionar a loja nos blocos destacados para consultar apenas seu cadastro e sua exposição; substituir Família pela categoria registrada. Cinco testes passaram; consulta autenticada confirmou Jesuino (116), Patio (79), Eldorado (79), coluna exclusiva da loja, categorias e CSV filtrado, sem erros.
 

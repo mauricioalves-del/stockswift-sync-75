@@ -6406,8 +6406,11 @@ export type Database = {
           link: string | null
           lotes: Json
           numero: number
+          numero_no_slack: boolean
           observacao: string
+          redisparado_em: string | null
           thread_ts: string | null
+          thread_ts_anterior: string | null
           valor_total: number
         }
         Insert: {
@@ -6421,8 +6424,11 @@ export type Database = {
           link?: string | null
           lotes?: Json
           numero?: number
+          numero_no_slack?: boolean
           observacao: string
+          redisparado_em?: string | null
           thread_ts?: string | null
+          thread_ts_anterior?: string | null
           valor_total?: number
         }
         Update: {
@@ -6436,8 +6442,11 @@ export type Database = {
           link?: string | null
           lotes?: Json
           numero?: number
+          numero_no_slack?: boolean
           observacao?: string
+          redisparado_em?: string | null
           thread_ts?: string | null
+          thread_ts_anterior?: string | null
           valor_total?: number
         }
         Relationships: []
