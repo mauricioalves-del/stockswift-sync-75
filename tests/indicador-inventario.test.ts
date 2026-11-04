@@ -69,3 +69,22 @@ test("IAQ, IAP e impacto contábil por dia", () => {
   expect(r.divergencias.map((l) => [l.sku, l.impacto])).toEqual([["001", -20], ["003", null]]);
   expect(r.divergencias[0].acuracidadeItem).toBeCloseTo(0.9);
 });
+
+import { ehMes } from "../src/lib/indicador-inventario";
+
+test("Período ano e todo o período: série e tabela por mês", () => {
+  const ms = [M("a", "2026-10-05", "CONCLUIDA", "2026-10-05T15:00:00Z"), M("b", "2026-11-03", "CONCLUIDA", "2026-11-03T15:00:00Z")];
+  const it = (missao_id: string, p: number, c: number) => ({ missao_id, status_item: "OK", observacao: null, codigo_produto: "1", quantidade_prevista: p, quantidade_contada: c });
+  const itens = [it("a", 10, 10), it("a", 10, 9), it("b", 5, 5)];
+  for (const periodo of ["2026", ""]) {
+    const r = resumir(ms, itens, periodo, "2026-11-04");
+    expect(r.serie.map((s) => s.data)).toEqual(["2026-10-31", "2026-11-04"]);
+    expect(r.universo).toBe(2);
+    const a = acuracidadeContagem(ms, itens, new Map(), periodo);
+    expect(a.dias.map((d) => d.data)).toEqual(["2026-10", "2026-11"]);
+    expect(a.mes.itens).toBe(3);
+  }
+  expect(ehMes("2026-11")).toBe(true);
+  expect(ehMes("2026")).toBe(false);
+  expect(resumir(ms, itens, "2026-11", "2026-11-04").serie.length).toBe(4);
+});
