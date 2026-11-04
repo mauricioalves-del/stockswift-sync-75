@@ -10,7 +10,7 @@ import {
   PackageCheck, Hourglass, Gem, SearchCheck, Store, FileSpreadsheet,
  TrendingDown,
  ReceiptText,
- SlidersHorizontal, UserPlus, Orbit, DatabaseBackup, Scale, ListChecks, Gauge, Upload, Database } from "lucide-react";
+ SlidersHorizontal, UserPlus, Orbit, Scale, ListChecks, Gauge, Upload, Database } from "lucide-react";
 import oncaIcono from "@/assets/onca-icono.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -154,7 +154,7 @@ const NAV: (NavItem | NavGroup)[] = [
     id: "atlas", label: "Atlas", icon: Orbit, role: "any",
     items: [
       { to: "/atlas/inicio", label: "Início", icon: Orbit, role: "any" },
-      { to: "/atlas/painel", label: "Painel", icon: LayoutDashboard, role: "any" },
+      { to: "/atlas/painel", label: "Movimentados", icon: LayoutDashboard, role: "any" },
       { to: "/atlas/divergencias", label: "Divergências", icon: ListChecks, role: "any" },
       { to: "/atlas/mapeamento-passivos", label: "Mapeamento de Passivos", icon: AlertTriangle, role: "any" },
       { to: "/atlas/importar", label: "Importar", icon: Upload, role: "write" },
@@ -164,13 +164,17 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/atlas/pos-inventario", label: "Pós-Inventário", icon: ClipboardList, role: "any" },
       { to: "/atlas/mbr", label: "MBR", icon: FileBarChart2, role: "any" },
       { to: "/atlas/cadastros", label: "Cadastros", icon: Database, role: "write" },
-      { to: "/logs", label: "Auditoria", icon: ScrollText, role: "admin" },
-      { to: "/usuarios", label: "Usuários", icon: UsersIcon, role: "admin" },
-      { to: "/atlas/importar-backup", label: "Importar backup do Atlas", icon: DatabaseBackup, role: "gestor" },
     ],
   },
   // { to: "/emails", label: "Cadastro de E-mails", icon: Mail, role: "admin" } as NavItem,
-  { to: "/config", label: "Configurações", icon: SettingsIcon, role: "admin" } as NavItem,
+  {
+    id: "configuracoes", label: "Configurações", icon: SettingsIcon, role: "admin",
+    items: [
+      { to: "/config", label: "Configurações", icon: SettingsIcon, role: "admin" },
+      { to: "/logs", label: "Auditoria", icon: ScrollText, role: "admin" },
+      { to: "/usuarios", label: "Usuários", icon: UsersIcon, role: "admin" },
+    ],
+  },
 ];
 
 function isGroup(n: NavItem | NavGroup): n is NavGroup { return (n as NavGroup).items !== undefined; }
