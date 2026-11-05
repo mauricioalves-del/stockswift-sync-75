@@ -1,6 +1,15 @@
 import { CLASSES_PORTFOLIO, chaveSkuPortfolio, elegivelPortfolio, type ClassePortfolio } from "@/lib/abastecimento-portfolio";
 
-export type ItemValidacao = { sku: string; descricao: string; categoria: string | null; ativo: boolean; classe: ClassePortfolio; sem_classe: boolean; elegivel: boolean; lojas?: string[] };
+export type ItemValidacao = {
+  sku: string; descricao: string; categoria: string | null; ativo: boolean; classe: ClassePortfolio; sem_classe: boolean; elegivel: boolean; lojas?: string[];
+  /** Só no Almox SP (CD): ajuste do Diretor Operacional sobre a lista das lojas. */
+  ajuste_diretor?: "INATIVADO" | "INCLUIDO"; motivo_ajuste?: string; ajustado_por?: string | null; ajustado_em?: string;
+};
+/** Ajuste vigente do Diretor Operacional na lista do CD (tabela abast_cd_ajustes). Vale até ser desfeito. */
+export type AjusteCD = {
+  id: string; sku: string; acao: "INATIVAR" | "INCLUIR"; descricao: string | null; categoria: string | null; classe: ClassePortfolio | null;
+  motivo: string; ativo: boolean; criado_nome: string | null; criado_em: string;
+};
 export type Validacao = {
   id: string; competencia: string; loja: string; versao: number; status: "VALIDADA" | "DESFEITA"; aprovador_id: string; aprovador_nome: string | null; aprovado_em: string;
   observacao: string | null; itens: ItemValidacao[]; totais: Record<string, number>; diff: { incluidos?: string[]; retirados?: string[]; reclassificados?: { sku: string; de: string; para: string }[]; primeira_validacao?: boolean };
@@ -80,19 +89,36 @@ export function uniaoCD(vals: Validacao[], lojas: string[]): ItemValidacao[] {
   }
   return [...por.entries()].sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true })).map(([, i]) => i);
 }
+/** Lista final do CD = união das lojas, com itens inativados pelo diretor (ativo=false) e itens incluídos por ele. Espelha abast_validar_cd. */
+export function aplicarAjustesCD(uniao: ItemValidacao[], ajustes: AjusteCD[] | null | undefined): ItemValidacao[] {
+  const aj = new Map((ajustes ?? []).filter((a) => a.ativo).map((a) => [chaveSkuPortfolio(a.sku), a]));
+  const out = uniao.map((i) => {
+    const a = aj.get(chaveSkuPortfolio(i.sku));
+    return a?.acao === "INATIVAR"
+      ? { ...i, ativo: false, ajuste_diretor: "INATIVADO" as const, motivo_ajuste: a.motivo, ajustado_por: a.criado_nome, ajustado_em: a.criado_em }
+      : { ...i, ativo: true };
+  });
+  const presentes = new Set(uniao.map((i) => chaveSkuPortfolio(i.sku)));
+  for (const a of aj.values()) {
+    if (a.acao !== "INCLUIR" || presentes.has(chaveSkuPortfolio(a.sku)) || !a.classe) continue;
+    out.push({ sku: chaveSkuPortfolio(a.sku), descricao: a.descricao ?? "", categoria: a.categoria, ativo: true, classe: a.classe, sem_classe: false,
+      elegivel: a.classe === "LINHA", lojas: [], ajuste_diretor: "INCLUIDO", motivo_ajuste: a.motivo, ajustado_por: a.criado_nome, ajustado_em: a.criado_em });
+  }
+  return out.sort((x, y) => chaveSkuPortfolio(x.sku).localeCompare(chaveSkuPortfolio(y.sku), undefined, { numeric: true }));
+}
 export type SituacaoCD = { tipo: "VALIDADA" | "HERDADA" | "SEM"; validacao: Validacao | null; desatualizada: boolean; incluidos: string[]; retirados: string[] };
 /** Situação da ciência do CD na competência. "Desatualizada" = as lojas mudaram depois da ciência (itens incluídos/retirados): exige nova ciência. */
-export function situacaoCD(vals: Validacao[], lojas: string[], competencia: string): SituacaoCD {
+export function situacaoCD(vals: Validacao[], lojas: string[], competencia: string, ajustes: AjusteCD[] = []): SituacaoCD {
   const ok = vals.filter((v) => v.loja === LOJA_CD && v.status === "VALIDADA").sort((a, b) => b.aprovado_em.localeCompare(a.aprovado_em));
   const doMes = ok.find((v) => v.competencia === competencia); const anterior = ok.find((v) => v.competencia < competencia);
   const v = doMes ?? anterior ?? null; if (!v) return { tipo: "SEM", validacao: null, desatualizada: false, incluidos: [], retirados: [] };
-  const atual = new Set(uniaoCD(vals, lojas).map((i) => chaveSkuPortfolio(i.sku))); const dada = new Set(v.itens.filter((i) => i.ativo).map((i) => chaveSkuPortfolio(i.sku)));
+  const atual = new Set(aplicarAjustesCD(uniaoCD(vals, lojas), ajustes).filter((i) => i.ativo).map((i) => chaveSkuPortfolio(i.sku))); const dada = new Set(v.itens.filter((i) => i.ativo).map((i) => chaveSkuPortfolio(i.sku)));
   const incluidos = [...atual].filter((k) => !dada.has(k)).sort(), retirados = [...dada].filter((k) => !atual.has(k)).sort();
   return { tipo: doMes ? "VALIDADA" : "HERDADA", validacao: v, desatualizada: incluidos.length + retirados.length > 0, incluidos, retirados };
 }
 
 export function documentoCiencia(v: Validacao, nomeLoja: (codigo: string) => string): string {
-  const linhas = v.itens.filter((i) => i.ativo).map((i) => `<tr><td>${esc(i.sku)}</td><td>${esc(i.descricao)}</td><td>${esc(CLASSES_PORTFOLIO[i.classe])}${i.sem_classe ? " *" : ""}</td><td>${i.elegivel ? "Elegível" : "Fora da meta OOS"}</td><td>${esc((i.lojas ?? []).map(nomeLoja).join(", "))}</td></tr>`).join("");
+  const linhas = v.itens.filter((i) => i.ativo).map((i) => `<tr><td>${esc(i.sku)}</td><td>${esc(i.descricao)}</td><td>${esc(CLASSES_PORTFOLIO[i.classe])}${i.sem_classe ? " *" : ""}</td><td>${i.elegivel ? "Elegível" : "Fora da meta OOS"}</td><td>${i.ajuste_diretor === "INCLUIDO" ? "Incluído pelo Diretor Operacional" : esc((i.lojas ?? []).map(nomeLoja).join(", "))}</td></tr>`).join("");
   const origem = v.origem_upload.length ? v.origem_upload.map((u) => `<li>${esc(u.arquivo || "—")} — aprovado por ${esc(u.autor_nome || "—")} em ${dt(u.registrado_em)} (${u.skus} SKUs)</li>`).join("") : "<li>—</li>";
   const d = v.diff;
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Ciência do Almox SP ${esc(v.competencia)} v${v.versao}</title>
@@ -101,11 +127,18 @@ export function documentoCiencia(v: Validacao, nomeLoja: (codigo: string) => str
 <h1>Termo de Ciência — Almox SP (CD) — Abastecimento</h1><p>Mágio Chocolates · Documento gerado no ato da ciência</p>
 <div class="box"><b>Competência:</b> ${esc(nomeMes(v.competencia))} &nbsp; <b>Local:</b> ${esc(NOME_CD)} &nbsp; <b>Versão:</b> ${v.versao} &nbsp; <b>Status:</b> ${v.status}<br>
 <b>Ciência do Diretor Operacional:</b> ${esc(v.aprovador_nome || v.aprovador_id)} &nbsp; <b>Data/hora:</b> ${dt(v.aprovado_em)}<br><b>Identificador:</b> ${esc(v.id)}${v.observacao ? `<br><b>Observação:</b> ${esc(v.observacao)}` : ""}</div>
-<h2>Declaração</h2><p>O Diretor Operacional declara ciência de que o Almox SP (CD) deve manter estoque dos ${v.totais.ativos} itens abaixo, aprovados pelo Gerente Comercial nas lojas, enquanto estiverem ativos. Alterações posteriores no portfólio das lojas tornam esta ciência desatualizada e exigem nova ciência.</p>
+<h2>Declaração</h2><p>O Diretor Operacional declara ciência de que o Almox SP (CD) deve manter estoque dos ${v.totais.ativos} itens abaixo, aprovados pelo Gerente Comercial nas lojas e ajustados pelo Diretor Operacional quando indicado, enquanto estiverem ativos. Alterações posteriores no portfólio das lojas tornam esta ciência desatualizada e exigem nova ciência.</p>
 <h2>Portfólios das lojas considerados (última validação de cada loja)</h2><ul>${origem}</ul>
 <h2>Resumo</h2><p>Itens: ${v.totais.ativos} · Linha ${v.totais.LINHA} · MTO ${v.totais.MTO} · Inovação ${v.totais.INOVACAO} · Decomplex ${v.totais.DECOMPLEX}</p>
 <h2>Alterações em relação à última ciência</h2><p>${d.primeira_validacao ? "Primeira ciência do Almox SP." : `Incluídos: ${esc((d.incluidos ?? []).join(", ") || "nenhum")}<br>Retirados: ${esc((d.retirados ?? []).join(", ") || "nenhum")}`}</p>
-<h2>Itens a manter em estoque (${v.totais.ativos})</h2><table><thead><tr><th>SKU</th><th>Produto</th><th>Classe</th><th>Meta OOS</th><th>Lojas que aprovaram</th></tr></thead><tbody>${linhas}</tbody></table>
+${ajustesDoc(v)}<h2>Itens a manter em estoque (${v.totais.ativos})</h2><table><thead><tr><th>SKU</th><th>Produto</th><th>Classe</th><th>Meta OOS</th><th>Lojas que aprovaram</th></tr></thead><tbody>${linhas}</tbody></table>
 <p style="margin-top:8px">* SKU sem classificação registrada: tratado como Linha.</p>
 <div class="box" style="margin-top:40px">Assinatura eletrônica: ${esc(v.aprovador_nome || v.aprovador_id)} — ${dt(v.aprovado_em)}</div></body></html>`;
+}
+
+function ajustesDoc(v: Validacao): string {
+  const aj = v.itens.filter((i) => i.ajuste_diretor);
+  if (!aj.length) return "";
+  const linhas = aj.map((i) => `<tr><td>${i.ajuste_diretor === "INCLUIDO" ? "Incluído" : "Inativado"}</td><td>${esc(i.sku)}</td><td>${esc(i.descricao)}</td><td>${esc(i.motivo_ajuste ?? "")}</td><td>${esc(i.ajustado_por ?? "")}${i.ajustado_em ? ` · ${dt(i.ajustado_em)}` : ""}</td></tr>`).join("");
+  return `<h2>Ajustes do Diretor Operacional sobre a lista das lojas (${aj.length})</h2><table><thead><tr><th>Ajuste</th><th>SKU</th><th>Produto</th><th>Motivo</th><th>Por</th></tr></thead><tbody>${linhas}</tbody></table>`;
 }
