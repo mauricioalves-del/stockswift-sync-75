@@ -379,6 +379,13 @@
       "when": 1793734856744,
       "tag": "0053_shelf_slack_redisparo",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1793830360666,
+      "tag": "0054_abast_cd_ajustes_diretor",
+      "breakpoints": true
     }
   ]
 }
