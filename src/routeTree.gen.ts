@@ -72,6 +72,7 @@ import { Route as AuthenticatedConfigInventarioRouteImport } from './routes/_aut
 import { Route as AuthenticatedConfigPerfisRouteImport } from './routes/_authenticated/config.perfis'
 import { Route as AuthenticatedConfigResendRouteImport } from './routes/_authenticated/config.resend'
 import { Route as AuthenticatedConfigSazonalidadeRouteImport } from './routes/_authenticated/config.sazonalidade'
+import { Route as AuthenticatedGestaoFarolMovimentadosRouteImport } from './routes/_authenticated/gestao.farol-movimentados'
 import { Route as AuthenticatedGestaoIndicadorInventarioRouteImport } from './routes/_authenticated/gestao.indicador-inventario'
 import { Route as AuthenticatedGestaoMinhasTarefasRouteImport } from './routes/_authenticated/gestao.minhas-tarefas'
 import { Route as AuthenticatedGestaoModelosChecklistRouteImport } from './routes/_authenticated/gestao.modelos-checklist'
@@ -477,6 +478,12 @@ const AuthenticatedConfigSazonalidadeRoute =
     path: '/config/sazonalidade',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedGestaoFarolMovimentadosRoute =
+  AuthenticatedGestaoFarolMovimentadosRouteImport.update({
+    id: '/gestao/farol-movimentados',
+    path: '/gestao/farol-movimentados',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedGestaoIndicadorInventarioRoute =
   AuthenticatedGestaoIndicadorInventarioRouteImport.update({
     id: '/gestao/indicador-inventario',
@@ -814,6 +821,7 @@ export interface FileRoutesByFullPath {
   '/config/perfis': typeof AuthenticatedConfigPerfisRoute
   '/config/resend': typeof AuthenticatedConfigResendRoute
   '/config/sazonalidade': typeof AuthenticatedConfigSazonalidadeRoute
+  '/gestao/farol-movimentados': typeof AuthenticatedGestaoFarolMovimentadosRoute
   '/gestao/indicador-inventario': typeof AuthenticatedGestaoIndicadorInventarioRoute
   '/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
@@ -924,6 +932,7 @@ export interface FileRoutesByTo {
   '/config/perfis': typeof AuthenticatedConfigPerfisRoute
   '/config/resend': typeof AuthenticatedConfigResendRoute
   '/config/sazonalidade': typeof AuthenticatedConfigSazonalidadeRoute
+  '/gestao/farol-movimentados': typeof AuthenticatedGestaoFarolMovimentadosRoute
   '/gestao/indicador-inventario': typeof AuthenticatedGestaoIndicadorInventarioRoute
   '/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
   '/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
@@ -1036,6 +1045,7 @@ export interface FileRoutesById {
   '/_authenticated/config/perfis': typeof AuthenticatedConfigPerfisRoute
   '/_authenticated/config/resend': typeof AuthenticatedConfigResendRoute
   '/_authenticated/config/sazonalidade': typeof AuthenticatedConfigSazonalidadeRoute
+  '/_authenticated/gestao/farol-movimentados': typeof AuthenticatedGestaoFarolMovimentadosRoute
   '/_authenticated/gestao/indicador-inventario': typeof AuthenticatedGestaoIndicadorInventarioRoute
   '/_authenticated/gestao/minhas-tarefas': typeof AuthenticatedGestaoMinhasTarefasRoute
   '/_authenticated/gestao/modelos-checklist': typeof AuthenticatedGestaoModelosChecklistRoute
@@ -1148,6 +1158,7 @@ export interface FileRouteTypes {
     | '/config/perfis'
     | '/config/resend'
     | '/config/sazonalidade'
+    | '/gestao/farol-movimentados'
     | '/gestao/indicador-inventario'
     | '/gestao/minhas-tarefas'
     | '/gestao/modelos-checklist'
@@ -1258,6 +1269,7 @@ export interface FileRouteTypes {
     | '/config/perfis'
     | '/config/resend'
     | '/config/sazonalidade'
+    | '/gestao/farol-movimentados'
     | '/gestao/indicador-inventario'
     | '/gestao/minhas-tarefas'
     | '/gestao/modelos-checklist'
@@ -1369,6 +1381,7 @@ export interface FileRouteTypes {
     | '/_authenticated/config/perfis'
     | '/_authenticated/config/resend'
     | '/_authenticated/config/sazonalidade'
+    | '/_authenticated/gestao/farol-movimentados'
     | '/_authenticated/gestao/indicador-inventario'
     | '/_authenticated/gestao/minhas-tarefas'
     | '/_authenticated/gestao/modelos-checklist'
@@ -1878,6 +1891,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfigSazonalidadeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/gestao/farol-movimentados': {
+      id: '/_authenticated/gestao/farol-movimentados'
+      path: '/gestao/farol-movimentados'
+      fullPath: '/gestao/farol-movimentados'
+      preLoaderRoute: typeof AuthenticatedGestaoFarolMovimentadosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/gestao/indicador-inventario': {
       id: '/_authenticated/gestao/indicador-inventario'
       path: '/gestao/indicador-inventario'
@@ -2276,6 +2296,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedConfigPerfisRoute: typeof AuthenticatedConfigPerfisRoute
   AuthenticatedConfigResendRoute: typeof AuthenticatedConfigResendRoute
   AuthenticatedConfigSazonalidadeRoute: typeof AuthenticatedConfigSazonalidadeRoute
+  AuthenticatedGestaoFarolMovimentadosRoute: typeof AuthenticatedGestaoFarolMovimentadosRoute
   AuthenticatedGestaoIndicadorInventarioRoute: typeof AuthenticatedGestaoIndicadorInventarioRoute
   AuthenticatedGestaoMinhasTarefasRoute: typeof AuthenticatedGestaoMinhasTarefasRoute
   AuthenticatedGestaoModelosChecklistRoute: typeof AuthenticatedGestaoModelosChecklistRoute
@@ -2395,6 +2416,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedConfigPerfisRoute: AuthenticatedConfigPerfisRoute,
   AuthenticatedConfigResendRoute: AuthenticatedConfigResendRoute,
   AuthenticatedConfigSazonalidadeRoute: AuthenticatedConfigSazonalidadeRoute,
+  AuthenticatedGestaoFarolMovimentadosRoute:
+    AuthenticatedGestaoFarolMovimentadosRoute,
   AuthenticatedGestaoIndicadorInventarioRoute:
     AuthenticatedGestaoIndicadorInventarioRoute,
   AuthenticatedGestaoMinhasTarefasRoute: AuthenticatedGestaoMinhasTarefasRoute,
