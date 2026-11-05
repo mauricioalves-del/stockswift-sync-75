@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { Truck } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ConsultaEstoqueSku } from "@/components/abast-dash/ConsultaEstoqueSku";
@@ -26,7 +28,7 @@ function periodosRuptura(hist: HistLinha[], local: string, sku: string): { perio
   return { periodos: out, ultimaFoto };
 }
 
-export function Evolucao({ hoje, filtro, setFiltro, hist, bruto }: Omit<Props, "linhas" | "irFarol"> & { bruto?: Bruto }) {
+export function Evolucao({ hoje, filtro, setFiltro, hist, bruto, linhas }: Omit<Props, "linhas" | "irFarol"> & { bruto?: Bruto; linhas?: DashLinha[] }) {
   const [ag, setAg] = useState<Agrupamento>("dia");
   const [diaDetalhe, setDiaDetalhe] = useState<string | null>(null);
   const [det, setDet] = useState<{ local: string; sku: string; produto: string } | null>(null);
@@ -40,6 +42,11 @@ export function Evolucao({ hoje, filtro, setFiltro, hist, bruto }: Omit<Props, "
     if (!almox) return null;
     return bruto.estoque.reduce((s, e) => { const k = semZero(e.id_produto) === "5104132" ? "5304043" : semZero(e.id_produto); return k === alvo && e.origem === almox ? s + Number(e.quantidade || 0) : s; }, 0);
   })();
+  // Reposição a caminho do item no local: notas de transferência pendentes de recebimento e pedidos aceitos.
+  const lin = det ? (linhas ?? []).find((l) => l.local === det.local && semZero(l.sku) === semZero(det.sku)) ?? null : null;
+  const notas = (lin?.entradas ?? []).filter((e) => e.origem === "nota");
+  const pedidos = (lin?.entradas ?? []).filter((e) => e.origem === "pedido");
+  const qNotas = notas.reduce((a, e) => a + e.qtd, 0), qPedidos = pedidos.reduce((a, e) => a + e.qtd, 0);
   const f = { de: filtro.de, ate: filtro.ate, locais: escopoLocais(filtro.escopo), categoria: null as string | null };
   const pts = serie(hist, f, hoje, ag); const top = topDiasRuptura(hist, f, 10); const maxDias = Math.max(1, ...top.map((t) => t.dias));
   const dados = pts.map((p) => ({ ...p, barra: p.pct === null ? null : +(p.pct * 100).toFixed(2), vazio: p.pct === null ? 0.35 : null, acum: p.acumulado === null ? null : +(p.acumulado * 100).toFixed(2) }));
@@ -74,10 +81,11 @@ export function Evolucao({ hoje, filtro, setFiltro, hist, bruto }: Omit<Props, "
           <DialogHeader><DialogTitle>Detalhe da ruptura · {det?.sku}</DialogTitle><DialogDescription>{det?.produto} · {det ? NOME[det.local] ?? det.local : ""}</DialogDescription></DialogHeader>
           {pr && pr.periodos.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Sem ruptura no período filtrado.</p> : pr && (
             <table className="w-full text-sm"><thead><tr className="border-b bg-muted text-[11px] uppercase"><th className="px-2 py-2 text-left">Entrou em ruptura</th><th className="px-2 py-2 text-left">Até</th><th className="px-2 py-2 text-right">Dias</th><th className="px-2 py-2 text-left">Situação</th></tr></thead>
-              <tbody>{pr.periodos.map((p) => <tr key={p.ini} className="border-b last:border-0"><td className="px-2 py-1.5">{dm(p.ini)}</td><td className="px-2 py-1.5">{p.aberto ? "—" : dm(p.fim)}</td><td className="px-2 py-1.5 text-right font-semibold tabular-nums">{p.dias}</td><td className="px-2 py-1.5">{!p.aberto ? "Resolvida" : saldoReal !== null && saldoReal > 0 ? <span className="font-semibold text-success">Resolvida · saldo atual {n0(saldoReal)} un</span> : <span className="font-semibold text-destructive">Pendente (em ruptura)</span>}</td></tr>)}
+              <tbody>{pr.periodos.map((p) => <tr key={p.ini} className="border-b last:border-0"><td className="px-2 py-1.5">{dm(p.ini)}</td><td className="px-2 py-1.5">{p.aberto ? "—" : dm(p.fim)}</td><td className="px-2 py-1.5 text-right font-semibold tabular-nums">{p.dias}</td><td className="px-2 py-1.5">{!p.aberto ? "Resolvida" : saldoReal !== null && saldoReal > 0 ? <span className="font-semibold text-success">Resolvida · saldo atual {n0(saldoReal)} un</span> : qNotas > 0 ? <span className="font-semibold text-amber-600 dark:text-amber-400">Pendente · resolve no recebimento ({n0(qNotas)} un em trânsito)</span> : <span className="font-semibold text-destructive">Pendente (em ruptura)</span>}</td></tr>)}
                 <tr className="bg-muted/50"><td colSpan={2} className="px-2 py-1.5 font-semibold">Total no período</td><td className="px-2 py-1.5 text-right font-bold tabular-nums">{pr.periodos.reduce((a, p) => a + p.dias, 0)}</td><td /></tr></tbody></table>)}
           <p className="text-[11px] text-muted-foreground">Contagem pela foto diária, entre {dm(filtro.de)} e {dm(filtro.ate)}.</p>
-          <div className="flex justify-end"><Button variant="outline" onClick={() => setEstq(true)}>Ver estoque do item</Button></div>
+          {det && <ReposicaoTransito local={NOME[det.local] ?? det.local} notas={notas} pedidos={pedidos} qNotas={qNotas} qPedidos={qPedidos} minimo={lin?.minimo ?? null} saldo={saldoReal ?? lin?.estoque ?? null} />}
+          <div className="flex flex-wrap justify-end gap-2">{qNotas > 0 && <Button variant="outline" asChild><Link to="/suprimentos/farol-recebimento"><Truck className="size-4" />Ver recebimento pendente</Link></Button>}<Button variant="outline" onClick={() => setEstq(true)}>Ver estoque do item</Button></div>
         </DialogContent>
       </Dialog>
       <ConsultaEstoqueSku aberto={!!det && estq} onFechar={() => setEstq(false)} bruto={bruto} sku={det?.sku ?? ""} descricao={det?.produto ?? ""} lojaDestino="" cdNaoAtende={false} />
@@ -105,4 +113,25 @@ export function Rankings({ filtro, linhas, irFarol }: Pick<Props, "filtro" | "li
         <p className="mt-3 text-[11px] italic text-muted-foreground">Ordenado por capital em excesso (R$), não por unidades.</p></section>
     </div>
   );
+}
+
+/** Estoque em trânsito no detalhe da ruptura: mostra se a ruptura já tem solução a caminho (resolve ao receber na loja). */
+function ReposicaoTransito({ local, notas, pedidos, qNotas, qPedidos, minimo, saldo }: {
+  local: string; notas: { data: string; qtd: number; rs?: number }[]; pedidos: { data: string; qtd: number }[];
+  qNotas: number; qPedidos: number; minimo: number | null; saldo: number | null;
+}) {
+  const total = qNotas + qPedidos;
+  if (!total) return <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs"><b className="text-destructive">Nada em trânsito para este item.</b> Não há nota de transferência nem pedido aceito a caminho de {local}: a ruptura só se resolve com uma nova reposição.</div>;
+  const projetado = Math.max(0, saldo ?? 0) + total;
+  const cobre = minimo === null || projetado >= minimo;
+  return <div className="space-y-2 rounded-md border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+    <p className="flex items-center gap-1.5 font-semibold"><Truck className="size-4" />Reposição em trânsito para {local}</p>
+    {qNotas > 0 && <p><b>{n0(qNotas)} un</b> em {notas.length} nota(s) de transferência aguardando recebimento{notas[0] ? `, previsão de chegada ${dm(notas[0].data)}` : ""}. <b>Ao efetuar o recebimento na loja, o saldo volta e a ruptura se encerra.</b></p>}
+    {qPedidos > 0 && <p><b>{n0(qPedidos)} un</b> em pedido aceito, ainda sem nota{pedidos[0] ? `, previsto para ${dm(pedidos[0].data)}` : ""}.</p>}
+    <table className="w-full"><thead><tr className="border-b border-amber-300 text-[10px] uppercase"><th className="py-1 text-left">Origem</th><th className="py-1 text-left">Chegada prevista</th><th className="py-1 text-right">Qtd</th></tr></thead>
+      <tbody>{[...notas.map((e) => ({ ...e, o: "Nota de transferência" })), ...pedidos.map((e) => ({ ...e, o: "Pedido aceito" }))].map((e, i) => <tr key={i} className="border-b border-amber-200 last:border-0"><td className="py-1">{e.o}</td><td className="py-1">{dm(e.data)}</td><td className="py-1 text-right tabular-nums">{n0(e.qtd)}</td></tr>)}</tbody></table>
+    {minimo !== null && <p className={cobre ? "" : "font-semibold text-destructive"}>{cobre
+      ? `Com o que está a caminho, o estoque projetado fica em ${n0(projetado)} un e cobre o mínimo de ${n0(minimo)} un.`
+      : `Mesmo recebendo, o estoque projetado (${n0(projetado)} un) fica abaixo do mínimo de ${n0(minimo)} un: faltam ${n0(minimo - projetado)} un — complementar a reposição.`}</p>}
+  </div>;
 }
