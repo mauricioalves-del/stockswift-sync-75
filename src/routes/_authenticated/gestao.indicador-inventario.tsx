@@ -35,7 +35,7 @@ const corMeta = (v: number | null, meta: number) => (v === null ? "" : v >= meta
 const STATUS_ACAO: Record<Acao["status"], string> = { ABERTA: "Aberta", EM_ANDAMENTO: "Em andamento", CONCLUIDA: "Concluída", CANCELADA: "Cancelada" };
 const nomeEtapa = (id: string) => ETAPAS.find((e) => e.id === id)?.nome ?? id;
 
-function IndicadorInventarioPage() {
+export function IndicadorInventarioPage() {
   const { isAdmin, role } = useRole();
   const gestorRole = isAdmin || role === "GERENTE";
   const { almoxes } = useMeusAlmoxarifados();

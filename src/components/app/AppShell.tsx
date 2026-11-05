@@ -134,7 +134,6 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/gestao/modelos-checklist", label: "Modelos de Checklist", icon: FolderTree, role: "write" },
       { to: "/gestao/plano-integracao", label: "Plano de Integração", icon: UserPlus, role: "any" },
       { to: "/gestao/pre-inventario", label: "Pré-inventário", icon: ListChecks, role: "any" },
-      { to: "/gestao/indicador-inventario", label: "Indicador de Inventário", icon: Gauge, role: "any" },
       { to: "/gestao/farol-movimentados", label: "Farol de Movimentados", icon: ClipboardCheck, role: "any" },
       { to: "/baixas", label: "Baixas Operacionais", icon: PackageMinus, role: "write" },
       { to: "/baixas/dashboard", label: "Dashboard Baixas", icon: BarChart3, role: "any" },

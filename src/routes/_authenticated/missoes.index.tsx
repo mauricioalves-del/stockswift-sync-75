@@ -24,6 +24,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
 import { PlanejamentoCiclico } from "@/components/missoes/PlanejamentoCiclico";
+import { IndicadorInventarioPage } from "./gestao.indicador-inventario";
 
 type QuickFilter = "pendentes" | "concluidas" | "todas";
 // Memória de sessão (não persiste entre sessões)
@@ -54,10 +55,12 @@ function MissoesPage() {
           <TabsTrigger value="lista">Lista</TabsTrigger>
           {podeGerir && <TabsTrigger value="nova">Nova Missão</TabsTrigger>}
           {podeGerir && <TabsTrigger value="ciclico">Planejamento Cíclico</TabsTrigger>}
+          <TabsTrigger value="indicador">Indicador de Inventário</TabsTrigger>
         </TabsList>
         <TabsContent value="lista"><ListaMissoes podeGerir={podeGerir} /></TabsContent>
         {podeGerir && <TabsContent value="nova"><NovaMissao /></TabsContent>}
         {podeGerir && <TabsContent value="ciclico"><PlanejamentoCiclico /></TabsContent>}
+        <TabsContent value="indicador"><IndicadorInventarioPage /></TabsContent>
       </Tabs>
     </div>
   );
