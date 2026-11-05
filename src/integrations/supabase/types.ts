@@ -41,6 +41,57 @@ export type Database = {
         }
         Relationships: []
       }
+      abast_cd_ajustes: {
+        Row: {
+          acao: string
+          ativo: boolean
+          categoria: string | null
+          classe: string | null
+          criado_em: string
+          criado_nome: string | null
+          criado_por: string | null
+          descricao: string | null
+          desfeito_em: string | null
+          desfeito_nome: string | null
+          desfeito_por: string | null
+          id: string
+          motivo: string
+          sku: string
+        }
+        Insert: {
+          acao: string
+          ativo?: boolean
+          categoria?: string | null
+          classe?: string | null
+          criado_em?: string
+          criado_nome?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          desfeito_em?: string | null
+          desfeito_nome?: string | null
+          desfeito_por?: string | null
+          id?: string
+          motivo: string
+          sku: string
+        }
+        Update: {
+          acao?: string
+          ativo?: boolean
+          categoria?: string | null
+          classe?: string | null
+          criado_em?: string
+          criado_nome?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          desfeito_em?: string | null
+          desfeito_nome?: string | null
+          desfeito_por?: string | null
+          id?: string
+          motivo?: string
+          sku?: string
+        }
+        Relationships: []
+      }
       abast_classificacoes_portfolio: {
         Row: {
           arquivo: string | null
@@ -3403,6 +3454,51 @@ export type Database = {
           ultima_contagem?: string | null
           updated_at?: string
           valor_movimentado?: number
+        }
+        Relationships: []
+      }
+      conferencias_movimentados: {
+        Row: {
+          almox: string
+          conferente_id: string | null
+          conferente_nome: string | null
+          conferido_em: string
+          data_movimento: string
+          divergentes: number
+          id: string
+          itens: Json
+          itens_conferidos: number
+          itens_movimentados: number
+          lote_importacao_id: number | null
+          observacao: string | null
+        }
+        Insert: {
+          almox: string
+          conferente_id?: string | null
+          conferente_nome?: string | null
+          conferido_em?: string
+          data_movimento: string
+          divergentes?: number
+          id?: string
+          itens?: Json
+          itens_conferidos?: number
+          itens_movimentados?: number
+          lote_importacao_id?: number | null
+          observacao?: string | null
+        }
+        Update: {
+          almox?: string
+          conferente_id?: string | null
+          conferente_nome?: string | null
+          conferido_em?: string
+          data_movimento?: string
+          divergentes?: number
+          id?: string
+          itens?: Json
+          itens_conferidos?: number
+          itens_movimentados?: number
+          lote_importacao_id?: number | null
+          observacao?: string | null
         }
         Relationships: []
       }
@@ -7124,6 +7220,16 @@ export type Database = {
         Args: { p_id: string; p_status: string }
         Returns: Json
       }
+      abast_cd_ajustar: {
+        Args: {
+          p_acao: string
+          p_classe?: string
+          p_motivo: string
+          p_sku: string
+        }
+        Returns: Json
+      }
+      abast_cd_desfazer_ajuste: { Args: { p_id: string }; Returns: undefined }
       abast_criar_pedido: {
         Args: { p_base: string; p_itens: Json; p_loja: string; p_obs: string }
         Returns: Json
@@ -7434,6 +7540,15 @@ export type Database = {
       recalcular_classificacao_abc: {
         Args: { p_periodo_dias?: number }
         Returns: undefined
+      }
+      registrar_conferencia_movimentados: {
+        Args: {
+          p_almox: string
+          p_data: string
+          p_itens: Json
+          p_observacao?: string
+        }
+        Returns: Json
       }
       sincronizar_tarefas_assinatura: { Args: never; Returns: number }
       usuario_aprovado: { Args: { _uid: string }; Returns: boolean }
