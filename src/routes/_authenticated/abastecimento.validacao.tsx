@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { queryOptions, useQuery, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, FileSignature, Download, Loader2, Undo2, AlertTriangle, Users } from "lucide-react";
+import { BadgeCheck, FileSignature, Download, Loader2, Undo2, AlertTriangle, Users, Ban, RotateCcw, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
 import { CLASSES_PORTFOLIO, chaveSkuPortfolio, elegivelPortfolio, ultimasClassificacoes, type ClassificacaoPortfolio } from "@/lib/abastecimento-portfolio";
-import { situacaoCompetencia, nomeMes, baixarDocumento, uniaoCD, situacaoCD, LOJA_CD, NOME_CD, type PapeisValidacao, type Validacao } from "@/lib/abastecimento-validacao";
+import { situacaoCompetencia, nomeMes, baixarDocumento, uniaoCD, situacaoCD, aplicarAjustesCD, LOJA_CD, NOME_CD, type AjusteCD, type PapeisValidacao, type Validacao } from "@/lib/abastecimento-validacao";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,14 +20,16 @@ const sb = supabase as any;
 const validacaoQuery = queryOptions({
   queryKey: ["abast-validacao"],
   queryFn: async () => {
-    const [{ data: lojas }, grupos, produtos, classes, vals] = await Promise.all([
+    const [{ data: lojas }, grupos, produtos, classes, vals, ajustesCD] = await Promise.all([
       sb.from("abast_lojas").select("codigo, nome").eq("ativo", true).order("ordem"),
       fetchAll<any>((f, t) => sb.from("grupo_produtos").select("codigo_produto, grupo").order("codigo_produto").range(f, t)),
       fetchAll<any>((f, t) => sb.from("abast_produto").select("id_produto, descricao").order("id_produto").range(f, t)),
       fetchAll<ClassificacaoPortfolio>((f, t) => sb.from("abast_classificacoes_portfolio").select("*").order("registrado_em", { ascending: false }).order("id").range(f, t)),
       fetchAll<Validacao>((f, t) => sb.from("abast_validacoes_portfolio").select("*").order("aprovado_em", { ascending: false }).range(f, t)),
+      // Ajustes do Diretor Operacional na lista do CD (vazio enquanto a migration 0054 não estiver aplicada).
+      sb.from("abast_cd_ajustes").select("*").eq("ativo", true).then((r: any) => (r.error ? [] : r.data ?? []) as AjusteCD[]),
     ]);
-    return { lojas: (lojas ?? []) as { codigo: string; nome: string }[], grupos, produtos, classes, vals };
+    return { lojas: (lojas ?? []) as { codigo: string; nome: string }[], grupos, produtos, classes, vals, ajustesCD };
   },
 });
 
@@ -74,10 +77,21 @@ function ValidacaoPage() {
   const elegiveis = ativos.filter((i) => i.elegivelClasse).length;
   const historico = data.vals.filter((v) => v.loja === loja);
   const codigosLojas = useMemo(() => data.lojas.map((l) => l.codigo), [data.lojas]);
-  const itensCD = useMemo(() => uniaoCD(data.vals, codigosLojas), [data.vals, codigosLojas]);
-  const sitCD = situacaoCD(data.vals, codigosLojas, competencia);
-  const listaCD = itensCD.filter((i) => `${i.sku} ${i.descricao}`.toLowerCase().includes(busca.toLowerCase())).filter((i) => !filtroCardCD || i.classe === filtroCardCD);
+  // Lista do CD = união das lojas + ajustes do Diretor Operacional (inativados ficam visíveis, fora da contagem).
+  const listaCompletaCD = useMemo(() => aplicarAjustesCD(uniaoCD(data.vals, codigosLojas), data.ajustesCD), [data.vals, codigosLojas, data.ajustesCD]);
+  const itensCD = useMemo(() => listaCompletaCD.filter((i) => i.ativo), [listaCompletaCD]);
+  const ajustePorSku = useMemo(() => new Map<string, AjusteCD>((data.ajustesCD as AjusteCD[]).map((a: AjusteCD) => [chaveSkuPortfolio(a.sku), a])), [data.ajustesCD]);
+  const sitCD = situacaoCD(data.vals, codigosLojas, competencia, data.ajustesCD);
+  const listaCD = listaCompletaCD.filter((i) => `${i.sku} ${i.descricao}`.toLowerCase().includes(busca.toLowerCase())).filter((i) => !filtroCardCD || (i.ativo && i.classe === filtroCardCD));
   const contCD = (k: string) => itensCD.filter((i) => i.classe === k).length;
+  const [ajusteAberto, setAjusteAberto] = useState<{ acao: "INATIVAR" | "INCLUIR"; sku?: string; descricao?: string } | null>(null);
+  async function desfazerAjuste(sku: string) {
+    const a = ajustePorSku.get(chaveSkuPortfolio(sku)); if (!a) return;
+    const { error } = await sb.rpc("abast_cd_desfazer_ajuste", { p_id: a.id });
+    if (error) return toast.error(error.message);
+    toast.success(a.acao === "INATIVAR" ? `${sku} reativado na lista do ${NOME_CD}` : `${sku} retirado da lista do ${NOME_CD}`);
+    await qc.invalidateQueries({ queryKey: ["abast-validacao"] });
+  }
   const uploads = useMemo(() => { const m = new Map<string, ClassificacaoPortfolio & { n: number }>(); for (const c of data.classes) { const o = m.get((c as any).importacao_id); if (o) o.n++; else m.set((c as any).importacao_id, { ...c, n: 1 }); } return [...m.values()].slice(0, 3); }, [data.classes]);
 
   async function assinar() {
@@ -172,16 +186,20 @@ function ValidacaoPage() {
         ))}
       </div>
       <div className="grid min-w-0 items-center gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
-        <h2 className="min-w-0 !text-lg font-semibold">Itens aprovados pelo Gerente Comercial · o {NOME_CD} deve manter estoque{filtroCardCD && <span className="ml-2 text-xs font-normal text-muted-foreground">filtro: {(CLASSES_PORTFOLIO as Record<string, string>)[filtroCardCD] ?? filtroCardCD} <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setFiltroCardCD(null)}>limpar</Button></span>}</h2>
-        <Input placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} className="col-span-2 w-full sm:w-64" />
+        <h2 className="min-w-0 !text-lg font-semibold">Itens que o {NOME_CD} deve manter em estoque · lojas + ajustes do Diretor Operacional{filtroCardCD && <span className="ml-2 text-xs font-normal text-muted-foreground">filtro: {(CLASSES_PORTFOLIO as Record<string, string>)[filtroCardCD] ?? filtroCardCD} <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setFiltroCardCD(null)}>limpar</Button></span>}</h2>
+        <div className="flex flex-wrap gap-2"><Input placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full sm:w-64" />
+          {papeis.diretor_operacional && <Button variant="outline" onClick={() => setAjusteAberto({ acao: "INCLUIR" })} title="Incluir item fora da lista comercial (ex.: produção específica)"><PlusCircle className="size-4" />Incluir item</Button>}</div>
       </div>
-      <div className="max-h-[28rem] overflow-auto rounded-lg border bg-card text-card-foreground [&>div]:overflow-visible"><Table><TableHeader className="sticky top-0 z-10 bg-muted"><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Grupo</TableHead><TableHead>Classe</TableHead><TableHead>Meta OOS</TableHead><TableHead>Aprovado nas lojas</TableHead></TableRow></TableHeader>
-        <TableBody>{listaCD.map((i) => <TableRow key={i.sku}><TableCell>{i.sku}</TableCell><TableCell className="whitespace-normal text-xs">{i.descricao}</TableCell><TableCell className="text-xs">{i.categoria ?? "—"}</TableCell><TableCell>{CLASSES_PORTFOLIO[i.classe]}</TableCell><TableCell className="text-xs">{i.elegivel ? "Elegível" : "Fora da meta"}</TableCell><TableCell className="text-xs">{(i.lojas ?? []).map(nomeLoja).join(", ")}{(i.lojas ?? []).length < codigosLojas.length && <span className="ml-1 text-warning">(não é de todas as lojas)</span>}</TableCell></TableRow>)}
+      <div className="max-h-[28rem] overflow-auto rounded-lg border bg-card text-card-foreground [&>div]:overflow-visible"><Table><TableHeader className="sticky top-0 z-10 bg-muted"><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Grupo</TableHead><TableHead>Classe</TableHead><TableHead>Meta OOS</TableHead><TableHead>Aprovado nas lojas</TableHead>{papeis.diretor_operacional && <TableHead className="text-right">Diretor</TableHead>}</TableRow></TableHeader>
+        <TableBody>{listaCD.map((i) => <TableRow key={i.sku} className={i.ativo ? "" : "opacity-60"}><TableCell className={i.ativo ? "" : "line-through"}>{i.sku}</TableCell><TableCell className="whitespace-normal text-xs"><span className={i.ativo ? "" : "line-through"}>{i.descricao}</span>{i.ajuste_diretor && <Badge variant="outline" className={`ml-2 text-[10px] ${i.ajuste_diretor === "INCLUIDO" ? "border-sky-500 text-sky-700 dark:text-sky-300" : "border-destructive text-destructive"}`} title={`${i.motivo_ajuste ?? ""}${i.ajustado_por ? ` · ${i.ajustado_por}` : ""}`}>{i.ajuste_diretor === "INCLUIDO" ? "Incluído pelo diretor" : "Inativado pelo diretor"}</Badge>}</TableCell><TableCell className="text-xs">{i.categoria ?? "—"}</TableCell><TableCell>{CLASSES_PORTFOLIO[i.classe]}</TableCell><TableCell className="text-xs">{i.elegivel ? "Elegível" : "Fora da meta"}</TableCell><TableCell className="text-xs">{i.ajuste_diretor === "INCLUIDO" ? <span className="text-muted-foreground" title={i.motivo_ajuste}>Fora da lista comercial · {i.motivo_ajuste}</span> : <>{(i.lojas ?? []).map(nomeLoja).join(", ")}{(i.lojas ?? []).length < codigosLojas.length && <span className="ml-1 text-warning">(não é de todas as lojas)</span>}</>}</TableCell>
+          {papeis.diretor_operacional && <TableCell className="text-right">{i.ajuste_diretor
+            ? <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs" onClick={() => void desfazerAjuste(i.sku)}><RotateCcw className="size-3.5" />{i.ajuste_diretor === "INATIVADO" ? "Reativar" : "Retirar inclusão"}</Button>
+            : <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs text-destructive hover:text-destructive" onClick={() => setAjusteAberto({ acao: "INATIVAR", sku: i.sku, descricao: i.descricao })}><Ban className="size-3.5" />Inativar</Button>}</TableCell>}</TableRow>)}
           {!listaCD.length && <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">Nenhuma loja tem portfólio validado pelo Gerente Comercial ainda — a lista do {NOME_CD} é montada a partir das validações das lojas.</TableCell></TableRow>}</TableBody></Table></div>
       {gestor ? <div className="flex flex-wrap items-end gap-3 rounded-lg border p-4">
         <Textarea placeholder="Observação da ciência (opcional)" value={obs} maxLength={1000} onChange={(e) => setObs(e.target.value)} className="min-h-10 max-w-xl" />
         <Button disabled={salvando || !itensCD.length} onClick={() => void assinar()}>{salvando ? <Loader2 className="size-4 animate-spin" /> : <FileSignature className="size-4" />}{sitCD.tipo === "VALIDADA" ? "Dar nova ciência (nova versão)" : `Dar ciência de ${nomeMes(competencia)}`}</Button>
-        <span className="text-xs text-muted-foreground">Ao dar ciência, o Diretor Operacional declara que o {NOME_CD} deve manter estoque dos itens acima, aprovados pelo Gerente Comercial. Se as lojas mudarem depois, a ciência fica desatualizada e é preciso dá-la de novo. O termo de ciência é baixado.</span>
+        <span className="text-xs text-muted-foreground">Ao dar ciência, o Diretor Operacional declara que o {NOME_CD} deve manter estoque dos itens ativos acima: os aprovados pelo Gerente Comercial, menos os inativados e mais os incluídos pelo diretor (ajustes valem até serem desfeitos). Se as lojas mudarem depois, a ciência fica desatualizada e é preciso dá-la de novo. O termo de ciência é baixado.</span>
       </div> : <p className="text-sm text-muted-foreground">Somente o Diretor Operacional (signatário designado pelo administrador) pode dar ciência do {NOME_CD}.</p>}
     </section>}
 
@@ -192,6 +210,9 @@ function ValidacaoPage() {
           {!historico.length && <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">Nenhuma validação registrada</TableCell></TableRow>}</TableBody></Table></div>
     </section>
     {papeis.admin && <Signatarios />}
+    {ajusteAberto && <AjusteCDDialog acao={ajusteAberto.acao} sku={ajusteAberto.sku} descricao={ajusteAberto.descricao} produtos={data.produtos}
+      jaNaLista={new Set(listaCompletaCD.map((i) => chaveSkuPortfolio(i.sku)))}
+      onClose={() => setAjusteAberto(null)} onDone={async () => { setAjusteAberto(null); await qc.invalidateQueries({ queryKey: ["abast-validacao"] }); }} />}
   </div>;
 }
 
@@ -239,4 +260,57 @@ function CardFiltro({ rotulo, valor, ativo, onClick }: { rotulo: string; valor: 
       </Button>
     </Card>
   );
+}
+
+/** Inativar item da lista do CD ou incluir item fora da lista comercial (Diretor Operacional). */
+function AjusteCDDialog({ acao, sku: skuInicial, descricao, produtos, jaNaLista, onClose, onDone }: {
+  acao: "INATIVAR" | "INCLUIR"; sku?: string; descricao?: string; produtos: { id_produto: string; descricao: string | null }[];
+  jaNaLista: Set<string>; onClose: () => void; onDone: () => void | Promise<void>;
+}) {
+  const [sku, setSku] = useState(skuInicial ?? ""); const [classe, setClasse] = useState("LINHA"); const [motivo, setMotivo] = useState(""); const [salvando, setSalvando] = useState(false);
+  const k = chaveSkuPortfolio(sku);
+  const produto = acao === "INCLUIR" ? produtos.find((p) => chaveSkuPortfolio(p.id_produto) === k) : null;
+  const repetido = acao === "INCLUIR" && !!k && jaNaLista.has(k);
+  const valido = motivo.trim().length >= 5 && (acao === "INATIVAR" || (!!produto && !repetido));
+  async function salvar() {
+    if (!valido) return; setSalvando(true);
+    try {
+      const { error } = await sb.rpc("abast_cd_ajustar", { p_sku: k, p_acao: acao, p_motivo: motivo.trim(), p_classe: acao === "INCLUIR" ? classe : null });
+      if (error) throw error;
+      toast.success(acao === "INATIVAR" ? `${k} inativado na lista do ${NOME_CD}` : `${k} incluído na lista do ${NOME_CD}`);
+      await onDone();
+    } catch (e: any) { toast.error(e?.message ?? "Não foi possível registrar o ajuste"); } finally { setSalvando(false); }
+  }
+  return <Dialog open onOpenChange={(o) => !o && !salvando && onClose()}>
+    <DialogContent className="max-w-lg">
+      <DialogHeader>
+        <DialogTitle>{acao === "INATIVAR" ? `Inativar ${skuInicial} na lista do ${NOME_CD}` : `Incluir item na lista do ${NOME_CD}`}</DialogTitle>
+        <DialogDescription>{acao === "INATIVAR"
+          ? "O item sai da lista que o CD deve manter em estoque, mesmo aprovado nas lojas. Vale até você reativar e fica registrado no termo de ciência."
+          : "Para itens fora da lista comercial (ex.: produção específica do CD). Vale até você retirar a inclusão e fica registrado no termo de ciência."}</DialogDescription>
+      </DialogHeader>
+      <div className="space-y-3 text-sm">
+        {acao === "INATIVAR" ? <p className="rounded border bg-muted/40 p-2 text-xs">{skuInicial} · {descricao}</p> : <>
+          <label className="block text-xs font-semibold text-muted-foreground">SKU
+            <Input list="cd-ajuste-produtos" value={sku} onChange={(e) => setSku(e.target.value.split(" ")[0])} placeholder="Digite o SKU ou escolha da lista" className="mt-1" />
+            <datalist id="cd-ajuste-produtos">{produtos.slice(0, 3000).map((p) => <option key={p.id_produto} value={`${chaveSkuPortfolio(p.id_produto)} ${p.descricao ?? ""}`} />)}</datalist>
+          </label>
+          {k && <p className={`text-xs ${produto && !repetido ? "text-muted-foreground" : "text-destructive"}`}>{repetido ? "Este SKU já está na lista do CD." : produto ? produto.descricao : "SKU não encontrado no cadastro de produtos."}</p>}
+          <label className="block text-xs font-semibold text-muted-foreground">Classe
+            <select value={classe} onChange={(e) => setClasse(e.target.value)} className="mt-1 block h-9 w-full rounded-md border bg-background px-2 text-sm">
+              {Object.entries(CLASSES_PORTFOLIO).map(([c, n]) => <option key={c} value={c}>{n}</option>)}
+            </select>
+          </label>
+        </>}
+        <label className="block text-xs font-semibold text-muted-foreground">Motivo
+          <Textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} maxLength={500} className="mt-1 min-h-20"
+            placeholder={acao === "INATIVAR" ? "Ex.: item será abastecido direto pela fábrica" : "Ex.: produção sob demanda para eventos corporativos"} />
+        </label>
+      </div>
+      <DialogFooter>
+        <Button variant="ghost" onClick={onClose} disabled={salvando}>Cancelar</Button>
+        <Button onClick={() => void salvar()} disabled={!valido || salvando}>{salvando && <Loader2 className="size-4 animate-spin" />}{acao === "INATIVAR" ? "Inativar" : "Incluir"}</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>;
 }
