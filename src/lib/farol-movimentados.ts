@@ -99,6 +99,13 @@ export function conciliacaoPorDia(linhas: ConcLinha[]): Map<string, ConcDia> {
   return out;
 }
 
+/**
+ * Início da cobrança do prazo D+1. A rotina de conferência começou a ser acompanhada pelo farol em 06/11/2026:
+ * para movimentos anteriores a essa data, a conferência enviada fora do prazo conta como cumprida (Sim).
+ * Dias sem nenhuma conferência continuam como falha.
+ */
+export const INICIO_PRAZO_D1 = "2026-11-05";
+
 type Base = { prazo: string; itens: number; conciliados: number; divergentes: number; em: string | null };
 export type SituacaoDia =
   | { tipo: "SEM_MOV"; conciliados: number }                                   // sem movimento na base (conciliação, se houver, é informativa)
@@ -116,7 +123,7 @@ export function situacaoDia(itens: ItemMov[] | undefined, conc: ConcDia | undefi
   if (!conc?.size) return { tipo: hoje > prazo ? "FALHA" : "PENDENTE", ...base };
   const emDia = [...conc.values()].map((f) => f.em).filter(Boolean).sort()[0] ?? null; // primeiro upload do dia
   const b2 = { ...base, em: emDia };
-  if (emDia && diaSP(emDia) > prazo) return { tipo: "ATRASADO", ...b2 };
+  if (emDia && diaSP(emDia) > prazo && dia >= INICIO_PRAZO_D1) return { tipo: "ATRASADO", ...b2 };
   return { tipo: "CONFERIDO", ...b2 };
 }
 
