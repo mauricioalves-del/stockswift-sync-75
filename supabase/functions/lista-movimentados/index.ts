@@ -24,6 +24,8 @@ const GMAIL_GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v
 const FINALIDADE = "Lista de Movimentados";
 // Sufixo da finalidade de cada lista (Geral = almoxarifado da Fábrica).
 const SUFIXO: Record<string, string> = { GERAL: "fabrica", PROCESSO: "processo", QUALIDADE: "qualidade", PARA: "para" };
+// Nome do almoxarifado no assunto do e-mail (padrão: "Contagem de movimentados >> 05-11-2026 >> Almoxarifado Fabrica").
+const NOME_EMAIL: Record<string, string> = { GERAL: "Fabrica", PROCESSO: "Processo", QUALIDADE: "Qualidade", PARA: "Pará" };
 const normFin = (s: string) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -158,17 +160,23 @@ Deno.serve(async (req) => {
 
     const from = await getCfg(admin, "resend_from"), replyTo = await getCfg(admin, "resend_reply_to");
     const envios: { almox: string; linhas: number; destinatarios: string[]; ok: boolean; erro?: string }[] = [];
+    // Cada almoxarifado tem o seu disparo (body.almox = GERAL | PROCESSO | QUALIDADE | PARA); sem almox, envia os quatro.
+    const alvo = typeof body?.almox === "string" ? String(body.almox).toUpperCase() : null;
+    const hoje = hojeSP();
     for (const l of listas) {
+      if (alvo && l.id !== alvo) continue;
       const to = paraLista(l.id);
       if (!to.length) { envios.push({ almox: l.almox, linhas: l.linhas, destinatarios: [], ok: false, erro: "sem destinatário cadastrado" }); continue; }
-      const html = !movs.length
-        ? `<p style="font-family:Arial;font-size:14px">A movimentação do ERP de <b>${diaFmt}</b> ainda não foi importada no Farol de Movimentados, então a lista de contagem de <b>${esc(l.almox)}</b> não pôde ser gerada.</p><p style="font-family:Arial;font-size:13px">Importe a planilha em Gestão › Farol de Movimentados › Importar movimentação (ERP).</p>`
-        : l.linhas
-          ? `<p style="font-family:Arial;font-size:14px">Lista de contagem de movimentados — <b>${esc(l.almox)}</b> — <b>${diaFmt}</b>: ${l.linhas} SKU(s).</p>
-             <p style="font-family:Arial;font-size:12px;color:#555">Sistema = saldo atual do sistema no momento da geração. Preencha a coluna Contagem e envie o arquivo em Atlas › Importar (Movimentação) até o dia útil seguinte.</p>`
-          : `<p style="font-family:Arial;font-size:14px">Sem movimentação em <b>${esc(l.almox)}</b> em <b>${diaFmt}</b>: não há itens para contar.</p>`;
-      const assunto = !movs.length ? `Contagem de movimentados ${l.almox} — ${diaFmt}: movimentação não importada`
-        : l.linhas ? `Contagem de movimentados ${l.almox} — ${diaFmt} (${l.linhas} itens)` : `Contagem de movimentados ${l.almox} — ${diaFmt}: sem movimentação`;
+      // Padrão do e-mail que já é usado na operação.
+      const dataAssunto = `${dia.slice(8, 10)}-${dia.slice(5, 7)}-${dia.slice(0, 4)}`;
+      const assunto = `Contagem de movimentados >> ${dataAssunto} >> Almoxarifado ${NOME_EMAIL[l.id]}`;
+      const quando = dia === hoje ? `de hoje, ${diaFmt}` : `do dia ${diaFmt}`;
+      const p = (t: string) => `<p style="font-family:Arial,sans-serif;font-size:14px;color:#222;margin:0 0 14px">${t}</p>`;
+      const html = `<div>${p("Prezados,")}${
+        !movs.length ? p(`A movimentação do ERP referente à operação ${quando} ainda não foi importada no sistema, por isso a lista de contagem não pôde ser gerada.`) + p("Assim que a movimentação for importada, a lista será enviada.")
+        : l.linhas ? p(`Segue produtos movimentados referente a operação ${quando}.`) + p("Por gentileza, realizar contagem dos respectivos itens.")
+        : p(`Não houve produtos movimentados no Almoxarifado ${esc(NOME_EMAIL[l.id])} referente a operação ${quando}.`) + p("Não há itens para contagem.")
+      }</div>`;
       const r = await enviarGmail(rawEmail({ from, replyTo, to, subject: assunto, html, anexos: l.base64 ? [{ nome: l.nome, base64: l.base64 }] : [] }));
       envios.push({ almox: l.almox, linhas: l.linhas, destinatarios: to, ok: r.ok, erro: r.ok ? undefined : `${r.status}: ${r.body.slice(0, 200)}` });
     }
