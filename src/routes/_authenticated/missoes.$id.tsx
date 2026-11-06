@@ -22,10 +22,20 @@ import { useRole } from "@/hooks/useRole";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { format, parseISO } from "date-fns";
+import { fetchAll } from "@/lib/fetch-all";
+import { nk } from "@/lib/abastecimento-dados";
+import { somarTransitoMissao, type NotaTransitoMissao, type TransitoMissao } from "@/lib/missao-transito";
 
 export const Route = createFileRoute("/_authenticated/missoes/$id")({
   component: MissaoExecucaoPage,
-  head: () => ({ meta: [{ title: "Executar Missão" }] }),
+  head: () => ({ meta: [
+    { title: "Contagem da Missão — Stock Savvy" },
+    { name: "description", content: "Conferência de inventário por lote com estoque em trânsito e baixas em aprovação." },
+    { property: "og:title", content: "Contagem da Missão — Stock Savvy" },
+    { property: "og:description", content: "Conferência de inventário por lote com estoque em trânsito e baixas em aprovação." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
 });
 
 type Missao = {
@@ -147,6 +157,24 @@ function MissaoExecucaoPage() {
   // Pedidos de baixa em aberto (fila de aprovação) do mesmo almoxarifado da missão.
   // Almoxarifado solicitante (baixa_operacional.id_local) x almoxarifado conferido (missao.origem).
   const origemMissao = missaoQ.data?.origem ?? null;
+  const transitoQ = useQuery({
+    queryKey: ["missao-estoque-transito", id, origemMissao, skus.join(",")],
+    enabled: !!origemMissao && skus.length > 0,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const [notas, lojas, config] = await Promise.all([
+        fetchAll<NotaTransitoMissao>((from, to) => supabase.from("notas_transferencia_recebimento")
+          .select("cod_prod, almox, qtd, nr_nf, lote, recebimento, nota_cancelada")
+          .eq("recebimento", "Pendente").or("nota_cancelada.is.null,nota_cancelada.neq.S")
+          .order("id").range(from, to)),
+        supabase.from("abast_lojas").select("codigo, almoxarifado"),
+        supabase.from("abast_config").select("valor").eq("chave", "cd_almoxarifado").maybeSingle(),
+      ]);
+      if (lojas.error) throw lojas.error;
+      if (config.error) throw config.error;
+      return somarTransitoMissao(notas, origemMissao, skus, lojas.data ?? [], String(config.data?.valor || "Alm_SP_Fabrica"));
+    },
+  });
   const baixasQ = useQuery({
     queryKey: ["missao-baixas-abertas", id, origemMissao, skus.join(",")],
     enabled: skus.length > 0,
@@ -530,6 +558,8 @@ function MissaoExecucaoPage() {
                   linhasSalvas={linhasQ.data?.get(it.id) ?? []}
                   isAdmin={isAdmin}
                   mobile
+                  transito={transitoQ.data?.get(nk(it.codigo_produto))}
+                  transitoEstado={transitoQ.isError ? "erro" : transitoQ.isFetching && !transitoQ.data ? "carregando" : !origemMissao ? "sem-almox" : undefined}
                   baixasAbertas={baixasQ.data?.get(it.codigo_produto)}
                   onSaved={onSavedItem}
                 />
@@ -542,6 +572,7 @@ function MissaoExecucaoPage() {
                   <TableRow>
                     <TableHead>SKU</TableHead>
                     <TableHead>Produto</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Estoque em trânsito</TableHead>
                     <TableHead className="text-right whitespace-nowrap" title="Pedidos de baixa em aberto na fila de aprovação, do mesmo almoxarifado da missão">Baixa em aprovação</TableHead>
                     {isAdmin && <TableHead className="text-right">Sistema</TableHead>}
                     <TableHead className="w-[420px]">Contagem por lote</TableHead>
@@ -551,7 +582,7 @@ function MissaoExecucaoPage() {
                 </TableHeader>
                 <TableBody>
                   {itensFiltrados.length === 0 && (
-                    <TableRow><TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-10 text-muted-foreground">
+                    <TableRow><TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-10 text-muted-foreground">
                       {itens.length === 0 ? "Nenhum item gerado para esta missão." : "Nenhum item corresponde aos filtros."}
                     </TableCell></TableRow>
                   )}
@@ -563,6 +594,8 @@ function MissaoExecucaoPage() {
                       lotesSist={lotesQ.data?.get(it.codigo_produto) ?? []}
                       linhasSalvas={linhasQ.data?.get(it.id) ?? []}
                       isAdmin={isAdmin}
+                      transito={transitoQ.data?.get(nk(it.codigo_produto))}
+                      transitoEstado={transitoQ.isError ? "erro" : transitoQ.isFetching && !transitoQ.data ? "carregando" : !origemMissao ? "sem-almox" : undefined}
                       baixasAbertas={baixasQ.data?.get(it.codigo_produto)}
                       onSaved={onSavedItem}
                     />
@@ -605,8 +638,16 @@ function BaixasAbertasInfo({ b, inline }: { b?: BaixaAberta; inline?: boolean })
   );
 }
 
+function TransitoInfo({ transito, estado }: { transito?: TransitoMissao; estado?: string }) {
+  if (estado) return <span className="text-xs text-muted-foreground">{estado === "erro" ? "Indisponível" : estado === "sem-almox" ? "Sem almoxarifado" : "Carregando…"}</span>;
+  return <span title={transito?.detalhes.join("\n")}>
+    <span className={cn("font-semibold", transito ? "text-primary" : "text-muted-foreground")}>{formatNum(transito?.qtd ?? 0)}</span>
+    {transito && <span className="text-[10px] text-muted-foreground ml-1">({transito.notas} NF{transito.notas > 1 ? "s" : ""})</span>}
+  </span>;
+}
+
 const LinhaItem = memo(function LinhaItem({
-  item, missao, lotesSist, linhasSalvas, isAdmin, mobile, onSaved, baixasAbertas,
+  item, missao, lotesSist, linhasSalvas, isAdmin, mobile, onSaved, baixasAbertas, transito, transitoEstado,
 }: {
   item: Item;
   missao: Missao;
@@ -616,6 +657,8 @@ const LinhaItem = memo(function LinhaItem({
   mobile?: boolean;
   onSaved: () => void;
   baixasAbertas?: BaixaAberta;
+  transito?: TransitoMissao;
+  transitoEstado?: string;
 }) {
   // Semente inicial: se já tiver linhas salvas → usa; senão, cria uma linha vazia com sugestão FEFO
   // (primeiro lote com saldo > 0, ou o primeiro da lista, ou "não relacionado" se não houver lote algum).
@@ -1053,6 +1096,9 @@ const LinhaItem = memo(function LinhaItem({
               </span>
             </div>
             <div className="text-sm font-medium leading-snug mt-0.5">{item.descricao}</div>
+            <div className="mt-1 text-[11px] text-muted-foreground">
+              Estoque em trânsito: <TransitoInfo transito={transito} estado={transitoEstado} />
+            </div>
             {baixasAbertas && (
               <div className="mt-1 text-[11px] text-warning">
                 Baixa em aprovação: <BaixasAbertasInfo b={baixasAbertas} inline />
@@ -1222,6 +1268,7 @@ const LinhaItem = memo(function LinhaItem({
         </div>
       </TableCell>
       <TableCell className="max-w-xs truncate align-top">{item.descricao}</TableCell>
+      <TableCell className="text-right tabular-nums align-top"><TransitoInfo transito={transito} estado={transitoEstado} /></TableCell>
       <TableCell className="text-right tabular-nums align-top"><BaixasAbertasInfo b={baixasAbertas} /></TableCell>
       {isAdmin && (
         <TableCell className="text-right tabular-nums align-top">
