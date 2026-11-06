@@ -32,7 +32,11 @@ test("Movimentado de várias bases × conciliação do Atlas", () => {
   const parcial = situacaoDia(itens, conc([{ sku: "1", em: "2026-11-03T10:00:00Z" }]), "2026-11-02", "2026-11-05");
   expect(parcial.tipo).toBe("CONFERIDO");
   expect(coberturaItens([parcial, s1])).toEqual({ conciliados: 3, itens: 4, pct: 0.75 });
-  expect(situacaoDia(itens, conc([{ sku: "1", em: "2026-11-04T15:00:00Z" }, { sku: "2" }]), "2026-11-02", "2026-11-05").tipo).toBe("ATRASADO");
+  // Antes do início da cobrança do D+1 (05/11), envio atrasado conta como cumprido; a partir daí, é atraso.
+  expect(situacaoDia(itens, conc([{ sku: "1", em: "2026-11-04T15:00:00Z" }, { sku: "2" }]), "2026-11-02", "2026-11-05").tipo).toBe("CONFERIDO");
+  const mov5 = movimentosPorDia([{ data: "2026-11-05", desc_almox: "Almox_SP_Fabrica", id_produto: "1", descricao: "A", qtd: 1 }]).get("FABRICA|2026-11-05");
+  const conc5 = conciliacaoPorDia([{ almoxarifado: "Almox_SP_Fabrica", data: "2026-11-05", sku: "1", divergente: false, em: "2026-11-09T15:00:00Z" }]).get("FABRICA|2026-11-05");
+  expect(situacaoDia(mov5, conc5, "2026-11-05", "2026-11-10").tipo).toBe("ATRASADO");
   expect(situacaoDia(itens, undefined, "2026-11-02", "2026-11-05").tipo).toBe("FALHA");
   expect(situacaoDia(mov.get("FABRICA|2026-11-03"), undefined, "2026-11-03", "2026-11-04").tipo).toBe("PENDENTE");
   const n = nivelServico([s1, situacaoDia(itens, undefined, "2026-11-02", "2026-11-05"), situacaoDia(undefined, undefined, "2026-11-04", "2026-11-05")]);
