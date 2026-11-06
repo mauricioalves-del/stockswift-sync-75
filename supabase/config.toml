@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.alerta-assinatura-inventario]
 verify_jwt = false
+
+[functions.lista-movimentados]
+verify_jwt = false
