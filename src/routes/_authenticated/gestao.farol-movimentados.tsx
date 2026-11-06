@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, FileSpreadsheet, Loader2, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Download, FileSpreadsheet, ListChecks, Loader2, Mail, Upload } from "lucide-react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -98,6 +98,7 @@ function FarolMovimentadosPage() {
   const falhas = sitsSemana.filter((x) => x.s.tipo === "FALHA" || x.s.tipo === "ATRASADO");
   const cobertura = coberturaItens(sitsSemana.map((x) => x.s));
   const [importando, setImportando] = useState(false);
+  const [listaAberta, setListaAberta] = useState(false);
   const tendencia = Array.from({ length: SEMANAS_TENDENCIA }, (_, i) => diasDaSemana(somaDias(semana[0], -7 * (SEMANAS_TENDENCIA - 1 - i))));
 
   return (
@@ -113,6 +114,7 @@ function FarolMovimentadosPage() {
           <Button variant="outline" size="icon" onClick={() => setRef(proximaSemana(ref))} disabled={semana[0] > hoje} aria-label="Próxima semana"><ChevronRight className="size-4" /></Button>
           {!semana.includes(hoje) && <Button variant="ghost" size="sm" onClick={() => setRef(hoje)}>Esta semana</Button>}
           <Button variant="outline" size="sm" className="ml-2 gap-1" onClick={() => setImportando(true)}><Upload className="size-4" />Importar movimentação (ERP)</Button>
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => setListaAberta(true)}><ListChecks className="size-4" />Lista de movimentados</Button>
         </div>
       </div>
 
@@ -193,6 +195,7 @@ function FarolMovimentadosPage() {
       </p>
 
       {importando && <ImportarErpDialog onClose={() => setImportando(false)} />}
+      {listaAberta && <ListaMovimentadosDialog hoje={hoje} onClose={() => setListaAberta(false)} />}
       {aberto && <ConferenciaDialog almox={aberto.almox} dia={aberto.dia} itens={porDia.get(`${aberto.almox}|${aberto.dia}`) ?? []} conf={confPor.get(`${aberto.almox}|${aberto.dia}`) ?? null}
         conc={concPor.get(`${aberto.almox}|${aberto.dia}`)} situacao={sit(aberto.almox, aberto.dia)} hoje={hoje} onClose={() => setAberto(null)} />}
     </div>
@@ -355,6 +358,48 @@ function ImportarErpDialog({ onClose }: { onClose: () => void }) {
       <DialogFooter>
         <Button variant="ghost" onClick={onClose} disabled={salvando}>Cancelar</Button>
         <Button onClick={() => void importar()} disabled={salvando || !linhas.length}>{salvando && <Loader2 className="size-4 animate-spin" />}Importar {linhas.length ? `${linhas.length.toLocaleString("pt-BR")} linhas` : ""}</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>;
+}
+
+/** Gera as listas de contagem (Geral, Processo, Qualidade, Pará) no formato das planilhas de Movimentação. Envio automático: 18h, dias úteis. */
+function ListaMovimentadosDialog({ hoje, onClose }: { hoje: string; onClose: () => void }) {
+  const [dia, setDia] = useState(hoje);
+  const [ocupado, setOcupado] = useState<null | "baixar" | "enviar">(null);
+  const [resultado, setResultado] = useState<{ almox: string; linhas: number }[] | null>(null);
+  async function executar(acao: "baixar" | "enviar") {
+    setOcupado(acao);
+    try {
+      const { data, error } = await supabase.functions.invoke("lista-movimentados", { body: { acao, data: dia } });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error ?? "Falha ao gerar as listas");
+      setResultado(data.listas.map((l: any) => ({ almox: l.almox, linhas: l.linhas })));
+      if (acao === "baixar") {
+        if (!data.movimentos) toast.warning(`Nenhuma movimentação importada para ${dm(dia)}`);
+        for (const l of data.listas as { nome: string; base64: string | null }[]) {
+          if (!l.base64) continue;
+          const bytes = Uint8Array.from(atob(l.base64), (c) => c.charCodeAt(0));
+          const url = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+          const a = document.createElement("a"); a.href = url; a.download = l.nome; a.click(); URL.revokeObjectURL(url);
+        }
+      } else toast.success(`Listas enviadas para ${data.destinatarios.length} destinatário(s)`);
+    } catch (e: any) { toast.error(e?.message ?? "Falha ao gerar as listas"); } finally { setOcupado(null); }
+  }
+  return <Dialog open onOpenChange={(o) => !o && !ocupado && onClose()}>
+    <DialogContent className="max-w-lg">
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2"><ListChecks className="size-5" />Lista de movimentados para contagem</DialogTitle>
+        <DialogDescription>Mesmo formato das planilhas "Movimentação - Geral / Processo / Qualidade / Pará": itens movimentados no dia (planilha do ERP importada aqui) com o saldo atual do sistema. O envio por e-mail é automático às 18h dos dias úteis para os cadastrados em Cadastros › E-mails com a finalidade "Lista de Movimentados".</DialogDescription>
+      </DialogHeader>
+      <label className="text-xs font-semibold text-muted-foreground">Dia da movimentação
+        <Input type="date" value={dia} max={hoje} onChange={(e) => e.target.value && setDia(e.target.value)} className="mt-1 w-44" />
+      </label>
+      {resultado && <ul className="text-sm">{resultado.map((r) => <li key={r.almox} className="flex justify-between border-b py-1"><span>{r.almox}</span><span className="text-muted-foreground">{r.linhas ? `${r.linhas} SKU(s)` : "sem movimentação"}</span></li>)}</ul>}
+      <DialogFooter>
+        <Button variant="ghost" onClick={onClose} disabled={!!ocupado}>Fechar</Button>
+        <Button variant="outline" onClick={() => void executar("enviar")} disabled={!!ocupado}>{ocupado === "enviar" ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}Enviar por e-mail agora</Button>
+        <Button onClick={() => void executar("baixar")} disabled={!!ocupado}>{ocupado === "baixar" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}Baixar listas</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>;
