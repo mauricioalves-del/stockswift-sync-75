@@ -26,7 +26,7 @@ const FINALIDADE = "Lista de Movimentados";
 const SUFIXO: Record<string, string> = { GERAL: "fabrica", PROCESSO: "processo", QUALIDADE: "qualidade", PARA: "para" };
 // Nome do almoxarifado no assunto do e-mail (padrão: "Contagem de movimentados >> 05-11-2026 >> Almoxarifado Fabrica").
 const NOME_EMAIL: Record<string, string> = { GERAL: "Fabrica", PROCESSO: "Processo", QUALIDADE: "Qualidade", PARA: "Pará" };
-const normFin = (s: string) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+const normFin = (s: string) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\bde\b/g, " ").replace(/[^a-z0-9]+/g, "");
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 const json = (body: Record<string, unknown>, status = 200) =>
@@ -149,12 +149,14 @@ Deno.serve(async (req) => {
     if (acao === "baixar") return json({ ok: true, data: dia, movimentos: movs.length, listas });
 
     // Destinatários por almoxarifado: finalidade "Lista de Movimentados - <Almox>"; a finalidade geral recebe todas.
-    const { data: dests, error: derr } = await admin.from("cadastro_emails").select("email, finalidade").ilike("finalidade", "Lista de Movimentados%").eq("ativo", true);
+    const { data: destsAll, error: derr } = await admin.from("cadastro_emails").select("email, finalidade").eq("ativo", true);
     if (derr) throw derr;
+    // Aceita "Lista de Movimentados - Fabrica" e "lista-movimentados-fabrica".
+    const dests = (destsAll ?? []).filter((d: any) => normFin(d.finalidade).startsWith(normFin(FINALIDADE)));
     const base = normFin(FINALIDADE);
     const paraLista = (id: string) => [...new Set((dests ?? []).filter((d: any) => {
       const f = normFin(d.finalidade);
-      return f === base || f === `${base} - ${SUFIXO[id]}`;
+      return f === base || f === `${base}${SUFIXO[id]}`;
     }).map((d: any) => String(d.email).trim().toLowerCase()))];
     if (!(dests ?? []).length) return json({ ok: false, code: "MISSING_RECIPIENTS", error: `Nenhum destinatário ativo para '${FINALIDADE} - <Almox>'. Cadastre em Cadastros → E-mails.` });
 
