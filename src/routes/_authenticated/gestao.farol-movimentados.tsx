@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, FileSpreadsheet, Loader2, Upload } from "lucide-react";
+import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
 import {
-  ALMOX_FAROL, chaveSku, conciliacaoPorDia, diaSP, diasDaSemana, movimentosPorDia, nivelServico, proximaSemana, semanaAnterior, situacaoDia,
+  ALMOX_FAROL, chaveSku, coberturaItens, linhasPlanilhaErp, type LinhaErp, conciliacaoPorDia, diaSP, diasDaSemana, movimentosPorDia, nivelServico, proximaSemana, semanaAnterior, situacaoDia,
   type AlmoxFarol, type ConcDia, type ConcLinha, type Conferencia, type ItemMov, type MovLinha, type SituacaoDia,
 } from "@/lib/farol-movimentados";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,8 +47,11 @@ function FarolMovimentadosPage() {
         if (almox) x = x.in(almox, ATLAS);
         return x.order(campoData).range(f, t);
       });
-      const [erp, brutas, porLote, hist, divs, lotes, conf, frescor] = await Promise.all([
+      const [erp, erpPlanilha, brutas, porLote, hist, divs, lotes, conf, frescor] = await Promise.all([
         lerFaixa<any>("movimentacoes_diarias", "data, desc_almox, id_produto, descricao, qtd, id_lote, desc_movimento", "data"),
+        // Planilha do ERP importada aqui no farol (qualquer período). Antes da migration 0057 a tabela não existe: vazio.
+        fetchAll<any>((f, t) => sb.from("movimentacoes_erp").select("data, desc_almox, id_produto, descricao, qtd, id_lote, desc_movimento")
+          .gte("data", ini).lte("data", fim).not("almox", "is", null).order("data").range(f, t)).catch(() => []),
         lerFaixa<any>("atlas_movimentacoes_brutas", "data, almoxarifado, sku, descricao, operacao, qtd_ent, qtd_sai, saldo", "data", "almoxarifado"),
         lerFaixa<any>("atlas_movimentacoes_lote_diaria", "data, almoxarifado_raw, sku, descricao_produto, quantidade, lote_movimentado", "data"),
         lerFaixa<any>("atlas_movimentacoes_historico", "data_movimento, almoxarifado, sku, origem, lote_importacao_id", "data_movimento", "almoxarifado"),
@@ -65,6 +69,7 @@ function FarolMovimentadosPage() {
       const isoSP = (s: string | null | undefined) => (s ? `${String(s).replace(" ", "T").slice(0, 19)}-03:00` : null);
       const mov: MovLinha[] = [
         ...erp,
+        ...erpPlanilha,
         ...brutas.filter((b: any) => !String(b.operacao ?? "").toLowerCase().includes("inventario"))
           .map((b: any) => ({ data: b.data, desc_almox: b.almoxarifado, id_produto: b.sku, descricao: b.descricao, qtd: (Number(b.qtd_ent) || 0) + (Number(b.qtd_sai) || 0), desc_movimento: b.operacao, saldo: b.saldo })),
         ...porLote.map((l: any) => ({ data: l.data, desc_almox: l.almoxarifado_raw, id_produto: l.sku, descricao: l.descricao_produto, qtd: Number(l.quantidade) || 0, id_lote: l.lote_movimentado })),
@@ -73,7 +78,7 @@ function FarolMovimentadosPage() {
         ...hist.filter((h: any) => h.origem !== "fechamento_inventario").map((h: any) => ({ almoxarifado: h.almoxarifado, data: h.data_movimento, sku: h.sku, divergente: false, em: isoSP(loteEm.get(h.lote_importacao_id)) })),
         ...divs.filter((d: any) => d.origem !== "fechamento_inventario").map((d: any) => ({ almoxarifado: d.almoxarifado, data: d.data_deteccao, sku: d.sku, divergente: true, em: isoSP(d.criado_em) })),
       ];
-      return { mov, conc, conf, frescor: frescor as [string, AlmoxFarol, string | null][], bases: { erp: erp.length, brutas: brutas.length, lote: porLote.length } };
+      return { mov, conc, conf, frescor: frescor as [string, AlmoxFarol, string | null][], bases: { erp: erp.length + erpPlanilha.length, brutas: brutas.length, lote: porLote.length } };
     },
   });
 
@@ -90,7 +95,9 @@ function FarolMovimentadosPage() {
   const sitsSemana = ALMOX_FAROL.flatMap((a) => semana.map((d) => ({ a: a.id, d, s: sit(a.id, d) })));
   const geral = nivelServico(sitsSemana.map((x) => x.s));
   const divergencias = sitsSemana.reduce((acc, x) => acc + ("divergentes" in x.s ? x.s.divergentes : 0), 0);
-  const falhas = sitsSemana.filter((x) => x.s.tipo === "FALHA" || x.s.tipo === "ATRASADO" || x.s.tipo === "PARCIAL");
+  const falhas = sitsSemana.filter((x) => x.s.tipo === "FALHA" || x.s.tipo === "ATRASADO");
+  const cobertura = coberturaItens(sitsSemana.map((x) => x.s));
+  const [importando, setImportando] = useState(false);
   const tendencia = Array.from({ length: SEMANAS_TENDENCIA }, (_, i) => diasDaSemana(somaDias(semana[0], -7 * (SEMANAS_TENDENCIA - 1 - i))));
 
   return (
@@ -105,14 +112,15 @@ function FarolMovimentadosPage() {
           <span className="min-w-48 text-center text-sm font-semibold">Semana {dm(semana[0])} a {dm(semana[4])}</span>
           <Button variant="outline" size="icon" onClick={() => setRef(proximaSemana(ref))} disabled={semana[0] > hoje} aria-label="Próxima semana"><ChevronRight className="size-4" /></Button>
           {!semana.includes(hoje) && <Button variant="ghost" size="sm" onClick={() => setRef(hoje)}>Esta semana</Button>}
+          <Button variant="outline" size="sm" className="ml-2 gap-1" onClick={() => setImportando(true)}><Upload className="size-4" />Importar movimentação (ERP)</Button>
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi titulo="Nível de serviço da semana" valor={pct(geral.nivel)} detalhe={`${geral.cumpridos} de ${geral.vencidos} dias movimentados conciliados no prazo · meta ${pct(META)}`} cor={geral.nivel === null ? "" : geral.nivel >= META ? "text-emerald-600" : geral.nivel >= 0.8 ? "text-amber-600" : "text-destructive"} />
         <Kpi titulo="Falhas de rotina" valor={String(geral.falhas)} detalhe="Dias movimentados sem conciliação no prazo" cor={geral.falhas ? "text-destructive" : "text-emerald-600"} />
-        <Kpi titulo="Atrasadas ou parciais" valor={String(geral.atrasados + geral.parciais)} detalhe={`${geral.atrasados} após o prazo · ${geral.parciais} sem todos os itens movimentados`} cor={geral.atrasados + geral.parciais ? "text-amber-600" : "text-emerald-600"} />
-        <Kpi titulo="Divergências encontradas" valor={String(divergencias)} detalhe={`${geral.pendentes} dia(s) ainda dentro do prazo`} cor={divergencias ? "text-amber-600" : ""} />
+        <Kpi titulo="Conferências atrasadas" valor={String(geral.atrasados)} detalhe="Upload do histórico depois do D+1 útil" cor={geral.atrasados ? "text-amber-600" : "text-emerald-600"} />
+        <Kpi titulo="Cobertura de itens" valor={pct(cobertura.pct)} detalhe={`${cobertura.conciliados} de ${cobertura.itens} SKUs movimentados aparecem na conciliação · ${divergencias} divergência(s)`} cor={cobertura.pct === null ? "" : cobertura.pct >= 0.95 ? "text-emerald-600" : "text-amber-600"} />
       </div>
 
       <Card>
@@ -144,8 +152,8 @@ function FarolMovimentadosPage() {
             </Table>
           )}
           <div className="flex flex-wrap gap-3 border-t p-3 text-[11px] text-muted-foreground">
-            <span><b className="text-emerald-600">Sim</b> todos os itens conciliados no prazo</span><span><b className="text-amber-600">Parcial</b> prazo vencido sem todos os itens</span>
-            <span><b className="text-amber-600">Atrasada</b> conciliado depois do D+1</span><span><b className="text-destructive">Não</b> movimentou e nada foi conciliado no prazo</span>
+            <span><b className="text-emerald-600">Sim</b> conferido e histórico enviado ao Atlas no prazo (abaixo: SKUs conciliados/movimentados)</span>
+            <span><b className="text-amber-600">Atrasada</b> histórico enviado depois do D+1</span><span><b className="text-destructive">Não</b> movimentou e não houve upload até o prazo</span>
             <span><b className="text-sky-600">Pendente</b> dentro do prazo</span><span><b>—</b> sem movimentação nas bases (conciliado* = conciliado no Atlas sem movimento nas bases)</span>
           </div>
         </CardContent>
@@ -158,9 +166,9 @@ function FarolMovimentadosPage() {
             {!falhas.length ? <p className="flex items-center gap-2 text-sm text-emerald-700"><CheckCircle2 className="size-4" />Nenhuma falha de rotina na semana.</p> : (
               <ul className="space-y-1.5 text-sm">{falhas.map((x) => {
                 const nome = ALMOX_FAROL.find((a) => a.id === x.a)!.nome; const s = x.s as Exclude<SituacaoDia, { tipo: "SEM_MOV" }>;
-                const texto = s.tipo === "FALHA" ? `movimentou ${s.itens} item(ns) e nada foi conciliado até ${dm(s.prazo)}`
-                  : s.tipo === "ATRASADO" ? `conciliado em ${s.em ? dm(diaSP(s.em)) : "—"}, depois do prazo (${dm(s.prazo)})`
-                  : s.tipo === "PARCIAL" ? `conciliados ${s.conciliados} de ${s.itens} itens movimentados até ${dm(s.prazo)}` : "";
+                const texto = s.tipo === "FALHA" ? `movimentou ${s.itens} item(ns) e não teve upload de conferência até ${dm(s.prazo)}`
+                  : s.tipo === "ATRASADO" ? `histórico enviado em ${s.em ? dm(diaSP(s.em)) : "—"}, depois do prazo (${dm(s.prazo)}) · ${s.conciliados}/${s.itens} SKUs`
+                  : "";
                 return <li key={x.a + x.d}><button type="button" className="text-left hover:underline" onClick={() => setAberto({ almox: x.a, dia: x.d })}><b>{nome}</b> · {DIAS[semana.indexOf(x.d)]} {dm(x.d)}: {texto}</button></li>;
               })}</ul>
             )}
@@ -184,6 +192,7 @@ function FarolMovimentadosPage() {
         {" "}Últimas datas: {ALMOX_FAROL.map((a) => `${a.nome}: ${(q.data?.frescor ?? []).filter((f) => f[1] === a.id).map((f) => `${f[0]} ${f[2] ? dm(String(f[2]).slice(0, 10)) : "—"}`).join(", ")}`).join(" · ")}.
       </p>
 
+      {importando && <ImportarErpDialog onClose={() => setImportando(false)} />}
       {aberto && <ConferenciaDialog almox={aberto.almox} dia={aberto.dia} itens={porDia.get(`${aberto.almox}|${aberto.dia}`) ?? []} conf={confPor.get(`${aberto.almox}|${aberto.dia}`) ?? null}
         conc={concPor.get(`${aberto.almox}|${aberto.dia}`)} situacao={sit(aberto.almox, aberto.dia)} hoje={hoje} onClose={() => setAberto(null)} />}
     </div>
@@ -205,7 +214,7 @@ function Celula({ s, futuro, onClick }: { s: SituacaoDia; futuro: boolean; onCli
     PARCIAL: { t: "Parcial", c: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200" },
   };
   const x = cfg[s.tipo];
-  const sub = s.tipo === "SEM_MOV" ? (s.conciliados ? `${s.conciliados} itens` : "") : s.tipo === "CONFERIDO" ? (s.divergentes ? `${s.divergentes} diverg.` : "") : `${s.conciliados}/${s.itens}`;
+  const sub = s.tipo === "SEM_MOV" ? (s.conciliados ? `${s.conciliados} itens` : "") : s.tipo === "PENDENTE" ? `até ${dm(s.prazo)}` : `${s.conciliados}/${s.itens}${s.divergentes ? ` · ${s.divergentes} div.` : ""}`;
   const clicavel = s.tipo !== "SEM_MOV" || s.conciliados > 0;
   return <button type="button" disabled={!clicavel} onClick={onClick} className={`w-full rounded px-1 py-1 text-xs font-semibold ${x.c} ${clicavel ? "hover:ring-1 hover:ring-primary" : "cursor-default"}`}>{x.t}{sub && <span className="block text-[10px] font-normal">{sub}</span>}</button>;
 }
@@ -281,6 +290,71 @@ function ConferenciaDialog({ almox, dia, itens, conf, conc, situacao, hoje, onCl
       <DialogFooter>
         <Button variant="ghost" onClick={onClose} disabled={salvando}>Cancelar</Button>
         <Button onClick={() => void salvar()} disabled={salvando || !novos || semSaldo}>{salvando && <Loader2 className="size-4 animate-spin" />}Registrar conciliação ({novos})</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>;
+}
+
+/** Importa a planilha de movimentação do ERP (aba "Planilha2" ou a primeira) como base do farol. */
+function ImportarErpDialog({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [arquivo, setArquivo] = useState<string | null>(null);
+  const [linhas, setLinhas] = useState<LinhaErp[]>([]);
+  const [erros, setErros] = useState<string[]>([]);
+  const [salvando, setSalvando] = useState(false);
+  async function ler(f: File) {
+    setArquivo(f.name); setLinhas([]); setErros([]);
+    try {
+      const wb = XLSX.read(await f.arrayBuffer());
+      const aba = wb.SheetNames.find((n) => n.trim().toLowerCase() === "planilha2") ?? wb.SheetNames[0];
+      const r = linhasPlanilhaErp(XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[aba], { defval: "" }));
+      if (!r.linhas.length) r.erros.unshift(`Nenhuma linha válida na aba "${aba}" (colunas esperadas: id_produto, descricao, Data, doc, desc_movimento, desc_almox, qtd, id_lote).`);
+      setLinhas(r.linhas); setErros(r.erros.slice(0, 20));
+    } catch (e) { setErros([(e as Error).message]); }
+  }
+  const resumo = useMemo(() => {
+    const m = new Map<string, { almox: string; dias: Set<string>; linhas: number; skus: Set<string> }>();
+    for (const l of linhas) {
+      const k = l.almox ?? "OUTROS"; const x = m.get(k) ?? { almox: k, dias: new Set(), linhas: 0, skus: new Set() };
+      x.dias.add(l.data); x.linhas++; x.skus.add(l.id_produto); m.set(k, x);
+    }
+    return [...m.values()];
+  }, [linhas]);
+  async function importar() {
+    setSalvando(true);
+    try {
+      const pares = [...new Map(linhas.map((l) => [`${l.desc_almox}|${l.data}`, { desc_almox: l.desc_almox, data: l.data }])).values()];
+      const { error: e1 } = await sb.rpc("limpar_movimentacoes_erp", { p_pares: pares });
+      if (e1) throw e1;
+      const payload = linhas.map((l) => ({ ...l, arquivo }));
+      for (let i = 0; i < payload.length; i += 500) {
+        const { error } = await sb.from("movimentacoes_erp").insert(payload.slice(i, i + 500));
+        if (error) throw error;
+      }
+      toast.success(`${payload.length} movimentações importadas`, { description: `${pares.length} combinação(ões) de almoxarifado e dia atualizadas.` });
+      await qc.invalidateQueries({ queryKey: ["farol-movimentados"] }); onClose();
+    } catch (e: any) { toast.error(e?.message ?? "Falha ao importar"); } finally { setSalvando(false); }
+  }
+  const nome = (id: string) => ALMOX_FAROL.find((a) => a.id === id)?.nome ?? "Outros almoxarifados (não entram no farol)";
+  return <Dialog open onOpenChange={(o) => !o && !salvando && onClose()}>
+    <DialogContent className="max-w-2xl">
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2"><FileSpreadsheet className="size-5" />Importar movimentação do ERP</DialogTitle>
+        <DialogDescription>Planilha com a aba "Planilha2" (id_produto, descricao, Data, doc, desc_movimento, desc_almox, qtd, id_lote). Pode conter vários dias; reimportar substitui o mesmo almoxarifado e dia. Não altera o FEFO.</DialogDescription>
+      </DialogHeader>
+      <Input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => { const f = e.target.files?.[0]; if (f) void ler(f); }} />
+      {resumo.length > 0 && <Table>
+        <TableHeader><TableRow><TableHead>Almoxarifado</TableHead><TableHead>Dias</TableHead><TableHead className="text-right">Linhas</TableHead><TableHead className="text-right">SKUs</TableHead></TableRow></TableHeader>
+        <TableBody>{resumo.map((r) => <TableRow key={r.almox} className={r.almox === "OUTROS" ? "text-muted-foreground" : ""}>
+          <TableCell className="text-xs font-semibold">{nome(r.almox)}</TableCell>
+          <TableCell className="text-xs">{[...r.dias].sort().map(dm).join(", ")}</TableCell>
+          <TableCell className="text-right text-xs tabular-nums">{r.linhas.toLocaleString("pt-BR")}</TableCell>
+          <TableCell className="text-right text-xs tabular-nums">{r.skus.size}</TableCell></TableRow>)}</TableBody>
+      </Table>}
+      {erros.length > 0 && <ul className="max-h-24 overflow-auto text-xs text-destructive">{erros.map((e, i) => <li key={i}>{e}</li>)}</ul>}
+      <DialogFooter>
+        <Button variant="ghost" onClick={onClose} disabled={salvando}>Cancelar</Button>
+        <Button onClick={() => void importar()} disabled={salvando || !linhas.length}>{salvando && <Loader2 className="size-4 animate-spin" />}Importar {linhas.length ? `${linhas.length.toLocaleString("pt-BR")} linhas` : ""}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>;
