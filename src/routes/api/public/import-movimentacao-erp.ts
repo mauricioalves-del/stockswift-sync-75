@@ -57,8 +57,24 @@ export const Route = createFileRoute('/api/public/import-movimentacao-erp')({
         try {
           const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
           const pares = [...new Map(linhas.map((l) => [`${l.desc_almox}|${l.data}`, { desc_almox: l.desc_almox, data: l.data }])).values()]
-          const { error: e1 } = await supabaseAdmin.rpc('limpar_movimentacoes_erp' as never, { p_pares: pares } as never)
-          if (e1) throw e1
+          // Limpeza direta por almoxarifado + datas (a RPC exige usuário logado)
+          const porAlmox = new Map<string, string[]>()
+          for (const p of pares) {
+            const l = porAlmox.get(p.desc_almox) ?? []
+            l.push(p.data)
+            porAlmox.set(p.desc_almox, l)
+          }
+          for (const [almox, datas] of porAlmox) {
+            const { error: delErr } = await supabaseAdmin
+              .from('movimentacoes_erp' as never)
+              .delete()
+              .eq('desc_almox' as never, almox as never)
+              .in('data' as never, datas as never)
+            if (delErr) {
+              console.error('[import-movimentacao-erp] delete', delErr)
+              return json({ error: `Falha ao limpar ${almox || '(sem almoxarifado)'}: ${delErr.message}` }, 500)
+            }
+          }
 
           const payload = linhas.map((l) => ({ ...l, arquivo }))
           let inseridas = 0
