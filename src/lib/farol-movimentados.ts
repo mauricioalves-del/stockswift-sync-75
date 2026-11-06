@@ -3,7 +3,9 @@
 // atlas_dias_operacionais), planilha diária do ERP (movimentacoes_diarias) e movimentação por lote (atlas_movimentacoes_lote_diaria).
 // Conciliado = o mesmo registro do indicador de Movimentados do Atlas: item sem divergência (atlas_movimentacoes_historico)
 // ou com divergência (atlas_divergencias de origem movimentação). Conferências registradas no farol gravam nessas tabelas.
-// Regra: todo dia útil com movimentação no almox precisa da conciliação dos itens movimentados até o dia útil seguinte (D+1).
+// Regra (cumprimento de rotina): todo dia útil com movimentação no almox precisa ter a conferência feita e o histórico
+// enviado ao Atlas (upload da Movimentação ou registro no farol) até o dia útil seguinte (D+1). A cobertura de itens
+// (quantos SKUs movimentados aparecem na conciliação) é medida à parte e não reprova a rotina.
 
 export const ALMOX_FAROL = [
   { id: "FABRICA", nome: "Fábrica", atlas: "Almox_SP_Fabrica" },
@@ -110,10 +112,12 @@ export function situacaoDia(itens: ItemMov[] | undefined, conc: ConcDia | undefi
   const feitos = itens!.map((i) => conc?.get(chaveSku(i.sku))).filter(Boolean) as { divergente: boolean; em: string | null }[];
   const em = feitos.map((f) => f.em).filter(Boolean).sort().at(-1) ?? null;
   const base: Base = { prazo, itens: n, conciliados: feitos.length, divergentes: feitos.filter((f) => f.divergente).length, em };
-  if (!feitos.length) return { tipo: hoje > prazo ? "FALHA" : "PENDENTE", ...base };
-  if (em && diaSP(em) > prazo) return { tipo: "ATRASADO", ...base };
-  if (feitos.length < n) return { tipo: hoje > prazo ? "PARCIAL" : "PENDENTE", ...base };
-  return { tipo: "CONFERIDO", ...base };
+  // Houve upload de conciliação para o dia? (registros do dia no Atlas, mesmo sem cobrir todos os SKUs movimentados)
+  if (!conc?.size) return { tipo: hoje > prazo ? "FALHA" : "PENDENTE", ...base };
+  const emDia = [...conc.values()].map((f) => f.em).filter(Boolean).sort()[0] ?? null; // primeiro upload do dia
+  const b2 = { ...base, em: emDia };
+  if (emDia && diaSP(emDia) > prazo) return { tipo: "ATRASADO", ...b2 };
+  return { tipo: "CONFERIDO", ...b2 };
 }
 
 export type Nivel = { vencidos: number; cumpridos: number; falhas: number; atrasados: number; parciais: number; pendentes: number; nivel: number | null };
@@ -127,4 +131,45 @@ export function nivelServico(sits: SituacaoDia[]): Nivel {
     if (s.tipo === "CONFERIDO") r.cumpridos++; else if (s.tipo === "FALHA") r.falhas++; else if (s.tipo === "ATRASADO") r.atrasados++; else r.parciais++;
   }
   return { ...r, nivel: r.vencidos ? r.cumpridos / r.vencidos : null };
+}
+
+/** Cobertura de itens nos dias com conciliação: SKUs movimentados que aparecem na conciliação ÷ SKUs movimentados. */
+export function coberturaItens(sits: SituacaoDia[]): { conciliados: number; itens: number; pct: number | null } {
+  let c = 0, n = 0;
+  for (const s of sits) if (s.tipo === "CONFERIDO" || s.tipo === "ATRASADO") { c += s.conciliados; n += s.itens; }
+  return { conciliados: c, itens: n, pct: n ? c / n : null };
+}
+
+// ---------- Importador da planilha de movimentação do ERP (aba "Planilha2") ----------
+export type LinhaErp = { data: string; desc_almox: string; almox: AlmoxFarol | null; id_produto: string; descricao: string; doc: string; desc_movimento: string; qtd: number; id_lote: string };
+
+/** Data do Excel (serial, Date ou texto dd/mm/aaaa | aaaa-mm-dd) → "AAAA-MM-DD". */
+export function dataPlanilha(v: unknown): string | null {
+  if (v instanceof Date && !isNaN(v.getTime())) return v.toISOString().slice(0, 10);
+  if (typeof v === "number" && isFinite(v)) { const d = new Date(Math.round((v - 25569) * 86400000)); return d.toISOString().slice(0, 10); }
+  const t = String(v ?? "").trim();
+  let m = t.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); if (m) return `${m[3].length === 2 ? "20" + m[3] : m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return null;
+}
+
+/** Converte as linhas da planilha (cabeçalhos id_produto, descricao, Data, doc, desc_movimento, desc_almox, qtd, id_lote). */
+export function linhasPlanilhaErp(rows: Record<string, unknown>[]): { linhas: LinhaErp[]; erros: string[] } {
+  const pega = (r: Record<string, unknown>, ...ks: string[]) => {
+    for (const k of Object.keys(r)) if (ks.includes(k.trim().toLowerCase())) return r[k];
+    return undefined;
+  };
+  const linhas: LinhaErp[] = []; const erros: string[] = [];
+  rows.forEach((r, i) => {
+    const sku = String(pega(r, "id_produto", "sku") ?? "").trim();
+    if (!sku) return;
+    const data = dataPlanilha(pega(r, "data"));
+    const desc_almox = String(pega(r, "desc_almox", "almoxarifado") ?? "").trim();
+    const qtd = Number(String(pega(r, "qtd", "quantidade") ?? "0").replace(",", "."));
+    if (!data) { erros.push(`Linha ${i + 2}: data inválida`); return; }
+    linhas.push({ data, desc_almox, almox: almoxDoFarol(desc_almox), id_produto: sku, descricao: String(pega(r, "descricao", "descrição") ?? ""),
+      doc: String(pega(r, "doc", "documento") ?? ""), desc_movimento: String(pega(r, "desc_movimento", "movimento") ?? "").trim(),
+      qtd: isFinite(qtd) ? qtd : 0, id_lote: String(pega(r, "id_lote", "lote") ?? "") });
+  });
+  return { linhas, erros };
 }
