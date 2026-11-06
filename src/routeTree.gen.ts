@@ -107,6 +107,7 @@ import { Route as ApiPublicImportConsumoOpRouteImport } from './routes/api/publi
 import { Route as ApiPublicImportCustoContabilRouteImport } from './routes/api/public/import-custo-contabil'
 import { Route as ApiPublicImportEstoqueSistemicoRouteImport } from './routes/api/public/import-estoque-sistemico'
 import { Route as ApiPublicImportFichaTecnicaBomRouteImport } from './routes/api/public/import-ficha-tecnica-bom'
+import { Route as ApiPublicImportMovimentacaoErpRouteImport } from './routes/api/public/import-movimentacao-erp'
 import { Route as ApiPublicImportMovimentacaoFefoRouteImport } from './routes/api/public/import-movimentacao-fefo'
 import { Route as ApiPublicImportRecebimentoTransferenciaRouteImport } from './routes/api/public/import-recebimento-transferencia'
 import { Route as AuthenticatedAtlasAssinaturaFechamentoIdRouteImport } from './routes/_authenticated/atlas.assinatura-fechamento.$id'
@@ -687,6 +688,12 @@ const ApiPublicImportFichaTecnicaBomRoute =
     path: '/api/public/import-ficha-tecnica-bom',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicImportMovimentacaoErpRoute =
+  ApiPublicImportMovimentacaoErpRouteImport.update({
+    id: '/api/public/import-movimentacao-erp',
+    path: '/api/public/import-movimentacao-erp',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicImportMovimentacaoFefoRoute =
   ApiPublicImportMovimentacaoFefoRouteImport.update({
     id: '/api/public/import-movimentacao-fefo',
@@ -855,6 +862,7 @@ export interface FileRoutesByFullPath {
   '/api/public/import-custo-contabil': typeof ApiPublicImportCustoContabilRoute
   '/api/public/import-estoque-sistemico': typeof ApiPublicImportEstoqueSistemicoRoute
   '/api/public/import-ficha-tecnica-bom': typeof ApiPublicImportFichaTecnicaBomRoute
+  '/api/public/import-movimentacao-erp': typeof ApiPublicImportMovimentacaoErpRoute
   '/api/public/import-movimentacao-fefo': typeof ApiPublicImportMovimentacaoFefoRoute
   '/api/public/import-recebimento-transferencia': typeof ApiPublicImportRecebimentoTransferenciaRoute
   '/baixas/': typeof AuthenticatedBaixasIndexRoute
@@ -966,6 +974,7 @@ export interface FileRoutesByTo {
   '/api/public/import-custo-contabil': typeof ApiPublicImportCustoContabilRoute
   '/api/public/import-estoque-sistemico': typeof ApiPublicImportEstoqueSistemicoRoute
   '/api/public/import-ficha-tecnica-bom': typeof ApiPublicImportFichaTecnicaBomRoute
+  '/api/public/import-movimentacao-erp': typeof ApiPublicImportMovimentacaoErpRoute
   '/api/public/import-movimentacao-fefo': typeof ApiPublicImportMovimentacaoFefoRoute
   '/api/public/import-recebimento-transferencia': typeof ApiPublicImportRecebimentoTransferenciaRoute
   '/baixas': typeof AuthenticatedBaixasIndexRoute
@@ -1079,6 +1088,7 @@ export interface FileRoutesById {
   '/api/public/import-custo-contabil': typeof ApiPublicImportCustoContabilRoute
   '/api/public/import-estoque-sistemico': typeof ApiPublicImportEstoqueSistemicoRoute
   '/api/public/import-ficha-tecnica-bom': typeof ApiPublicImportFichaTecnicaBomRoute
+  '/api/public/import-movimentacao-erp': typeof ApiPublicImportMovimentacaoErpRoute
   '/api/public/import-movimentacao-fefo': typeof ApiPublicImportMovimentacaoFefoRoute
   '/api/public/import-recebimento-transferencia': typeof ApiPublicImportRecebimentoTransferenciaRoute
   '/_authenticated/baixas/': typeof AuthenticatedBaixasIndexRoute
@@ -1192,6 +1202,7 @@ export interface FileRouteTypes {
     | '/api/public/import-custo-contabil'
     | '/api/public/import-estoque-sistemico'
     | '/api/public/import-ficha-tecnica-bom'
+    | '/api/public/import-movimentacao-erp'
     | '/api/public/import-movimentacao-fefo'
     | '/api/public/import-recebimento-transferencia'
     | '/baixas/'
@@ -1303,6 +1314,7 @@ export interface FileRouteTypes {
     | '/api/public/import-custo-contabil'
     | '/api/public/import-estoque-sistemico'
     | '/api/public/import-ficha-tecnica-bom'
+    | '/api/public/import-movimentacao-erp'
     | '/api/public/import-movimentacao-fefo'
     | '/api/public/import-recebimento-transferencia'
     | '/baixas'
@@ -1415,6 +1427,7 @@ export interface FileRouteTypes {
     | '/api/public/import-custo-contabil'
     | '/api/public/import-estoque-sistemico'
     | '/api/public/import-ficha-tecnica-bom'
+    | '/api/public/import-movimentacao-erp'
     | '/api/public/import-movimentacao-fefo'
     | '/api/public/import-recebimento-transferencia'
     | '/_authenticated/baixas/'
@@ -1443,6 +1456,7 @@ export interface RootRouteChildren {
   ApiPublicImportCustoContabilRoute: typeof ApiPublicImportCustoContabilRoute
   ApiPublicImportEstoqueSistemicoRoute: typeof ApiPublicImportEstoqueSistemicoRoute
   ApiPublicImportFichaTecnicaBomRoute: typeof ApiPublicImportFichaTecnicaBomRoute
+  ApiPublicImportMovimentacaoErpRoute: typeof ApiPublicImportMovimentacaoErpRoute
   ApiPublicImportMovimentacaoFefoRoute: typeof ApiPublicImportMovimentacaoFefoRoute
   ApiPublicImportRecebimentoTransferenciaRoute: typeof ApiPublicImportRecebimentoTransferenciaRoute
   ApiPublicHooksResumoTarefasRoute: typeof ApiPublicHooksResumoTarefasRoute
@@ -2136,6 +2150,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicImportFichaTecnicaBomRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/import-movimentacao-erp': {
+      id: '/api/public/import-movimentacao-erp'
+      path: '/api/public/import-movimentacao-erp'
+      fullPath: '/api/public/import-movimentacao-erp'
+      preLoaderRoute: typeof ApiPublicImportMovimentacaoErpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/import-movimentacao-fefo': {
       id: '/api/public/import-movimentacao-fefo'
       path: '/api/public/import-movimentacao-fefo'
@@ -2488,6 +2509,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicImportCustoContabilRoute: ApiPublicImportCustoContabilRoute,
   ApiPublicImportEstoqueSistemicoRoute: ApiPublicImportEstoqueSistemicoRoute,
   ApiPublicImportFichaTecnicaBomRoute: ApiPublicImportFichaTecnicaBomRoute,
+  ApiPublicImportMovimentacaoErpRoute: ApiPublicImportMovimentacaoErpRoute,
   ApiPublicImportMovimentacaoFefoRoute: ApiPublicImportMovimentacaoFefoRoute,
   ApiPublicImportRecebimentoTransferenciaRoute:
     ApiPublicImportRecebimentoTransferenciaRoute,
