@@ -5063,6 +5063,54 @@ export type Database = {
         }
         Relationships: []
       }
+      movimentacoes_erp: {
+        Row: {
+          almox: string | null
+          arquivo: string | null
+          data: string
+          desc_almox: string
+          desc_movimento: string | null
+          descricao: string | null
+          doc: string | null
+          id: number
+          id_lote: string | null
+          id_produto: string
+          importado_em: string
+          importado_por: string | null
+          qtd: number
+        }
+        Insert: {
+          almox?: string | null
+          arquivo?: string | null
+          data: string
+          desc_almox: string
+          desc_movimento?: string | null
+          descricao?: string | null
+          doc?: string | null
+          id?: number
+          id_lote?: string | null
+          id_produto: string
+          importado_em?: string
+          importado_por?: string | null
+          qtd?: number
+        }
+        Update: {
+          almox?: string | null
+          arquivo?: string | null
+          data?: string
+          desc_almox?: string
+          desc_movimento?: string | null
+          descricao?: string | null
+          doc?: string | null
+          id?: number
+          id_lote?: string | null
+          id_produto?: string
+          importado_em?: string
+          importado_por?: string | null
+          qtd?: number
+        }
+        Relationships: []
+      }
       necessidade_materiais_op: {
         Row: {
           created_at: string
@@ -7435,6 +7483,7 @@ export type Database = {
         Returns: boolean
       }
       is_gestor: { Args: { _user_id: string }; Returns: boolean }
+      limpar_movimentacoes_erp: { Args: { p_pares: Json }; Returns: number }
       pendencias_assinatura_inventario: {
         Args: never
         Returns: {
