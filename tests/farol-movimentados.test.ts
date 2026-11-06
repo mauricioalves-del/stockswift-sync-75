@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { almoxDoFarol, conciliacaoPorDia, diasDaSemana, movimentosPorDia, nivelServico, prazoConferencia, situacaoDia } from "../src/lib/farol-movimentados";
+import { almoxDoFarol, coberturaItens, conciliacaoPorDia, dataPlanilha, diasDaSemana, linhasPlanilhaErp, movimentosPorDia, nivelServico, prazoConferencia, situacaoDia } from "../src/lib/farol-movimentados";
 
 test("Identifica os almoxarifados do processo (ERP e Atlas)", () => {
   expect(almoxDoFarol("Almox - SP Fabrica")).toBe("FABRICA");
@@ -28,10 +28,26 @@ test("Movimentado de várias bases × conciliação do Atlas", () => {
   const conc = (linhas: { sku: string; div?: boolean; em?: string | null }[]) => conciliacaoPorDia(linhas.map((l) => ({ almoxarifado: "Almox_SP_Fabrica", data: "2026-11-02", sku: l.sku, divergente: !!l.div, em: l.em ?? null }))).get("FABRICA|2026-11-02");
   const s1 = situacaoDia(itens, conc([{ sku: "1", em: "2026-11-03T15:00:00Z" }, { sku: "002", div: true }]), "2026-11-02", "2026-11-05");
   expect([s1.tipo, "divergentes" in s1 ? s1.divergentes : -1]).toEqual(["CONFERIDO", 1]);
-  expect(situacaoDia(itens, conc([{ sku: "1" }]), "2026-11-02", "2026-11-05").tipo).toBe("PARCIAL");
+  // Upload feito no prazo cumpre a rotina mesmo sem cobrir todos os SKUs; a cobertura é medida à parte.
+  const parcial = situacaoDia(itens, conc([{ sku: "1", em: "2026-11-03T10:00:00Z" }]), "2026-11-02", "2026-11-05");
+  expect(parcial.tipo).toBe("CONFERIDO");
+  expect(coberturaItens([parcial, s1])).toEqual({ conciliados: 3, itens: 4, pct: 0.75 });
   expect(situacaoDia(itens, conc([{ sku: "1", em: "2026-11-04T15:00:00Z" }, { sku: "2" }]), "2026-11-02", "2026-11-05").tipo).toBe("ATRASADO");
   expect(situacaoDia(itens, undefined, "2026-11-02", "2026-11-05").tipo).toBe("FALHA");
   expect(situacaoDia(mov.get("FABRICA|2026-11-03"), undefined, "2026-11-03", "2026-11-04").tipo).toBe("PENDENTE");
   const n = nivelServico([s1, situacaoDia(itens, undefined, "2026-11-02", "2026-11-05"), situacaoDia(undefined, undefined, "2026-11-04", "2026-11-05")]);
   expect([n.vencidos, n.cumpridos, n.falhas, n.nivel]).toEqual([2, 1, 1, 0.5]);
+});
+
+test("Importador da planilha do ERP (Planilha2)", () => {
+  expect(dataPlanilha(46332)).toBe("2026-11-06");
+  expect(dataPlanilha("05/11/2026")).toBe("2026-11-05");
+  const { linhas, erros } = linhasPlanilhaErp([
+    { id_produto: "0050305006", descricao: "Massa", Data: 46332, doc: "5752/1", desc_movimento: "Processo Producao Estorno", desc_almox: "Almox Processo - SP Fabrica", qtd: 5.9976, id_lote: "L1" },
+    { id_produto: "05004175", descricao: "Língua", Data: "2026-11-05", doc: "1", desc_movimento: "Baixar Estoque", desc_almox: "Almox - SP Loja", qtd: "3", id_lote: "" },
+    { id_produto: "1", Data: "x", desc_almox: "Almox - PARA", qtd: 1 },
+  ]);
+  expect(linhas.map((l) => [l.almox, l.data, l.qtd])).toEqual([["PROCESSO", "2026-11-06", 5.9976], [null, "2026-11-05", 3]]);
+  expect(erros.length).toBe(1);
+  expect(almoxDoFarol("Almox - PARA")).toBe("PARA");
 });
