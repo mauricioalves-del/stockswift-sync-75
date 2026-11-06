@@ -5,7 +5,9 @@
 //
 // Disparo:
 //  * pg_cron, dias úteis às 18h de Brasília (21h UTC), com header x-cron-secret = app_config.lista_movimentados_cron_secret
-//    → envia por e-mail aos cadastrados em Cadastros → E-mails com a finalidade "Lista de Movimentados".
+//    → cada lista vai para os cadastrados em Cadastros → E-mails com a finalidade do seu almoxarifado:
+//      "Lista de Movimentados - Fabrica" (Geral), "- Processo", "- Qualidade", "- Pará" (sem diferença de acento/maiúsculas).
+//      Quem estiver na finalidade "Lista de Movimentados" (sem almox) recebe as quatro.
 //  * Usuário logado (Authorization: Bearer <jwt>), corpo { acao: "baixar" | "enviar", data?: "AAAA-MM-DD" }
 //    → "baixar" devolve os arquivos em base64; "enviar" manda o e-mail na hora.
 
@@ -20,6 +22,9 @@ const CORS = {
 };
 const GMAIL_GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v1/users/me/messages/send";
 const FINALIDADE = "Lista de Movimentados";
+// Sufixo da finalidade de cada lista (Geral = almoxarifado da Fábrica).
+const SUFIXO: Record<string, string> = { GERAL: "fabrica", PROCESSO: "processo", QUALIDADE: "qualidade", PARA: "para" };
+const normFin = (s: string) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 const json = (body: Record<string, unknown>, status = 200) =>
@@ -136,34 +141,45 @@ Deno.serve(async (req) => {
 
     const listas = LISTAS.map((l) => {
       const linhas = montarLista(l.id, dia, movs, sal, mapaGrupos);
-      return { almox: l.arquivo, nome: nomeArquivo(l.id, dia), linhas: linhas.length, base64: linhas.length ? gerarXlsx(linhas) : null };
+      return { id: l.id, almox: l.arquivo, nome: nomeArquivo(l.id, dia), linhas: linhas.length, base64: linhas.length ? gerarXlsx(linhas) : null };
     });
 
     if (acao === "baixar") return json({ ok: true, data: dia, movimentos: movs.length, listas });
 
-    const { data: dests, error: derr } = await admin.from("cadastro_emails").select("email").eq("finalidade", FINALIDADE).eq("ativo", true);
+    // Destinatários por almoxarifado: finalidade "Lista de Movimentados - <Almox>"; a finalidade geral recebe todas.
+    const { data: dests, error: derr } = await admin.from("cadastro_emails").select("email, finalidade").ilike("finalidade", "Lista de Movimentados%").eq("ativo", true);
     if (derr) throw derr;
-    const to = (dests ?? []).map((d: any) => d.email);
-    if (!to.length) return json({ ok: false, code: "MISSING_RECIPIENTS", error: `Nenhum destinatário ativo para '${FINALIDADE}'. Cadastre em Cadastros → E-mails.` });
+    const base = normFin(FINALIDADE);
+    const paraLista = (id: string) => [...new Set((dests ?? []).filter((d: any) => {
+      const f = normFin(d.finalidade);
+      return f === base || f === `${base} - ${SUFIXO[id]}`;
+    }).map((d: any) => String(d.email).trim().toLowerCase()))];
+    if (!(dests ?? []).length) return json({ ok: false, code: "MISSING_RECIPIENTS", error: `Nenhum destinatário ativo para '${FINALIDADE} - <Almox>'. Cadastre em Cadastros → E-mails.` });
 
-    const anexos = listas.filter((l) => l.base64).map((l) => ({ nome: l.nome, base64: l.base64! }));
-    const resumo = listas.map((l) => `<tr><td style="padding:4px 10px">${esc(l.almox)}</td><td style="padding:4px 10px;text-align:right">${l.linhas ? `${l.linhas} SKU(s)` : "sem movimentação"}</td></tr>`).join("");
-    const html = !movs.length
-      ? `<p style="font-family:Arial;font-size:14px">A movimentação do ERP de <b>${diaFmt}</b> ainda não foi importada no Farol de Movimentados, então as listas de contagem não puderam ser geradas.</p><p style="font-family:Arial;font-size:13px">Importe a planilha em Gestão › Farol de Movimentados › Importar movimentação (ERP) e gere as listas pelo botão "Lista de movimentados".</p>`
-      : `<p style="font-family:Arial;font-size:14px">Listas de contagem de movimentados de <b>${diaFmt}</b>.</p>
-         <table style="font-family:Arial;font-size:13px;border-collapse:collapse">${resumo}</table>
-         <p style="font-family:Arial;font-size:12px;color:#555">Sistema = saldo atual do sistema no momento da geração. Preencha a coluna Contagem e envie o arquivo em Atlas › Importar (Movimentação) até o dia útil seguinte.</p>`;
-    const r = await enviarGmail(rawEmail({
-      from: await getCfg(admin, "resend_from"), replyTo: await getCfg(admin, "resend_reply_to"), to,
-      subject: movs.length ? `Contagem de movimentados — ${diaFmt}` : `Contagem de movimentados — ${diaFmt}: movimentação não importada`,
-      html, anexos,
-    }));
+    const from = await getCfg(admin, "resend_from"), replyTo = await getCfg(admin, "resend_reply_to");
+    const envios: { almox: string; linhas: number; destinatarios: string[]; ok: boolean; erro?: string }[] = [];
+    for (const l of listas) {
+      const to = paraLista(l.id);
+      if (!to.length) { envios.push({ almox: l.almox, linhas: l.linhas, destinatarios: [], ok: false, erro: "sem destinatário cadastrado" }); continue; }
+      const html = !movs.length
+        ? `<p style="font-family:Arial;font-size:14px">A movimentação do ERP de <b>${diaFmt}</b> ainda não foi importada no Farol de Movimentados, então a lista de contagem de <b>${esc(l.almox)}</b> não pôde ser gerada.</p><p style="font-family:Arial;font-size:13px">Importe a planilha em Gestão › Farol de Movimentados › Importar movimentação (ERP).</p>`
+        : l.linhas
+          ? `<p style="font-family:Arial;font-size:14px">Lista de contagem de movimentados — <b>${esc(l.almox)}</b> — <b>${diaFmt}</b>: ${l.linhas} SKU(s).</p>
+             <p style="font-family:Arial;font-size:12px;color:#555">Sistema = saldo atual do sistema no momento da geração. Preencha a coluna Contagem e envie o arquivo em Atlas › Importar (Movimentação) até o dia útil seguinte.</p>`
+          : `<p style="font-family:Arial;font-size:14px">Sem movimentação em <b>${esc(l.almox)}</b> em <b>${diaFmt}</b>: não há itens para contar.</p>`;
+      const assunto = !movs.length ? `Contagem de movimentados ${l.almox} — ${diaFmt}: movimentação não importada`
+        : l.linhas ? `Contagem de movimentados ${l.almox} — ${diaFmt} (${l.linhas} itens)` : `Contagem de movimentados ${l.almox} — ${diaFmt}: sem movimentação`;
+      const r = await enviarGmail(rawEmail({ from, replyTo, to, subject: assunto, html, anexos: l.base64 ? [{ nome: l.nome, base64: l.base64 }] : [] }));
+      envios.push({ almox: l.almox, linhas: l.linhas, destinatarios: to, ok: r.ok, erro: r.ok ? undefined : `${r.status}: ${r.body.slice(0, 200)}` });
+    }
     await admin.from("audit_logs").insert({
-      usuario: null, acao: r.ok ? "LISTA_MOVIMENTADOS_ENVIADA" : "LISTA_MOVIMENTADOS_FALHA", entidade: "movimentacoes_erp",
-      payload: { data: dia, destinatarios: to, disparo: usuario ?? "agendado", listas: listas.map((l) => ({ almox: l.almox, linhas: l.linhas })), erro: r.ok ? null : `${r.status}: ${r.body.slice(0, 300)}` },
+      usuario: null, acao: envios.every((e) => e.ok || !e.destinatarios.length) ? "LISTA_MOVIMENTADOS_ENVIADA" : "LISTA_MOVIMENTADOS_FALHA", entidade: "movimentacoes_erp",
+      payload: { data: dia, disparo: usuario ?? "agendado", envios },
     });
-    if (!r.ok) return json({ ok: false, code: "GMAIL_ERROR", error: `Gmail HTTP ${r.status}: ${r.body.slice(0, 300)}` });
-    return json({ ok: true, data: dia, movimentos: movs.length, destinatarios: to, listas: listas.map((l) => ({ almox: l.almox, linhas: l.linhas })) });
+    const falhas = envios.filter((e) => e.destinatarios.length && !e.ok);
+    if (falhas.length) return json({ ok: false, code: "GMAIL_ERROR", error: falhas.map((f) => `${f.almox}: ${f.erro}`).join(" | "), envios });
+    const destinatarios = [...new Set(envios.flatMap((e) => e.destinatarios))];
+    return json({ ok: true, data: dia, movimentos: movs.length, destinatarios, envios, listas: listas.map((l) => ({ almox: l.almox, linhas: l.linhas })) });
   } catch (e: any) {
     console.error("lista-movimentados", e);
     return json({ ok: false, error: e?.message ?? String(e) }, 500);
