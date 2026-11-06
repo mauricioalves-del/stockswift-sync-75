@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
       const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
       const { data: u } = await admin.auth.getUser(token);
       if (!u?.user) return json({ ok: false, error: "Não autorizado" }, 401);
-      const { data: ok } = await admin.rpc("equipe_aprovada_para_leitura", { _user_id: u.user.id });
+      const { data: ok } = await admin.rpc("equipe_aprovada_para_leitura", { _uid: u.user.id });
       if (!ok) return json({ ok: false, error: "Usuário sem acesso" }, 403);
       usuario = u.user.email ?? u.user.id;
       acao = body?.acao === "baixar" ? "baixar" : "enviar";
