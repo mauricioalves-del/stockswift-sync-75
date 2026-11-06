@@ -416,7 +416,7 @@ function ListaMovimentadosDialog({ hoje, onClose }: { hoje: string; onClose: () 
     <DialogContent className="max-w-lg">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2"><ListChecks className="size-5" />Lista de movimentados para contagem</DialogTitle>
-        <DialogDescription>Mesmo formato das planilhas "Movimentação - Geral / Processo / Qualidade / Pará": itens movimentados no dia (planilha do ERP importada aqui) com o saldo atual do sistema. O envio por e-mail é automático às 18h dos dias úteis para os cadastrados em Cadastros › E-mails com a finalidade "Lista de Movimentados".</DialogDescription>
+        <DialogDescription>Mesmo formato das planilhas "Movimentação - Geral / Processo / Qualidade / Pará": itens movimentados no dia (planilha do ERP importada aqui) com o saldo atual do sistema. O envio por e-mail é automático às 18h dos dias úteis: cada lista vai para os cadastrados em Cadastros › E-mails com a finalidade do seu almoxarifado ("Lista de Movimentados - Fabrica", "- Processo", "- Qualidade" ou "- Pará").</DialogDescription>
       </DialogHeader>
       <label className="text-xs font-semibold text-muted-foreground">Dia da movimentação
         <Input type="date" value={dia} max={hoje} onChange={(e) => e.target.value && setDia(e.target.value)} className="mt-1 w-44" />
