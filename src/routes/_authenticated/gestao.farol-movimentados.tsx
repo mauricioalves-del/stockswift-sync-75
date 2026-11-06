@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Download, FileSpreadsheet, ListChecks, Loader2, Mail, Upload } from "lucide-react";
 import * as XLSX from "xlsx";
+import { LISTAS, montarLista, nomeArquivo, planilha, type MovErp, type Saldo } from "../../../supabase/functions/lista-movimentados/logica";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
@@ -368,22 +369,47 @@ function ListaMovimentadosDialog({ hoje, onClose }: { hoje: string; onClose: () 
   const [dia, setDia] = useState(hoje);
   const [ocupado, setOcupado] = useState<null | "baixar" | "enviar">(null);
   const [resultado, setResultado] = useState<{ almox: string; linhas: number }[] | null>(null);
+  // Baixar: gera no próprio navegador (mesma lógica da função das 18h). Enviar: usa a função do servidor.
+  async function baixar() {
+    const [movs, saldos, grupos] = await Promise.all([
+      fetchAll<MovErp>((f, t) => sb.from("movimentacoes_erp").select("data, desc_almox, id_produto, descricao, doc, desc_movimento, qtd").eq("data", dia).range(f, t)),
+      fetchAll<any>((f, t) => sb.from("estoque_sistemico").select("id_produto, origem, quantidade, id_local, unidade, custo_unitario").in("origem", LISTAS.map((l) => l.saldo)).range(f, t)),
+      fetchAll<any>((f, t) => sb.from("grupo_produtos").select("codigo_produto, grupo").range(f, t)),
+    ]);
+    if (!movs.length) { toast.warning(`Nenhuma movimentação do ERP importada para ${dm(dia)}. Importe a planilha primeiro.`); setResultado(LISTAS.map((l) => ({ almox: l.arquivo, linhas: 0 }))); return; }
+    const un = (r: any) => (/^(KG|PC|UN|UND|UNI|LT|CX|G|ML|L)$/i.test(String(r.id_local ?? "")) ? String(r.id_local).toUpperCase() : (r.unidade || null));
+    const sal: Saldo[] = saldos.map((r) => ({ id_produto: r.id_produto, almox: r.origem, quantidade: Number(r.quantidade) || 0, unidade: un(r), custo: r.custo_unitario ?? null }));
+    const mapa = new Map<string, string>(grupos.map((g) => [String(g.codigo_produto).replace(/^0+/, ""), g.grupo]));
+    const res: { almox: string; linhas: number }[] = [];
+    for (const l of LISTAS) {
+      const linhas = montarLista(l.id, dia, movs, sal, mapa);
+      res.push({ almox: l.arquivo, linhas: linhas.length });
+      if (!linhas.length) continue;
+      const p = planilha(linhas);
+      const ws: XLSX.WorkSheet = XLSX.utils.aoa_to_sheet([p.cabecalho]);
+      p.linhas.forEach((row, i) => row.forEach((v, c) => {
+        const ref = XLSX.utils.encode_cell({ r: i + 1, c });
+        if (v && typeof v === "object") ws[ref] = { t: "s", f: (v as { f: string }).f } as any;
+        else if (v === null) return;
+        else if (c === 1) ws[ref] = { t: "d", v: new Date(`${v}T12:00:00`), z: "dd/mm/yyyy" } as any;
+        else ws[ref] = (typeof v === "number" ? { t: "n", v } : { t: "s", v: String(v) }) as any;
+      }));
+      ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: p.linhas.length, c: p.cabecalho.length - 1 } });
+      ws["!cols"] = [{ wch: 20 }, { wch: 11 }, { wch: 13 }, { wch: 42 }, { wch: 6 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 24 }, { wch: 10 }, { hidden: true }];
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Movimentados");
+      XLSX.writeFile(wb, nomeArquivo(l.id, dia));
+    }
+    setResultado(res);
+  }
   async function executar(acao: "baixar" | "enviar") {
     setOcupado(acao);
     try {
+      if (acao === "baixar") { await baixar(); return; }
       const { data, error } = await supabase.functions.invoke("lista-movimentados", { body: { acao, data: dia } });
-      if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error ?? "Falha ao gerar as listas");
+      if (error) throw new Error("O envio por e-mail ainda não está disponível: a função lista-movimentados precisa ser publicada no Lovable. Enquanto isso, use \"Baixar listas\".");
+      if (!data?.ok) throw new Error(data?.error ?? "Falha ao enviar as listas");
       setResultado(data.listas.map((l: any) => ({ almox: l.almox, linhas: l.linhas })));
-      if (acao === "baixar") {
-        if (!data.movimentos) toast.warning(`Nenhuma movimentação importada para ${dm(dia)}`);
-        for (const l of data.listas as { nome: string; base64: string | null }[]) {
-          if (!l.base64) continue;
-          const bytes = Uint8Array.from(atob(l.base64), (c) => c.charCodeAt(0));
-          const url = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-          const a = document.createElement("a"); a.href = url; a.download = l.nome; a.click(); URL.revokeObjectURL(url);
-        }
-      } else toast.success(`Listas enviadas para ${data.destinatarios.length} destinatário(s)`);
+      toast.success(`Listas enviadas para ${data.destinatarios.length} destinatário(s)`);
     } catch (e: any) { toast.error(e?.message ?? "Falha ao gerar as listas"); } finally { setOcupado(null); }
   }
   return <Dialog open onOpenChange={(o) => !o && !ocupado && onClose()}>
