@@ -77,8 +77,8 @@ export function mrpPorSemana(ordens: OrdemMps[], bom: BomLinha[], saldos: Record
       const it = itens.get(id) ?? { id, item: a.item, um: a.um, custo: custos[id] ?? 0, saldoInicial: saldos[id] ?? 0, necessidade: 0, falta: 0, valorFalta: 0, porSemana: {}, primeiraFalta: null, comprarAte: null, atrasado: false, usadoEm: [] };
       const disp = saldo[id] ?? 0;
       const bruta = a.nec - Math.max(0, disp);
-      // resíduos de arredondamento (frações de grama) não viram compra
-      const falta = bruta > Math.max(1e-6, a.nec * 0.001) ? bruta : 0;
+      // faltas irrelevantes (até 0,05 unidade ou até 1% da necessidade: resíduo de arredondamento) não viram compra
+      const falta = bruta > 0.05 && bruta > a.nec * 0.01 ? bruta : 0;
       saldo[id] = disp - a.nec;
       it.necessidade += a.nec; it.falta += falta;
       it.porSemana[s] = { necessidade: a.nec, falta };
