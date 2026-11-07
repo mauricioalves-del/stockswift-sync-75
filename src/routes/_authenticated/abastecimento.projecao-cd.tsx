@@ -13,7 +13,7 @@ import { formatBRL } from "@/lib/inventory";
 import { useRole } from "@/hooks/useRole";
 import { interpretarConsenso, aoaDaAbaConsenso, serieDiariaConsenso, type ResultadoConsenso } from "@/lib/abastecimento-consenso";
 import { projetarCD, type ResultadoProjecao, type Severidade, type LinhaPlano } from "@/lib/abastecimento-projecao";
-import { planejarSku, estimarDemandaReal, cargaSemanal, type ResultadoMotor, type Lote, type Zona } from "@/lib/abastecimento-cd-motor";
+import { planejarSku, estimarDemandaReal, cargaSemanal, semanaDeProducao, type ResultadoMotor, type Lote, type Zona } from "@/lib/abastecimento-cd-motor";
 import { somasRealizacao } from "@/lib/abastecimento-realizacao";
 import { carregarBomCompleta, type BomLinha } from "@/lib/pcp-bom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -232,7 +232,8 @@ function ProjecaoCdPage() {
 
   // ───── Plano mestre (MPS), carga x capacidade e plano de compras (MRP) ─────
   const ordensSel = useMemo(() => (calc && !calc.vazio ? calc.ordensTodas.filter((o) => !fora.has(o.sku)) : []), [calc, fora]);
-  const semanas = useMemo(() => (calc && !calc.vazio ? proximasSemanas(calc.inicio, nSemanas) : []), [calc, nSemanas]);
+  // a primeira semana do plano é a semana de produção de quem liberar hoje (no fim de semana, já é a próxima)
+  const semanas = useMemo(() => (calc && !calc.vazio ? proximasSemanas(semanaDeProducao(calc.inicio), nSemanas) : []), [calc, nSemanas]);
   const mps = useMemo(() => matrizMps(ordensSel, semanas), [ordensSel, semanas]);
   const cap = Number(capSem) || 0;
   const carga = useMemo(() => {
