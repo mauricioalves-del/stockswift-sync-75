@@ -2,25 +2,28 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
-import { TrendingDown, Upload, Download, FlaskConical } from "lucide-react";
+import { Upload, Download, Factory, ShoppingCart, Gauge, AlertTriangle, CheckCircle2, ChevronDown } from "lucide-react";
+import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { acoesRecomendadas, matrizMps, mrpPorSemana, proximasSemanas, segundaDe, type OrdemMps } from "@/lib/pcp-plano";
+import { Secao, Th } from "@/components/abast-dash/comum";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
 import { formatBRL } from "@/lib/inventory";
 import { useRole } from "@/hooks/useRole";
 import { interpretarConsenso, aoaDaAbaConsenso, serieDiariaConsenso, type ResultadoConsenso } from "@/lib/abastecimento-consenso";
-import { projetarCD, planoProducao, paraPcp, type ResultadoProjecao, type Severidade, type LinhaPlano } from "@/lib/abastecimento-projecao";
-import { planejarSku, estimarDemandaReal, cargaSemanal, semanaDeProducao, type ResultadoMotor, type Lote, type Zona } from "@/lib/abastecimento-cd-motor";
+import { projetarCD, type ResultadoProjecao, type Severidade, type LinhaPlano } from "@/lib/abastecimento-projecao";
+import { planejarSku, estimarDemandaReal, cargaSemanal, type ResultadoMotor, type Lote, type Zona } from "@/lib/abastecimento-cd-motor";
 import { somasRealizacao } from "@/lib/abastecimento-realizacao";
-import { carregarBomCompleta, explodirSimulacao, type BomLinha } from "@/lib/pcp-bom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { carregarBomCompleta, type BomLinha } from "@/lib/pcp-bom";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/abastecimento/projecao-cd")({
   component: ProjecaoCdPage,
-  head: () => ({ meta: [{ title: "Projeção do CD e Plano de Produção" }] }),
+  head: () => ({ meta: [{ title: "PCP · Projeção do CD, Plano de Produção e Compras" }] }),
 });
 
 const nk = (s: unknown) => String(s ?? "").replace(/^0+/, "");
@@ -63,8 +66,9 @@ function ProjecaoCdPage() {
   const [arq, setArq] = useState("");
   const [resC, setResC] = useState<ResultadoConsenso | null>(null);
   const [aplicando, setAplicando] = useState(false);
-  const [verificando, setVerificando] = useState(false);
-  const [mp, setMp] = useState<null | { faltas: { id: string; item: string; um: string; necessidade: number; saldo: number; usadoEm: string }[]; bloqueados: Map<string, number>; semBom: string[]; total: number }>(null);
+  const [leadCompra, setLeadCompra] = useState("15");    // lead time de compra de matéria-prima (dias)
+  const [nSemanas, setNSemanas] = useState(8);          // horizonte do plano mestre (semanas)
+  const [verPremissas, setVerPremissas] = useState(false);
 
   const dados = useQuery({
     enabled: pode, queryKey: ["proj-cd"], staleTime: 30_000,
@@ -156,7 +160,8 @@ function ProjecaoCdPage() {
       else if (st === "REPROVADA") repQ += q;
     }
     const probAprov = aprQ + repQ >= 50 ? Math.min(0.98, Math.max(0.5, aprQ / (aprQ + repQ))) : 0.9;
-    const motor = new Map<string, ResultadoMotor & { tipo: string; custo: number }>();
+    const motor = new Map<string, ResultadoMotor & { tipo: string; custo: number; realizacao: number | null; demandaHorizonte: number }>();
+    const demSemana = new Map<string, number>(); let totReal = 0, totMalha = 0;
     const pm = { leadTimeDias: lead, diasQualidade: Math.max(0, Number(diasQual) || 0), diasProcesso: Math.max(0, Number(diasProc) || 0), shelfMinimoDespacho: Math.max(0, Number(shelfMin) || 0), nivelServicoZ: Number(zServ) > 0 ? Number(zServ) : 1.65, segurancaExtraDias: seg, probAprovBaixa: probAprov, diaRevisao: diaRev === "" ? null : Number(diaRev) };
     for (const [k, o] of porSku) {
       if (!comCafe && o.tipo.toLowerCase().includes("cafeteria")) continue;
@@ -168,15 +173,20 @@ function ProjecaoCdPage() {
       let sReal = 0, sMalha = 0; const ontem = somaDiasIso(inicio, -1);
       for (const [lj, porMes] of Object.entries(o.porLoja)) { const s = somasRealizacao((vendas.get(k) ?? {})[lj] ?? {}, porMes, ontem, { janela: 28, inicioHistorico: primeira[lj] }); if (s.dias >= 7) { sReal += s.real; sMalha += s.malha; } }
       const realizacao = sMalha > 0 ? sReal / sMalha : null;
+      totReal += sReal; totMalha += sMalha;
+      dem.forEach((v, i) => { if (v > 0) { const w = segundaDe(somaDiasIso(inicio, i)); demSemana.set(w, (demSemana.get(w) ?? 0) + v); } });
       const r = planejarSku({ sku: canon.get(k) ?? k, descricao: e?.desc || o.desc, caixa: fc.get(k) ?? 1, lotesCD: lotes.cd.get(k) ?? [], processo: lotes.proc.get(k) ?? [], qualidade: lotes.qual.get(k) ?? [],
         notasCD: ent > 0 ? [{ data: somaDiasIso(inicio, dTr), qtd: ent }] : [], estoqueLojas: e?.lojas ?? 0, emTransitoLojas: transitoLoja.get(k) ?? 0, demandaMeta: dem, realizacao, sigmaDia: est.sigmaDia,
         baixasPendentes: baixaPend.get(k) ?? 0, taxaBaixaDia: baixaTaxa.get(k) ?? 0, custo: e?.custo }, inicio, pm);
-      if (r) motor.set(k, { ...r, tipo: o.tipo, custo: e?.custo ?? 0 });
+      if (r) motor.set(k, { ...r, tipo: o.tipo, custo: e?.custo ?? 0, realizacao, demandaHorizonte: dem.reduce((a, b) => a + b, 0) });
     }
     const limite = somaDiasIso(inicio, 30); const plano: LinhaPlanoCiclo[] = [];
     for (const [k, m] of motor) for (const o of m.ordens) if (o.liberar <= limite) plano.push({ sku: canon.get(k) ?? k, descricao: m.descricao, quantidade: o.quantidade, produzirAte: o.liberar, dataRuptura: m.dataRupturaCD ?? o.chegada, urgente: o.urgente, foraDoCiclo: o.foraDoCiclo, severidade: m.severidade });
     plano.sort((a, b) => a.produzirAte.localeCompare(b.produzirAte) || b.quantidade - a.quantidade);
-    return { vazio: false as const, inicio, N, ultimoMes, projs, plano, almoxDe, motor, probAprov };
+    // Todas as ordens do horizonte (plano mestre e compras); o plano de 30 dias continua para a lista detalhada.
+    const ordensTodas: OrdemMps[] = [];
+    for (const [k, m] of motor) for (const o of m.ordens) ordensTodas.push({ sku: canon.get(k) ?? k, descricao: m.descricao, quantidade: o.quantidade, liberar: o.liberar, urgente: o.urgente });
+    return { vazio: false as const, inicio, N, ultimoMes, projs, plano, almoxDe, motor, probAprov, ordensTodas, demSemana, realizacaoGeral: totMalha > 0 ? totReal / totMalha : null };
   }, [dados.data, leadTime, segCD, diasTransito, comCafe, diasQual, diasProc, shelfMin, zServ, diaRev]);
 
   const projFiltradas = useMemo(() => {
@@ -214,213 +224,268 @@ function ProjecaoCdPage() {
       const { data, error } = await (supabase as any).rpc("abast_aplicar_consenso", { p_arquivo: arq, p_itens: itens });
       if (error) throw error;
       toast.success(`Consenso aplicado: ${data?.linhas ?? 0} linhas.`);
-      setResC(null); setArq(""); setMp(null);
+      setResC(null); setArq("");
       qc.invalidateQueries({ queryKey: ["proj-cd"] });
     } catch (err: any) { toast.error("Falha ao aplicar o consenso: " + (err?.message ?? err)); }
     finally { setAplicando(false); }
   }
 
-  const planoSel = useMemo(() => (calc && !calc.vazio ? calc.plano.filter((l) => !fora.has(l.sku)) : []), [calc, fora]);
-  const carga = useMemo(() => cargaSemanal(planoSel.map((l) => ({ liberar: l.produzirAte, quantidade: l.quantidade, sku: l.sku })), Number(capSem) || 0), [planoSel, capSem]);
-  async function verificarMp() {
-    if (!dados.data || planoSel.length === 0) return;
-    setVerificando(true);
-    try {
-      const bom = (await carregarBomCompleta()) as BomLinha[];
-      const saldos: Record<string, number> = {};
+  // ───── Plano mestre (MPS), carga x capacidade e plano de compras (MRP) ─────
+  const ordensSel = useMemo(() => (calc && !calc.vazio ? calc.ordensTodas.filter((o) => !fora.has(o.sku)) : []), [calc, fora]);
+  const semanas = useMemo(() => (calc && !calc.vazio ? proximasSemanas(calc.inicio, nSemanas) : []), [calc, nSemanas]);
+  const mps = useMemo(() => matrizMps(ordensSel, semanas), [ordensSel, semanas]);
+  const cap = Number(capSem) || 0;
+  const carga = useMemo(() => {
+    const c = cargaSemanal(ordensSel.map((o) => ({ liberar: o.liberar, quantidade: o.quantidade, sku: o.sku })), cap);
+    return semanas.map((s, i) => { const x = c.find((y) => y.semana === s); const un = mps.totais[i] ?? 0; return { semana: s, unidades: un, ordens: x?.ordens ?? 0, skus: x?.skus ?? 0, pct: cap > 0 ? (un / cap) * 100 : null }; });
+  }, [ordensSel, semanas, mps, cap]);
+  const grafico = useMemo(() => (calc && !calc.vazio ? carga.map((c) => ({ semana: dataBr(c.semana).slice(0, 5), producao: Math.round(c.unidades), demanda: Math.round(calc.demSemana.get(c.semana) ?? 0), capacidade: cap || null })) : []), [calc, carga, cap]);
+  const bomQ = useQuery({
+    enabled: pode && !!calc && !calc.vazio, queryKey: ["proj-cd-bom"], staleTime: 10 * 60_000,
+    queryFn: async () => {
       const sb = supabase as any;
-      const est = await fetchAll<any>((f, t) => sb.from("estoque_sistemico").select("id_produto, quantidade, origem").in("origem", ORIGENS_PROD).order("id_produto").range(f, t));
-      for (const r of est) saldos[r.id_produto] = (saldos[r.id_produto] ?? 0) + Number(r.quantidade || 0);
-      // uma exigência de matéria-prima por SKU: soma das campanhas do plano (várias ordens por SKU estouravam a pilha na explosão)
-      const somaSku = new Map<string, LinhaPlano>(); for (const l of planoSel) { const a = somaSku.get(l.sku); if (a) a.quantidade += l.quantidade; else somaSku.set(l.sku, { ...l }); }
-      const itens = explodirSimulacao(paraPcp([...somaSku.values()]), bom, saldos);
-      const agg = new Map<string, { id: string; item: string; um: string; tipo: string; necessidade: number; contribs: any[] }>();
-      for (const n of itens) { const a = agg.get(n.id_item) ?? { id: n.id_item, item: n.item ?? n.id_item, um: n.um ?? "", tipo: n.tipo, necessidade: 0, contribs: [] }; a.necessidade += n.necessidade; for (const c of n.contribs) a.contribs.push(c); agg.set(n.id_item, a); }
-      const faltas: { id: string; item: string; um: string; necessidade: number; saldo: number; usadoEm: string }[] = [];
-      const bloqueados = new Map<string, number>(); const comBom = new Set<string>();
-      for (const a of agg.values()) for (const c of a.contribs) comBom.add(c.id_produto);
-      for (const a of agg.values()) {
-        if (a.tipo !== "Matéria-Prima") continue;
-        const saldo = saldos[a.id] ?? 0;
-        if (saldo - a.necessidade >= 0) continue;
-        const prods = [...new Set(a.contribs.map((c: any) => c.id_produto as string))];
-        for (const p of prods) bloqueados.set(p, (bloqueados.get(p) ?? 0) + 1);
-        faltas.push({ id: a.id, item: a.item, um: a.um, necessidade: a.necessidade, saldo, usadoEm: prods.slice(0, 3).join(", ") + (prods.length > 3 ? "…" : "") });
-      }
-      faltas.sort((x, y) => (x.saldo - x.necessidade) - (y.saldo - y.necessidade));
-      setMp({ faltas, bloqueados, semBom: [...new Set(planoSel.map((l) => l.sku))].filter((s) => !comBom.has(s)), total: agg.size });
-    } catch (err: any) { toast.error("Não consegui checar a matéria-prima: " + (err?.message ?? err)); }
-    finally { setVerificando(false); }
-  }
+      const [bom, est] = await Promise.all([
+        carregarBomCompleta() as Promise<BomLinha[]>,
+        fetchAll<any>((f, t) => sb.from("estoque_sistemico").select("id_produto, quantidade, origem, custo_unitario").in("origem", ORIGENS_PROD).order("id_produto").range(f, t)),
+      ]);
+      const saldos: Record<string, number> = {}, custos: Record<string, number> = {};
+      for (const r of est) { saldos[r.id_produto] = (saldos[r.id_produto] ?? 0) + Number(r.quantidade || 0); if (!custos[r.id_produto] && Number(r.custo_unitario) > 0) custos[r.id_produto] = Number(r.custo_unitario); }
+      return { bom, saldos, custos };
+    },
+  });
+  const mrp = useMemo(() => {
+    if (!bomQ.data || !calc || calc.vazio || !ordensSel.length) return null;
+    try { return mrpPorSemana(ordensSel, bomQ.data.bom, bomQ.data.saldos, bomQ.data.custos, { leadCompraDias: Math.max(0, Number(leadCompra) || 0), hoje: calc.inicio }); }
+    catch { return null; }
+  }, [bomQ.data, calc, ordensSel, leadCompra]);
+  const comprasFalta = useMemo(() => (mrp ? mrp.itens.filter((i) => i.falta > 0) : []), [mrp]);
+  const acoes = useMemo(() => {
+    if (!calc || calc.vazio || !kpi) return [];
+    const m = [...calc.motor.values()];
+    return acoesRecomendadas({
+      ordensHoje: m.filter((x) => x.ordens[0]?.urgente).map((x) => ({ sku: x.sku, descricao: x.descricao, quantidade: x.ordens[0].quantidade })),
+      carga: carga.map((c) => ({ semana: c.semana, unidades: c.unidades, pct: c.pct })), capacidade: cap,
+      compras: comprasFalta, perdaValidade: m.filter((x) => x.perdaVencimentoUn > 0).sort((a, b) => b.perdaVencimentoUn - a.perdaVencimentoUn).map((x) => ({ sku: x.sku, descricao: x.descricao, un: x.perdaVencimentoUn })),
+      semRegistro: kpi.semRegistro, realizacao: calc.realizacaoGeral, semBom: mrp?.semBom.length ?? 0,
+    });
+  }, [calc, kpi, carga, cap, comprasFalta, mrp]);
+  const exec = useMemo(() => {
+    if (!calc || calc.vazio) return null;
+    const m = [...calc.motor.values()];
+    const usavel = m.reduce((a, x) => a + x.usavelHoje, 0), adu = m.reduce((a, x) => a + x.adu, 0);
+    const zonas = { vermelho: 0, amarelo: 0, verde: 0, excesso: 0 } as Record<Zona, number>;
+    for (const x of m) zonas[x.zona]++;
+    const prox4 = carga.slice(0, 4), un4 = prox4.reduce((a, c) => a + c.unidades, 0);
+    return { cobertura: adu > 0 ? usavel / adu : null, zonas, un4, util4: cap > 0 && prox4.length ? un4 / (cap * prox4.length) : null, semanasSobre: carga.filter((c) => c.pct !== null && c.pct > 100).length };
+  }, [calc, carga, cap]);
 
   if (!pode) return <div className="p-8 text-center text-muted-foreground">Acesso restrito a gestores.</div>;
   const mesesNoArquivo = resC ? resC.meses : [];
+  const atualizado = dados.dataUpdatedAt ? new Date(dados.dataUpdatedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—";
+  const toggleFora = (sku: string) => { const n = new Set(fora); if (n.has(sku)) n.delete(sku); else n.add(sku); setFora(n); };
 
   return (
     <div className="w-full space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><TrendingDown className="size-6" /> Projeção do CD e Plano de Produção</h1>
-        <p className="text-sm text-muted-foreground">
-          Usa a <strong>meta (consenso)</strong> das lojas para prever quando cada SKU acaba no CD <strong>{dados.data?.cd}</strong>, descontando o que as lojas já têm e o que está em trânsito, e monta um plano de produção. A matéria-prima é checada com o mesmo motor de ficha técnica do PCP.
-          A meta cobre só as lojas (PDV): outros canais que o CD abasteça não entram.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-2 rounded-xl bg-slate-900 px-5 py-4 text-white">
+        <div><h1 className="text-xl font-bold">PCP · Projeção do CD e Plano de Produção <span className="ml-2 text-sm font-normal text-slate-300">Demanda (consenso) · Capacidade · Matéria-prima · Compras</span></h1>
+          <p className="mt-1 text-xs text-slate-300">Projeta o estoque do CD <b>{dados.data?.cd}</b> pela meta (consenso) corrigida pela venda real das lojas, monta o plano mestre de produção contra a capacidade e explode a ficha técnica para o plano de compras.</p></div>
+        <div className="text-right text-xs text-slate-300">Leitura: {atualizado}{calc && !calc.vazio && <><br />Horizonte: {dataBr(calc.inicio)} a {dataBr(fimDoMes(calc.ultimoMes))} ({calc.N} dias)</>}</div>
       </div>
 
-      {isAdmin && (
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Consenso mensal (meta da diretoria)</CardTitle>
-            <CardDescription>Envie o <code>Consenso_Mensal.xlsx</code> (SKU Sistema, Almox, Canal e um mês por coluna). A carga substitui o consenso das lojas que estiverem no arquivo.</CardDescription></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center gap-3">
-              <input ref={inputRef} type="file" accept=".xlsx,.xlsm" className="hidden" onChange={aoEscolher} />
-              <Button onClick={() => inputRef.current?.click()} className="gap-2"><Upload className="size-4" /> Escolher consenso</Button>
-              {arq && <span className="text-sm text-muted-foreground">{arq}</span>}
+      <Secao letra="A" titulo="Premissas do plano e consenso" acao={<button type="button" onClick={() => setVerPremissas(!verPremissas)} className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">{verPremissas ? "Ocultar" : "Ajustar premissas"} <ChevronDown className={`size-4 transition ${verPremissas ? "rotate-180" : ""}`} /></button>}>
+        <div className="flex flex-wrap gap-2 text-xs">
+          {[["Prazo de produção", `${leadTime} d`], ["Liberação da Qualidade", `${diasQual} d`], ["Processo → disponível", `${diasProc} d`], ["Chegada das notas", `${diasTransito} d`], ["Segurança do CD", `${segCD} d`], ["Shelf mínimo", `${shelfMin} d`], ["Capacidade", `${un(cap)} un/sem`], ["Lead time de compra", `${leadCompra} d`], ["Nível de serviço (z)", zServ], ["Revisão do plano", diaRev === "" ? "qualquer dia" : DIAS_SEMANA[Number(diaRev)]]].map(([t, v]) => <span key={t} className="rounded-full border bg-muted/40 px-2.5 py-1"><span className="text-muted-foreground">{t}:</span> <b>{v}</b></span>)}
+        </div>
+        {verPremissas && <div className="mt-3 flex flex-wrap items-end gap-3 text-sm">
+          {([["Prazo de produção (dias)", leadTime, setLeadTime], ["Segurança do CD (dias)", segCD, setSegCD], ["Chegada das notas ao CD (dias)", diasTransito, setDiasTransito], ["Liberação da Qualidade (dias)", diasQual, setDiasQual], ["Processo → disponível (dias)", diasProc, setDiasProc], ["Shelf mínimo p/ despacho (dias)", shelfMin, setShelfMin], ["Capacidade semanal (un)", capSem, setCapSem], ["Lead time de compra (dias)", leadCompra, setLeadCompra], ["Nível de serviço (z)", zServ, setZServ]] as [string, string, (v: string) => void][]).map(([t, v, f]) => (
+            <label key={t} className="text-[11px] font-semibold text-muted-foreground">{t}<Input className="mt-1 w-32" inputMode="decimal" value={v} onChange={(e) => f(e.target.value)} /></label>))}
+          <label className="text-[11px] font-semibold text-muted-foreground">Dia da revisão do plano<select value={diaRev} onChange={(e) => setDiaRev(e.target.value)} className="mt-1 block h-9 w-44 rounded-md border bg-background px-2 text-sm"><option value="">Qualquer dia</option>{DIAS_SEMANA.map((d, i) => <option key={d} value={String(i)}>{d}</option>)}</select></label>
+          <label className="flex items-center gap-2 pb-2 text-xs"><input type="checkbox" checked={comCafe} onChange={(e) => setComCafe(e.target.checked)} /> incluir cafeteria</label>
+        </div>}
+        {isAdmin && <div className="mt-3 rounded-md border p-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm font-semibold">Consenso mensal (meta da diretoria)</span>
+            <span className="text-xs text-muted-foreground">Consenso_Mensal.xlsx: SKU Sistema, Almox, Canal e um mês por coluna. A carga substitui o consenso das lojas do arquivo.</span>
+            <input ref={inputRef} type="file" accept=".xlsx,.xlsm" className="hidden" onChange={aoEscolher} />
+            <Button size="sm" onClick={() => inputRef.current?.click()} className="ml-auto gap-2"><Upload className="size-4" /> Escolher consenso</Button>
+            {arq && <span className="text-sm text-muted-foreground">{arq}</span>}
+          </div>
+          {resC && (
+            <div className="mt-2 space-y-2 text-sm">
+              {resC.bloqueios.length > 0 && <div className="rounded-md border border-red-300 bg-red-50 p-3 text-red-800"><strong>Bloqueio:</strong> {resC.bloqueios.join(" ")}</div>}
+              {resC.itens.length > 0 && <>
+                <p>Aba <strong>{resC.aba}</strong> · {resC.itens.length} valores · meses {mesesNoArquivo.join(", ")}</p>
+                <Table><TableHeader><TableRow><TableHead>Loja</TableHead><TableHead className="text-right">SKUs</TableHead><TableHead className="text-right">Com meta</TableHead>{mesesNoArquivo.map((m) => <TableHead key={m} className="text-right">{m}</TableHead>)}</TableRow></TableHeader>
+                  <TableBody>{Object.entries(resC.porLoja).map(([l, o]) => <TableRow key={l}><TableCell>{l}</TableCell><TableCell className="text-right">{o.skus}</TableCell><TableCell className="text-right">{o.comMeta}</TableCell>{mesesNoArquivo.map((m) => <TableCell key={m} className="text-right">{un(o.unidadesPorMes[m] ?? 0)}</TableCell>)}</TableRow>)}</TableBody></Table>
+              </>}
+              {resC.alertas.length > 0 && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900"><strong>Pontos de atenção no arquivo:</strong><ul className="list-disc pl-5">{resC.alertas.map((a, i) => <li key={i}>{a}</li>)}</ul></div>}
+              <div className="flex justify-end"><Button onClick={aplicar} disabled={aplicando || resC.bloqueios.length > 0}>{aplicando ? "Aplicando..." : "Aplicar consenso"}</Button></div>
             </div>
-            {resC && (
-              <div className="space-y-2 rounded-md border p-3 text-sm">
-                {resC.bloqueios.length > 0 && <div className="rounded-md border border-red-300 bg-red-50 p-3 text-red-800"><strong>Bloqueio:</strong> {resC.bloqueios.join(" ")}</div>}
-                {resC.itens.length > 0 && <>
-                  <p>Aba <strong>{resC.aba}</strong> · {resC.itens.length} valores · meses {mesesNoArquivo.join(", ")}</p>
-                  <Table><TableHeader><TableRow><TableHead>Loja</TableHead><TableHead className="text-right">SKUs</TableHead><TableHead className="text-right">Com meta</TableHead>{mesesNoArquivo.map((m) => <TableHead key={m} className="text-right">{m}</TableHead>)}</TableRow></TableHeader>
-                    <TableBody>{Object.entries(resC.porLoja).map(([l, o]) => <TableRow key={l}><TableCell>{l}</TableCell><TableCell className="text-right">{o.skus}</TableCell><TableCell className="text-right">{o.comMeta}</TableCell>{mesesNoArquivo.map((m) => <TableCell key={m} className="text-right">{un(o.unidadesPorMes[m] ?? 0)}</TableCell>)}</TableRow>)}</TableBody></Table>
-                </>}
-                {resC.alertas.length > 0 && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900"><strong>Pontos de atenção no arquivo:</strong><ul className="list-disc pl-5">{resC.alertas.map((a, i) => <li key={i}>{a}</li>)}</ul></div>}
-                {resC.pendencias.length > 0 && <details><summary className="cursor-pointer font-medium">{resC.pendencias.length} linha(s) ignorada(s)</summary><ul className="mt-1 max-h-40 overflow-auto text-xs">{resC.pendencias.slice(0, 40).map((p, i) => <li key={i}>linha {p.linha}, {p.campo}: "{p.valor}": {p.motivo}</li>)}</ul></details>}
-                <div className="flex justify-end"><Button onClick={aplicar} disabled={aplicando || resC.bloqueios.length > 0}>{aplicando ? "Aplicando..." : "Aplicar consenso"}</Button></div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </div>}
+      </Secao>
 
+      {dados.isLoading && <p className="py-10 text-center text-muted-foreground">Carregando consenso, estoques e vendas…</p>}
       {!dados.isLoading && (!calc || calc.vazio) && (
-        <Card className="border-amber-300 bg-amber-50"><CardContent className="pt-4 text-sm text-amber-900">{calc && calc.vazio ? `O consenso carregado termina em ${calc.ultimoMes}, antes de hoje. Envie um consenso atual.` : "Ainda não há consenso carregado. Um administrador precisa enviar o Consenso_Mensal.xlsx."}</CardContent></Card>
+        <Card className="border-amber-300 bg-amber-50"><CardContent className="pt-4 text-sm text-amber-900">{calc && calc.vazio ? `O consenso carregado termina em ${calc.ultimoMes}, antes de hoje. Envie um consenso atual.` : "Ainda não há consenso carregado. Envie o Consenso_Mensal.xlsx para gerar a projeção."}</CardContent></Card>
       )}
 
-      {calc && !calc.vazio && kpi && (<>
-        <div className="grid gap-3 grid-cols-2 lg:grid-cols-6">
-          <Kpi t="SKUs analisados" v={String(kpi.analisados)} />
-          <Kpi t="Rompem no CD" v={`${kpi.rompem} (${kpi.analisados ? Math.round((kpi.rompem / kpi.analisados) * 100) : 0}%)`} tom="text-red-600" />
-          <Kpi t="Críticos (≤14 dias)" v={String(kpi.criticos)} tom="text-red-600" />
-          <Kpi t="Déficit até o fim da meta" v={`${un(kpi.deficit)} un`} />
-          <Kpi t="Valor do déficit (custo)" v={formatBRL(kpi.valor)} />
-          <Kpi t="Sem registro de estoque" v={String(kpi.semRegistro)} tom="text-amber-600" />
+      {calc && !calc.vazio && kpi && exec && (<>
+        <Secao letra="B" titulo="Indicadores executivos">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Kpi t="Cobertura do CD (estoque utilizável)" v={exec.cobertura === null ? "—" : `${exec.cobertura.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} dias`} d="Utilizável hoje ÷ demanda média diária (todos os SKUs)" tom={exec.cobertura !== null && exec.cobertura < 14 ? "text-red-600" : exec.cobertura !== null && exec.cobertura < 30 ? "text-amber-600" : "text-emerald-600"} />
+            <Kpi t="SKUs que rompem no CD no horizonte" v={`${kpi.rompem} de ${kpi.analisados}`} d={`${kpi.criticos} críticos (≤14 dias) · ${kpi.vermelhos} na zona vermelha do buffer`} tom="text-red-600" />
+            <Kpi t="Déficit até o fim da meta" v={`${un(kpi.deficit)} un`} d={`${formatBRL(kpi.valor)} a custo · se nada for produzido`} />
+            <Kpi t="Ordens a liberar hoje" v={String(kpi.ordensHoje)} d="Sem liberar hoje, chegam ao CD depois da ruptura" tom={kpi.ordensHoje ? "text-red-600" : "text-emerald-600"} />
+            <Kpi t="Produção planejada · 4 semanas" v={`${un(exec.un4)} un`} d={exec.util4 === null ? "Informe a capacidade semanal" : `${Math.round(exec.util4 * 100)}% da capacidade${exec.semanasSobre ? ` · ${exec.semanasSobre} semana(s) acima de 100%` : ""}`} tom={exec.util4 !== null && exec.util4 > 1 ? "text-red-600" : exec.util4 !== null && exec.util4 > 0.85 ? "text-amber-600" : ""} />
+            <Kpi t="Compras necessárias (matéria-prima)" v={bomQ.isLoading ? "…" : mrp ? `${comprasFalta.length} itens` : "—"} d={mrp ? `${formatBRL(comprasFalta.reduce((a, c) => a + c.valorFalta, 0))} · ${comprasFalta.filter((c) => c.atrasado).length} com prazo de compra vencido` : "Ficha técnica × saldo de Fábrica, Processo e Qualidade"} tom={comprasFalta.some((c) => c.atrasado) ? "text-red-600" : comprasFalta.length ? "text-amber-600" : "text-emerald-600"} />
+            <Kpi t="Realização da demanda" v={calc.realizacaoGeral === null ? "—" : `${Math.round(calc.realizacaoGeral * 100)}%`} d="Venda real das lojas ÷ consenso, últimos 28 dias" tom={calc.realizacaoGeral !== null && Math.abs(calc.realizacaoGeral - 1) > 0.15 ? "text-amber-600" : ""} />
+            <Kpi t="Perda prevista por validade" v={`${un(kpi.perdaVenc)} un`} d={`${kpi.oculto} SKU(s) com risco fora da previsão (estresse)`} tom={kpi.perdaVenc ? "text-violet-600" : ""} />
+          </div>
+        </Secao>
+
+        <Secao letra="C" titulo="Decisões recomendadas">
+          {acoes.length === 0 ? <p className="flex items-center gap-2 text-sm text-emerald-700"><CheckCircle2 className="size-4" />Plano equilibrado: sem ruptura, sobrecarga ou falta de matéria-prima a tratar.</p> : (
+            <ul className="space-y-2">{acoes.map((a, i) => (
+              <li key={i} className={`rounded-md border-l-4 bg-muted/30 p-3 ${a.prioridade === "alta" ? "border-red-500" : a.prioridade === "media" ? "border-amber-500" : "border-sky-500"}`}>
+                <div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${a.prioridade === "alta" ? "bg-red-100 text-red-700" : a.prioridade === "media" ? "bg-amber-100 text-amber-800" : "bg-sky-100 text-sky-700"}`}>{a.prioridade}</span><span className="text-[11px] font-semibold uppercase text-muted-foreground">{a.area}</span><span className="text-sm font-semibold">{a.titulo}</span></div>
+                <p className="mt-1 text-xs text-muted-foreground">{a.detalhe}</p>
+              </li>))}</ul>)}
+        </Secao>
+
+        <div className="grid gap-4 xl:grid-cols-3">
+          <div className="xl:col-span-2"><Secao letra="D" titulo="Demanda × Plano de produção × Capacidade (semanal)" acao={<select value={nSemanas} onChange={(e) => setNSemanas(Number(e.target.value))} className="h-8 rounded-md border bg-background px-2 text-xs">{[4, 6, 8, 10, 12].map((n) => <option key={n} value={n}>{n} semanas</option>)}</select>}>
+            <div className="h-72"><ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={grafico} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                <XAxis dataKey="semana" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => (v >= 1000 ? `${Math.round(v / 100) / 10} mil` : String(v))} />
+                <Tooltip formatter={(v: any, n: any) => [`${Number(v).toLocaleString("pt-BR")} un`, n]} labelFormatter={(l) => `Semana de ${l}`} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="producao" name="Produção planejada" fill="#2563eb" radius={[3, 3, 0, 0]} />
+                <Line dataKey="demanda" name="Demanda das lojas (consenso)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                {cap > 0 && <Line dataKey="capacidade" name="Capacidade" stroke="#dc2626" strokeDasharray="6 4" dot={false} />}
+              </ComposedChart>
+            </ResponsiveContainer></div>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4 lg:grid-cols-8">{carga.map((c) => (
+              <div key={c.semana} className="rounded border p-1.5 text-center"><div className="text-muted-foreground">{dataBr(c.semana).slice(0, 5)}</div><div className="font-semibold tabular-nums">{un(c.unidades)}</div>
+                <div className={`font-semibold ${c.pct !== null && c.pct > 100 ? "text-red-600" : c.pct !== null && c.pct > 85 ? "text-amber-600" : "text-emerald-600"}`}>{c.pct === null ? "—" : `${Math.round(c.pct)}%`}</div></div>))}</div>
+          </Secao></div>
+          <Secao letra="E" titulo="Saúde do estoque do CD (buffer)">
+            <div className="space-y-2">{(["vermelho", "amarelo", "verde", "excesso"] as Zona[]).map((z) => { const n = exec.zonas[z], tot = calc.motor.size || 1; return (
+              <div key={z}><div className="flex justify-between text-xs"><span className="font-semibold">{ZONA_ROT[z]}</span><span className="tabular-nums">{n} SKU(s) · {Math.round((n / tot) * 100)}%</span></div>
+                <div className="h-2 rounded bg-muted"><div className={`h-2 rounded ${z === "vermelho" ? "bg-red-500" : z === "amarelo" ? "bg-amber-500" : z === "verde" ? "bg-emerald-500" : "bg-violet-500"}`} style={{ width: `${(n / tot) * 100}%` }} /></div></div>); })}</div>
+            <p className="mt-3 text-[11px] text-muted-foreground">Vermelho: abaixo da proteção, produzir já. Amarelo: dentro da zona de reposição, programar. Verde: coberto. Excesso: acima do topo do buffer, segurar produção.</p>
+            <div className="mt-3 flex flex-wrap gap-1">{(["critica", "alta", "media", "baixa", "ok"] as const).map((sv) => <span key={sv} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${COR[sv]}`}>{ROT[sv]}: {calc.projs.filter((p) => p.severidade === sv).length}</span>)}</div>
+          </Secao>
         </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-          <Kpi t="Zona vermelha (buffer)" v={String(kpi.vermelhos)} tom="text-red-600" />
-          <Kpi t="Ordens a liberar hoje" v={String(kpi.ordensHoje)} tom="text-red-600" />
-          <Kpi t="Risco fora da previsão (estresse)" v={String(kpi.oculto)} tom="text-orange-600" />
-          <Kpi t="Perda prevista por validade" v={`${un(kpi.perdaVenc)} un`} tom="text-violet-600" />
-          <Kpi t="Baixas pendentes esperadas" v={`${un(kpi.baixas)} un`} />
-        </div>
 
-        <div className="flex flex-wrap items-end gap-3 text-sm">
-          <div><div className="text-xs text-muted-foreground mb-1">Prazo de produção (dias)</div><Input className="w-28" inputMode="numeric" value={leadTime} onChange={(e) => setLeadTime(e.target.value)} /></div>
-          <div><div className="text-xs text-muted-foreground mb-1">Segurança do CD (dias)</div><Input className="w-28" inputMode="numeric" value={segCD} onChange={(e) => setSegCD(e.target.value)} /></div>
-          <div><div className="text-xs text-muted-foreground mb-1">Chegada das notas ao CD (dias)</div><Input className="w-28" inputMode="numeric" value={diasTransito} onChange={(e) => setDiasTransito(e.target.value)} /></div>
-          <div><div className="text-xs text-muted-foreground mb-1">Liberação da Qualidade (dias)</div><Input className="w-28" inputMode="numeric" value={diasQual} onChange={(e) => setDiasQual(e.target.value)} /></div>
-          <div><div className="text-xs text-muted-foreground mb-1">Processo → disponível (dias)</div><Input className="w-28" inputMode="numeric" value={diasProc} onChange={(e) => setDiasProc(e.target.value)} /></div>
-          <div><div className="text-xs text-muted-foreground mb-1">Shelf mínimo p/ despacho (dias)</div><Input className="w-28" inputMode="numeric" value={shelfMin} onChange={(e) => setShelfMin(e.target.value)} /></div>
-          <div><div className="text-xs text-muted-foreground mb-1">Dia da revisão do plano</div><select value={diaRev} onChange={(e) => setDiaRev(e.target.value)} className="h-9 w-44 rounded-md border bg-background px-2 text-sm"><option value="">Qualquer dia (sem ciclo)</option>{DIAS_SEMANA.map((d, i) => <option key={d} value={String(i)}>{d}</option>)}</select></div>
-          <div><div className="text-xs text-muted-foreground mb-1">Capacidade semanal (un)</div><Input className="w-28" inputMode="numeric" value={capSem} onChange={(e) => setCapSem(e.target.value)} title="Mediana de 16 semanas de produção de acabados, estimada pela ficha técnica" /></div>
-          <div><div className="text-xs text-muted-foreground mb-1">Nível de serviço (z)</div><Input className="w-28" inputMode="decimal" value={zServ} onChange={(e) => setZServ(e.target.value)} /></div>
-          <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={comCafe} onChange={(e) => setComCafe(e.target.checked)} /> incluir cafeteria</label>
-          <span className="text-xs text-muted-foreground">Horizonte: de {dataBr(calc.inicio)} até {dataBr(fimDoMes(calc.ultimoMes))} ({calc.N} dias)</span>
-        </div>
+        <Secao letra="F" titulo="Plano mestre de produção (MPS)" acao={<Button size="sm" variant="outline" className="gap-1" onClick={() => csv(`Plano_Mestre_${calc.inicio}.csv`, ["SKU", "Produto", ...semanas.map((s) => `Semana ${dataBr(s)}`), "Depois", "Total"], mps.linhas.map((l) => [l.sku, l.descricao, ...l.porSemana.map(Math.round), Math.round(l.depois), Math.round(l.total)]))}><Download className="size-4" /> CSV</Button>}>
+          <p className="mb-2 text-xs text-muted-foreground">Ordens planejadas pelo motor (campanhas semanais em múltiplos da caixa, liberadas com o prazo de produção + qualidade). Ordens já atrasadas entram na primeira semana. Desmarque um SKU para tirá-lo do plano, da carga e das compras.</p>
+          <div className="max-h-[520px] overflow-auto rounded-md border">
+            <table className="w-full text-sm"><thead className="sticky top-0 z-10"><tr><Th c="" /><Th c="SKU" /><Th c="Produto" />{semanas.map((s) => <Th key={s} c={dataBr(s).slice(0, 5)} d />)}<Th c="Depois" d /><Th c="Total" d /></tr></thead>
+              <tbody>
+                {mps.linhas.map((l) => (
+                  <tr key={l.sku} className={`border-t ${fora.has(l.sku) ? "opacity-40" : ""}`}>
+                    <td className="px-2"><input type="checkbox" checked={!fora.has(l.sku)} onChange={() => toggleFora(l.sku)} /></td>
+                    <td className="px-2 py-1 font-mono text-xs">{l.sku}</td>
+                    <td className="max-w-[240px] truncate px-2 py-1" title={l.descricao}>{l.descricao}{l.urgente && <span className="ml-1 rounded-full bg-red-100 px-1.5 text-[10px] font-semibold text-red-700">URGENTE</span>}</td>
+                    {l.porSemana.map((q, i) => <td key={i} className={`px-2 py-1 text-right tabular-nums ${q ? "font-semibold" : "text-muted-foreground"}`}>{q ? un(q) : "·"}</td>)}
+                    <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">{l.depois ? un(l.depois) : "·"}</td>
+                    <td className="px-2 py-1 text-right font-semibold tabular-nums">{un(l.total)}</td>
+                  </tr>))}
+                {[...fora].filter((s) => !mps.linhas.some((l) => l.sku === s)).map((s) => <tr key={s} className="border-t opacity-40"><td className="px-2"><input type="checkbox" checked={false} onChange={() => toggleFora(s)} /></td><td className="px-2 py-1 font-mono text-xs" colSpan={semanas.length + 4}>{s} (fora do plano)</td></tr>)}
+                {mps.linhas.length === 0 && <tr><td colSpan={semanas.length + 5} className="py-6 text-center text-muted-foreground">Nenhuma ordem no horizonte: o estoque cobre a demanda.</td></tr>}
+              </tbody>
+              <tfoot className="sticky bottom-0 bg-muted text-xs font-semibold">
+                <tr><td /><td className="px-2 py-1.5" colSpan={2}>Total da semana</td>{mps.totais.map((t, i) => <td key={i} className="px-2 py-1.5 text-right tabular-nums">{un(t)}</td>)}<td className="px-2 text-right">{un(mps.depois)}</td><td /></tr>
+                <tr><td /><td className="px-2 py-1.5" colSpan={2}>Utilização da capacidade ({un(cap)} un/sem)</td>{carga.map((c) => <td key={c.semana} className={`px-2 py-1.5 text-right ${c.pct !== null && c.pct > 100 ? "text-red-600" : c.pct !== null && c.pct > 85 ? "text-amber-600" : "text-emerald-600"}`}>{c.pct === null ? "—" : `${Math.round(c.pct)}%`}</td>)}<td /><td /></tr>
+              </tfoot>
+            </table>
+          </div>
+        </Secao>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {(["TODOS", "critica", "alta", "media", "baixa", "ok"] as const).map((s) => (
-            <button key={s} onClick={() => setFiltro(s)} className={`rounded-full border px-3 py-1 text-xs ${filtro === s ? "bg-primary text-primary-foreground border-primary font-semibold" : "hover:bg-muted"}`}>
-              {s === "TODOS" ? "Todos" : ROT[s]}{s !== "TODOS" ? ` (${calc.projs.filter((p) => p.severidade === s).length})` : ""}
-            </button>))}
-          <Input className="h-8 w-56" placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} />
-          <Button size="sm" variant="outline" className="gap-1 ml-auto" onClick={() => csv(`Projecao_CD_${calc.inicio}.csv`, ["SKU", "Produto", "Severidade", "Estoque CD", "Estoque lojas", "Em trânsito (lojas)", "Entrada no CD (notas)", "Demanda no período", "Ruptura do CD", "Dias até a ruptura", "Déficit (un)"], projFiltradas.map((p) => [p.sku, p.descricao, ROT[p.severidade], Math.round(p.estoqueCD), Math.round(p.estoqueLojas), p.trLojas, p.entCD, Math.round(p.demandaTotal), p.dataRupturaCD ?? "", p.diasAteRuptura ?? "", Math.round(p.deficit)]))}><Download className="size-4" /> CSV da projeção</Button>
-        </div>
-
-        <Card><CardContent className="p-0 overflow-x-auto"><Table>
-          <TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Risco</TableHead><TableHead className="text-right">CD</TableHead><TableHead className="text-right">Lojas</TableHead><TableHead className="text-right">Trânsito</TableHead><TableHead className="text-right">Demanda</TableHead><TableHead className="text-right">Ruptura do CD</TableHead><TableHead className="text-right">Dias</TableHead><TableHead className="text-right">Déficit</TableHead></TableRow></TableHeader>
-          <TableBody>
-            {projFiltradas.length === 0 && <TableRow><TableCell colSpan={10} className="py-8 text-center text-muted-foreground">Nenhum SKU neste filtro.</TableCell></TableRow>}
-            {projFiltradas.slice(0, 400).map((p) => (
-              <TableRow key={p.sku}>
-                <TableCell className="font-mono text-xs">{p.sku}</TableCell>
-                <TableCell className="max-w-[260px] truncate">{p.descricao || "—"}{p.semRegistro && <span className="ml-1 text-[10px] text-amber-600">sem registro de estoque</span>}</TableCell>
-                <TableCell><span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${COR[p.severidade]}`}>{ROT[p.severidade]}</span></TableCell>
-                <TableCell className="text-right">{un(p.estoqueCD)}</TableCell><TableCell className="text-right">{un(p.estoqueLojas)}</TableCell><TableCell className="text-right">{p.trLojas + p.entCD > 0 ? `${un(p.trLojas)}${p.entCD ? ` (+${un(p.entCD)} CD)` : ""}` : "—"}</TableCell>
-                <TableCell className="text-right">{un(p.demandaTotal)}</TableCell><TableCell className="text-right font-semibold">{dataBr(p.dataRupturaCD)}</TableCell><TableCell className="text-right">{p.diasAteRuptura ?? "—"}</TableCell><TableCell className="text-right font-semibold">{p.deficit > 0 ? un(p.deficit) : "—"}</TableCell>
-              </TableRow>))}
-          </TableBody></Table></CardContent></Card>
-
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Motor de reabastecimento do CD</CardTitle>
-            <CardDescription>Demanda = malha linear do consenso (meta ÷ dias do mês, que já traz a sazonalidade) × realização (venda real ÷ malha no mesmo período), sem índice sazonal. Buffers por SKU (vermelho/amarelo/verde) sobre o fluxo líquido, com validade (FEFO e shelf mínimo), baixas e estoque em processo. <b>Ruptura em estresse</b> = demanda +σ, baixas pendentes aprovadas e atraso de produção: a ruptura que a previsão de consumo não enxerga. Aprovação de baixa assumida: {Math.round(calc.probAprov * 100)}% (histórico do CD).</CardDescription></CardHeader>
-          <CardContent className="p-0 overflow-x-auto">
-            <div className="flex justify-end p-2"><Button size="sm" variant="outline" className="gap-1" onClick={() => csv(`Motor_CD_${calc.inicio}.csv`, ["SKU", "Produto", "Zona", "Fluxo líquido", "Vermelho", "Amarelo", "Topo", "Utilizável", "Bloqueado shelf", "Em processo", "Qualidade", "Notas ao CD", "Perda por validade", "Baixas pendentes", "Ruptura prevista", "Ruptura em estresse", "Risco fora da previsão", "Qtd proteção", "Próxima ordem (un)", "Liberar", "Chega"], motorLista.map((m) => [m.sku, m.descricao, ZONA_ROT[m.zona], Math.round(m.nfp), Math.round(m.red), Math.round(m.red + m.yellow), Math.round(m.tog), Math.round(m.usavelHoje), Math.round(m.bloqueadoShelf), Math.round(m.wip), Math.round(m.qualidade), Math.round(m.notas), Math.round(m.perdaVencimentoUn), Math.round(m.baixasPendentesEsperadas), m.dataRupturaCD ?? "", m.dataRupturaEstresse ?? "", m.riscoNaoPrevisto ? "sim" : "não", m.qtdProtecao, m.ordens[0]?.quantidade ?? "", m.ordens[0]?.liberar ?? "", m.ordens[0]?.chegada ?? ""]))}><Download className="size-4" /> CSV do motor</Button></div>
-            <Table>
-              <TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Zona</TableHead><TableHead className="text-right">Fluxo líquido</TableHead><TableHead className="text-right">Verm. / Amar. / Topo</TableHead><TableHead className="text-right">Utilizável (shelf)</TableHead><TableHead className="text-right">A receber</TableHead><TableHead className="text-right">Perda validade</TableHead><TableHead className="text-right">Baixas pend.</TableHead><TableHead>Ruptura prevista</TableHead><TableHead>Em estresse</TableHead><TableHead>Próxima ordem</TableHead></TableRow></TableHeader>
-              <TableBody>{motorLista.map((m) => (
-                <TableRow key={m.sku}>
-                  <TableCell className="font-mono text-xs">{m.sku}</TableCell><TableCell className="max-w-[240px] truncate" title={m.descricao}>{m.descricao}</TableCell>
-                  <TableCell><span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${ZONA_COR[m.zona]}`}>{ZONA_ROT[m.zona]} · {Math.round(m.prioridade)}%</span></TableCell>
-                  <TableCell className="text-right">{un(m.nfp)}</TableCell><TableCell className="text-right text-xs text-muted-foreground">{un(m.red)} / {un(m.red + m.yellow)} / {un(m.tog)}</TableCell>
-                  <TableCell className="text-right">{un(m.usavelHoje)}{m.bloqueadoShelf > 0 && <span className="ml-1 text-[11px] text-violet-600" title="bloqueado por shelf mínimo">(+{un(m.bloqueadoShelf)} bloq.)</span>}</TableCell>
-                  <TableCell className="text-right">{un(m.wip + m.qualidade + m.notas)}</TableCell>
-                  <TableCell className={`text-right ${m.perdaVencimentoUn > 0 ? "font-semibold text-violet-600" : ""}`}>{m.perdaVencimentoUn > 0 ? un(m.perdaVencimentoUn) : "—"}</TableCell>
-                  <TableCell className={`text-right ${m.baixasPendentesEsperadas > 0 ? "font-semibold text-orange-600" : ""}`}>{m.baixasPendentesEsperadas > 0 ? un(m.baixasPendentesEsperadas) : "—"}</TableCell>
-                  <TableCell>{dataBr(m.dataRupturaCD)}</TableCell>
-                  <TableCell className={m.riscoNaoPrevisto ? "font-semibold text-orange-600" : ""}>{dataBr(m.dataRupturaEstresse)}{m.riscoNaoPrevisto && " ⚠"}</TableCell>
-                  <TableCell>{m.ordens[0] ? <span className={m.ordens[0].urgente ? "font-semibold text-red-600" : ""}>{un(m.ordens[0].quantidade)} un · liberar {dataBr(m.ordens[0].liberar)}{m.ordens[0].atrasoDias > 0 && ` (chega ${m.ordens[0].atrasoDias} d depois do necessário)`}</span> : "—"}</TableCell>
-                </TableRow>))}
-                {motorLista.length === 0 && <TableRow><TableCell colSpan={12} className="py-8 text-center text-muted-foreground">Nenhum SKU neste filtro.</TableCell></TableRow>}</TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Plano de produção sugerido</CardTitle>
-            <CardDescription>Ordens planejadas pelo motor: campanhas semanais, liberadas com antecedência igual ao prazo (produção + qualidade), em múltiplos da caixa e limitadas à cobertura máxima. {diaRev !== "" ? <>Com a revisão na <b>{DIAS_SEMANA[Number(diaRev)].toLowerCase()}</b>, as ordens só são liberadas nesse dia (na última revisão que ainda cumpre o prazo); o que não pode esperar aparece como <b>FORA DO CICLO</b>.</> : "Sem dia de revisão: liberação em qualquer dia."} Mostra as liberações dos próximos 30 dias. Desmarque o que não quiser produzir e verifique a matéria-prima.</CardDescription></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={verificarMp} disabled={verificando || planoSel.length === 0} className="gap-2"><FlaskConical className="size-4" /> {verificando ? "Checando..." : `Verificar matéria-prima (${new Set(planoSel.map((l) => l.sku)).size} SKUs)`}</Button>
-              <Button variant="outline" className="gap-1" onClick={() => csv(`Plano_Producao_${calc.inicio}.csv`, ["SKU", "Produto", "Quantidade", "Produzir até", "Ruptura prevista", "Urgente", "Fora do ciclo", "Semana de produção", "Matéria-prima insuficiente (itens)"], planoSel.map((l) => [l.sku, l.descricao, l.quantidade, l.produzirAte, l.dataRuptura, l.urgente ? "SIM" : "", l.foraDoCiclo ? "SIM" : "", dataBr(semanaDeProducao(l.produzirAte)), mp ? (mp.bloqueados.get(l.sku) ?? 0) : ""]))}><Download className="size-4" /> CSV do plano</Button>
+        <Secao letra="G" titulo="Plano de compras de matéria-prima (MRP)" acao={mrp ? <Button size="sm" variant="outline" className="gap-1" onClick={() => csv(`Plano_Compras_${calc.inicio}.csv`, ["Código", "Matéria-prima", "UM", "Saldo atual", "Necessidade no horizonte", "Falta (comprar)", "Custo unitário", "Valor da compra", "Primeira semana com falta", "Comprar até", "Situação", "Usado em"], mrp.itens.map((c) => [c.id, c.item, c.um, c.saldoInicial, c.necessidade, c.falta, c.custo, c.valorFalta, dataBr(c.primeiraFalta), dataBr(c.comprarAte), c.falta <= 0 ? "Coberto" : c.atrasado ? "Prazo vencido" : "Comprar", c.usadoEm.join(" ")]))}><Download className="size-4" /> CSV</Button> : undefined}>
+          {bomQ.isLoading ? <p className="text-sm text-muted-foreground">Explodindo a ficha técnica do plano…</p> : !mrp ? <p className="text-sm text-muted-foreground">Sem ordens no plano ou ficha técnica indisponível.</p> : (<>
+            <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+              <Mini icon={<ShoppingCart className="size-4" />} t="Itens a comprar" v={String(comprasFalta.length)} />
+              <Mini icon={<AlertTriangle className="size-4 text-red-600" />} t="Prazo de compra vencido" v={String(comprasFalta.filter((c) => c.atrasado).length)} tom="text-red-600" />
+              <Mini icon={<Gauge className="size-4" />} t="Valor estimado da compra" v={formatBRL(comprasFalta.reduce((a, c) => a + c.valorFalta, 0))} />
+              <Mini icon={<Factory className="size-4" />} t="SKUs sem ficha técnica" v={String(mrp.semBom.length)} tom={mrp.semBom.length ? "text-amber-600" : ""} />
             </div>
-            {carga.length > 0 && (
-              <div className="rounded-md border">
-                <div className="border-b bg-muted/40 px-3 py-1.5 text-xs font-medium">Carga por semana de produção <span className="font-normal text-muted-foreground">· capacidade de referência {un(Number(capSem) || 0)} un/semana (mediana medida; produção observada, não o máximo)</span></div>
-                <ul className="divide-y">{carga.map((c) => (
-                  <li key={c.semana} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-1.5 text-sm">
-                    <span className="w-32 font-medium">Semana de {dataBr(c.semana)}</span><span className="w-24 text-xs text-muted-foreground">{c.ordens} ordens · {c.skus} SKUs</span>
-                    <span className="w-24 text-right font-semibold tabular-nums">{un(c.unidades)} un</span>
-                    <div className="h-2 min-w-[120px] flex-1 rounded bg-muted"><div className={`h-2 rounded ${c.pct !== null && c.pct > 100 ? "bg-red-500" : c.pct !== null && c.pct > 80 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, c.pct ?? 0)}%` }} /></div>
-                    <span className={`w-14 text-right text-xs tabular-nums ${c.pct !== null && c.pct > 100 ? "font-semibold text-red-600" : c.pct !== null && c.pct > 80 ? "font-semibold text-amber-600" : "text-muted-foreground"}`}>{c.pct === null ? "—" : `${c.pct.toFixed(0)}%`}</span>
-                  </li>))}</ul>
-              </div>)}
-            <Table><TableHeader><TableRow><TableHead className="w-8" /><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead className="text-right">Produzir</TableHead><TableHead className="text-right">Produzir até</TableHead><TableHead className="text-right">Ruptura</TableHead>{mp && <TableHead>Matéria-prima</TableHead>}</TableRow></TableHeader>
-              <TableBody>
-                {calc.plano.length === 0 && <TableRow><TableCell colSpan={7} className="py-6 text-center text-muted-foreground">Nenhuma ruptura prevista: não há o que produzir.</TableCell></TableRow>}
-                {calc.plano.map((l) => (
-                  <TableRow key={`${l.sku}-${l.produzirAte}`} className={fora.has(l.sku) ? "opacity-40" : ""}>
-                    <TableCell><input type="checkbox" checked={!fora.has(l.sku)} onChange={() => { const n = new Set(fora); if (n.has(l.sku)) n.delete(l.sku); else n.add(l.sku); setFora(n); setMp(null); }} /></TableCell>
-                    <TableCell className="font-mono text-xs">{l.sku}</TableCell><TableCell className="max-w-[260px] truncate">{l.descricao || "—"}</TableCell>
-                    <TableCell className="text-right font-semibold">{un(l.quantidade)}</TableCell>
-                    <TableCell className="text-right">{dataBr(l.produzirAte)}{l.urgente && <span className="ml-1 rounded-full bg-red-100 px-1.5 text-[10px] font-semibold text-red-700">URGENTE</span>}{l.foraDoCiclo && <span className="ml-1 rounded-full bg-orange-100 px-1.5 text-[10px] font-semibold text-orange-700" title="Não pode esperar a próxima revisão: liberar já">FORA DO CICLO</span>}</TableCell>
-                    <TableCell className="text-right">{dataBr(l.dataRuptura)}</TableCell>
-                    {mp && <TableCell className="text-xs">{mp.semBom.includes(l.sku) ? <span className="text-amber-600">sem ficha técnica: não verificável</span> : (mp.bloqueados.get(l.sku) ?? 0) > 0 ? <span className="text-red-600 font-semibold">{mp.bloqueados.get(l.sku)} MP insuficiente(s)</span> : <span className="text-emerald-600">MP suficiente</span>}</TableCell>}
-                  </TableRow>))}
-              </TableBody></Table>
-            {mp && (
-              <div className="rounded-md border p-3 text-sm space-y-2">
-                <p><strong>{mp.faltas.length}</strong> matéria(s)-prima(s) insuficiente(s) em {mp.total} itens explodidos (saldo de Fábrica + Processo + Qualidade, como no PCP){mp.semBom.length > 0 ? ` · ${mp.semBom.length} SKU(s) sem ficha técnica` : ""}.</p>
-                {mp.faltas.length > 0 && <Table><TableHeader><TableRow><TableHead>Código</TableHead><TableHead>Matéria-prima</TableHead><TableHead className="text-right">Necessidade</TableHead><TableHead className="text-right">Saldo</TableHead><TableHead className="text-right">Falta</TableHead><TableHead>Usada em</TableHead></TableRow></TableHeader>
-                  <TableBody>{mp.faltas.slice(0, 60).map((f) => <TableRow key={f.id}><TableCell className="font-mono text-xs">{f.id}</TableCell><TableCell className="max-w-[240px] truncate">{f.item}</TableCell><TableCell className="text-right">{un(f.necessidade)} {f.um}</TableCell><TableCell className="text-right">{un(f.saldo)}</TableCell><TableCell className="text-right font-semibold text-red-600">{un(f.necessidade - f.saldo)}</TableCell><TableCell className="text-xs font-mono">{f.usadoEm}</TableCell></TableRow>)}</TableBody></Table>}
-              </div>)}
-          </CardContent>
-        </Card>
+            <p className="mb-2 text-xs text-muted-foreground">Necessidade explodida semana a semana na ficha técnica, consumindo o saldo de Fábrica + Processo + Qualidade (subconjuntos com saldo são abatidos antes). Comprar até = semana da primeira falta − lead time de compra ({leadCompra} dias).</p>
+            <div className="max-h-[460px] overflow-auto rounded-md border">
+              <table className="w-full text-sm"><thead className="sticky top-0 z-10"><tr><Th c="Código" /><Th c="Matéria-prima" /><Th c="Saldo" d /><Th c="Necessidade" d /><Th c="Comprar" d /><Th c="Valor" d /><Th c="Falta a partir de" d /><Th c="Comprar até" d /><Th c="Usado em" /></tr></thead>
+                <tbody>{mrp.itens.filter((c) => c.falta > 0).concat(mrp.itens.filter((c) => c.falta <= 0).slice(0, 30)).map((c) => (
+                  <tr key={c.id} className={`border-t ${c.falta <= 0 ? "text-muted-foreground" : ""}`}>
+                    <td className="px-2 py-1 font-mono text-xs">{c.id}</td><td className="max-w-[240px] truncate px-2 py-1" title={c.item}>{c.item}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{n2(c.saldoInicial)} {c.um}</td><td className="px-2 py-1 text-right tabular-nums">{n2(c.necessidade)}</td>
+                    <td className={`px-2 py-1 text-right font-semibold tabular-nums ${c.falta > 0 ? "text-red-600" : ""}`}>{c.falta > 0 ? n2(c.falta) : "coberto"}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{c.valorFalta > 0 ? formatBRL(c.valorFalta) : "—"}</td>
+                    <td className="px-2 py-1 text-right">{dataBr(c.primeiraFalta)}</td>
+                    <td className={`px-2 py-1 text-right ${c.atrasado ? "font-semibold text-red-600" : ""}`}>{c.comprarAte ? `${dataBr(c.comprarAte)}${c.atrasado ? " · vencido" : ""}` : "—"}</td>
+                    <td className="max-w-[200px] truncate px-2 py-1 text-xs" title={c.usadoEm.join(", ")}>{c.usadoEm.slice(0, 3).join(", ")}{c.usadoEm.length > 3 ? "…" : ""}</td>
+                  </tr>))}
+                  {mrp.itens.length === 0 && <tr><td colSpan={9} className="py-6 text-center text-muted-foreground">Nenhuma matéria-prima envolvida.</td></tr>}</tbody></table>
+            </div>
+          </>)}
+        </Secao>
+
+        <Secao letra="H" titulo="Projeção de ruptura por SKU" acao={<Button size="sm" variant="outline" className="gap-1" onClick={() => csv(`Projecao_CD_${calc.inicio}.csv`, ["SKU", "Produto", "Severidade", "Estoque CD", "Estoque lojas", "Em trânsito (lojas)", "Entrada no CD (notas)", "Demanda no horizonte", "Ruptura do CD", "Dias até a ruptura", "Déficit"], projFiltradas.map((p) => [p.sku, p.descricao, ROT[p.severidade], p.estoqueCD, p.estoqueLojas, p.trLojas, p.entCD, Math.round(p.demandaTotal), p.dataRupturaCD ?? "", p.diasAteRuptura ?? "", Math.round(p.deficit)]))}><Download className="size-4" /> CSV</Button>}>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            {(["TODOS", "critica", "alta", "media", "baixa", "ok"] as const).map((sv) => (
+              <button key={sv} onClick={() => setFiltro(sv)} className={`rounded-full border px-3 py-1 text-xs ${filtro === sv ? "border-slate-900 bg-slate-900 font-semibold text-white" : "hover:bg-muted"}`}>
+                {sv === "TODOS" ? "Todos" : ROT[sv]}{sv !== "TODOS" ? ` (${calc.projs.filter((p) => p.severidade === sv).length})` : ""}</button>))}
+            <Input className="h-8 w-56" placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} />
+          </div>
+          <div className="max-h-[520px] overflow-auto rounded-md border">
+            <table className="w-full text-sm"><thead className="sticky top-0 z-10"><tr><Th c="SKU" /><Th c="Produto" /><Th c="Risco" /><Th c="Zona" /><Th c="CD" d /><Th c="Lojas" d /><Th c="Trânsito" d /><Th c="Demanda" d /><Th c="Realização" d /><Th c="Ruptura do CD" d /><Th c="Dias" d /><Th c="Déficit" d /><Th c="Próxima ordem" /></tr></thead>
+              <tbody>
+                {projFiltradas.length === 0 && <tr><td colSpan={13} className="py-8 text-center text-muted-foreground">Nenhum SKU neste filtro.</td></tr>}
+                {projFiltradas.slice(0, 400).map((p) => { const m = calc.motor.get(nk(p.sku)); return (
+                  <tr key={p.sku} className="border-t">
+                    <td className="px-2 py-1 font-mono text-xs">{p.sku}</td>
+                    <td className="max-w-[240px] truncate px-2 py-1" title={p.descricao}>{p.descricao || "—"}{p.semRegistro && <span className="ml-1 text-[10px] text-amber-600">sem registro de estoque</span>}</td>
+                    <td className="px-2 py-1"><span className={`inline-block whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold ${COR[p.severidade]}`}>{ROT[p.severidade]}</span></td>
+                    <td className="px-2 py-1">{m ? <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${ZONA_COR[m.zona]}`}>{ZONA_ROT[m.zona]}</span> : "—"}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{un(p.estoqueCD)}</td><td className="px-2 py-1 text-right tabular-nums">{un(p.estoqueLojas)}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{p.trLojas + p.entCD > 0 ? `${un(p.trLojas)}${p.entCD ? ` (+${un(p.entCD)} CD)` : ""}` : "—"}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{un(p.demandaTotal)}</td>
+                    <td className={`px-2 py-1 text-right tabular-nums ${m?.realizacao != null && Math.abs(m.realizacao - 1) > 0.2 ? "font-semibold text-amber-600" : ""}`}>{m?.realizacao != null ? `${Math.round(m.realizacao * 100)}%` : "—"}</td>
+                    <td className="px-2 py-1 text-right font-semibold">{dataBr(p.dataRupturaCD)}</td><td className="px-2 py-1 text-right">{p.diasAteRuptura ?? "—"}</td>
+                    <td className="px-2 py-1 text-right font-semibold tabular-nums">{p.deficit ? un(p.deficit) : "—"}</td>
+                    <td className="px-2 py-1 text-xs">{m?.ordens[0] ? <span className={m.ordens[0].urgente ? "font-semibold text-red-600" : ""}>{un(m.ordens[0].quantidade)} un · liberar {dataBr(m.ordens[0].liberar)}</span> : "—"}</td>
+                  </tr>); })}
+              </tbody></table>
+          </div>
+        </Secao>
+
+        <details className="rounded-xl border bg-card">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">I · Motor de reabastecimento do CD (detalhe técnico do buffer)</summary>
+          <div className="overflow-x-auto p-2">
+            <p className="px-2 pb-2 text-xs text-muted-foreground">Demanda = malha linear do consenso × realização (venda real ÷ malha). Buffers por SKU sobre o fluxo líquido (utilizável + WIP + qualidade + notas − demanda qualificada). Probabilidade de aprovação de baixas pendentes: {Math.round(calc.probAprov * 100)}%.</p>
+            <table className="w-full text-sm"><thead><tr><Th c="SKU" /><Th c="Produto" /><Th c="Zona" /><Th c="Fluxo líquido" d /><Th c="Verm./Amar./Topo" d /><Th c="Utilizável" d /><Th c="WIP+Qual.+Notas" d /><Th c="Perda validade" d /><Th c="Baixas esperadas" d /><Th c="Ruptura" /><Th c="Ruptura (estresse)" /></tr></thead>
+              <tbody>{motorLista.map((m) => (
+                <tr key={m.sku} className="border-t">
+                  <td className="px-2 py-1 font-mono text-xs">{m.sku}</td><td className="max-w-[220px] truncate px-2 py-1" title={m.descricao}>{m.descricao}</td>
+                  <td className="px-2 py-1"><span className={`rounded-full border px-2 py-0.5 text-xs ${ZONA_COR[m.zona]}`}>{ZONA_ROT[m.zona]} · {Math.round(m.prioridade)}%</span></td>
+                  <td className="px-2 py-1 text-right">{un(m.nfp)}</td><td className="px-2 py-1 text-right text-xs text-muted-foreground">{un(m.red)} / {un(m.red + m.yellow)} / {un(m.tog)}</td>
+                  <td className="px-2 py-1 text-right">{un(m.usavelHoje)}{m.bloqueadoShelf > 0 && <span className="ml-1 text-[11px] text-violet-600">(+{un(m.bloqueadoShelf)} bloq.)</span>}</td>
+                  <td className="px-2 py-1 text-right">{un(m.wip + m.qualidade + m.notas)}</td>
+                  <td className={`px-2 py-1 text-right ${m.perdaVencimentoUn > 0 ? "font-semibold text-violet-600" : ""}`}>{m.perdaVencimentoUn > 0 ? un(m.perdaVencimentoUn) : "—"}</td>
+                  <td className={`px-2 py-1 text-right ${m.baixasPendentesEsperadas > 0 ? "font-semibold text-orange-600" : ""}`}>{m.baixasPendentesEsperadas > 0 ? un(m.baixasPendentesEsperadas) : "—"}</td>
+                  <td className="px-2 py-1">{dataBr(m.dataRupturaCD)}</td><td className={`px-2 py-1 ${m.riscoNaoPrevisto ? "font-semibold text-orange-600" : ""}`}>{dataBr(m.dataRupturaEstresse)}{m.riscoNaoPrevisto && " ⚠"}</td>
+                </tr>))}</tbody></table>
+          </div>
+        </details>
       </>)}
     </div>
   );
 }
 
-function Kpi({ t, v, tom }: { t: string; v: string; tom?: string }) {
-  return <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground truncate">{t}</div><div className={`text-lg font-bold mt-1 ${tom ?? ""}`}>{v}</div></CardContent></Card>;
+const n2 = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+function Kpi({ t, v, d, tom }: { t: string; v: string; d?: string; tom?: string }) {
+  return <div className="rounded-lg border bg-card p-3"><div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t}</div><div className={`mt-1 text-2xl font-bold tabular-nums ${tom ?? ""}`}>{v}</div>{d && <div className="mt-0.5 text-[11px] text-muted-foreground">{d}</div>}</div>;
+}
+function Mini({ icon, t, v, tom }: { icon: React.ReactNode; t: string; v: string; tom?: string }) {
+  return <div className="flex items-center gap-2 rounded-md border p-2">{icon}<div><div className="text-[11px] text-muted-foreground">{t}</div><div className={`text-base font-bold ${tom ?? ""}`}>{v}</div></div></div>;
 }
