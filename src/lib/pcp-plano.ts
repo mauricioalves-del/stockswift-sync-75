@@ -76,7 +76,9 @@ export function mrpPorSemana(ordens: OrdemMps[], bom: BomLinha[], saldos: Record
     for (const [id, a] of mp) {
       const it = itens.get(id) ?? { id, item: a.item, um: a.um, custo: custos[id] ?? 0, saldoInicial: saldos[id] ?? 0, necessidade: 0, falta: 0, valorFalta: 0, porSemana: {}, primeiraFalta: null, comprarAte: null, atrasado: false, usadoEm: [] };
       const disp = saldo[id] ?? 0;
-      const falta = Math.max(0, a.nec - Math.max(0, disp));
+      const bruta = a.nec - Math.max(0, disp);
+      // resíduos de arredondamento (frações de grama) não viram compra
+      const falta = bruta > Math.max(1e-6, a.nec * 0.001) ? bruta : 0;
       saldo[id] = disp - a.nec;
       it.necessidade += a.nec; it.falta += falta;
       it.porSemana[s] = { necessidade: a.nec, falta };
@@ -108,7 +110,7 @@ export function acoesRecomendadas(p: {
 }): Acao[] {
   const out: Acao[] = [];
   const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
-  const n0 = (v: number) => Math.round(v).toLocaleString("pt-BR");
+  const n0 = (v: number) => (Math.abs(v) < 10 ? v.toLocaleString("pt-BR", { maximumFractionDigits: 2 }) : Math.round(v).toLocaleString("pt-BR"));
   if (p.ordensHoje.length) {
     const un = p.ordensHoje.reduce((a, o) => a + o.quantidade, 0);
     out.push({ prioridade: "alta", area: "Produção", titulo: `Liberar hoje ${p.ordensHoje.length} ordem(ns) de produção (${n0(un)} un)`, detalhe: p.ordensHoje.slice(0, 4).map((o) => `${o.descricao || o.sku} (${n0(o.quantidade)})`).join(", ") + (p.ordensHoje.length > 4 ? "…" : "") + ". Sem liberar agora, o item chega ao CD depois da ruptura prevista." });
