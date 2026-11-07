@@ -96,7 +96,7 @@ const NAV: (NavItem | NavGroup)[] = [
   {
     id: "producao", label: "Produção", icon: Factory, role: "any",
     items: [
-      { to: "/abastecimento/projecao-cd", label: "Projeção do CD e Plano", icon: TrendingDown, role: "gestor" },
+      { to: "/abastecimento/projecao-cd", label: "PCP · Projeção e Plano", icon: TrendingDown, role: "gestor" },
       { to: "/producao/pcp", label: "Análise de Ruptura", icon: Factory, role: "any" },
       { to: "/producao/solicitacao-materiais", label: "Solicitação de Materiais", icon: ClipboardList, role: "write" },
       { to: "/producao/dispersao", label: "Dispersão de Lote", icon: GitCompareArrows, role: "any" },
