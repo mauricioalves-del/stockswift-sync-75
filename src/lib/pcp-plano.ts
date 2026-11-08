@@ -95,7 +95,9 @@ export function mrpPorSemana(ordens: OrdemMps[], bom: BomLinha[], saldos: Record
   return { itens: lista, semanas, semBom: [...semBom] };
 }
 
-export type Acao = { prioridade: "alta" | "media" | "baixa"; area: "Produção" | "Compras" | "Capacidade" | "Estoque" | "Demanda"; titulo: string; detalhe: string };
+/** Item por trás de uma decisão: SKU (abre a ficha de vendas), matéria-prima (ficha de consumo em OP) ou semana. */
+export type ItemAcao = { tipo: "sku" | "mp" | "semana"; id: string; descricao: string; detalhe: string };
+export type Acao = { prioridade: "alta" | "media" | "baixa"; area: "Produção" | "Compras" | "Capacidade" | "Estoque" | "Demanda"; titulo: string; detalhe: string; itens: ItemAcao[] };
 
 /** Recomendações de decisão a partir do plano: o que liberar, comprar, antecipar ou frear. */
 export function acoesRecomendadas(p: {
@@ -104,35 +106,44 @@ export function acoesRecomendadas(p: {
   capacidade: number;
   compras: ItemCompra[];
   perdaValidade: { sku: string; descricao: string; un: number }[];
-  semRegistro: number;
+  semRegistro: { sku: string; descricao: string }[];
   realizacao: number | null;
-  semBom: number;
+  semBom: { sku: string; descricao: string }[];
+  realizacaoSkus?: { sku: string; descricao: string; realizacao: number }[];
 }): Acao[] {
   const out: Acao[] = [];
   const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
   const n0 = (v: number) => (Math.abs(v) < 10 ? v.toLocaleString("pt-BR", { maximumFractionDigits: 2 }) : Math.round(v).toLocaleString("pt-BR"));
   if (p.ordensHoje.length) {
     const un = p.ordensHoje.reduce((a, o) => a + o.quantidade, 0);
-    out.push({ prioridade: "alta", area: "Produção", titulo: `Liberar hoje ${p.ordensHoje.length} ordem(ns) de produção (${n0(un)} un)`, detalhe: p.ordensHoje.slice(0, 4).map((o) => `${o.descricao || o.sku} (${n0(o.quantidade)})`).join(", ") + (p.ordensHoje.length > 4 ? "…" : "") + ". Sem liberar agora, o item chega ao CD depois da ruptura prevista." });
+    out.push({ prioridade: "alta", area: "Produção", titulo: `Liberar hoje ${p.ordensHoje.length} ordem(ns) de produção (${n0(un)} un)`, detalhe: p.ordensHoje.slice(0, 4).map((o) => `${o.descricao || o.sku} (${n0(o.quantidade)})`).join(", ") + (p.ordensHoje.length > 4 ? "…" : "") + ". Sem liberar agora, o item chega ao CD depois da ruptura prevista.",
+      itens: p.ordensHoje.map((o) => ({ tipo: "sku", id: o.sku, descricao: o.descricao, detalhe: `${n0(o.quantidade)} un a liberar hoje` })) });
   }
+  const itemCompra = (c: ItemCompra): ItemAcao => ({ tipo: "mp", id: c.id, descricao: c.item, detalhe: `comprar ${n0(c.falta)} ${c.um} até ${c.comprarAte ? dm(c.comprarAte) : "—"}${c.atrasado ? " (vencido)" : ""} · necessário na semana de ${c.primeiraFalta ? dm(c.primeiraFalta) : "—"}` });
   const atrasadas = p.compras.filter((c) => c.falta > 0 && c.atrasado);
-  if (atrasadas.length) out.push({ prioridade: "alta", area: "Compras", titulo: `Comprar com urgência ${atrasadas.length} matéria(s)-prima(s): o prazo de compra já passou`, detalhe: atrasadas.slice(0, 4).map((c) => `${c.item} (faltam ${n0(c.falta)} ${c.um}, necessário na semana de ${dm(c.primeiraFalta!)})`).join("; ") + ". Negociar entrega expressa ou reprogramar as ordens que dependem delas." });
+  if (atrasadas.length) out.push({ prioridade: "alta", area: "Compras", titulo: `Comprar com urgência ${atrasadas.length} matéria(s)-prima(s): o prazo de compra já passou`, detalhe: atrasadas.slice(0, 4).map((c) => `${c.item} (faltam ${n0(c.falta)} ${c.um}, necessário na semana de ${dm(c.primeiraFalta!)})`).join("; ") + ". Negociar entrega expressa ou reprogramar as ordens que dependem delas.", itens: atrasadas.map(itemCompra) });
   const proximas = p.compras.filter((c) => c.falta > 0 && !c.atrasado);
-  if (proximas.length) out.push({ prioridade: "media", area: "Compras", titulo: `Emitir pedido de compra de ${proximas.length} matéria(s)-prima(s) dentro do lead time`, detalhe: proximas.slice(0, 4).map((c) => `${c.item} até ${dm(c.comprarAte!)}`).join("; ") + "." });
+  if (proximas.length) out.push({ prioridade: "media", area: "Compras", titulo: `Emitir pedido de compra de ${proximas.length} matéria(s)-prima(s) dentro do lead time`, detalhe: proximas.slice(0, 4).map((c) => `${c.item} até ${dm(c.comprarAte!)}`).join("; ") + ".", itens: proximas.map(itemCompra) });
   const sobre = p.carga.filter((c) => c.pct !== null && c.pct > 100);
   if (sobre.length) {
     const folga = p.carga.filter((c) => c.pct !== null && c.pct < 80);
-    out.push({ prioridade: "alta", area: "Capacidade", titulo: `Sobrecarga em ${sobre.length} semana(s) de produção`, detalhe: sobre.map((c) => `semana de ${dm(c.semana)}: ${n0(c.unidades)} un (${Math.round(c.pct!)}% da capacidade)`).join("; ") + (folga.length ? `. Antecipar parte do volume para ${folga.slice(0, 2).map((c) => `a semana de ${dm(c.semana)} (${Math.round(c.pct!)}%)`).join(" ou ")}, ou planejar hora extra/turno adicional.` : ". Avaliar hora extra/turno adicional ou priorizar os SKUs críticos.") });
+    out.push({ prioridade: "alta", area: "Capacidade", titulo: `Sobrecarga em ${sobre.length} semana(s) de produção`, detalhe: sobre.map((c) => `semana de ${dm(c.semana)}: ${n0(c.unidades)} un (${Math.round(c.pct!)}% da capacidade)`).join("; ") + (folga.length ? `. Antecipar parte do volume para ${folga.slice(0, 2).map((c) => `a semana de ${dm(c.semana)} (${Math.round(c.pct!)}%)`).join(" ou ")}, ou planejar hora extra/turno adicional.` : ". Avaliar hora extra/turno adicional ou priorizar os SKUs críticos."),
+      itens: sobre.map((c) => ({ tipo: "semana", id: c.semana, descricao: `Semana de ${dm(c.semana)}`, detalhe: `${n0(c.unidades)} un · ${Math.round(c.pct!)}% da capacidade` })) });
   }
   const ocioso = p.carga.filter((c) => c.pct !== null && c.pct < 50);
-  if (ocioso.length && p.capacidade > 0) out.push({ prioridade: "baixa", area: "Capacidade", titulo: `Capacidade ociosa em ${ocioso.length} semana(s)`, detalhe: ocioso.map((c) => `semana de ${dm(c.semana)} (${Math.round(c.pct!)}%)`).join(", ") + ": oportunidade para antecipar campanhas, formar estoque de itens sazonais ou manutenção preventiva." });
+  if (ocioso.length && p.capacidade > 0) out.push({ prioridade: "baixa", area: "Capacidade", titulo: `Capacidade ociosa em ${ocioso.length} semana(s)`, detalhe: ocioso.map((c) => `semana de ${dm(c.semana)} (${Math.round(c.pct!)}%)`).join(", ") + ": oportunidade para antecipar campanhas, formar estoque de itens sazonais ou manutenção preventiva.",
+    itens: ocioso.map((c) => ({ tipo: "semana", id: c.semana, descricao: `Semana de ${dm(c.semana)}`, detalhe: `${n0(c.unidades)} un · ${Math.round(c.pct!)}% da capacidade` })) });
   if (p.perdaValidade.length) {
     const un = p.perdaValidade.reduce((a, x) => a + x.un, 0);
-    out.push({ prioridade: "media", area: "Estoque", titulo: `${n0(un)} un com risco de vencer antes do consumo`, detalhe: p.perdaValidade.slice(0, 4).map((x) => `${x.descricao || x.sku} (${n0(x.un)})`).join(", ") + ". Segurar novas ordens desses SKUs e acionar ação comercial (giro/promoção)." });
+    out.push({ prioridade: "media", area: "Estoque", titulo: `${n0(un)} un com risco de vencer antes do consumo`, detalhe: p.perdaValidade.slice(0, 4).map((x) => `${x.descricao || x.sku} (${n0(x.un)})`).join(", ") + ". Segurar novas ordens desses SKUs e acionar ação comercial (giro/promoção).",
+      itens: p.perdaValidade.map((x) => ({ tipo: "sku", id: x.sku, descricao: x.descricao, detalhe: `${n0(x.un)} un com risco de vencer` })) });
   }
-  if (p.realizacao !== null && (p.realizacao < 0.85 || p.realizacao > 1.15)) out.push({ prioridade: "media", area: "Demanda", titulo: `Venda real ${p.realizacao > 1 ? "acima" : "abaixo"} do consenso: ${Math.round(p.realizacao * 100)}% da meta`, detalhe: p.realizacao > 1 ? "O motor já corrige a demanda pela realização, mas o consenso subestima a venda: alinhar revisão da meta com comercial para não faltar capacidade e insumos." : "O consenso está otimista: revisar a meta com comercial para não produzir e comprar além do necessário." });
-  if (p.semBom) out.push({ prioridade: "baixa", area: "Produção", titulo: `${p.semBom} SKU(s) do plano sem ficha técnica`, detalhe: "Sem ficha técnica a necessidade de matéria-prima desses itens não entra no plano de compras. Cadastrar em Produção › Auditoria de Ficha Técnica." });
-  if (p.semRegistro) out.push({ prioridade: "baixa", area: "Estoque", titulo: `${p.semRegistro} SKU(s) com meta e sem registro de estoque`, detalhe: "Itens novos ou sem saldo no sistema: confirmar se o portfólio está correto e se o cadastro no ERP existe." });
+  if (p.realizacao !== null && (p.realizacao < 0.85 || p.realizacao > 1.15)) out.push({ prioridade: "media", area: "Demanda", titulo: `Venda real ${p.realizacao > 1 ? "acima" : "abaixo"} do consenso: ${Math.round(p.realizacao * 100)}% da meta`, detalhe: p.realizacao > 1 ? "O motor já corrige a demanda pela realização, mas o consenso subestima a venda: alinhar revisão da meta com comercial para não faltar capacidade e insumos." : "O consenso está otimista: revisar a meta com comercial para não produzir e comprar além do necessário.",
+    itens: (p.realizacaoSkus ?? []).filter((x) => Math.abs(x.realizacao - 1) > 0.2).sort((a, b) => Math.abs(b.realizacao - 1) - Math.abs(a.realizacao - 1)).map((x) => ({ tipo: "sku", id: x.sku, descricao: x.descricao, detalhe: `venda real = ${Math.round(x.realizacao * 100)}% do consenso` })) });
+  if (p.semBom.length) out.push({ prioridade: "baixa", area: "Produção", titulo: `${p.semBom.length} SKU(s) do plano sem ficha técnica`, detalhe: "Sem ficha técnica a necessidade de matéria-prima desses itens não entra no plano de compras. Cadastrar em Produção › Auditoria de Ficha Técnica.",
+    itens: p.semBom.map((x) => ({ tipo: "sku", id: x.sku, descricao: x.descricao, detalhe: "sem ficha técnica" })) });
+  if (p.semRegistro.length) out.push({ prioridade: "baixa", area: "Estoque", titulo: `${p.semRegistro.length} SKU(s) com meta e sem registro de estoque`, detalhe: "Itens novos ou sem saldo no sistema: confirmar se o portfólio está correto e se o cadastro no ERP existe.",
+    itens: p.semRegistro.map((x) => ({ tipo: "sku", id: x.sku, descricao: x.descricao, detalhe: "com meta e sem registro de estoque" })) });
   const ordem = { alta: 0, media: 1, baixa: 2 };
   return out.sort((a, b) => ordem[a.prioridade] - ordem[b.prioridade]);
 }
