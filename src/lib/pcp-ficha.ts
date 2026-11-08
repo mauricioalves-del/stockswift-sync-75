@@ -85,3 +85,29 @@ export function prazoEntrega(p: { semanas: string[]; cargaOutros: number[]; capa
   }
   return { semana: null, entrega: null, dias: null as number | null, porSemana };
 }
+
+export type LinhaBom = { id_produto: string; id_subconjunto: string; id_item: string; item: string | null; qtd: number | null; tem_filho: boolean; item_unidade?: string | null };
+export type ComponenteFicha = { id: string; item: string; tipo: "Subconjunto" | "Matéria-Prima"; um: string; nivel: number; pai: string; porUn: number };
+/**
+ * Ficha técnica de um produto, em todos os níveis, por unidade produzida. Usa só a árvore achatada do próprio produto
+ * (linhas com id_produto = produto), percorrida pelo pai real (id_subconjunto), com proteção contra ciclos.
+ */
+export function fichaPorUnidade(bom: LinhaBom[], produto: string, maxLinhas = 500): ComponenteFicha[] {
+  const k0 = (s: string) => String(s ?? "").trim().replace(/^0+/, "");
+  const alvo = k0(produto);
+  const linhas = bom.filter((r) => k0(r.id_produto) === alvo);
+  const filhos = new Map<string, LinhaBom[]>();
+  for (const r of linhas) { const p = k0(r.id_subconjunto); filhos.set(p, [...(filhos.get(p) ?? []), r]); }
+  const out: ComponenteFicha[] = [];
+  const visita = (pai: string, fator: number, nivel: number, caminho: Set<string>) => {
+    for (const f of (filhos.get(pai) ?? []).slice().sort((a, b) => Number(b.tem_filho) - Number(a.tem_filho) || String(a.item ?? "").localeCompare(String(b.item ?? "")))) {
+      if (out.length >= maxLinhas) return;
+      const id = k0(f.id_item), q = (Number(f.qtd) || 0) * fator;
+      if (q <= 0 || caminho.has(id)) continue;
+      out.push({ id: f.id_item, item: f.item ?? f.id_item, tipo: f.tem_filho ? "Subconjunto" : "Matéria-Prima", um: f.item_unidade ?? "", nivel, pai: f.id_subconjunto, porUn: q });
+      if (f.tem_filho && nivel < 12) visita(id, q, nivel + 1, new Set([...caminho, id]));
+    }
+  };
+  visita(alvo, 1, 1, new Set([alvo]));
+  return out;
+}
