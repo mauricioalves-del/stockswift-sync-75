@@ -6,7 +6,7 @@ import { Upload, Download, Factory, ShoppingCart, Gauge, AlertTriangle, CheckCir
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { acoesRecomendadas, matrizMps, mrpPorSemana, proximasSemanas, segundaDe, type OrdemMps } from "@/lib/pcp-plano";
 import { Secao, Th } from "@/components/abast-dash/comum";
-import { FichaItem, type ContextoFicha } from "@/components/pcp/FichaItem";
+import { FichaItem, type ContextoFicha, type LinhaFicha } from "@/components/pcp/FichaItem";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
@@ -16,7 +16,7 @@ import { interpretarConsenso, aoaDaAbaConsenso, serieDiariaConsenso, type Result
 import { projetarCD, type ResultadoProjecao, type Severidade, type LinhaPlano } from "@/lib/abastecimento-projecao";
 import { planejarSku, estimarDemandaReal, cargaSemanal, semanaDeProducao, type ResultadoMotor, type Lote, type Zona } from "@/lib/abastecimento-cd-motor";
 import { somasRealizacao } from "@/lib/abastecimento-realizacao";
-import { carregarBomCompleta, type BomLinha } from "@/lib/pcp-bom";
+import { carregarBomCompleta, explodirSimulacao, type BomLinha } from "@/lib/pcp-bom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -286,7 +286,33 @@ function ProjecaoCdPage() {
       realizacao: m?.realizacao ?? null,
       plano: { semanas, totais: mps.totais, porSemanaSku: l?.porSemana ?? semanas.map(() => 0), capacidade: cap, diasQualidade: Number(diasQual) || 0, diasProcesso: Number(diasProc) || 0 },
       materiais: (mrp?.itens ?? []).filter((x) => x.usadoEm.some((u) => nk(u) === k)),
+      ficha: fichaTecnica(m?.sku ?? p?.sku ?? sku, descricao || m?.descricao || p?.descricao || "", l?.total ?? 0),
       semFicha: (mrp?.semBom ?? []).some((u) => nk(u) === k) });
+  };
+  // Ficha técnica completa do produto: explode todos os níveis sem abater saldo (necessidade bruta).
+  const fichaTecnica = (sku: string, nome: string, qtdPlano: number) => {
+    const bom = bomQ.data?.bom; if (!bom) return null;
+    const ids = [sku, sku.replace(/^0+/, ""), `0${sku.replace(/^0+/, "")}`];
+    const raiz = ids.find((id) => bom.some((b) => b.id_subconjunto === id || b.id_produto === id)) ?? sku;
+    const base = qtdPlano > 0 ? qtdPlano : 1;
+    let res: ReturnType<typeof explodirSimulacao> = [];
+    try { res = explodirSimulacao([{ id_produto: raiz, nome, quantidade: base, local: false }], bom, {}); } catch { return null; }
+    const porId = new Map<string, LinhaFicha>();
+    for (const r of res) {
+      const cam = r.contribs[0]?.caminho ?? [];
+      // caminho vai do produto raiz até o item (inclusivo): nível 1 = componente direto do produto
+      const nivel = Math.max(1, cam.length - 1), pai = cam.length > 1 ? cam[cam.length - 2]?.id ?? "" : "";
+      const k = `${r.id_item}|${pai}`; const o = porId.get(k);
+      if (o) { o.necessidade += r.necessidade; o.porUn = o.necessidade / base; continue; }
+      porId.set(k, { id: r.id_item, item: r.item ?? r.id_item, tipo: r.tipo, um: r.um ?? "", nivel, pai, porUn: r.necessidade / base, necessidade: r.necessidade, saldo: bomQ.data?.saldos[r.id_item] ?? 0 });
+    }
+    // ordem de árvore: cada subconjunto seguido dos seus componentes
+    const linhas = [...porId.values()];
+    const ordenadas: LinhaFicha[] = [];
+    const add = (pai: string, nivel: number) => { for (const x of linhas.filter((y) => y.nivel === nivel && (nivel === 1 || y.pai === pai)).sort((a, b) => Number(b.tipo === "Subconjunto") - Number(a.tipo === "Subconjunto") || a.item.localeCompare(b.item))) { ordenadas.push(x); if (x.tipo === "Subconjunto") add(x.id, nivel + 1); } };
+    add("", 1);
+    for (const x of linhas) if (!ordenadas.includes(x)) ordenadas.push(x);
+    return { qtdBase: base, baseEhPlano: qtdPlano > 0, linhas: ordenadas };
   };
   const abrirMp = (id: string, descricao?: string) => {
     if (!calc || calc.vazio) return;
