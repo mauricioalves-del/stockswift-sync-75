@@ -6,6 +6,7 @@ import { Upload, Download, Factory, ShoppingCart, Gauge, AlertTriangle, CheckCir
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { acoesRecomendadas, matrizMps, mrpPorSemana, proximasSemanas, segundaDe, type OrdemMps } from "@/lib/pcp-plano";
 import { Secao, Th } from "@/components/abast-dash/comum";
+import { FichaItem, type ContextoFicha } from "@/components/pcp/FichaItem";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
@@ -69,6 +70,8 @@ function ProjecaoCdPage() {
   const [leadCompra, setLeadCompra] = useState("15");    // lead time de compra de matéria-prima (dias)
   const [nSemanas, setNSemanas] = useState(8);          // horizonte do plano mestre (semanas)
   const [verPremissas, setVerPremissas] = useState(false);
+  const [ficha, setFicha] = useState<ContextoFicha | null>(null);   // ficha do item (história, lotes, materiais, capacidade)
+  const [abertas, setAbertas] = useState<Set<number>>(new Set()); // decisões expandidas
 
   const dados = useQuery({
     enabled: pode, queryKey: ["proj-cd"], staleTime: 30_000,
@@ -267,9 +270,29 @@ function ProjecaoCdPage() {
       ordensHoje: m.filter((x) => x.ordens[0]?.urgente).map((x) => ({ sku: x.sku, descricao: x.descricao, quantidade: x.ordens[0].quantidade })),
       carga: carga.map((c) => ({ semana: c.semana, unidades: c.unidades, pct: c.pct })), capacidade: cap,
       compras: comprasFalta, perdaValidade: m.filter((x) => x.perdaVencimentoUn > 0).sort((a, b) => b.perdaVencimentoUn - a.perdaVencimentoUn).map((x) => ({ sku: x.sku, descricao: x.descricao, un: x.perdaVencimentoUn })),
-      semRegistro: kpi.semRegistro, realizacao: calc.realizacaoGeral, semBom: mrp?.semBom.length ?? 0,
+      semRegistro: calc.projs.filter((p) => p.semRegistro).map((p) => ({ sku: p.sku, descricao: p.descricao })),
+      realizacao: calc.realizacaoGeral,
+      semBom: (mrp?.semBom ?? []).map((k) => ({ sku: k, descricao: calc.motor.get(nk(k))?.descricao ?? ordensSel.find((o) => o.sku === k)?.descricao ?? "" })),
+      realizacaoSkus: m.filter((x) => x.realizacao != null).map((x) => ({ sku: x.sku, descricao: x.descricao, realizacao: x.realizacao! })),
     });
-  }, [calc, kpi, carga, cap, comprasFalta, mrp]);
+  }, [calc, kpi, carga, cap, comprasFalta, mrp, ordensSel]);
+  // Abre a ficha completa de um SKU (vendas, lotes, materiais e capacidade) ou de uma matéria-prima (consumo em OP, lotes e compra).
+  const abrirSku = (sku: string, descricao?: string) => {
+    if (!calc || calc.vazio) return;
+    const k = nk(sku), m = calc.motor.get(k), p = calc.projs.find((x) => nk(x.sku) === k), l = mps.linhas.find((x) => nk(x.sku) === k);
+    setFicha({ tipo: "sku", id: m?.sku ?? p?.sku ?? sku, descricao: descricao || m?.descricao || p?.descricao || "", hoje: calc.inicio, cdAlmox: dados.data?.cd ?? "Alm_SP_Fabrica",
+      motor: m ? { adu: m.adu, usavelHoje: m.usavelHoje, zona: m.zona, dataRupturaCD: m.dataRupturaCD, ordens: m.ordens, wip: m.wip, qualidade: m.qualidade, notas: m.notas, perdaVencimentoUn: m.perdaVencimentoUn } : null,
+      proj: p ? { estoqueCD: p.estoqueCD, estoqueLojas: p.estoqueLojas, trLojas: p.trLojas, deficit: p.deficit, dataRupturaCD: p.dataRupturaCD, demandaTotal: p.demandaTotal, severidade: p.severidade } : null,
+      realizacao: m?.realizacao ?? null,
+      plano: { semanas, totais: mps.totais, porSemanaSku: l?.porSemana ?? semanas.map(() => 0), capacidade: cap, diasQualidade: Number(diasQual) || 0, diasProcesso: Number(diasProc) || 0 },
+      materiais: (mrp?.itens ?? []).filter((x) => x.usadoEm.some((u) => nk(u) === k)),
+      semFicha: (mrp?.semBom ?? []).some((u) => nk(u) === k) });
+  };
+  const abrirMp = (id: string, descricao?: string) => {
+    if (!calc || calc.vazio) return;
+    const c = mrp?.itens.find((x) => x.id === id) ?? null;
+    setFicha({ tipo: "mp", id, descricao: descricao || c?.item || "", hoje: calc.inicio, origens: ORIGENS_PROD, compra: c });
+  };
   const exec = useMemo(() => {
     if (!calc || calc.vazio) return null;
     const m = [...calc.motor.values()];
@@ -347,11 +370,21 @@ function ProjecaoCdPage() {
 
         <Secao letra="C" titulo="Decisões recomendadas">
           {acoes.length === 0 ? <p className="flex items-center gap-2 text-sm text-emerald-700"><CheckCircle2 className="size-4" />Plano equilibrado: sem ruptura, sobrecarga ou falta de matéria-prima a tratar.</p> : (
-            <ul className="space-y-2">{acoes.map((a, i) => (
-              <li key={i} className={`rounded-md border-l-4 bg-muted/30 p-3 ${a.prioridade === "alta" ? "border-red-500" : a.prioridade === "media" ? "border-amber-500" : "border-sky-500"}`}>
-                <div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${a.prioridade === "alta" ? "bg-red-100 text-red-700" : a.prioridade === "media" ? "bg-amber-100 text-amber-800" : "bg-sky-100 text-sky-700"}`}>{a.prioridade}</span><span className="text-[11px] font-semibold uppercase text-muted-foreground">{a.area}</span><span className="text-sm font-semibold">{a.titulo}</span></div>
-                <p className="mt-1 text-xs text-muted-foreground">{a.detalhe}</p>
-              </li>))}</ul>)}
+            <ul className="space-y-2">{acoes.map((a, i) => { const aberta = abertas.has(i); return (
+              <li key={i} className={`rounded-md border-l-4 bg-muted/30 ${a.prioridade === "alta" ? "border-red-500" : a.prioridade === "media" ? "border-amber-500" : "border-sky-500"}`}>
+                <button type="button" className="w-full p-3 text-left hover:bg-muted/50" onClick={() => { const n = new Set(abertas); if (n.has(i)) n.delete(i); else n.add(i); setAbertas(n); }}>
+                  <div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${a.prioridade === "alta" ? "bg-red-100 text-red-700" : a.prioridade === "media" ? "bg-amber-100 text-amber-800" : "bg-sky-100 text-sky-700"}`}>{a.prioridade}</span><span className="text-[11px] font-semibold uppercase text-muted-foreground">{a.area}</span><span className="text-sm font-semibold">{a.titulo}</span>
+                    {a.itens.length > 0 && <span className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground">{a.itens.length} item(ns) <ChevronDown className={`size-4 transition ${aberta ? "rotate-180" : ""}`} /></span>}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">{a.detalhe}</p>
+                </button>
+                {aberta && a.itens.length > 0 && <div className="border-t px-3 pb-3 pt-2">
+                  <p className="mb-1 text-[11px] text-muted-foreground">{a.itens[0].tipo === "semana" ? "Semanas envolvidas." : "Clique num item para ver a história completa: consumo real dos últimos 90 dias (mapa de calor), estoque por lote e dias de disponibilidade."}</p>
+                  <div className="max-h-72 overflow-auto rounded border bg-background"><table className="w-full text-sm"><tbody>{a.itens.map((it) => (
+                    <tr key={it.tipo + it.id} className={`border-t first:border-0 ${it.tipo !== "semana" ? "cursor-pointer hover:bg-muted/60" : ""}`} onClick={() => (it.tipo === "sku" ? abrirSku(it.id, it.descricao) : it.tipo === "mp" ? abrirMp(it.id, it.descricao) : undefined)}>
+                      <td className="w-28 px-2 py-1 font-mono text-xs">{it.tipo === "semana" ? "" : it.id}</td><td className="px-2 py-1">{it.descricao || "—"}</td><td className="px-2 py-1 text-right text-xs text-muted-foreground">{it.detalhe}</td>
+                      <td className="w-20 px-2 py-1 text-right text-[11px] font-semibold text-primary">{it.tipo === "sku" ? "Ver ficha" : it.tipo === "mp" ? "Ver consumo" : ""}</td></tr>))}</tbody></table></div>
+                </div>}
+              </li>); })}</ul>)}
         </Secao>
 
         <div className="grid gap-4 xl:grid-cols-3">
@@ -381,13 +414,13 @@ function ProjecaoCdPage() {
         </div>
 
         <Secao letra="F" titulo="Plano mestre de produção (MPS)" acao={<Button size="sm" variant="outline" className="gap-1" onClick={() => csv(`Plano_Mestre_${calc.inicio}.csv`, ["SKU", "Produto", ...semanas.map((s) => `Semana ${dataBr(s)}`), "Depois", "Total"], mps.linhas.map((l) => [l.sku, l.descricao, ...l.porSemana.map(Math.round), Math.round(l.depois), Math.round(l.total)]))}><Download className="size-4" /> CSV</Button>}>
-          <p className="mb-2 text-xs text-muted-foreground">Ordens planejadas pelo motor (campanhas semanais em múltiplos da caixa, liberadas com o prazo de produção + qualidade). Ordens já atrasadas entram na primeira semana. Desmarque um SKU para tirá-lo do plano, da carga e das compras.</p>
+          <p className="mb-2 text-xs text-muted-foreground">Ordens planejadas pelo motor (campanhas semanais em múltiplos da caixa, liberadas com o prazo de produção + qualidade). Ordens já atrasadas entram na primeira semana. Desmarque um SKU para tirá-lo do plano, da carga e das compras. <b>Clique duas vezes num SKU</b> para a análise completa: vendas dos últimos 3 meses, lotes, rupturas de material pela ficha técnica, capacidade e prazo de entrega.</p>
           <div className="max-h-[520px] overflow-auto rounded-md border">
             <table className="w-full text-sm"><thead className="sticky top-0 z-10"><tr><Th c="" /><Th c="SKU" /><Th c="Produto" />{semanas.map((s) => <Th key={s} c={dataBr(s).slice(0, 5)} d />)}<Th c="Depois" d /><Th c="Total" d /></tr></thead>
               <tbody>
                 {mps.linhas.map((l) => (
-                  <tr key={l.sku} className={`border-t ${fora.has(l.sku) ? "opacity-40" : ""}`}>
-                    <td className="px-2"><input type="checkbox" checked={!fora.has(l.sku)} onChange={() => toggleFora(l.sku)} /></td>
+                  <tr key={l.sku} className={`cursor-pointer border-t hover:bg-muted/40 ${fora.has(l.sku) ? "opacity-40" : ""}`} onDoubleClick={() => abrirSku(l.sku, l.descricao)} title="Clique duas vezes para a análise completa do SKU">
+                    <td className="px-2" onDoubleClick={(e) => e.stopPropagation()}><input type="checkbox" checked={!fora.has(l.sku)} onChange={() => toggleFora(l.sku)} /></td>
                     <td className="px-2 py-1 font-mono text-xs">{l.sku}</td>
                     <td className="max-w-[240px] truncate px-2 py-1" title={l.descricao}>{l.descricao}{l.urgente && <span className="ml-1 rounded-full bg-red-100 px-1.5 text-[10px] font-semibold text-red-700">URGENTE</span>}</td>
                     {l.porSemana.map((q, i) => <td key={i} className={`px-2 py-1 text-right tabular-nums ${q ? "font-semibold" : "text-muted-foreground"}`}>{q ? un(q) : "·"}</td>)}
@@ -417,7 +450,7 @@ function ProjecaoCdPage() {
             <div className="max-h-[460px] overflow-auto rounded-md border">
               <table className="w-full text-sm"><thead className="sticky top-0 z-10"><tr><Th c="Código" /><Th c="Matéria-prima" /><Th c="Saldo" d /><Th c="Necessidade" d /><Th c="Comprar" d /><Th c="Valor" d /><Th c="Falta a partir de" d /><Th c="Comprar até" d /><Th c="Usado em" /></tr></thead>
                 <tbody>{mrp.itens.filter((c) => c.falta > 0).concat(mrp.itens.filter((c) => c.falta <= 0).slice(0, 30)).map((c) => (
-                  <tr key={c.id} className={`border-t ${c.falta <= 0 ? "text-muted-foreground" : ""}`}>
+                  <tr key={c.id} className={`cursor-pointer border-t hover:bg-muted/40 ${c.falta <= 0 ? "text-muted-foreground" : ""}`} onClick={() => abrirMp(c.id, c.item)} title="Ver consumo em OP, lotes e compra">
                     <td className="px-2 py-1 font-mono text-xs">{c.id}</td><td className="max-w-[240px] truncate px-2 py-1" title={c.item}>{c.item}</td>
                     <td className="px-2 py-1 text-right tabular-nums">{n2(c.saldoInicial)} {c.um}</td><td className="px-2 py-1 text-right tabular-nums">{n2(c.necessidade)}</td>
                     <td className={`px-2 py-1 text-right font-semibold tabular-nums ${c.falta > 0 ? "text-red-600" : ""}`}>{c.falta > 0 ? n2(c.falta) : "coberto"}</td>
@@ -443,7 +476,7 @@ function ProjecaoCdPage() {
               <tbody>
                 {projFiltradas.length === 0 && <tr><td colSpan={13} className="py-8 text-center text-muted-foreground">Nenhum SKU neste filtro.</td></tr>}
                 {projFiltradas.slice(0, 400).map((p) => { const m = calc.motor.get(nk(p.sku)); return (
-                  <tr key={p.sku} className="border-t">
+                  <tr key={p.sku} className="cursor-pointer border-t hover:bg-muted/40" onDoubleClick={() => abrirSku(p.sku, p.descricao)} title="Clique duas vezes para a análise completa do SKU">
                     <td className="px-2 py-1 font-mono text-xs">{p.sku}</td>
                     <td className="max-w-[240px] truncate px-2 py-1" title={p.descricao}>{p.descricao || "—"}{p.semRegistro && <span className="ml-1 text-[10px] text-amber-600">sem registro de estoque</span>}</td>
                     <td className="px-2 py-1"><span className={`inline-block whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold ${COR[p.severidade]}`}>{ROT[p.severidade]}</span></td>
@@ -479,6 +512,7 @@ function ProjecaoCdPage() {
           </div>
         </details>
       </>)}
+      {ficha && <FichaItem ctx={ficha} onClose={() => setFicha(null)} />}
     </div>
   );
 }
