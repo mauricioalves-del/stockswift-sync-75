@@ -19,7 +19,10 @@ export type ContextoSku = {
   plano?: { semanas: string[]; totais: number[]; porSemanaSku: number[]; capacidade: number; diasQualidade: number; diasProcesso: number } | null;
   materiais?: ItemCompra[];
   semFicha?: boolean;
+  /** Ficha técnica completa (todos os níveis), explodida sem abater saldo, para a quantidade base. */
+  ficha?: { qtdBase: number; baseEhPlano: boolean; linhas: LinhaFicha[] } | null;
 };
+export type LinhaFicha = { id: string; item: string; tipo: "Subconjunto" | "Matéria-Prima"; um: string; nivel: number; pai: string; porUn: number; necessidade: number; saldo: number };
 export type ContextoMp = { tipo: "mp"; id: string; descricao: string; hoje: string; origens: string[]; compra?: ItemCompra | null };
 export type ContextoFicha = ContextoSku | ContextoMp;
 
@@ -167,14 +170,19 @@ export function FichaItem({ ctx, onClose }: { ctx: ContextoFicha; onClose: () =>
         </div>}
 
         {aba === "materiais" && s && <div className="space-y-2">
-          {s.semFicha ? <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Produto sem ficha técnica cadastrada: não é possível verificar os materiais.</p> : <>
-            <p className="text-xs text-muted-foreground">Materiais da ficha técnica deste produto no plano de compras: o saldo de Fábrica + Processo + Qualidade é consumido semana a semana por todas as ordens do plano. Itens com falta podem romper a produção deste SKU.</p>
-            <div className="max-h-80 overflow-auto rounded-md border"><table className="w-full text-sm"><thead className="sticky top-0 bg-muted text-xs"><tr><th className="px-2 py-1 text-left">Matéria-prima</th><th className="px-2 py-1 text-right">Saldo</th><th className="px-2 py-1 text-right">Necessidade do plano</th><th className="px-2 py-1 text-right">Falta</th><th className="px-2 py-1 text-right">Rompe na semana</th><th className="px-2 py-1 text-right">Comprar até</th></tr></thead>
-              <tbody>{(s.materiais ?? []).map((x) => <tr key={x.id} className="border-t">
-                <td className="px-2 py-1"><span className="font-mono text-xs">{x.id}</span> {x.item}</td><td className="px-2 py-1 text-right tabular-nums">{un(x.saldoInicial, 2)} {x.um}</td><td className="px-2 py-1 text-right tabular-nums">{un(x.necessidade, 2)}</td>
-                <td className={`px-2 py-1 text-right font-semibold ${x.falta > 0 ? "text-red-600" : "text-emerald-600"}`}>{x.falta > 0 ? un(x.falta, 2) : "coberto"}</td>
-                <td className="px-2 py-1 text-right">{dm(x.primeiraFalta)}</td><td className={`px-2 py-1 text-right ${x.atrasado ? "font-semibold text-red-600" : ""}`}>{dm(x.comprarAte)}{x.atrasado ? " · vencido" : ""}</td></tr>)}
-                {!(s.materiais ?? []).length && <tr><td colSpan={6} className="py-6 text-center text-muted-foreground">Nenhuma ordem deste produto no plano, ou a ficha técnica não tem matéria-prima.</td></tr>}</tbody></table></div>
+          {s.semFicha || !s.ficha?.linhas.length ? <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Produto sem ficha técnica cadastrada: não é possível verificar os materiais. Cadastre em Produção › Auditoria de Ficha Técnica.</p> : <>
+            <p className="text-xs text-muted-foreground">Ficha técnica completa, em todos os níveis (subconjuntos e matérias-primas), para {s.ficha.baseEhPlano ? <><b>{un(s.ficha.qtdBase)} un</b> do plano deste produto</> : "1 unidade (o produto não tem ordens no plano)"}. Saldo = Fábrica + Processo + Qualidade. A falta e a semana de ruptura vêm do plano de compras, que abate primeiro o saldo dos subconjuntos e consome o estoque com todas as ordens do plano.</p>
+            <div className="max-h-96 overflow-auto rounded-md border"><table className="w-full text-sm"><thead className="sticky top-0 bg-muted text-xs"><tr><th className="px-2 py-1 text-left">Componente</th><th className="px-2 py-1 text-left">Tipo</th><th className="px-2 py-1 text-right">Por unidade</th><th className="px-2 py-1 text-right">Necessidade</th><th className="px-2 py-1 text-right">Saldo</th><th className="px-2 py-1 text-right">Cobertura</th><th className="px-2 py-1 text-right">Situação no plano</th></tr></thead>
+              <tbody>{s.ficha.linhas.map((x) => { const c = (s.materiais ?? []).find((m) => m.id === x.id); const cobre = x.necessidade > 0 ? x.saldo / x.necessidade : null; return (
+                <tr key={x.id + x.pai} className={`border-t ${x.tipo === "Subconjunto" ? "bg-muted/30 font-medium" : ""}`}>
+                  <td className="px-2 py-1" style={{ paddingLeft: `${8 + (x.nivel - 1) * 16}px` }}><span className="font-mono text-xs">{x.id}</span> {x.item}</td>
+                  <td className="px-2 py-1 text-xs">{x.tipo === "Subconjunto" ? "Subconjunto" : "Matéria-prima"}</td>
+                  <td className="px-2 py-1 text-right tabular-nums">{un(x.porUn, 4)} {x.um}</td>
+                  <td className="px-2 py-1 text-right tabular-nums">{un(x.necessidade, 2)}</td>
+                  <td className="px-2 py-1 text-right tabular-nums">{un(x.saldo, 2)}</td>
+                  <td className={`px-2 py-1 text-right ${cobre !== null && cobre < 1 ? "font-semibold text-red-600" : "text-emerald-700"}`}>{cobre === null ? "—" : cobre >= 10 ? "≥ 10×" : `${un(cobre * 100)}%`}</td>
+                  <td className={`px-2 py-1 text-right text-xs ${c?.falta ? "font-semibold text-red-600" : ""}`}>{c ? (c.falta > 0 ? `falta ${un(c.falta, 2)} · semana ${dm(c.primeiraFalta)} · comprar até ${dm(c.comprarAte)}${c.atrasado ? " (vencido)" : ""}` : "coberto") : x.tipo === "Subconjunto" ? (x.saldo >= x.necessidade ? "coberto pelo saldo do subconjunto" : "produzir o subconjunto") : "não demandado (subconjunto com saldo)"}</td>
+                </tr>); })}</tbody></table></div>
           </>}
         </div>}
 
