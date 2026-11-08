@@ -297,21 +297,19 @@ function ProjecaoCdPage() {
     const base = qtdPlano > 0 ? qtdPlano : 1;
     let res: ReturnType<typeof explodirSimulacao> = [];
     try { res = explodirSimulacao([{ id_produto: raiz, nome, quantidade: base, local: false }], bom, {}); } catch { return null; }
-    const porId = new Map<string, LinhaFicha>();
+    // Uma linha por componente e pai; a ordem de árvore vem do caminho (produto › subconjunto › item), sem recursão.
+    const porId = new Map<string, LinhaFicha & { caminho: string }>();
     for (const r of res) {
       const cam = r.contribs[0]?.caminho ?? [];
       // caminho vai do produto raiz até o item (inclusivo): nível 1 = componente direto do produto
       const nivel = Math.max(1, cam.length - 1), pai = cam.length > 1 ? cam[cam.length - 2]?.id ?? "" : "";
       const k = `${r.id_item}|${pai}`; const o = porId.get(k);
       if (o) { o.necessidade += r.necessidade; o.porUn = o.necessidade / base; continue; }
-      porId.set(k, { id: r.id_item, item: r.item ?? r.id_item, tipo: r.tipo, um: r.um ?? "", nivel, pai, porUn: r.necessidade / base, necessidade: r.necessidade, saldo: bomQ.data?.saldos[r.id_item] ?? 0 });
+      if (porId.size >= 500) continue; // proteção para fichas muito grandes
+      porId.set(k, { id: r.id_item, item: r.item ?? r.id_item, tipo: r.tipo, um: r.um ?? "", nivel, pai, porUn: r.necessidade / base, necessidade: r.necessidade, saldo: bomQ.data?.saldos[r.id_item] ?? 0,
+        caminho: cam.map((c) => `${c.id === r.id_item ? (r.tipo === "Subconjunto" ? "0" : "1") : "0"}${c.id}`).join(">") });
     }
-    // ordem de árvore: cada subconjunto seguido dos seus componentes
-    const linhas = [...porId.values()];
-    const ordenadas: LinhaFicha[] = [];
-    const add = (pai: string, nivel: number) => { for (const x of linhas.filter((y) => y.nivel === nivel && (nivel === 1 || y.pai === pai)).sort((a, b) => Number(b.tipo === "Subconjunto") - Number(a.tipo === "Subconjunto") || a.item.localeCompare(b.item))) { ordenadas.push(x); if (x.tipo === "Subconjunto") add(x.id, nivel + 1); } };
-    add("", 1);
-    for (const x of linhas) if (!ordenadas.includes(x)) ordenadas.push(x);
+    const ordenadas: LinhaFicha[] = [...porId.values()].sort((a, b) => a.caminho.localeCompare(b.caminho)).map(({ caminho: _c, ...x }) => x);
     return { qtdBase: base, baseEhPlano: qtdPlano > 0, linhas: ordenadas };
   };
   const abrirMp = (id: string, descricao?: string) => {
