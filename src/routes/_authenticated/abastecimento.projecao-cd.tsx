@@ -16,7 +16,8 @@ import { interpretarConsenso, aoaDaAbaConsenso, serieDiariaConsenso, type Result
 import { projetarCD, type ResultadoProjecao, type Severidade, type LinhaPlano } from "@/lib/abastecimento-projecao";
 import { planejarSku, estimarDemandaReal, cargaSemanal, semanaDeProducao, type ResultadoMotor, type Lote, type Zona } from "@/lib/abastecimento-cd-motor";
 import { somasRealizacao } from "@/lib/abastecimento-realizacao";
-import { carregarBomCompleta, explodirSimulacao, type BomLinha } from "@/lib/pcp-bom";
+import { carregarBomCompleta, type BomLinha } from "@/lib/pcp-bom";
+import { fichaPorUnidade } from "@/lib/pcp-ficha";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -289,28 +290,13 @@ function ProjecaoCdPage() {
       ficha: fichaTecnica(m?.sku ?? p?.sku ?? sku, descricao || m?.descricao || p?.descricao || "", l?.total ?? 0),
       semFicha: (mrp?.semBom ?? []).some((u) => nk(u) === k) });
   };
-  // Ficha técnica completa do produto: explode todos os níveis sem abater saldo (necessidade bruta).
-  const fichaTecnica = (sku: string, nome: string, qtdPlano: number) => {
+  // Ficha técnica completa do produto (todos os níveis), pela árvore do próprio produto, para a quantidade do plano.
+  const fichaTecnica = (sku: string, _nome: string, qtdPlano: number) => {
     const bom = bomQ.data?.bom; if (!bom) return null;
-    const ids = [sku, sku.replace(/^0+/, ""), `0${sku.replace(/^0+/, "")}`];
-    const raiz = ids.find((id) => bom.some((b) => b.id_subconjunto === id || b.id_produto === id)) ?? sku;
     const base = qtdPlano > 0 ? qtdPlano : 1;
-    let res: ReturnType<typeof explodirSimulacao> = [];
-    try { res = explodirSimulacao([{ id_produto: raiz, nome, quantidade: base, local: false }], bom, {}); } catch { return null; }
-    // Uma linha por componente e pai; a ordem de árvore vem do caminho (produto › subconjunto › item), sem recursão.
-    const porId = new Map<string, LinhaFicha & { caminho: string }>();
-    for (const r of res) {
-      const cam = r.contribs[0]?.caminho ?? [];
-      // caminho vai do produto raiz até o item (inclusivo): nível 1 = componente direto do produto
-      const nivel = Math.max(1, cam.length - 1), pai = cam.length > 1 ? cam[cam.length - 2]?.id ?? "" : "";
-      const k = `${r.id_item}|${pai}`; const o = porId.get(k);
-      if (o) { o.necessidade += r.necessidade; o.porUn = o.necessidade / base; continue; }
-      if (porId.size >= 500) continue; // proteção para fichas muito grandes
-      porId.set(k, { id: r.id_item, item: r.item ?? r.id_item, tipo: r.tipo, um: r.um ?? "", nivel, pai, porUn: r.necessidade / base, necessidade: r.necessidade, saldo: bomQ.data?.saldos[r.id_item] ?? 0,
-        caminho: cam.map((c) => `${c.id === r.id_item ? (r.tipo === "Subconjunto" ? "0" : "1") : "0"}${c.id}`).join(">") });
-    }
-    const ordenadas: LinhaFicha[] = [...porId.values()].sort((a, b) => a.caminho.localeCompare(b.caminho)).map(({ caminho: _c, ...x }) => x);
-    return { qtdBase: base, baseEhPlano: qtdPlano > 0, linhas: ordenadas };
+    const comp = fichaPorUnidade(bom as any, sku);
+    const linhas: LinhaFicha[] = comp.map((c) => ({ ...c, necessidade: c.porUn * base, saldo: bomQ.data?.saldos[c.id] ?? 0 }));
+    return { qtdBase: base, baseEhPlano: qtdPlano > 0, linhas };
   };
   const abrirMp = (id: string, descricao?: string) => {
     if (!calc || calc.vazio) return;
