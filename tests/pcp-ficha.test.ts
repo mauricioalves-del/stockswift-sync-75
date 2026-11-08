@@ -25,3 +25,15 @@ test("Prazo de entrega pela capacidade livre", () => {
   expect(p.porSemana).toEqual([100, 300]);
   expect([p.semana, p.entrega]).toEqual(["2026-11-16", "2026-11-25"]);
 });
+
+import { fichaPorUnidade } from "../src/lib/pcp-ficha";
+test("Ficha técnica por unidade usa só a árvore do próprio produto", () => {
+  const L = (p: string, pai: string, item: string, qtd: number, tem_filho = false) => ({ id_produto: p, id_subconjunto: pai, id_item: item, item: item, qtd, tem_filho, item_unidade: "KG" });
+  const bom = [
+    L("P", "P", "SUB", 0.01, true), L("P", "P", "CX", 1 / 30), L("P", "SUB", "CHOC", 0.6), L("P", "SUB", "AVEL", 0.4),
+    L("Q", "Q", "SUB", 0.02, true), L("Q", "SUB", "CHOC", 0.6), L("Q", "SUB", "AVEL", 0.4), // mesma massa em outro produto
+    L("P", "SUB", "SUB", 1, true), // ciclo indevido no cadastro
+  ];
+  const f = fichaPorUnidade(bom, "0P");
+  expect(f.map((x) => [x.id, x.nivel, Math.round(x.porUn * 10000) / 10000])).toEqual([["SUB", 1, 0.01], ["AVEL", 2, 0.004], ["CHOC", 2, 0.006], ["CX", 1, 0.0333]]);
+});
