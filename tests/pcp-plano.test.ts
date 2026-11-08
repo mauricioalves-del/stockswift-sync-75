@@ -37,7 +37,7 @@ test("Ações recomendadas priorizam o que é urgente", () => {
   const a = acoesRecomendadas({
     ordensHoje: [{ sku: "A", descricao: "Barra", quantidade: 200 }],
     carga: [{ semana: "2026-11-09", unidades: 3500, pct: 125 }, { semana: "2026-11-16", unidades: 1000, pct: 36 }],
-    capacidade: 2800, compras: [], perdaValidade: [], semRegistro: 0, realizacao: 1.3, semBom: 0,
+    capacidade: 2800, compras: [], perdaValidade: [], semRegistro: [], realizacao: 1.3, semBom: [],
   });
   expect(a[0].prioridade).toBe("alta");
   expect(a.map((x) => x.area)).toContain("Capacidade");
