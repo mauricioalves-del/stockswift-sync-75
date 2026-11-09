@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
 import {
-  ALMOX_FAROL, chaveSku, coberturaItens, linhasPlanilhaErp, type LinhaErp, conciliacaoPorDia, diaSP, diasDaSemana, movimentosPorDia, nivelServico, proximaSemana, semanaAnterior, situacaoDia,
+  ALMOX_FAROL, chaveSku, coberturaItens, linhasPlanilhaErp, type LinhaErp, conciliacaoPorDia, diaSP, diasDaSemana, movimentoPelaConciliacao, movimentosPorDia, nivelServico, proximaSemana, semanaAnterior, situacaoDia,
   type AlmoxFarol, type ConcDia, type ConcLinha, type Conferencia, type ItemMov, type MovLinha, type SituacaoDia,
 } from "@/lib/farol-movimentados";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,7 +55,7 @@ export function FarolMovimentadosPage() {
           .gte("data", ini).lte("data", fim).not("almox", "is", null).order("data").range(f, t)).catch(() => []),
         lerFaixa<any>("atlas_movimentacoes_brutas", "data, almoxarifado, sku, descricao, operacao, qtd_ent, qtd_sai, saldo", "data", "almoxarifado"),
         lerFaixa<any>("atlas_movimentacoes_lote_diaria", "data, almoxarifado_raw, sku, descricao_produto, quantidade, lote_movimentado", "data"),
-        lerFaixa<any>("atlas_movimentacoes_historico", "data_movimento, almoxarifado, sku, origem, lote_importacao_id", "data_movimento", "almoxarifado"),
+        lerFaixa<any>("atlas_movimentacoes_historico", "data_movimento, almoxarifado, sku, origem, lote_importacao_id, entrada, saida, saldo_sistema", "data_movimento", "almoxarifado"),
         lerFaixa<any>("atlas_divergencias", "data_deteccao, almoxarifado, sku, origem, criado_em", "data_deteccao", "almoxarifado"),
         sb.from("atlas_lotes_importacao").select("id, criado_em").gte("criado_em", ini).then((r: any) => (r.data ?? []) as { id: number; criado_em: string }[]),
         sb.from("conferencias_movimentados").select("*").gte("data_movimento", ini).lte("data_movimento", fim).then((r: any) => (r.data ?? []) as Conferencia[]),
@@ -76,10 +76,13 @@ export function FarolMovimentadosPage() {
         ...porLote.map((l: any) => ({ data: l.data, desc_almox: l.almoxarifado_raw, id_produto: l.sku, descricao: l.descricao_produto, qtd: Number(l.quantidade) || 0, id_lote: l.lote_movimentado })),
       ];
       const conc: ConcLinha[] = [
-        ...hist.filter((h: any) => h.origem !== "fechamento_inventario").map((h: any) => ({ almoxarifado: h.almoxarifado, data: h.data_movimento, sku: h.sku, divergente: false, em: isoSP(loteEm.get(h.lote_importacao_id)) })),
+        ...hist.filter((h: any) => h.origem !== "fechamento_inventario").map((h: any) => ({ almoxarifado: h.almoxarifado, data: h.data_movimento, sku: h.sku, divergente: false, em: isoSP(loteEm.get(h.lote_importacao_id)), qtd: Math.abs(Number(h.entrada) || 0) + Math.abs(Number(h.saida) || 0), saldo: h.saldo_sistema == null ? null : Number(h.saldo_sistema) })),
         ...divs.filter((d: any) => d.origem !== "fechamento_inventario").map((d: any) => ({ almoxarifado: d.almoxarifado, data: d.data_deteccao, sku: d.sku, divergente: true, em: isoSP(d.criado_em) })),
       ];
-      return { mov, conc, conf, frescor: frescor as [string, AlmoxFarol, string | null][], bases: { erp: erp.length + erpPlanilha.length, brutas: brutas.length, lote: porLote.length } };
+      // Dias sem nenhuma base de movimento (ex.: antes da importação diária do ERP): o movimento vem da própria conciliação do Atlas.
+      const movAtlas = movimentoPelaConciliacao(mov, conc);
+      mov.push(...movAtlas);
+      return { mov, conc, conf, frescor: frescor as [string, AlmoxFarol, string | null][], bases: { erp: erp.length + erpPlanilha.length, brutas: brutas.length, lote: porLote.length, atlas: movAtlas.length } };
     },
   });
 
@@ -190,7 +193,7 @@ export function FarolMovimentadosPage() {
 
       <p className="text-[11px] text-muted-foreground">
         Bases de movimentação lidas na janela: livro-caixa do Atlas ({q.data?.bases.brutas ?? 0} linhas, importado em <Link to="/atlas/importar" className="underline">Atlas › Importar</Link>),
-        planilha diária do ERP ({q.data?.bases.erp ?? 0}, em <Link to="/suprimentos/fefo/movimentacoes" className="underline">Controle FEFO › Importar Movimentação Diária</Link>) e movimentação por lote ({q.data?.bases.lote ?? 0}).
+        planilha diária do ERP ({q.data?.bases.erp ?? 0}, em <Link to="/suprimentos/fefo/movimentacoes" className="underline">Controle FEFO › Importar Movimentação Diária</Link>) e movimentação por lote ({q.data?.bases.lote ?? 0}). Dias sem nenhuma dessas bases usam os itens da conciliação do Atlas como movimento ({q.data?.bases.atlas ?? 0} linhas).
         Conciliação = indicador de Movimentados do Atlas (itens sem divergência e divergências de origem movimentação).
         {" "}Últimas datas: {ALMOX_FAROL.map((a) => `${a.nome}: ${(q.data?.frescor ?? []).filter((f) => f[1] === a.id).map((f) => `${f[0]} ${f[2] ? dm(String(f[2]).slice(0, 10)) : "—"}`).join(", ")}`).join(" · ")}.
       </p>

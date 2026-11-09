@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { almoxDoFarol, coberturaItens, conciliacaoPorDia, dataPlanilha, diasDaSemana, linhasPlanilhaErp, movimentosPorDia, nivelServico, prazoConferencia, situacaoDia } from "../src/lib/farol-movimentados";
+import { almoxDoFarol, coberturaItens, conciliacaoPorDia, dataPlanilha, diasDaSemana, linhasPlanilhaErp, movimentoPelaConciliacao, movimentosPorDia, nivelServico, prazoConferencia, situacaoDia } from "../src/lib/farol-movimentados";
 
 test("Identifica os almoxarifados do processo (ERP e Atlas)", () => {
   expect(almoxDoFarol("Almox - SP Fabrica")).toBe("FABRICA");
@@ -41,6 +41,22 @@ test("Movimentado de várias bases × conciliação do Atlas", () => {
   expect(situacaoDia(mov.get("FABRICA|2026-11-03"), undefined, "2026-11-03", "2026-11-04").tipo).toBe("PENDENTE");
   const n = nivelServico([s1, situacaoDia(itens, undefined, "2026-11-02", "2026-11-05"), situacaoDia(undefined, undefined, "2026-11-04", "2026-11-05")]);
   expect([n.vencidos, n.cumpridos, n.falhas, n.nivel]).toEqual([2, 1, 1, 0.5]);
+});
+
+test("Dias sem base de movimento usam a conciliação do Atlas; dias com base não mudam", () => {
+  const mov = [{ data: "2026-10-05T12:00:00Z", desc_almox: "Almox - SP Fabrica", id_produto: "1", descricao: "A", qtd: 2 }];
+  const conc = [
+    { almoxarifado: "Almox_SP_Fabrica", data: "2026-10-05", sku: "9", divergente: false, em: null },
+    { almoxarifado: "Almox_SP_Processo", data: "2026-10-05", sku: "7", divergente: false, em: null, qtd: 4 },
+    { almoxarifado: "Almox_SP_Processo", data: "2026-10-05", sku: "8", divergente: true, em: null },
+  ];
+  const extra = movimentoPelaConciliacao(mov, conc);
+  expect(extra.map((l) => [l.desc_almox, l.id_produto, l.qtd])).toEqual([["Almox_SP_Processo", "7", 4], ["Almox_SP_Processo", "8", 0]]);
+  const porDia = movimentosPorDia([...mov, ...extra]);
+  expect(porDia.get("FABRICA|2026-10-05")!.map((i) => i.sku)).toEqual(["1"]);
+  const s = situacaoDia(porDia.get("PROCESSO|2026-10-05"), conciliacaoPorDia(conc).get("PROCESSO|2026-10-05"), "2026-10-05", "2026-11-09");
+  expect(s.tipo).toBe("CONFERIDO");
+  expect(nivelServico([s]).nivel).toBe(1);
 });
 
 test("Importador da planilha do ERP (Planilha2)", () => {

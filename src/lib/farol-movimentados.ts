@@ -82,7 +82,24 @@ export function movimentosPorDia(linhas: MovLinha[]): Map<string, ItemMov[]> {
 }
 
 /** Registro de conciliação do Atlas (indicador de Movimentados). em = quando foi registrado (null = sem horário). */
-export type ConcLinha = { almoxarifado: string; data: string; sku: string; divergente: boolean; em: string | null };
+export type ConcLinha = { almoxarifado: string; data: string; sku: string; divergente: boolean; em: string | null; qtd?: number; saldo?: number | null };
+
+/**
+ * Movimento implícito na conciliação do Atlas: o upload da Movimentação no Atlas só traz itens que movimentaram.
+ * Usado apenas para almox+dia sem nenhuma linha nas bases de movimentação (ex.: períodos anteriores à importação
+ * diária do ERP), para que o histórico do nível de serviço não fique vazio. Dias com base de movimento não mudam.
+ */
+export function movimentoPelaConciliacao(mov: MovLinha[], conc: ConcLinha[]): MovLinha[] {
+  const comBase = new Set<string>();
+  for (const l of mov) { const a = almoxDoFarol(l.desc_almox); if (a && String(l.id_produto ?? "").trim()) comBase.add(`${a}|${diaSP(l.data)}`); }
+  const out: MovLinha[] = [];
+  for (const c of conc) {
+    const a = almoxDoFarol(c.almoxarifado); if (!a || !c.data || !String(c.sku ?? "").trim()) continue;
+    if (comBase.has(`${a}|${String(c.data).slice(0, 10)}`)) continue;
+    out.push({ data: String(c.data).slice(0, 10), desc_almox: c.almoxarifado, id_produto: String(c.sku).trim(), descricao: null, qtd: Number(c.qtd) || 0, saldo: c.saldo ?? null });
+  }
+  return out;
+}
 export type ConcDia = Map<string, { divergente: boolean; em: string | null }>;
 export const chaveSku = (s: string) => String(s ?? "").trim().replace(/^0+/, "");
 
