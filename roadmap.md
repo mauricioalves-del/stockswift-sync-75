@@ -124,3 +124,8 @@
 - [x] Aplicar no banco a migration 20261025090000_atlas_fase2.sql (coluna que liga almoxarifado do Atlas ao Stock Savvy), SQL idêntico, sem tocar dados ou telas.
 - [x] Confirmar por decisão do usuário que a leitura do histórico do Atlas segue exatamente como na migration do histórico (todos os logados leem, exceto usuários, log de auditoria e controle de importação, que só gestor lê; escrita só gestor) — nada foi alterado, alertas de segurança registrados como decisão aceita.
 - [x] Aplicar no banco a migration 20261026100000_atlas_assinatura_fechamento.sql (SQL idêntico: INSERT do Diretor de Operações e do Coordenador Financeiro em atlas_conciliacoes_ciencia e atlas_log_auditoria); políticas confirmadas no banco, sem tocar telas ou dados.
+
+## Acurácia Ponderada: detalhes e farol
+- [x] D e E com mesma altura e tabelas recolhidas em "Ver detalhes" com percentuais destacados; I com a mesma lógica.
+- [x] F e G: clique na barra abre janela com produto, sistema, contagem, divergência e valor do período filtrado.
+- [x] H: farol vermelho < 60%, amarelo 60–95%, verde ≥ 95%; Valor Mod em vermelho. Testes e tela autenticada verificados.

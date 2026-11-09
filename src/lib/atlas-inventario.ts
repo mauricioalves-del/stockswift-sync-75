@@ -123,7 +123,7 @@ export const comparativoPorAlmox = (D: DadosInv, mes: string | null) => comparat
 export function concentracao(D: DadosInv, f: FiltroInv, topN = 10) {
   const div = filtrar(D, f).filter((i) => i.divergente).map((i) => ({ i, v: valorAtual(D, i) })).sort((a, b) => b.v - a.v);
   const total = div.reduce((s, x) => s + x.v, 0); let acum = 0;
-  const curva = div.slice(0, 50).map((x, k) => { acum += x.v; return { posicao: k + 1, sku: x.i.sku, descricao: x.i.descricao, almox: x.i.almoxarifado, data: x.i.data, divergencia: x.i.divergencia, valor: r2(x.v), pctItens: Math.round(((k + 1) / div.length) * 1000) / 10, pctValor: total ? Math.round((acum / total) * 1000) / 10 : 0 }; });
+  const curva = div.slice(0, 50).map((x, k) => { acum += x.v; return { posicao: k + 1, id: x.i.id, sku: x.i.sku, descricao: x.i.descricao, almox: x.i.almoxarifado, data: x.i.data, sistema: x.i.qtd_sistema, contagem: x.i.qtd_contagem, divergencia: x.i.divergencia, valor: r2(x.v), pctItens: Math.round(((k + 1) / div.length) * 1000) / 10, pctValor: total ? Math.round((acum / total) * 1000) / 10 : 0 }; });
   const topValor = div.slice(0, topN).reduce((s, x) => s + x.v, 0);
   return { curva, total: div.length, valorTotal: r2(total), topN: Math.min(topN, div.length), topNPct: total ? Math.round((topValor / total) * 1000) / 10 : null };
 }
@@ -132,6 +132,28 @@ export function magnitude(D: DadosInv, f: FiltroInv) {
   const div = filtrar(D, f).filter((i) => i.divergente);
   const faixas = FAIXAS.map(([min, max, rotulo]) => { const g = div.filter((i) => Math.abs(i.divergencia) >= min && Math.abs(i.divergencia) < max); return { faixa: rotulo, itens: g.length, valor: r2(g.reduce((s, i) => s + valorAtual(D, i), 0)) }; });
   return { faixas, total: div.length, pctPequenas: div.length ? Math.round((faixas[0].itens / div.length) * 1000) / 10 : null };
+}
+
+export type DetalheDivergencia = { id: number; sku: string; descricao: string | null; almox: string; data: string | null; sistema: number; contagem: number; divergencia: number; valor: number };
+
+/** Lista detalhada das divergências de uma faixa de tamanho (mesmo critério e valor do gráfico de magnitude). */
+export function detalhesFaixa(D: DadosInv, f: FiltroInv, rotulo: string): DetalheDivergencia[] {
+  const fx = FAIXAS.find((x) => x[2] === rotulo);
+  if (!fx) return [];
+  const [min, max] = fx;
+  return filtrar(D, f)
+    .filter((i) => i.divergente && Math.abs(i.divergencia) >= min && Math.abs(i.divergencia) < max)
+    .map((i) => ({ id: i.id, sku: i.sku, descricao: i.descricao, almox: i.almoxarifado, data: i.data, sistema: i.qtd_sistema, contagem: i.qtd_contagem, divergencia: i.divergencia, valor: r2(valorAtual(D, i)) }))
+    .sort((a, b) => b.valor - a.valor);
+}
+
+export type FaixaAcuracia = "vermelho" | "amarelo" | "verde";
+/** Farol de acurácia em %: abaixo de 60 vermelho, de 60 até abaixo de 95 amarelo, 95 ou mais verde. */
+export function faixaAcuracia(v: number | null | undefined): FaixaAcuracia | null {
+  if (v == null || !Number.isFinite(v)) return null;
+  if (v < 60) return "vermelho";
+  if (v < 95) return "amarelo";
+  return "verde";
 }
 
 export function faltaSobra(D: DadosInv, f: FiltroInv, topN = 5) {
