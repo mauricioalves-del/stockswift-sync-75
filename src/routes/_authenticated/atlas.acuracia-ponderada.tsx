@@ -123,7 +123,7 @@ function AcuraciaPonderada() {
           </Secao>
           <Secao letra="B" titulo="Indicadores do período">
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              {([["Item a item", pct(r.c.item), null], ["IAQ (por quantidade)", pct(r.c.iaq), `${pp(r.c.iaq != null && r.c.item != null ? r.c.iaq - r.c.item : null)} vs. item a item`], ["IAP (por valor)", pct(r.c.iap), `${pp(r.c.iap != null && r.c.item != null ? r.c.iap - r.c.item : null)} vs. item a item`], ["Cobertura de custo", pct(r.c.cobertura), `${brl(r.c.divergenteTotal)} divergente de ${brl(r.c.portfolio)} avaliado`]] as const).map(([t, v, sub]) => (
+              {([["Item a item", pct(r.c.item), null], ["IAQ (por quantidade)", pct(r.c.iaq), `${pp(r.c.iaq != null && r.c.item != null ? r.c.iaq - r.c.item : null)} vs. item a item`], ["IAP (por valor)", pct(r.c.iap), `${pp(r.c.iap != null && r.c.item != null ? r.c.iap - r.c.item : null)} vs. item a item`], ["Valor ponderado do inventário", brl(r.c.divergenteTotal), null]] as const).map(([t, v, sub]) => (
                 <div key={t} className="rounded-lg border bg-background p-3"><div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t}</div><div className="mt-1 text-2xl font-bold">{v}</div>{sub && <div className="text-[11px] text-muted-foreground">{sub}</div>}</div>
               ))}
             </div>
