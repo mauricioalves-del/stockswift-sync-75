@@ -13,8 +13,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import {
   ArrowLeft, ScanLine, Save, Loader2, Warehouse, AlertTriangle,
-  PlayCircle, CheckCircle2, Plus, Trash2, CalendarIcon, FileDown,
+  PlayCircle, CheckCircle2, Plus, Trash2, CalendarIcon, FileDown, PackageMinus,
 } from "lucide-react";
+import { BaixaConsumoDialog } from "@/components/missoes/BaixaConsumoDialog";
 import { sounds } from "@/lib/audio";
 import { formatNum, classificarFaixa, acuracidadeColor, statusLabel } from "@/lib/inventory";
 import { aprovarRecontagem, type RecontagemRow } from "@/lib/recontagem";
@@ -219,6 +220,7 @@ function MissaoExecucaoPage() {
   }
 
   const [busca, setBusca] = useState("");
+  const [baixaConsumoAberta, setBaixaConsumoAberta] = useState(false);
   const missao = missaoQ.data;
   const itens = itensQ.data ?? [];
   const total = itens.length;
@@ -371,6 +373,18 @@ function MissaoExecucaoPage() {
     }
   }
 
+  function abrirBaixaConsumo() {
+    if (!lotesQ.data || !linhasQ.data || baixasQ.isLoading || transitoQ.isLoading) {
+      toast.info("Aguarde o carregamento da contagem, trânsito e baixas pendentes e tente novamente");
+      return;
+    }
+    if (baixasQ.isError || transitoQ.isError) {
+      toast.error("Não foi possível ler baixas pendentes ou estoque em trânsito — tente novamente para evitar ajustes errados");
+      return;
+    }
+    setBaixaConsumoAberta(true);
+  }
+
   async function baixarFicha() {
     if (!missao) return;
     if (!lotesQ.data || !linhasQ.data) {
@@ -422,8 +436,26 @@ function MissaoExecucaoPage() {
           <Button asChild variant="outline" size="sm">
             <Link to="/scanner"><ScanLine className="size-4 mr-1.5" /> Scanner</Link>
           </Button>
+          {isAdmin && (
+            <Button variant="outline" size="sm" onClick={abrirBaixaConsumo} disabled={itens.length === 0 || !missao.origem}
+              title={missao.origem ? "Gerar pedido de baixa de Uso e Consumo pela diferença Sistema × Contagem" : "Missão sem almoxarifado definido"}>
+              <PackageMinus className="size-4 mr-1.5" /> Baixa por consumo
+            </Button>
+          )}
         </div>
       </div>
+      {isAdmin && baixaConsumoAberta && lotesQ.data && linhasQ.data && (
+        <BaixaConsumoDialog
+          open={baixaConsumoAberta}
+          onOpenChange={setBaixaConsumoAberta}
+          missao={missao}
+          itens={itens}
+          linhasPorItem={linhasQ.data}
+          lotesPorSku={lotesQ.data}
+          baixasAbertas={baixasQ.data}
+          transito={transitoQ.data}
+        />
+      )}
 
       {missao.origem ? (
         <div className="flex items-center gap-2 rounded-md border bg-primary/5 px-3 py-2 text-sm">
