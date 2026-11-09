@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detalhesFaixa, faixaAcuracia, magnitude, montarInventario } from "@/lib/atlas-inventario";
+import { comparativo, detalhesFaixa, evolucaoPonderada, faixaAcuracia, magnitude, montarInventario } from "@/lib/atlas-inventario";
 
 describe("farol de acurácia (indicador H)", () => {
   it("abaixo de 60% fica vermelho", () => {
@@ -36,5 +36,22 @@ describe("detalhes por faixa de tamanho (indicador G)", () => {
     expect(lista[0]).toMatchObject({ descricao: "Produto A", sistema: 10, contagem: 7, divergencia: -3, valor: 30 });
     expect(lista.length).toBe(magnitude(D, f).faixas[0].itens);
     expect(detalhesFaixa(D, f, "20 a 100 un.").map((l) => l.sku)).toEqual(["B"]);
+  });
+});
+
+describe("valor divergente do card bate com o MoM (indicadores B e H)", () => {
+  const D = montarInventario(
+    [{ id: 1, almoxarifado: "Alm_A", data_fechamento: "2026-10-05" }],
+    [
+      { id: 20, fechamento_id: 1, sku: "COM", almoxarifado: "Alm_A", qtd_sistema: 100, qtd_contagem: 96, divergencia_qtd: -4, valor_estimado: 1, divergente: true },
+      { id: 21, fechamento_id: 1, sku: "SEM", almoxarifado: "Alm_A", qtd_sistema: 10, qtd_contagem: 8, divergencia_qtd: -2, valor_estimado: 15, divergente: true },
+    ],
+    [{ sku: "COM", custo_unitario: 10 }],
+  );
+  it("total do período inclui itens sem custo e é igual ao Valor Mod do mês", () => {
+    const c = comparativo(D, { almox: null, mes: "2026-10" });
+    expect(c.divergenteValor).toBe(40);
+    expect(c.divergenteTotal).toBe(55);
+    expect(evolucaoPonderada(D, null)[0].valorMod).toBe(c.divergenteTotal);
   });
 });

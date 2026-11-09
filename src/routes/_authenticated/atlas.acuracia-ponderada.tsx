@@ -123,7 +123,7 @@ function AcuraciaPonderada() {
           </Secao>
           <Secao letra="B" titulo="Indicadores do período">
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              {([["Item a item", pct(r.c.item), null], ["IAQ (por quantidade)", pct(r.c.iaq), `${pp(r.c.iaq != null && r.c.item != null ? r.c.iaq - r.c.item : null)} vs. item a item`], ["IAP (por valor)", pct(r.c.iap), `${pp(r.c.iap != null && r.c.item != null ? r.c.iap - r.c.item : null)} vs. item a item`], ["Cobertura de custo", pct(r.c.cobertura), `${brl(r.c.divergenteValor)} divergente de ${brl(r.c.portfolio)} avaliado`]] as const).map(([t, v, sub]) => (
+              {([["Item a item", pct(r.c.item), null], ["IAQ (por quantidade)", pct(r.c.iaq), `${pp(r.c.iaq != null && r.c.item != null ? r.c.iaq - r.c.item : null)} vs. item a item`], ["IAP (por valor)", pct(r.c.iap), `${pp(r.c.iap != null && r.c.item != null ? r.c.iap - r.c.item : null)} vs. item a item`], ["Cobertura de custo", pct(r.c.cobertura), `${brl(r.c.divergenteTotal)} divergente no período · ${brl(r.c.divergenteValor)} com custo (base IAP) de ${brl(r.c.portfolio)} avaliado`]] as const).map(([t, v, sub]) => (
                 <div key={t} className="rounded-lg border bg-background p-3"><div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t}</div><div className="mt-1 text-2xl font-bold">{v}</div>{sub && <div className="text-[11px] text-muted-foreground">{sub}</div>}</div>
               ))}
             </div>
@@ -140,7 +140,7 @@ function AcuraciaPonderada() {
                     <LegendaFarol />
                     <div className="max-h-[420px] overflow-auto rounded-md border">
                       <table className="w-full text-xs"><thead className="sticky top-0 z-10"><tr><Th c={rotulo} /><Th c="Item a item" d /><Th c="IAQ" d /><Th c="IAP" d /><Th c="Valor divergente" d /></tr></thead>
-                        <tbody>{l.map((x) => <tr key={x.chave} className="border-t"><td className="p-1.5">{x.chave}</td><td className="p-1.5 text-right"><PctFarol v={x.item} /></td><td className="p-1.5 text-right"><PctFarol v={x.iaq} /></td><td className="p-1.5 text-right"><PctFarol v={x.iap} /></td><td className="p-1.5 text-right" style={{ color: atlasCores.danger }}>{brl(x.divergenteValor)}</td></tr>)}</tbody></table>
+                        <tbody>{l.map((x) => <tr key={x.chave} className="border-t"><td className="p-1.5">{x.chave}</td><td className="p-1.5 text-right"><PctFarol v={x.item} /></td><td className="p-1.5 text-right"><PctFarol v={x.iaq} /></td><td className="p-1.5 text-right"><PctFarol v={x.iap} /></td><td className="p-1.5 text-right" style={{ color: atlasCores.danger }}>{brl(x.divergenteTotal)}</td></tr>)}</tbody></table>
                     </div>
                   </div>
                 )}

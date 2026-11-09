@@ -99,7 +99,7 @@ export function evolucaoMensal(D: DadosInv, almox: string | null) {
 
 // ---------- Acurácia Ponderada ----------
 export function tresModelos(D: DadosInv, itens: ItemInv[]) {
-  if (!itens.length) return { item: null as number | null, iaq: null as number | null, iap: null as number | null, cobertura: null as number | null, portfolio: 0, divergenteValor: 0, qtdSistema: 0, qtdDivergente: 0 };
+  if (!itens.length) return { item: null as number | null, iaq: null as number | null, iap: null as number | null, cobertura: null as number | null, portfolio: 0, divergenteValor: 0, divergenteTotal: 0, qtdSistema: 0, qtdDivergente: 0 };
   const div = itens.filter((i) => i.divergente);
   const item = r2(((itens.length - div.length) / itens.length) * 100);
   const qtdSistema = itens.reduce((s, i) => s + Math.abs(i.qtd_sistema), 0);
@@ -109,7 +109,9 @@ export function tresModelos(D: DadosInv, itens: ItemInv[]) {
   const portfolio = comCusto.reduce((s, i) => s + i.qtd_sistema * D.custos.get(i.sku)!, 0);
   const divergenteValor = comCusto.filter((i) => i.divergente).reduce((s, i) => s + Math.abs(i.divergencia) * D.custos.get(i.sku)!, 0);
   const iap = comCusto.length && portfolio ? r2((1 - divergenteValor / portfolio) * 100) : null;
-  return { item, iaq, iap, cobertura: r2((comCusto.length / itens.length) * 100), portfolio: r2(portfolio), divergenteValor: r2(divergenteValor), qtdSistema: r2(qtdSistema), qtdDivergente: r2(qtdDivergente) };
+  // Valor divergente total do período: mesmo critério do MoM (Valor Mod), Pareto e magnitude — custo do cadastro, ou valor da planilha sem custo.
+  const divergenteTotal = div.reduce((s, i) => s + valorAtual(D, i), 0);
+  return { item, iaq, iap, cobertura: r2((comCusto.length / itens.length) * 100), portfolio: r2(portfolio), divergenteValor: r2(divergenteValor), divergenteTotal: r2(divergenteTotal), qtdSistema: r2(qtdSistema), qtdDivergente: r2(qtdDivergente) };
 }
 export const comparativo = (D: DadosInv, f: FiltroInv) => tresModelos(D, filtrar(D, f));
 function comparativoPor(D: DadosInv, itens: ItemInv[], chave: (i: ItemInv) => string) {
