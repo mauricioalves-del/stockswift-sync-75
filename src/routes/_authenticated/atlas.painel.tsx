@@ -3,7 +3,9 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AtlasGrafico, AtlasCausas, atlasCores } from "@/components/atlas/AtlasGrafico";
 import { AtlasTendencia } from "@/components/atlas/AtlasTendencia";
-import { LayoutDashboard, Loader2 } from "lucide-react";
+import { ClipboardCheck, LayoutDashboard, Loader2 } from "lucide-react";
+import { FarolMovimentadosPage } from "@/routes/_authenticated/gestao.farol-movimentados";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -42,7 +44,8 @@ const okHist = (m: Hist) => (Number(m.divergencia) || 0) === 0 || m.hipotese_con
 const okDiv = (d: Dv) => d.hipotese_confirmada === "Sem_Divergencia_Real";
 
 function AtlasPainel() {
-  const [periodo, setPeriodo] = useState("tudo");
+  const [periodo, setPeriodo] = useState("mes_atual");
+  const [visao, setVisao] = useState<"painel" | "farol">("painel");
   const [almox, setAlmox] = useState("todos");
   const q = useQuery({
     queryKey: ["atlas-painel-dados"],
@@ -81,10 +84,6 @@ function AtlasPainel() {
     for (const m of hist) if (almox === "todos" || m.almoxarifado === almox) add(String(m.data_movimento).slice(0, 10), okHist(m));
     for (const d of divs) if (almox === "todos" || d.almoxarifado === almox) add(String(d.data_deteccao).slice(0, 10), okDiv(d));
     const dia = [...porDia].sort((a, b) => a[0].localeCompare(b[0])).map(([data, v]) => ({ data, rotulo: dt(data).slice(0, 5), itens: v.itens, acuracia: v.itens ? Math.round((v.ok / v.itens) * 10000) / 100 : null }));
-    const porMes = new Map<string, { itens: number; ok: number }>();
-    for (const [data, v] of porDia) { const k = data.slice(0, 7); const m = porMes.get(k) ?? { itens: 0, ok: 0 }; m.itens += v.itens; m.ok += v.ok; porMes.set(k, m); }
-    let ant: number | null = null;
-    const mes = [...porMes].sort((a, b) => a[0].localeCompare(b[0])).map(([m, v]) => { const ac = v.itens ? Math.round((v.ok / v.itens) * 10000) / 100 : null; const varPp = ac != null && ant != null ? Math.round((ac - ant) * 100) / 100 : null; ant = ac; return { mes: m, rotulo: `${m.slice(5)}/${m.slice(2, 4)}`, acuracia: ac, varPp, itens: v.itens }; });
 
     // causas confirmadas
     const causas = new Map<string, number>();
@@ -116,22 +115,41 @@ function AtlasPainel() {
       ...hist.filter((m) => (Number(m.divergencia) || 0) !== 0).map((m) => ({ sku: m.sku, almox: m.almoxarifado, sis: m.saldo_sistema, fis: m.saldo_fisico, qtd: Number(m.divergencia), status: "Histórico resolvido" })),
       ...divs.map((d) => ({ sku: d.sku, almox: d.almoxarifado, sis: d.saldo_sistema, fis: d.saldo_fisico, qtd: Number(d.divergencia_qtd), status: d.status === "Em_Investigacao" ? "Em investigação" : d.status })),
     ].sort((a, b) => Math.abs(b.qtd) - Math.abs(a.qtd)).slice(0, 10);
-    return { kpi, dia, mes, causasL, almoxL, mapa, hipsMapa, maxMapa, topSku, topAlmox, maiores, almoxes };
+    return { kpi, dia, causasL, almoxL, mapa, hipsMapa, maxMapa, topSku, topAlmox, maiores, almoxes };
   }, [q.data, periodo, almox]);
+
+  // Acurácia mensal: visão geral fixa (todo o histórico, todos os almoxarifados), independente dos filtros.
+  const mes = useMemo(() => {
+    if (!q.data) return [];
+    const porMes = new Map<string, { itens: number; ok: number }>();
+    const add = (data: string, ok: boolean) => { const k = String(data).slice(0, 7); const m = porMes.get(k) ?? { itens: 0, ok: 0 }; m.itens++; if (ok) m.ok++; porMes.set(k, m); };
+    for (const m of q.data.hist) add(m.data_movimento, okHist(m));
+    for (const d of q.data.divs) add(d.data_deteccao, okDiv(d));
+    let ant: number | null = null;
+    return [...porMes].sort((a, b) => a[0].localeCompare(b[0])).map(([m, v]) => { const ac = v.itens ? Math.round((v.ok / v.itens) * 10000) / 100 : null; const varPp = ac != null && ant != null ? Math.round((ac - ant) * 100) / 100 : null; ant = ac; return { mes: m, rotulo: `${m.slice(5)}/${m.slice(2, 4)}`, acuracia: ac, varPp, itens: v.itens }; });
+  }, [q.data]);
 
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold"><LayoutDashboard className="size-6" /> Painel</h1>
-          <p className="text-sm text-muted-foreground">Acurácia das contagens diárias (movimentação) e divergências do Atlas. Não inclui os itens de fechamento de inventário. Acurácia = itens sem divergência real ÷ itens contados.</p>
+          <h1 className="flex items-center gap-2 text-2xl font-bold"><LayoutDashboard className="size-6" /> Movimentados</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm text-muted-foreground">Acurácia das contagens diárias (movimentação) e divergências do Atlas. Não inclui os itens de fechamento de inventário. Acurácia = itens sem divergência real ÷ itens contados.</p>
+            <Tabs value={visao} onValueChange={(v) => setVisao(v as "painel" | "farol")}>
+              <TabsList className="h-8">
+                <TabsTrigger value="painel" className="text-xs"><LayoutDashboard className="mr-1 size-3.5" /> Painel</TabsTrigger>
+                <TabsTrigger value="farol" className="text-xs"><ClipboardCheck className="mr-1 size-3.5" /> Farol de Movimentados</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
-        <div className="flex gap-2">
+        {visao === "painel" && <div className="flex gap-2">
           <Select value={periodo} onValueChange={setPeriodo}><SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="tudo">Todo o histórico</SelectItem><SelectItem value="mes_atual">Mês atual</SelectItem><SelectItem value="30d">Últimos 30 dias</SelectItem><SelectItem value="60d">Últimos 60 dias</SelectItem><SelectItem value="90d">Últimos 90 dias</SelectItem></SelectContent></Select>
           <Select value={almox} onValueChange={setAlmox}><SelectTrigger className="h-8 w-52"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os almoxarifados</SelectItem>{(r?.almoxes ?? []).map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent></Select>
-        </div>
+        </div>}
       </div>
-      {q.isLoading || !r ? <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Carregando o histórico…</div> : (
+      {visao === "farol" ? <FarolMovimentadosPage /> : q.isLoading || !r ? <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Carregando o histórico…</div> : (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
             {[["Abertas", un(r.kpi.abertas)], ["Em investigação", un(r.kpi.emInv)], ["Resolvidas", un(r.kpi.resolvidas)], ["Valor em aberto", brl(r.kpi.valor)], ["Acerto da IA", r.kpi.acerto == null ? "—" : `${un(r.kpi.acerto, 1)}%`]].map(([rot, v]) => (
@@ -155,10 +173,10 @@ function AtlasPainel() {
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Acurácia mensal (variação MoM em p.p.)</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Acurácia mensal (variação MoM em p.p.)</CardTitle><p className="text-xs text-muted-foreground">Visão geral de todo o histórico e almoxarifados; não muda com os filtros.</p></CardHeader>
               <CardContent>
-                <div className="h-60"><AtlasGrafico data={r.mes} category="rotulo" percent height={240} series={[{key: "acuracia", name: "Acurácia do mês", color: atlasCores.blue, percent: true},{key: "varPp", name: "Variação MoM (p.p.)", color: atlasCores.warning, line: true, right: true}]} /></div>
-                <table className="mt-2 w-full text-xs"><tbody>{[...r.mes].reverse().slice(0, 6).map((m) => <tr key={m.mes} className="border-b last:border-0"><td className="p-1">{m.rotulo}</td><td className="p-1 text-right">{un(m.acuracia, 2)}%</td><td className={`p-1 text-right ${m.varPp == null ? "" : m.varPp >= 0 ? "text-emerald-700" : "text-destructive"}`}>{m.varPp == null ? "—" : `${m.varPp > 0 ? "+" : ""}${un(m.varPp, 2)} p.p.`}</td><td className="p-1 text-right text-muted-foreground">{un(m.itens)} itens</td></tr>)}</tbody></table>
+                <div className="h-60"><AtlasGrafico data={mes} category="rotulo" percent height={240} series={[{key: "acuracia", name: "Acurácia do mês", color: atlasCores.blue, percent: true},{key: "varPp", name: "Variação MoM (p.p.)", color: atlasCores.warning, line: true, right: true}]} /></div>
+                <table className="mt-2 w-full text-xs"><tbody>{[...mes].reverse().slice(0, 6).map((m) => <tr key={m.mes} className="border-b last:border-0"><td className="p-1">{m.rotulo}</td><td className="p-1 text-right">{un(m.acuracia, 2)}%</td><td className={`p-1 text-right ${m.varPp == null ? "" : m.varPp >= 0 ? "text-emerald-700" : "text-destructive"}`}>{m.varPp == null ? "—" : `${m.varPp > 0 ? "+" : ""}${un(m.varPp, 2)} p.p.`}</td><td className="p-1 text-right text-muted-foreground">{un(m.itens)} itens</td></tr>)}</tbody></table>
               </CardContent>
             </Card>
             <Card>

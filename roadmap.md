@@ -4,6 +4,9 @@
 - [x] Exibir estoque em trânsito por SKU e almoxarifado antes de Baixa em aprovação, também no celular, sem alterar saldo ou cálculo de divergência.
 - [x] Cinco testes passaram; missão Pátio de 05/11 autenticada confirmou trânsito zero para SKU 05104020, baixa 1, sistema 18 e contado 48 preservados; coluna e versão celular verificadas sem erros.
 
+## Movimentados: filtro, Farol e mensal fixo
+- [x] Filtro padrão "Mês atual"; Farol de Movimentados saiu de Gestão e virou aba dentro de Movimentados; Acurácia mensal sempre mostra todo o histórico, sem mudar com filtros. Verificado na tela autenticada, sem erros.
+
 ## Menu Atlas e Configurações
 - [x] Renomear Painel para Movimentados; mover Auditoria e Usuários para Configurações; ocultar Importar backup do Atlas, preservando rotas e permissões.
 - [x] Verificar os três ajustes no menu autenticado: Movimentados no Atlas, Auditoria e Usuários em Configurações e backup oculto; sem erros de compilação.

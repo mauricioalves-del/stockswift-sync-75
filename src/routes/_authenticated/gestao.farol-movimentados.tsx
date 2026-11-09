@@ -31,7 +31,7 @@ const dm = (d: string) => d.slice(8, 10) + "/" + d.slice(5, 7);
 const pct = (v: number | null) => (v === null ? "—" : `${(v * 100).toFixed(0)}%`);
 const somaDias = (dia: string, n: number) => { const d = new Date(`${dia}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
-function FarolMovimentadosPage() {
+export function FarolMovimentadosPage() {
   const hoje = diaSP(new Date());
   const [ref, setRef] = useState(hoje);
   const semana = diasDaSemana(ref);
