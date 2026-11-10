@@ -26,6 +26,7 @@ import {
   CAUSAS, STATUS_ACAO, FAIXAS_DEFAULT, type Faixas, type Quadrante,
 } from "@/lib/dispersao";
 import { ImportarDispersaoDialog } from "@/components/producao/ImportarDispersaoDialog";
+import { PainelDispersao } from "@/components/producao/PainelDispersao";
 import { DetalhePeriodoDispersaoDialog } from "@/components/producao/DetalhePeriodoDispersaoDialog";
 import { exportarDispersaoBI } from "@/lib/export-bi-dispersao";
 import { fetchAll } from "@/lib/fetch-all";
@@ -87,7 +88,7 @@ function DispersaoPage() {
   const { role, isAdmin } = useRole();
   const isCoord = role === "COORDENADOR_CONTROLE";
   const canImport = isAdmin || isCoord;
-  const [tab, setTab] = useState("visao");
+  const [tab, setTab] = useState("painel");
   const [anoMes, setAnoMes] = useState<string>("todos");
   const [dtDe, setDtDe] = useState<string>("");
   const [dtAte, setDtAte] = useState<string>("");
@@ -608,6 +609,7 @@ function DispersaoPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
+          <TabsTrigger value="painel">Painel executivo</TabsTrigger>
           <TabsTrigger value="visao">Visão Geral</TabsTrigger>
           <TabsTrigger value="lista">Lista Detalhada</TabsTrigger>
           <TabsTrigger value="acoes">Ações Corretivas</TabsTrigger>
@@ -615,6 +617,8 @@ function DispersaoPage() {
         </TabsList>
 
         {/* ============ VISÃO GERAL ============ */}
+        <TabsContent value="painel"><PainelDispersao linhas={filtradas as any} faixas={faixas} /></TabsContent>
+
         <TabsContent value="visao" className="space-y-4" id="dash-dispersao">
           <div className="grid gap-3 md:grid-cols-4">
             <Kpi label="OPs Analisadas" value={kpis.ops.toString()} />
