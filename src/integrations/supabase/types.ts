@@ -379,6 +379,39 @@ export type Database = {
         }
         Relationships: []
       }
+      abast_materiais_consumo: {
+        Row: {
+          ativo: boolean
+          categoria: string
+          criado_em: string
+          descricao: string
+          id: number
+          ordem: number
+          sku: string | null
+          subcategoria: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria: string
+          criado_em?: string
+          descricao: string
+          id?: number
+          ordem?: number
+          sku?: string | null
+          subcategoria: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string
+          criado_em?: string
+          descricao?: string
+          id?: number
+          ordem?: number
+          sku?: string | null
+          subcategoria?: string
+        }
+        Relationships: []
+      }
       abast_param_cobertura: {
         Row: {
           atualizado_em: string
@@ -7243,6 +7276,14 @@ export type Database = {
         }[]
       }
       abast__sku_saldo: { Args: { p_id: string }; Returns: string }
+      abast_adicionar_itens_pedido: {
+        Args: { p_id: string; p_itens: Json; p_obs: string }
+        Returns: Json
+      }
+      abast_adicionar_materiais_pedido: {
+        Args: { p_id: string; p_itens: Json; p_obs: string }
+        Returns: Json
+      }
       abast_aplicar_carga: {
         Args: { p_arquivo: string; p_payload: Json }
         Returns: Json
@@ -7268,6 +7309,7 @@ export type Database = {
         Args: { p_id: string; p_status: string }
         Returns: Json
       }
+      abast_catalogo_materiais: { Args: never; Returns: Json }
       abast_cd_ajustar: {
         Args: {
           p_acao: string
@@ -7350,6 +7392,10 @@ export type Database = {
           saldo_inicial: number
           sku: string
         }[]
+      }
+      abast_solicitar_materiais: {
+        Args: { p_itens: Json; p_loja: string; p_obs: string }
+        Returns: Json
       }
       abast_testar_aprovacao_comercial: { Args: never; Returns: Json }
       abast_testar_baixas_reposicao: { Args: never; Returns: Json }
