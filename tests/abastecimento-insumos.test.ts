@@ -11,6 +11,10 @@ test("Preserva portfólio aprovado, deduplica SKU e não libera outros grupos", 
   const cat = catalogoComInsumos([{ sku: "00123", descricao: "Nome aprovado" }], [{ codigo_produto: "123", grupo: "Embalagem" }, { codigo_produto: "456", grupo: "Material de limpeza" }], []);
   expect(cat).toEqual([{ sku: "00123", descricao: "Nome aprovado", grupo: "Embalagem", aprovado: true }]);
 });
+test("Caixa de Bombons M usa a descrição do sistema, não a do portfólio", () => {
+  const cat = catalogoComInsumos([{ sku: "5004148", descricao: "Caixa de Natal M (14 bombons)" }], [], [{ id_produto: "05004148", descricao: "Caixa de Bombons M (14 bombons)" }], [{ id_produto: "05004148", descricao: "Caixa de Natal M (14 bombons)" }]);
+  expect(cat[0].descricao).toBe("Caixa de Bombons M (14 bombons)");
+});
 test("Normaliza acentos, maiúsculas e espaços dos grupos", () => {
   expect(grupoInsumo(" MATÉRIA PRIMA ")).toBe("Materia Prima");
   expect(grupoInsumo("Produto Acabado")).toBeNull();
@@ -21,9 +25,10 @@ test("Busca descrição no estoque nativo quando o catálogo repete apenas o SKU
   expect(cat[0].descricao).toBe("Embalagem nativa");
 });
 
-test("Descrição registrada prevalece e descrição vazia não apaga o nome nativo", () => {
+test("Descrição do sistema prevalece sobre a registrada e descrição vazia não apaga o nome nativo", () => {
   const grupos = [{ codigo_produto: "00123", grupo: "Embalagem" }];
   const estoque = [{ id_produto: "123", descricao: "Nome nativo" }];
-  expect(catalogoComInsumos([], grupos, estoque, [{ id_produto: "123", descricao: "Nome registrado" }])[0].descricao).toBe("Nome registrado");
+  expect(catalogoComInsumos([], grupos, estoque, [{ id_produto: "123", descricao: "Nome registrado" }])[0].descricao).toBe("Nome nativo");
+  expect(catalogoComInsumos([], grupos, [], [{ id_produto: "123", descricao: "Nome registrado" }])[0].descricao).toBe("Nome registrado");
   expect(catalogoComInsumos([], grupos, estoque, [{ id_produto: "123", descricao: "  " }])[0].descricao).toBe("Nome nativo");
 });

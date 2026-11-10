@@ -168,7 +168,7 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       const baixasPendentes = baixas.get(chaveSaldoBaixa(sku, l.almoxarifado)) ?? 0;
       const baixasCD = baixasCd.get(chaveSaldoBaixa(sku, b.cd)) ?? 0;
       const it = calcularItem2({
-        sku: idCanon, descricao: b.portfolioDescricoes?.[sku] || e?.desc || m.produto || idCanon, categoria: familia, ativo: true, masterPresente: true,
+        sku: idCanon, descricao: e?.desc?.trim() || b.portfolioDescricoes?.[sku] || m.produto || idCanon, categoria: familia, ativo: true, masterPresente: true,
         estoque: saldoLiquidoBaixas(estoqueBruto, baixasPendentes), exposicao: expo ?? 0, vendaDiaReal: r.cmd, consensoDia: cons, fatorRealizacao: fr ? fr.fator : null,
         classeAbc: abcDe.get(sku) ?? null, fullCase: fracionada ? 1 : fcDe.get(sku) ?? 1, custo: e?.custo ?? null, saldoCD: saldoLiquidoBaixas(e?.cd ?? 0, baixasCD),
         emTransito: transito.get(`${l.codigo}|${sku}`) ?? 0, pedidoAberto: pedAb.get(`${l.codigo}|${sku}`) ?? 0, pedidoManual: manual ?? null,

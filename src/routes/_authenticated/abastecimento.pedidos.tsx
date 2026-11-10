@@ -16,6 +16,8 @@ import { RessalvaDialog } from "@/components/abast-dash/RessalvaDialog";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { montarItens, nk, type ItemRep } from "@/lib/abastecimento-dados";
 import type { Base2 } from "@/lib/abastecimento-motor2";
+import { mapaNomesSistema, nomeDoSistema, variantesSku } from "@/lib/abastecimento-nome-sistema";
+import { fetchAll } from "@/lib/fetch-all";
 
 export const Route = createFileRoute("/_authenticated/abastecimento/pedidos")({
   component: PedidosPage,
@@ -107,7 +109,18 @@ function PedidosPage() {
       const ids = (ps ?? []).map((p: any) => p.id);
       const { data: its } = ids.length ? await sb.from("abast_pedido_itens").select("id, pedido_id, id_produto, descricao, qtd_sugerida, qtd_pedida, qtd_separada, caixa, origem, aceito").in("pedido_id", ids) : { data: [] };
       const { data: sal } = ids.length ? await sb.rpc("abast_pedido_saldos", { p_ids: ids }) : { data: [] };   // se falhar, a tela segue sem as colunas de saldo
-      return (anexarSaldos(ps ?? [], its ?? [], sal) as unknown as Pedido[]).map((p) => ({ ...p, status: statusPedido(p.status) }));
+      // Descrição exibida = descrição do sistema (estoque nativo); a gravada no pedido fica só como reserva.
+      const skus = [...new Set([...(its ?? []).map((i: any) => i.id_produto), ...(ps ?? []).flatMap((p: any) => (p.edicoes ?? []).map((e: any) => e.id_produto))].filter(Boolean).flatMap((s: string) => variantesSku(s)))];
+      const nomes: { id_produto: string; descricao: string | null }[] = [];
+      for (let k = 0; k < skus.length; k += 300) {
+        const lote = skus.slice(k, k + 300);
+        try { nomes.push(...(await fetchAll<any>((f, t) => sb.from("estoque_sistemico").select("id_produto, descricao").in("id_produto", lote).not("descricao", "is", null).order("data_importacao", { ascending: false }).order("id").range(f, t)))); }
+        catch { /* sem nomes do sistema: mantém a descrição gravada */ }
+      }
+      const sistema = mapaNomesSistema(nomes);
+      const itsNome = (its ?? []).map((i: any) => ({ ...i, descricao: nomeDoSistema(i.id_produto, i.descricao, sistema) }));
+      const psNome = (ps ?? []).map((p: any) => (Array.isArray(p.edicoes) ? { ...p, edicoes: p.edicoes.map((e: any) => ({ ...e, descricao: nomeDoSistema(e.id_produto, e.descricao, sistema) })) } : p));
+      return (anexarSaldos(psNome, itsNome, sal) as unknown as Pedido[]).map((p) => ({ ...p, status: statusPedido(p.status) }));
     },
   });
 
