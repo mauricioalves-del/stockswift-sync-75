@@ -1,0 +1,1 @@
+ALTER POLICY "materiais consumo leitura" ON public.abast_materiais_consumo USING (public.usuario_aprovado(auth.uid()));

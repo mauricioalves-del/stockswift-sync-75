@@ -421,6 +421,13 @@
       "when": 1794327923928,
       "tag": "0059_adicionar_materiais_pedido",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1794334492581,
+      "tag": "0060_materiais_consumo_leitura_aprovados",
+      "breakpoints": true
     }
   ]
 }

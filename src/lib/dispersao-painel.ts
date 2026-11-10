@@ -121,3 +121,65 @@ export function topOps(linhas: LinhaDisp[], n = 10) {
   }
   return [...m.values()].sort((a, b) => b.perda - a.perda).slice(0, n);
 }
+
+/** Produtos acabados (descrição) em que cada material foi apontado. */
+export function produtosPorMaterial(linhas: LinhaDisp[]) {
+  const m = new Map<string, Set<string>>();
+  for (const l of linhas) {
+    const p = l.desc_produto || l.produto; if (!p) continue;
+    const s = m.get(l.material) ?? new Set<string>(); s.add(p); m.set(l.material, s);
+  }
+  return m;
+}
+
+/** Linhas com desvio e sem custo cadastrado, agregadas por material. */
+export function semCustoPorMaterial(linhas: LinhaDisp[]) {
+  const m = new Map<string, { material: string; desc: string; linhas: number; dif: number; ops: Set<string> }>();
+  for (const l of linhas) {
+    if (Number(l.custo) > 0 || !(Math.abs(Number(l.qtd_dif)) > 0.0001)) continue;
+    const a = m.get(l.material) ?? { material: l.material, desc: l.desc_material ?? l.material, linhas: 0, dif: 0, ops: new Set<string>() };
+    a.linhas++; a.dif += Number(l.qtd_dif); if (l.id_op) a.ops.add(l.id_op); m.set(l.material, a);
+  }
+  return [...m.values()].map((a) => ({ ...a, ops: a.ops.size })).sort((a, b) => b.linhas - a.linhas);
+}
+
+export type DecisaoColuna = { t: string; direita?: boolean };
+export type DecisaoLinha = { material: string; desc: string; valores: string[]; tons?: (string | undefined)[]; produtos: string[] };
+export type Decisao = { p: "alta" | "media" | "baixa"; t: string; d: string; colunas: DecisaoColuna[]; linhas: DecisaoLinha[] };
+
+const brlD = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const pcD = (v: number) => `${(v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+const sinal = (v: number) => `${v > 0 ? "+" : ""}${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+
+/** Decisões recomendadas com a lista completa de produtos (materiais) analisados em cada uma. */
+export function decisoes(linhas: LinhaDisp[], f: Faixas): Decisao[] {
+  const r = resumo(linhas, f); const mat = matriz(linhas, f); const np = naoPrevistos(linhas); const par = pareto(linhas, Number.MAX_SAFE_INTEGER);
+  const prods = produtosPorMaterial(linhas); const pr = (m: string) => [...(prods.get(m) ?? [])];
+  const colMatriz: DecisaoColuna[] = [{ t: "OPs", direita: true }, { t: "Viés", direita: true }, { t: "Variab.", direita: true }, { t: "Perda", direita: true }, { t: "Economia", direita: true }, { t: "Líquido", direita: true }];
+  const linMatriz = (x: ReturnType<typeof matriz>[number]): DecisaoLinha => ({ material: x.material, desc: x.desc, produtos: pr(x.material),
+    valores: [String(x.ops), sinal(x.vies), `${x.variab.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`, brlD(x.perda), brlD(0 - x.economia), brlD(x.liquido)],
+    tons: [undefined, undefined, undefined, "text-red-600", "text-emerald-700", "font-semibold"] });
+  const a: Decisao[] = [];
+  const inst = mat.filter((x) => x.quadrante === "instavel").sort((x, y) => y.perda - x.perda);
+  if (inst.length) a.push({ p: "alta", t: `Atacar a perda de processo em ${inst.length} material(is) instável(is)`, d: inst.slice(0, 4).map((x) => `${x.desc} (${brlD(x.perda)}, viés ${x.vies > 0 ? "+" : ""}${x.vies}%)`).join("; ") + ".", colunas: colMatriz, linhas: inst.map(linMatriz) });
+  if (np.length) a.push({ p: "alta", t: `Atualizar a ficha técnica: ${np.length} material(is) consumido(s) sem estar previsto(s)`, d: `${brlD(r.naoPrevistoRs)} lançados como perda são, na prática, substituição ou ficha desatualizada. Maiores: ${np.slice(0, 3).map((x) => `${x.desc} (${brlD(x.rs)})`).join("; ")}.`,
+    colunas: [{ t: "OPs", direita: true }, { t: "Consumo", direita: true }, { t: "Valor", direita: true }],
+    linhas: np.map((x) => ({ material: x.material, desc: x.desc, produtos: x.produtos, valores: [String(x.ops), x.consumo.toLocaleString("pt-BR", { maximumFractionDigits: 2 }), brlD(x.rs)], tons: [undefined, undefined, "text-violet-600"] })) });
+  const ft = mat.filter((x) => x.quadrante === "revisar_ft").sort((x, y) => Math.abs(y.liquido) - Math.abs(x.liquido));
+  if (ft.length) a.push({ p: "media", t: `Revisar a quantidade da ficha técnica de ${ft.length} material(is) com desvio sistemático`, d: ft.slice(0, 4).map((x) => `${x.desc} (${x.vies > 0 ? "consome" : "sobra"} ${Math.abs(x.vies)}% ${x.vies > 0 ? "acima" : "da ficha"})`).join("; ") + ".", colunas: colMatriz, linhas: ft.map(linMatriz) });
+  const ap = mat.filter((x) => x.quadrante === "apontamento").sort((x, y) => (y.perda - y.economia) - (x.perda - x.economia));
+  if (ap.length) a.push({ p: "media", t: `Corrigir apontamentos em ${ap.length} material(is) que perdem numa OP e sobram em outra`, d: ap.slice(0, 4).map((x) => `${x.desc} (perda ${brlD(x.perda)} × sobra ${brlD(0 - x.economia)})`).join("; ") + ".", colunas: colMatriz, linhas: ap.map(linMatriz) });
+  if (r.semCusto) {
+    const sc = semCustoPorMaterial(linhas);
+    a.push({ p: "baixa", t: `${r.semCusto} linha(s) com desvio e sem custo cadastrado`, d: "O impacto dessas linhas aparece como R$ 0. Cadastrar o custo no mestre de custos para medir a perda real.",
+      colunas: [{ t: "Linhas", direita: true }, { t: "OPs", direita: true }, { t: "Diferença (qtd)", direita: true }],
+      linhas: sc.map((x) => ({ material: x.material, desc: x.desc, produtos: pr(x.material), valores: [String(x.linhas), String(x.ops), x.dif.toLocaleString("pt-BR", { maximumFractionDigits: 2 })], tons: [undefined, undefined, x.dif > 0 ? "text-red-600" : "text-emerald-700"] })) });
+  }
+  if (par.top10 !== null && par.top10 > 0.5) {
+    const top = par.itens.slice(0, 10);
+    a.push({ p: "baixa", t: `Concentração: 10 materiais respondem por ${pcD(par.top10)} da perda de processo`, d: "Foco do plano de ação nesses materiais traz o maior retorno.",
+      colunas: [{ t: "Perda", direita: true }, { t: "% da perda", direita: true }, { t: "% acumulado", direita: true }],
+      linhas: top.map((x) => ({ material: x.material, desc: x.desc, produtos: pr(x.material), valores: [brlD(x.perda), pcD(par.total ? x.perda / par.total : 0), `${Math.round(x.acumPct)}%`], tons: ["text-red-600", undefined, undefined] })) });
+  }
+  return a;
+}
