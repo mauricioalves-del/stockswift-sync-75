@@ -414,6 +414,13 @@
       "when": 1794325460964,
       "tag": "0058_materiais_consumo_adicionar_itens",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1794327923928,
+      "tag": "0059_adicionar_materiais_pedido",
+      "breakpoints": true
     }
   ]
 }
