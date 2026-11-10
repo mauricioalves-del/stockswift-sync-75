@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -15,7 +15,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { COLS_DIV, avisoBaixaPendente, carregarBase, investigarEGravar, investigarLote, logAtlas, normDiv, resolverDivergencia, type Base, type Div } from "@/lib/atlas-investigacao";
 
 export const Route = createFileRoute("/_authenticated/atlas/divergencias")({
-  component: AtlasDivergencias,
+  // A lista agora vive como aba dentro de Atlas › Movimentados; links antigos continuam funcionando.
+  beforeLoad: () => { throw redirect({ to: "/atlas/painel", search: { visao: "divergencias" }, replace: true }); },
+  component: () => <DivergenciasPage />,
   head: () => ({ meta: [{ title: "Divergências — Atlas" }] }),
 });
 
@@ -36,7 +38,8 @@ async function usuarioAtual(): Promise<string> {
   return p?.nome || p?.email || u.user?.email || "Stock Savvy";
 }
 
-function AtlasDivergencias() {
+/** Lista de divergências; também exibida como aba dentro de Atlas › Movimentados. */
+export function DivergenciasPage({ embutido = false }: { embutido?: boolean }) {
   const { role } = useRole();
   const pode = role === "ADMINISTRADOR" || role === "GERENTE";
   const qc = useQueryClient();
@@ -139,7 +142,7 @@ function AtlasDivergencias() {
     <div className="w-full space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold"><ListChecks className="size-6" /> Divergências</h1>
+          {!embutido && <h1 className="flex items-center gap-2 text-2xl font-bold"><ListChecks className="size-6" /> Divergências</h1>}
           <p className="max-w-4xl text-sm text-muted-foreground">Cada divergência é investigada pelo motor do Atlas: observação da planilha, baixas do Relatório de Baixa (aprovada resolve sozinha), transferência pendente, pedido de compra, OP aberta, consumo × ficha técnica, faturamento próximo e reincidência. Confirmar a causa ensina o motor (ajusta o peso da hipótese).</p>
         </div>
         {pode && (
