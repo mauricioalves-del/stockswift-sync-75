@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { statusAnterior, statusPedido } from "@/lib/abastecimento-pedido-status";
 import { anexarSaldos, itemValido, mostrarSaldo, saldoFinal, validarEdicaoLocal, type Saldo } from "@/lib/abastecimento-pedidos-saldo";
 import { RessalvaDialog } from "@/components/abast-dash/RessalvaDialog";
+import { MateriaisConsumoDialog } from "@/components/abast-dash/MateriaisConsumoDialog";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { montarItens, nk, type ItemRep } from "@/lib/abastecimento-dados";
 import type { Base2 } from "@/lib/abastecimento-motor2";
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/_authenticated/abastecimento/pedidos")({
 });
 
 type Item = { id: string; id_produto: string; descricao: string | null; qtd_sugerida: number | null; qtd_pedida: number; qtd_separada: number | null; caixa: number | null; origem: string; aceito: boolean | null; saldo?: Saldo | null };
-type Edicao = { em: string; nome: string | null; acao: "EDITAR" | "EXCLUIR"; id_produto: string; descricao: string | null; qtd_antes: number; qtd_depois: number; motivo: string | null };
+type Edicao = { em: string; nome: string | null; acao: "EDITAR" | "EXCLUIR" | "ADICIONAR"; id_produto: string; descricao: string | null; qtd_antes: number; qtd_depois: number; motivo: string | null };
 type Pedido = {
   historico_status?: string[];
   id: string; numero: number; loja: string; status: string; base_demanda: string | null; tipo?: string | null; loja_origem?: string | null; observacao?: string | null;
@@ -81,6 +82,7 @@ function PedidosPage() {
   const [aberto, setAberto] = useState<string | null>(null);
   const [agindo, setAgindo] = useState<string | null>(null);
   const [ressalva, setRessalva] = useState<Pedido | null>(null);
+  const [materiais, setMateriais] = useState(false);
   const [retorno, setRetorno] = useState<Pedido | null>(null);
   const [editando, setEditando] = useState<{ p: Pedido; i: Item } | null>(null);
   const [excluindo, setExcluindo] = useState<{ p: Pedido; i: Item } | null>(null);
@@ -175,11 +177,14 @@ function PedidosPage() {
   const contagem = (s: string) => (q.data ?? []).filter((p) => (s === "ATIVOS" ? ATIVOS.includes(p.status) : p.status === s)).length;
   return (
     <div className="w-full space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><ClipboardList className="size-6" /> Pedidos de Abastecimento</h1>
-        <p className="text-sm text-muted-foreground">
-          Aprovação comercial · Separação · Envio · Recebimento
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><ClipboardList className="size-6" /> Pedidos de Abastecimento</h1>
+          <p className="text-sm text-muted-foreground">
+            Aprovação comercial · Separação · Envio · Recebimento
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => setMateriais(true)}>Solicitar materiais de uso e consumo</Button>
       </div>
       <div className="flex flex-wrap gap-2">{["ATIVOS", "AGUARD_COMERCIAL", "ABERTO", "EM_SEPARACAO", "SEPARADO", "ENVIADO", "RECEBIDO", "CANCELADO", "TODOS"].map((s) => <button key={s} onClick={() => setStatus(s)} className={`rounded-full border px-3 py-1 text-xs ${status === s ? "bg-primary text-primary-foreground border-primary font-semibold" : "hover:bg-muted"}`}>{s === "ATIVOS" ? "Em andamento" : ROTULO[s] ?? "Todos"}{s !== "TODOS" ? ` (${contagem(s)})` : ""}</button>)}</div>
       <Card><CardContent className="p-0 overflow-x-auto"><Table>
@@ -193,7 +198,7 @@ function PedidosPage() {
             const aguardando = p.status === "AGUARD_COMERCIAL" || p.status === "AGUARD_DIRETOR";
             return (<Fragment key={p.id}>
               <TableRow className="cursor-pointer" onClick={() => setAberto(aberto === p.id ? null : p.id)}>
-                <TableCell className="font-semibold">{p.numero}</TableCell><TableCell>{p.loja}{p.tipo === "TRANSFERENCIA" && <div className="text-[10px] text-primary">Transferência de {p.loja_origem}</div>}</TableCell><TableCell className="text-xs">{p.almox_origem ? <><span className="font-mono">{p.almox_origem}</span><div className="text-[10px] text-muted-foreground">{p.tipo === "TRANSFERENCIA" ? "transferência entre lojas" : "CD"}</div></> : <span className="text-muted-foreground">—</span>}</TableCell>
+                <TableCell className="font-semibold">{p.numero}</TableCell><TableCell>{p.loja}{p.tipo === "TRANSFERENCIA" && <div className="text-[10px] text-primary">Transferência de {p.loja_origem}</div>}{p.base_demanda === "MATERIAL_CONSUMO" && <div className="text-[10px] font-semibold text-violet-700">Uso e consumo</div>}</TableCell><TableCell className="text-xs">{p.almox_origem ? <><span className="font-mono">{p.almox_origem}</span><div className="text-[10px] text-muted-foreground">{p.tipo === "TRANSFERENCIA" ? "transferência entre lojas" : "CD"}</div></> : <span className="text-muted-foreground">—</span>}</TableCell>
                 <TableCell><span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${COR[p.status] ?? ""}`}>{(ROTULO[p.status] ?? p.status).toUpperCase()}</span></TableCell>
                 <TableCell><Etapas status={p.status} /></TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>{p.requisicao_id ? <Link to="/suprimentos/requisicoes/$id" params={{ id: p.requisicao_id }} className="text-xs font-mono text-primary hover:underline">{p.requisicao_numero}</Link> : <span className="text-xs text-muted-foreground">{aguardando ? "após aprovação" : "—"}</span>}</TableCell>
@@ -221,6 +226,7 @@ function PedidosPage() {
             </Fragment>);
           })}
         </TableBody></Table></CardContent></Card>
+      {materiais && <MateriaisConsumoDialog onClose={() => setMateriais(false)} onOk={() => { setMateriais(false); recarregar(); }} />}
       {ressalva && <RessalvaDialog p={ressalva} onClose={() => setRessalva(null)} onOk={() => { setRessalva(null); recarregar(); }} />}
       {editando && <EditarItemDialog p={editando.p} i={editando.i} onClose={() => setEditando(null)} onOk={() => { setEditando(null); recarregar(); }} />}
       {excluindo && <ExcluirItemDialog p={excluindo.p} i={excluindo.i} onClose={() => setExcluindo(null)} onOk={() => { setExcluindo(null); recarregar(); }} />}
@@ -244,7 +250,7 @@ function Edicoes({ lista }: { lista: Edicao[] }) {
   return (
     <div className="rounded-md border bg-card p-2 text-xs">
       <div className="font-semibold">Edições feitas nesta tela ({lista.length})</div>
-      <ul className="mt-1 space-y-0.5">{lista.map((e, k) => <li key={k} className="text-muted-foreground"><span className="font-medium text-foreground">{e.nome ?? "—"}</span> · {dt(e.em)} · {e.acao === "EXCLUIR" ? "excluiu" : "alterou"} <span className="font-mono">{e.id_produto}</span> {e.descricao}: {un(Number(e.qtd_antes))} → {e.acao === "EXCLUIR" ? "removido" : un(Number(e.qtd_depois))}{e.motivo ? ` · ${e.motivo}` : ""}</li>)}</ul>
+      <ul className="mt-1 space-y-0.5">{lista.map((e, k) => <li key={k} className="text-muted-foreground"><span className="font-medium text-foreground">{e.nome ?? "—"}</span> · {dt(e.em)} · {e.acao === "EXCLUIR" ? "excluiu" : e.acao === "ADICIONAR" ? "adicionou" : "alterou"} <span className="font-mono">{e.id_produto}</span> {e.descricao}: {e.acao === "ADICIONAR" ? `${un(Number(e.qtd_depois))} un` : <>{un(Number(e.qtd_antes))} → {e.acao === "EXCLUIR" ? "removido" : un(Number(e.qtd_depois))}</>}{e.motivo ? ` · ${e.motivo}` : ""}</li>)}</ul>
     </div>
   );
 }
