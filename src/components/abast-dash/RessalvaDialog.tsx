@@ -112,13 +112,14 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
   }
   async function enviar() {
     setTentou(true);
-    if (!obs.trim()) { toast.error("Escreva as ressalvas na justificativa."); return; }
+    if (!sugs.length) { toast.error("Adicione ao menos um produto à lista."); return; }
     if (errosSugs.some(Boolean)) { toast.error("Ajuste as quantidades dos produtos extras conforme a caixaria ou fracionamento, até o saldo disponível."); return; }
     setSalvando(true);
     try {
-      const { error } = await sb.rpc("abast_aprovar_comercial", { p_id: p.id, p_aprovado: false, p_obs: obs.trim(), p_itens_sugeridos: sugs });
+      // Só inclui os produtos no pedido: a aprovação continua sendo feita no botão Aprovar.
+      const { data, error } = await sb.rpc("abast_adicionar_itens_pedido", { p_id: p.id, p_obs: obs.trim() || null, p_itens: sugs });
       if (error) throw error;
-      toast.success(`Pedido ${p.numero} aprovado com ressalvas. A requisição de separação foi criada.`); onOk();
+      toast.success(`${data?.adicionados ?? sugs.length} produto(s) adicionado(s) ao pedido ${p.numero}. Revise o pedido completo e aprove pelo botão Aprovar.`); onOk();
     } catch (err: any) { toast.error("Não consegui registrar: " + (err?.message ?? err)); }
     finally { setSalvando(false); }
   }
@@ -127,7 +128,7 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
     <Dialog open onOpenChange={(o) => !o && !salvando && onClose()}>
       <DialogContent className="max-w-3xl gap-0 overflow-hidden p-0">
         <DialogHeader className="space-y-1 border-b px-6 py-4 text-left">
-          <DialogTitle className="text-xl">Ressalvas · Pedido {p.numero}</DialogTitle>
+          <DialogTitle className="text-xl">Adicionar produtos · Pedido {p.numero}</DialogTitle>
           <DialogDescription className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <span className="font-medium text-foreground">{p.loja}</span><span>{validos.length} itens · {un(unidadesPedido)} un</span><span>origem <span className="font-mono">{p.almox_origem ?? "—"}</span></span>
           </DialogDescription>
@@ -135,18 +136,17 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
 
         <div className="max-h-[68vh] space-y-5 overflow-y-auto px-6 py-5">
           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-            Aprovação comercial com ressalvas
+            Os produtos entram no pedido, que continua aguardando aprovação. Revise o pedido completo e aprove pelo botão Aprovar.
           </div>
 
           <section className="space-y-2">
-            <div className="flex items-baseline justify-between"><label htmlFor="ressalva-obs" className="text-sm font-semibold">Justificativa <span className="text-destructive">*</span></label><span className="text-[11px] text-muted-foreground">{obs.trim().length} caracteres</span></div>
-            <Textarea id="ressalva-obs" value={obs} onChange={(e) => setObs(e.target.value)} rows={4} aria-invalid={tentou && !obs.trim()} className={tentou && !obs.trim() ? "border-destructive" : ""} placeholder="Justificativa das alterações ou da demanda extra" />
-            {tentou && !obs.trim() && <p className="text-xs text-destructive">A justificativa é obrigatória.</p>}
+            <div className="flex items-baseline justify-between"><label htmlFor="ressalva-obs" className="text-sm font-semibold">Justificativa <span className="font-normal text-muted-foreground">(opcional)</span></label><span className="text-[11px] text-muted-foreground">{obs.trim().length} caracteres</span></div>
+            <Textarea id="ressalva-obs" value={obs} onChange={(e) => setObs(e.target.value)} rows={4} placeholder="Motivo da inclusão (demanda extra, ação comercial…)" />
           </section>
 
           <section className="space-y-3">
             <div>
-              <h3 className="flex items-center gap-2 text-sm font-semibold"><PackagePlus className="size-4" /> Produtos extras <span className="font-normal text-muted-foreground">(opcional)</span></h3>
+              <h3 className="flex items-center gap-2 text-sm font-semibold"><PackagePlus className="size-4" /> Produtos a adicionar</h3>
               <p className="text-xs text-muted-foreground">{catalogo.length} produtos · Origem: {origem}</p>
             </div>
             <Select value={grupo} onValueChange={(v) => { setGrupo(v); setSel(null); setBusca(""); }}>
@@ -217,7 +217,7 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
 
         <DialogFooter className="items-center gap-2 border-t bg-muted/30 px-6 py-3 sm:justify-between">
           <span className="text-xs text-muted-foreground">{resumo.produtos ? `${resumo.produtos} produto${resumo.produtos > 1 ? "s" : ""} extra${resumo.produtos > 1 ? "s" : ""} · ${un(resumo.unidades)} un` : "Sem produtos extras"}</span>
-          <div className="flex gap-2"><Button variant="ghost" disabled={salvando} onClick={onClose}>Voltar</Button><Button disabled={salvando || errosSugs.some(Boolean)} onClick={enviar} className="gap-2">{salvando ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}{salvando ? "Aprovando…" : "Aprovar com ressalvas"}</Button></div>
+          <div className="flex gap-2"><Button variant="ghost" disabled={salvando} onClick={onClose}>Voltar</Button><Button disabled={salvando || !sugs.length || errosSugs.some(Boolean)} onClick={enviar} className="gap-2">{salvando ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}{salvando ? "Adicionando…" : "Adicionar ao pedido"}</Button></div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
