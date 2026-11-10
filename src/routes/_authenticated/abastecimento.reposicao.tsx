@@ -22,6 +22,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { MateriaisConsumoDialog } from "@/components/abast-dash/MateriaisConsumoDialog";
 
 export const Route = createFileRoute("/_authenticated/abastecimento/reposicao")({
   component: ReposicaoPage,
@@ -77,6 +78,7 @@ function ReposicaoPage() {
   const [manuaisTxt, setManuaisTxt] = useState<Record<string, string>>({});
   const [fora, setFora] = useState<Set<string>>(new Set());
   const [gerando, setGerando] = useState(false);
+  const [materiais, setMateriais] = useState(false);
   const [ordem, setOrdem] = useState<Ordem>(null);
   const [filtros, setFiltros] = useState<Record<string, Filtro>>({});
   const [origemSel, setOrigemSel] = useState<Record<string, string>>({});
@@ -237,6 +239,8 @@ function ReposicaoPage() {
         <select className="h-8 rounded-md border bg-background px-2 text-xs" value={famFiltro} onChange={(e) => setFamFiltro(e.target.value)}><option value="">Todas as famílias</option>{familias.map((f) => <option key={f} value={f}>{f}</option>)}</select>
         <Input className="h-8 w-52" placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} />
         <Button size="sm" variant="outline" className="gap-1 ml-auto" onClick={exportar}><Download className="size-4" /> CSV</Button>
+        {gestor && <Button size="sm" variant="outline" onClick={() => setMateriais(true)}>Materiais de uso e consumo</Button>}
+        {materiais && <MateriaisConsumoDialog lojaInicial={loja?.codigo ?? null} onClose={() => setMateriais(false)} onOk={() => { setMateriais(false); qc.invalidateQueries({ queryKey: ["abast-v2"] }); }} />}
         {gestor && <Button size="sm" className="gap-1" disabled={gerando || bruto.isError || bruto.isFetching || paraPedido.length === 0} onClick={gerarPedido}><PackagePlus className="size-4" /> {gerando ? "Gerando..." : `Gerar pedido (${paraPedido.length} itens · ${totalPedido.toLocaleString("pt-BR")} un)`}</Button>}
       </div>
 
