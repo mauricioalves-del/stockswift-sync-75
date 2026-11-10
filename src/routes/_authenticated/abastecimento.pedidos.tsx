@@ -82,7 +82,7 @@ function PedidosPage() {
   const [aberto, setAberto] = useState<string | null>(null);
   const [agindo, setAgindo] = useState<string | null>(null);
   const [ressalva, setRessalva] = useState<Pedido | null>(null);
-  const [materiais, setMateriais] = useState(false);
+  const [materiais, setMateriais] = useState<Pedido | null>(null); // incluir materiais de uso e consumo no pedido
   const [retorno, setRetorno] = useState<Pedido | null>(null);
   const [editando, setEditando] = useState<{ p: Pedido; i: Item } | null>(null);
   const [excluindo, setExcluindo] = useState<{ p: Pedido; i: Item } | null>(null);
@@ -184,7 +184,6 @@ function PedidosPage() {
             Aprovação comercial · Separação · Envio · Recebimento
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => setMateriais(true)}>Solicitar materiais de uso e consumo</Button>
       </div>
       <div className="flex flex-wrap gap-2">{["ATIVOS", "AGUARD_COMERCIAL", "ABERTO", "EM_SEPARACAO", "SEPARADO", "ENVIADO", "RECEBIDO", "CANCELADO", "TODOS"].map((s) => <button key={s} onClick={() => setStatus(s)} className={`rounded-full border px-3 py-1 text-xs ${status === s ? "bg-primary text-primary-foreground border-primary font-semibold" : "hover:bg-muted"}`}>{s === "ATIVOS" ? "Em andamento" : ROTULO[s] ?? "Todos"}{s !== "TODOS" ? ` (${contagem(s)})` : ""}</button>)}</div>
       <Card><CardContent className="p-0 overflow-x-auto"><Table>
@@ -211,6 +210,7 @@ function PedidosPage() {
                   {comercial && p.status === "AGUARD_COMERCIAL" && <>
                     <Button size="sm" disabled={agindo === p.id} onClick={() => aprovar(p)}>Aprovar</Button>
                     <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => setRessalva(p)}>Adicionar Produto</Button>
+                    <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => setMateriais(p)}>Uso e consumo</Button>
                   </>}
                   {gestor && (p.status === "ABERTO" || p.status === "EM_SEPARACAO") && p.requisicao_id && <Link to="/suprimentos/requisicoes" title={`Separar na tela Requisições (${p.requisicao_numero})`} className="inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs hover:bg-muted"><PackageCheck className="size-3.5" /> Separar</Link>}
                   {gestor && (p.status === "ABERTO" || p.status === "EM_SEPARACAO") && <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => mudar(p, "SEPARADO")} title="Marcar como separado sem gerar a ficha de separação">Separado</Button>}
@@ -226,7 +226,7 @@ function PedidosPage() {
             </Fragment>);
           })}
         </TableBody></Table></CardContent></Card>
-      {materiais && <MateriaisConsumoDialog onClose={() => setMateriais(false)} onOk={() => { setMateriais(false); recarregar(); }} />}
+      {materiais && <MateriaisConsumoDialog pedido={{ id: materiais.id, numero: materiais.numero, loja: materiais.loja }} onClose={() => setMateriais(null)} onOk={() => { setMateriais(null); recarregar(); }} />}
       {ressalva && <RessalvaDialog p={ressalva} onClose={() => setRessalva(null)} onOk={() => { setRessalva(null); recarregar(); }} />}
       {editando && <EditarItemDialog p={editando.p} i={editando.i} onClose={() => setEditando(null)} onOk={() => { setEditando(null); recarregar(); }} />}
       {excluindo && <ExcluirItemDialog p={excluindo.p} i={excluindo.i} onClose={() => setExcluindo(null)} onOk={() => { setExcluindo(null); recarregar(); }} />}
@@ -275,7 +275,7 @@ function HistoricoAprovacoes({ p }: { p: Pedido }) {
 
 function ItensTabela({ p, podeEditar, onEditar, onExcluir, compacto, lojaCtx }: { p: Pedido; lojaCtx?: LojaCtx | null; podeEditar: boolean; onEditar: (i: Item) => void; onExcluir: (i: Item) => void; compacto?: boolean }) {
   const itens = p.itens;
-  const orig = (i: Item) => i.origem === "SUGESTAO_COMERCIAL_ANTERIOR" ? "Sugestão comercial · aprovação anterior" : i.origem === "SUGESTAO_COMERCIAL" ? `Sugestão comercial${i.aceito === true ? " · aceita" : i.aceito === false ? " · recusada" : " · pendente"}` : i.origem === "MANUAL" ? "Manual" : i.origem === "TRANSFERENCIA" ? "Transferência" : "Sugestão";
+  const orig = (i: Item) => i.origem === "SUGESTAO_COMERCIAL_ANTERIOR" ? "Sugestão comercial · aprovação anterior" : i.origem === "SUGESTAO_COMERCIAL" ? `Sugestão comercial${i.aceito === true ? " · aceita" : i.aceito === false ? " · recusada" : " · pendente"}` : i.origem === "MANUAL" ? "Manual" : i.origem === "TRANSFERENCIA" ? "Transferência" : i.origem === "MATERIAL_CONSUMO" ? "Uso e consumo" : "Sugestão";
   const algumSaldo = itens.some((i) => mostrarSaldo(p, i));
   const verSep = COM_SEPARACAO.includes(p.status) || (p.status === "CANCELADO" && itens.some((i) => i.qtd_separada != null));
   const verLoja = !compacto && !!lojaCtx;
