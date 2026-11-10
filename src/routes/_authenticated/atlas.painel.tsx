@@ -53,6 +53,7 @@ function AtlasPainel() {
   const busca = Route.useSearch();
   const [periodo, setPeriodo] = useState<string>("mes_atual");
   const [visao, setVisao] = useState<Visao>(busca.visao ?? "painel");
+  const [mostrTabelaF, setMostrTabelaF] = useState(false);
   useEffect(() => { if (busca.visao) setVisao(busca.visao); }, [busca.visao]);
   const [almox, setAlmox] = useState("todos");
   const q = useQuery({
@@ -197,13 +198,13 @@ function AtlasPainel() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Secao letra="F" titulo="Acurácia mensal (variação MoM em p.p.)">
+            <Secao letra="F" titulo="Acurácia mensal (variação MoM em p.p.)" acao={<button type="button" onClick={() => setMostrTabelaF((v) => !v)} aria-expanded={mostrTabelaF} className="h-8 shrink-0 rounded-md border bg-muted px-3 text-xs font-semibold hover:bg-muted/70">{mostrTabelaF ? "Ocultar tabela" : "Ver tabela"}</button>}>
               <p className="-mt-2 mb-2 text-xs text-muted-foreground">Visão geral de todo o histórico e almoxarifados; não muda com os filtros.</p>
               <div className="h-60"><AtlasGrafico data={mes} category="rotulo" percent height={240} series={[{key: "acuracia", name: "Acurácia do mês", color: atlasCores.blue, percent: true},{key: "varPp", name: "Variação MoM (p.p.)", color: atlasCores.warning, line: true, right: true}]} /></div>
-              <div className="mt-2 overflow-auto rounded-md border">
+              {mostrTabelaF && <div className="mt-2 overflow-auto rounded-md border">
                 <table className="w-full text-xs"><thead><tr><Th c="Mês" /><Th c="Acurácia" d /><Th c="MoM" d /><Th c="Itens" d /></tr></thead>
                   <tbody>{[...mes].reverse().slice(0, 6).map((m) => <tr key={m.mes} className="border-t"><td className="p-1.5">{m.rotulo}</td><td className="p-1.5 text-right font-semibold">{un(m.acuracia, 2)}%</td><td className={`p-1.5 text-right ${m.varPp == null ? "" : m.varPp >= 0 ? "text-emerald-700" : "text-destructive"}`}>{m.varPp == null ? "—" : `${m.varPp > 0 ? "+" : ""}${un(m.varPp, 2)} p.p.`}</td><td className="p-1.5 text-right text-muted-foreground">{un(m.itens)}</td></tr>)}</tbody></table>
-              </div>
+              </div>}
             </Secao>
             <Secao letra="G" titulo="Acurácia acumulada por almoxarifado">
               <div className="h-72"><AtlasGrafico data={r.almoxL} category="almox" horizontal percent legend={false} height={260} series={[{key: "acuracia", name: "Acurácia acumulada %", color: atlasCores.warning, percent: true}]} /></div>
