@@ -674,6 +674,7 @@ function FilaAprovacao() {
   const [fAlmox, setFAlmox] = useState("__all__");
   const [fSolic, setFSolic] = useState("__all__");
   const [fMotivo, setFMotivo] = useState("__all__");
+  const [fAssinatura, setFAssinatura] = useState("todos");
   const [editando, setEditando] = useState<any | null>(null);
   const [detalhe, setDetalhe] = useState<any | null>(null);
   const [assinando, setAssinando] = useState(false);
@@ -718,7 +719,7 @@ function FilaAprovacao() {
     [data],
   );
 
-  const listaFiltrada = useMemo(
+  const listaBase = useMemo(
     () =>
       (data ?? []).filter((b: any) => {
         if (fAlmox !== "__all__" && (b.id_local ?? "") !== fAlmox) return false;
@@ -735,6 +736,25 @@ function FilaAprovacao() {
     [data, fAlmox, fSolic, fMotivo, fCodigo, perfilMap],
   );
 
+  const passaAssinatura = (b: any, f: string) => {
+    const doOk = assinaturaFeita(b, "DIRETOR_OPERACOES");
+    const cfOk = assinaturaFeita(b, "COORDENADOR_FINANCEIRO");
+    if (f === "assinados") return doOk && cfOk;
+    if (f === "pend_do") return !doOk;
+    if (f === "pend_cf") return !cfOk;
+    return true;
+  };
+  const contAssinatura = useMemo(() => ({
+    todos: listaBase.length,
+    assinados: listaBase.filter((b: any) => passaAssinatura(b, "assinados")).length,
+    pend_do: listaBase.filter((b: any) => passaAssinatura(b, "pend_do")).length,
+    pend_cf: listaBase.filter((b: any) => passaAssinatura(b, "pend_cf")).length,
+  }), [listaBase]);
+  const listaFiltrada = useMemo(
+    () => listaBase.filter((b: any) => passaAssinatura(b, fAssinatura)),
+    [listaBase, fAssinatura],
+  );
+
   const lista = useMemo(() => {
     if (!ordCampo) return listaFiltrada;
     const dir = ordDir === "asc" ? 1 : -1;
@@ -745,7 +765,7 @@ function FilaAprovacao() {
     });
   }, [listaFiltrada, ordCampo, ordDir]);
 
-  const temFiltro = fAlmox !== "__all__" || fSolic !== "__all__" || fMotivo !== "__all__" || fCodigo.trim().length > 0;
+  const temFiltro = fAlmox !== "__all__" || fSolic !== "__all__" || fMotivo !== "__all__" || fAssinatura !== "todos" || fCodigo.trim().length > 0;
 
   // ---- seleção em lote -------------------------------------------------
   const listaIds = useMemo(() => lista.map((b: any) => String(b.id)), [lista]);
@@ -1112,11 +1132,28 @@ function FilaAprovacao() {
             <Button
               variant="outline"
               disabled={!temFiltro}
-              onClick={() => { setFCodigo(""); setFAlmox("__all__"); setFSolic("__all__"); setFMotivo("__all__"); }}
+              onClick={() => { setFCodigo(""); setFAlmox("__all__"); setFSolic("__all__"); setFMotivo("__all__"); setFAssinatura("todos"); }}
             >
               Limpar filtros
             </Button>
             <span className="text-xs text-muted-foreground">{lista.length} item(ns)</span>
+          </div>
+          <div className="col-span-full flex flex-wrap gap-2">
+            {([
+              ["todos", "Todos"],
+              ["assinados", "Assinados DO + CF"],
+              ["pend_do", "Pendente DO"],
+              ["pend_cf", "Pendente CF"],
+            ] as const).map(([k, label]) => (
+              <Button
+                key={k}
+                size="sm"
+                variant={fAssinatura === k ? "default" : "outline"}
+                onClick={() => setFAssinatura(k)}
+              >
+                {label} ({contAssinatura[k]})
+              </Button>
+            ))}
           </div>
         </CardContent>
       </Card>
