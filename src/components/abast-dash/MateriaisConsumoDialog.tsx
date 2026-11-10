@@ -15,8 +15,9 @@ type ItemCatalogo = { id_produto: string; descricao: string; categoria: string; 
 const un = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
 const ROTULO: Record<string, string> = { "MATERIAL DE CONSUMO": "Material de consumo", CAFETERIA: "Cafeteria", GOTAS: "Gotas (com saldo no CD)", BOLOS: "Sobremesa · Bolos" };
 
-export function MateriaisConsumoDialog({ lojaInicial, onClose, onOk }: { lojaInicial?: string | null; onClose: () => void; onOk: () => void }) {
-  const [loja, setLoja] = useState(lojaInicial ?? "");
+/** Sem `pedido`: cria um pedido só de materiais. Com `pedido`: inclui os materiais nesse pedido (sem aprovar). */
+export function MateriaisConsumoDialog({ lojaInicial, pedido, onClose, onOk }: { lojaInicial?: string | null; pedido?: { id: string; numero: number; loja: string } | null; onClose: () => void; onOk: () => void }) {
+  const [loja, setLoja] = useState(pedido?.loja ?? lojaInicial ?? "");
   const [qtd, setQtd] = useState<Record<string, string>>({});
   const [obs, setObs] = useState("");
   const [busca, setBusca] = useState("");
@@ -36,13 +37,20 @@ export function MateriaisConsumoDialog({ lojaInicial, onClose, onOk }: { lojaIni
   const escolhidos = (catQ.data ?? []).filter((i) => num(qtd[i.id_produto]) > 0);
 
   async function enviar() {
-    if (!loja) { toast.error("Escolha a loja."); return; }
+    if (!pedido && !loja) { toast.error("Escolha a loja no topo da janela."); return; }
     if (!escolhidos.length) { toast.error("Informe a quantidade de ao menos um material."); return; }
     setSalvando(true);
     try {
-      const { data, error } = await sb.rpc("abast_solicitar_materiais", { p_loja: loja, p_obs: obs.trim() || null, p_itens: escolhidos.map((i) => ({ id_produto: i.id_produto, qtd: num(qtd[i.id_produto]) })) });
-      if (error) throw error;
-      toast.success(`Pedido de materiais nº ${data?.numero} criado (${data?.itens} itens). Ele aparece em "Aguard. comercial" para aprovação.`);
+      const itens = escolhidos.map((i) => ({ id_produto: i.id_produto, qtd: num(qtd[i.id_produto]) }));
+      if (pedido) {
+        const { data, error } = await sb.rpc("abast_adicionar_materiais_pedido", { p_id: pedido.id, p_obs: obs.trim() || null, p_itens: itens });
+        if (error) throw error;
+        toast.success(`${data?.adicionados ?? itens.length} material(is) incluído(s) no pedido ${pedido.numero}. Revise o pedido e aprove pelo botão Aprovar.`);
+      } else {
+        const { data, error } = await sb.rpc("abast_solicitar_materiais", { p_loja: loja, p_obs: obs.trim() || null, p_itens: itens });
+        if (error) throw error;
+        toast.success(`Pedido de materiais nº ${data?.numero} criado (${data?.itens} itens). Ele aparece em "Aguard. comercial" para aprovação.`);
+      }
       onOk();
     } catch (e: any) { toast.error("Não consegui criar a solicitação: " + (e?.message ?? e)); }
     finally { setSalvando(false); }
@@ -51,15 +59,15 @@ export function MateriaisConsumoDialog({ lojaInicial, onClose, onOk }: { lojaIni
   return <Dialog open onOpenChange={(o) => !o && !salvando && onClose()}>
     <DialogContent className="max-w-3xl gap-0 overflow-hidden p-0">
       <DialogHeader className="space-y-1 border-b px-6 py-4 text-left">
-        <DialogTitle className="flex items-center gap-2 text-xl"><PackageOpen className="size-5" />Materiais de uso e consumo</DialogTitle>
-        <DialogDescription>Material de apoio, cafeteria e sobremesa, mais todas as gotas com saldo no CD. Sem caixaria: informe a quantidade de cada item. O pedido vai para aprovação comercial como os demais.</DialogDescription>
+        <DialogTitle className="flex items-center gap-2 text-xl"><PackageOpen className="size-5" />Materiais de uso e consumo{pedido ? ` · Pedido ${pedido.numero} (${pedido.loja})` : ""}</DialogTitle>
+        <DialogDescription>{pedido ? "Os materiais entram na relação deste pedido, que continua aguardando aprovação. " : "O pedido vai para aprovação comercial como os demais. "}Material de apoio, cafeteria e sobremesa, mais todas as gotas com saldo no CD. Sem caixaria: informe a quantidade de cada item.</DialogDescription>
       </DialogHeader>
       <div className="max-h-[64vh] space-y-4 overflow-y-auto px-6 py-4">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="text-xs font-semibold text-muted-foreground">Loja
+          {!pedido && <label className="text-xs font-semibold text-muted-foreground">Loja
             <select value={loja} onChange={(e) => setLoja(e.target.value)} className="mt-1 block h-9 w-60 rounded-md border bg-background px-2 text-sm">
               <option value="">Escolha a loja</option>{(lojasQ.data ?? []).map((l) => <option key={l.codigo} value={l.codigo}>{l.nome}</option>)}
-            </select></label>
+            </select></label>}
           <Input className="h-9 w-64" placeholder="Buscar material" value={busca} onChange={(e) => setBusca(e.target.value)} />
         </div>
         {catQ.isLoading ? <p className="text-sm text-muted-foreground">Carregando materiais…</p> : catQ.error ? <p className="text-sm text-destructive">Não foi possível carregar a lista de materiais.</p> :
@@ -78,9 +86,9 @@ export function MateriaisConsumoDialog({ lojaInicial, onClose, onOk }: { lojaIni
         <p className="text-[11px] text-muted-foreground">Itens sem cadastro no ACE4 entram no pedido e na requisição com código provisório (SEMCAD) e são separados manualmente.</p>
       </div>
       <DialogFooter className="items-center gap-2 border-t bg-muted/30 px-6 py-3 sm:justify-between">
-        <span className="text-xs text-muted-foreground">{escolhidos.length ? `${escolhidos.length} material(is) · ${un(escolhidos.reduce((a, i) => a + num(qtd[i.id_produto]), 0))} un` : "Nenhum material escolhido"}</span>
+        <span className="text-xs text-muted-foreground">{escolhidos.length ? `${escolhidos.length} material(is) · ${un(escolhidos.reduce((a, i) => a + num(qtd[i.id_produto]), 0))} un` : "Nenhum material escolhido"}{!pedido && !loja && escolhidos.length > 0 && <span className="ml-2 font-semibold text-destructive">Escolha a loja no topo da janela</span>}</span>
         <div className="flex gap-2"><Button variant="ghost" disabled={salvando} onClick={onClose}>Voltar</Button>
-          <Button disabled={salvando || !escolhidos.length || !loja} onClick={enviar} className="gap-2">{salvando ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}Enviar solicitação</Button></div>
+          <Button disabled={salvando || !escolhidos.length || (!pedido && !loja)} onClick={enviar} className="gap-2">{salvando ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}{pedido ? "Adicionar ao pedido" : "Enviar solicitação"}</Button></div>
       </DialogFooter>
     </DialogContent>
   </Dialog>;
