@@ -633,7 +633,7 @@ function NovaBaixaForm() {
 
 function useBaixas(statuses: string[]) {
   return useQuery({
-    queryKey: ["baixas", statuses],
+    queryKey: ["baixas", "historico-completo", statuses],
     queryFn: async () => {
       return fetchAll<any>((from, to) =>
         (supabase as any)
