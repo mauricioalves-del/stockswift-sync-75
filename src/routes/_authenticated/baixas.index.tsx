@@ -635,13 +635,15 @@ function useBaixas(statuses: string[]) {
   return useQuery({
     queryKey: ["baixas", statuses],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("baixa_operacional")
-        .select("*, motivo:motivo_baixa(descricao), solicitacao:solicitacoes_baixa(id, solicitante_nome, solicitante_id)")
-        .in("status_fluxo", statuses)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as any[];
+      return fetchAll<any>((from, to) =>
+        (supabase as any)
+          .from("baixa_operacional")
+          .select("*, motivo:motivo_baixa(descricao), solicitacao:solicitacoes_baixa(id, solicitante_nome, solicitante_id)")
+          .in("status_fluxo", statuses)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
     },
   });
 }
