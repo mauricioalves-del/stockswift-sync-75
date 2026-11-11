@@ -1,6 +1,6 @@
 // MBR — Seção 1: Resumo Executivo e Scorecard do Mês (porte de _analise_geral / _montar_scorecard / _recorte_periodo do
 // gerador do Atlas), agora alimentados pelos dashboards nativos do Stock Savvy.
-import { ALTURA, COR, LARGURA, LIMIAR_ACURACIA, MARGEM, alturaCaixaLeitura, avancoOperacional, fmtMoeda, fmtNum, fmtPct, linhasEstimadas, nomeMes, r2, statusMaiorMelhor, statusMenorMelhor, type Status } from "./formato";
+import { ALTURA, COR, LARGURA, LIMIAR_ACURACIA, MARGEM, alturaCaixaLeitura, avancoOperacional, fmtMoeda, fmtNum, fmtPct, fmtPP, linhasEstimadas, nomeMes, r2, statusMaiorMelhor, statusMenorMelhor, type Status } from "./formato";
 import { cabecalho, caixaLeitura, linhaKpis, listaMarcadores, novoSlide, retangulo, tabela, textoRico, texto, type Celula, type Pptx } from "./kit";
 import type { DadosMbr } from "./dados";
 import type { DadosBaixas, DadosFarol, DadosFefo, DadosObsolescencia, DadosPacotes } from "./dados3";
@@ -33,8 +33,8 @@ export function analiseGeral(c: Consolidado) {
     const atual = ep.at(-1)!.iap!, pri = ep[0];
     if (ep.length >= 2 && pri.iap != null) {
       const delta = r2(atual - pri.iap), comD = ep.slice(1).filter((e) => e.varIap != null), melhora = comD.filter((e) => e.varIap! > 0).length, piora = comD.filter((e) => e.varIap! < 0).length;
-      if (delta > 0 && melhora >= piora) av.push(`IAP (Acurácia por Valor) sobe de ${fmtPct(pri.iap)} em ${nomeMes(pri.mes)} para ${fmtPct(atual)} em ${nomeMes(ep.at(-1)!.mes)} — +${fmtPct(delta)} no período${melhora > piora ? `, melhora em ${melhora} de ${comD.length} mês(es) monitorado(s). Curva de aprendizado consistente, não um pico isolado.` : "."}`);
-      else at.push(`IAP (Acurácia por Valor) em ${fmtPct(atual)}, variação de ${fmtPct(delta)} desde ${nomeMes(pri.mes)} — sem curva de aprendizado consistente ainda (${piora} de ${comD.length} mês(es) com queda).`);
+      if (delta > 0 && melhora >= piora) av.push(`IAP (Acurácia por Valor) sobe de ${fmtPct(pri.iap)} em ${nomeMes(pri.mes)} para ${fmtPct(atual)} em ${nomeMes(ep.at(-1)!.mes)} — +${fmtPP(delta)} no período${melhora > piora ? `, melhora em ${melhora} de ${comD.length} mês(es) monitorado(s). Curva de aprendizado consistente, não um pico isolado.` : "."}`);
+      else at.push(`IAP (Acurácia por Valor) em ${fmtPct(atual)}, variação de ${fmtPP(delta)} desde ${nomeMes(pri.mes)} — sem curva de aprendizado consistente ainda (${piora} de ${comD.length} mês(es) com queda).`);
     } else (statusMaiorMelhor(atual).label === "Em avanço" ? av : at).push(`IAP (Acurácia por Valor) em ${fmtPct(atual)} neste mês (ainda sem histórico anterior suficiente pra falar de tendência).`);
   }
   if (comp.item != null) at.push(`Item a item em ${fmtPct(comp.item)} funciona como termômetro de disciplina de apontamento — não é mais o indicador oficial de acurácia (ver Acurácia Ponderada).`);
@@ -50,7 +50,7 @@ export function analiseGeral(c: Consolidado) {
   else if (c.farol) av.push("Sem valor relevante de estoque em risco de validade neste recorte.");
   if (em.length && em[0].pct != null && mov.pct != null) {
     const pri = em[0], delta = r2(mov.pct - pri.pct!);
-    if (em.length >= 2 && delta > 0) av.push(`Controle de Movimentados: acurácia da reconciliação diária subiu de ${fmtPct(pri.pct)} (em ${nomeMes(pri.mes)}, primeiro mês monitorado) para ${fmtPct(mov.pct)} agora (+${fmtPct(delta)}) — ação com impacto direto e mensurável na acurácia.`);
+    if (em.length >= 2 && delta > 0) av.push(`Controle de Movimentados: acurácia da reconciliação diária subiu de ${fmtPct(pri.pct)} (em ${nomeMes(pri.mes)}, primeiro mês monitorado) para ${fmtPct(mov.pct)} agora (+${fmtPP(delta)}) — ação com impacto direto e mensurável na acurácia.`);
     else at.push(`Controle de Movimentados: acurácia da reconciliação diária em ${fmtPct(mov.pct)} desde a implantação (em ${nomeMes(pri.mes)}) — ainda sem ganho consistente frente ao ponto de partida.`);
   } else if (mov.itens_analisados) av.push(`Controle de Movimentados ativo: ${fmtNum(mov.itens_analisados)} item(ns) reconciliado(s) neste mês.`);
   const f = c.fefo;
@@ -80,7 +80,7 @@ export function montarScorecard(c: Consolidado): LinhaScorecard[] {
   const shelfLife = { frente: "Shelf Life", status: sh.lotes ? st("Atenção", COR.ATENCAO) : st("Em avanço", COR.SUCESSO), leitura: `${fmtNum(sh.lotes)} lote(s) em risco de validade, ${fmtMoeda(sh.valor)} em valor exposto.`, passo: sh.lotes ? "Priorizar consumo/transferência dos lotes a vencer em 30 dias." : "Sem lote em risco — manter monitoramento." };
   const o = c.obsolescencia;
   const sObs = o?.quantidadeCriticos ? st("Crítico", COR.ERRO) : o?.quantidadeItens ? st("Atenção", COR.ATENCAO) : st("Em avanço", COR.SUCESSO);
-  const obsol = { frente: "Mapeamento de Risco (Obsolescência)", status: sObs, leitura: o?.quantidadeItens ? `${fmtNum(o.quantidadeItens)} item(ns) em risco de obsolescência, ${fmtMoeda(o.valorTotal)} em valor exposto.` : "Nenhum item combina validade próxima com giro insuficiente neste recorte.", passo: o?.quantidadeCriticos ? "Priorizar ação comercial/promocional nos itens críticos (giro zero) antes que vençam." : o?.quantidadeItens ? "Monitorar itens em atenção — giro insuficiente pra escoar no ritmo atual." : "Sem risco de obsolescência — manter monitoramento." };
+  const obsol = { frente: "Itens sem Movimentação (risco de validade sem giro)", status: sObs, leitura: o?.quantidadeItens ? `${fmtNum(o.quantidadeItens)} item(ns) sem movimentação em risco de validade, ${fmtMoeda(o.valorTotal)} em valor exposto.` : "Nenhum item combina validade próxima com giro insuficiente neste recorte.", passo: o?.quantidadeCriticos ? "Priorizar ação comercial/promocional nos itens críticos (giro zero) antes que vençam." : o?.quantidadeItens ? "Monitorar itens em atenção — giro insuficiente pra escoar no ritmo atual." : "Sem risco de obsolescência — manter monitoramento." };
   const pri = em[0], positiva = em.length >= 2 && pri?.pct != null && mov.pct != null && mov.pct > pri.pct;
   const sMov = avancoOperacional(mov.pct, positiva ? st("Em avanço", COR.SUCESSO) : statusMaiorMelhor(mov.pct));
   const movim = { frente: "Controle de Movimentados", status: sMov, leitura: positiva ? `Acurácia da reconciliação diária em ${fmtPct(mov.pct)} — alta consistente desde ${nomeMes(pri.mes)} (+${fmtPct(mov.pct! - pri.pct!)}).` : `Acurácia da reconciliação diária em ${fmtPct(mov.pct)} sobre ${fmtNum(mov.itens_analisados)} item(ns) analisado(s) no mês.`, passo: mov.itens_com_divergencia ? "Investigar itens com divergência não resolvida." : "Manter cadência de conferência diária." };
@@ -103,8 +103,8 @@ export function slideResumoExecutivo(p: Pptx, mesLabel: string, pag: number, c: 
   ], 0.68);
   const a = analiseGeral(c), r = a.recorte;
   const partes: { t: string; cor?: string; negrito?: boolean }[] = [];
-  if (r.avanco) partes.push({ t: "▲ Maior avanço do mês: " }, { t: `${r.avanco.frente} (+${fmtPct(r.avanco.delta)})`, cor: COR.SUCESSO, negrito: true });
-  if (r.involucao) partes.push(...(partes.length ? [{ t: "     " }] : []), { t: "▼ Maior involução do mês: " }, { t: `${r.involucao.frente} (${fmtPct(r.involucao.delta)})`, cor: COR.ERRO, negrito: true });
+  if (r.avanco) partes.push({ t: "▲ Maior avanço do mês: " }, { t: `${r.avanco.frente} (+${fmtPP(r.avanco.delta)})`, cor: COR.SUCESSO, negrito: true });
+  if (r.involucao) partes.push(...(partes.length ? [{ t: "     " }] : []), { t: "▼ Maior involução do mês: " }, { t: `${r.involucao.frente} (${fmtPP(r.involucao.delta)})`, cor: COR.ERRO, negrito: true });
   if (r.variacaoPassivos) partes.push(...(partes.length ? [{ t: "     " }] : []), { t: "Passivos aprovados: " }, { t: `${r.variacaoPassivos > 0 ? "+" : ""}${fmtMoeda(r.variacaoPassivos)} vs. mês anterior`, cor: r.variacaoPassivos > 0 ? COR.ERRO : COR.SUCESSO, negrito: true });
   let yC = 3.1;
   if (partes.length) { retangulo(s, MARGEM, 2.95, LC, 0.42, { fill: COR.OFF_WHITE, raio: 0.08 }); textoRico(s, MARGEM + 0.18, 2.95, LC - 0.36, 0.42, partes, 11.5); yC = 2.95 + 0.42 + 0.18; }
