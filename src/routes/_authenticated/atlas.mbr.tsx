@@ -1,3 +1,4 @@
+import { extrairMetas } from "@/lib/mbr/dados3";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -57,11 +58,15 @@ function MbrPage() {
     setEnviando(true);
     try {
       const html = await arquivo.text();
-      if (!/soma dos pesos/i.test(html)) throw new Error("o arquivo não parece ser o export de \"Minhas metas\"");
+      // valida lendo o arquivo de verdade: aceita o export antigo (soma dos pesos) e o novo, em grade mensal
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const lidas = extrairMetas(doc as any, mes || new Date().toISOString().slice(0, 7));
+      if (!lidas) throw new Error("o arquivo não parece ser o export de \"Minhas metas\" (nenhuma meta encontrada)");
+      const bat = lidas.metas.filter((m) => m.batidaMes).length;
       const { data: u } = await supabase.auth.getUser();
       await salvarMetas(html, arquivo.name, u.user?.email ?? null);
       await metasQ.refetch();
-      toast.success("Metas enviadas — entram no próximo MBR gerado.");
+      toast.success(`Metas enviadas: ${lidas.metas.length} meta(s) lida(s)${mes ? ` · ${bat} batida(s) em ${nomeMes(mes)}` : ""}. Entram no próximo MBR gerado.`);
     } catch (e: any) { toast.error("Não consegui enviar as metas: " + (e?.message ?? e)); }
     finally { setEnviando(false); }
   }
