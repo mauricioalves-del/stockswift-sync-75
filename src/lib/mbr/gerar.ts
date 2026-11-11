@@ -8,6 +8,7 @@ import { slideAberturaSecao, slideCapa } from "./kit";
 import { ITENS_SECAO2, SLIDES_SECAO2 } from "./secao2";
 import { ITENS_SECAO1, slideResumoExecutivo, slideScorecard, type Consolidado } from "./secao1";
 import { slideRupturas } from "./rupturas";
+import { slideDivergenciasAtlas, slideDoisPiores, slideEvolucaoControles, slidePlanoAcao, slidePonteValor, slideRupturaExcesso, slideScorecardExec, type Extras } from "./executivo";
 import { DESCRICAO_SECAO3, ITENS_SECAO3, slideBaixas, slideDispersao, slideFarol, slideFefo, slideFuroFicha, slideInvestimento, slideItensSemMov, slidePacotes, slideRecuperacao, slideSemMovimentacao, slideTestes } from "./secao3";
 import { slideAberturaAtlas, slideAberturaMetas, slideFechamentoModulos, slideImpacto, slideMetas, slideProximosPassos, slidesFechamentoAcoes } from "./secao4";
 import type { Riscos } from "./fontes3";
@@ -46,10 +47,15 @@ export function montarMbr(F: FontesMbr, mes: string, geradoEm = new Date(), R: P
   slideCapa(p, rotulo, geradoEm.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).replace(",", ""));
   // Seção 1
   slideAberturaSecao(p, rotulo, prox(), 1, TOTAL_SECOES, "Resumo Executivo Geral", "Leitura consolidada do mês e status por frente monitorada.", ITENS_SECAO1);
+  const X: Extras = { rupturas: R?.rupturas ?? null, dispersao: R?.dispersao ?? null, semMov: R?.semMov ?? null, recuperacao: R?.recuperacao ?? null, fechamento: R?.fechamento ?? null, atlas: R?.atlas ?? null };
+  slideScorecardExec(p, rotulo, prox(), c, X);
+  slidePonteValor(p, rotulo, prox(), c, X);
   slideResumoExecutivo(p, rotulo, prox(), c);
   slideScorecard(p, rotulo, prox(), c);
   // Seção 2
   slideAberturaSecao(p, rotulo, prox(), 2, TOTAL_SECOES, "Inventários e Movimentados", "Acurácia de fechamento, ponderação por valor e reconciliação diária sistema x físico.", ITENS_SECAO2);
+  slideDoisPiores(p, rotulo, prox(), c);
+  slideEvolucaoControles(p, rotulo, prox(), c, X);
   for (const f of SLIDES_SECAO2) f(p, rotulo, prox(), d);
   // Seção 3
   slideAberturaSecao(p, rotulo, prox(), 3, TOTAL_SECOES, "Mapeamento de Riscos e Passivos", DESCRICAO_SECAO3, ITENS_SECAO3);
@@ -65,13 +71,16 @@ export function montarMbr(F: FontesMbr, mes: string, geradoEm = new Date(), R: P
   slideTestes(p, rotulo, prox(), R?.testes ?? null);
   slideFefo(p, rotulo, prox(), R?.fefo ?? null);
   slideRupturas(p, rotulo, prox(), R?.rupturas ?? null);
+  slideRupturaExcesso(p, rotulo, prox(), X);
   // Seção 4
   slideAberturaMetas(p, rotulo, prox(), R?.metas ?? null);
   slideMetas(p, rotulo, prox(), R?.metas ?? null, R?.fechamento ?? null);
   slideAberturaAtlas(p, rotulo, prox());
   slideImpacto(p, rotulo, prox(), c, controlesIntegrados(R));
+  slideDivergenciasAtlas(p, rotulo, prox(), R?.atlas ?? null);
   slideFechamentoModulos(p, rotulo, prox(), R?.fechamento ?? null);
   slidesFechamentoAcoes(p, rotulo, prox, R?.fechamento ?? null);
+  slidePlanoAcao(p, rotulo, prox(), R?.fechamento ?? null);
   slideProximosPassos(p, rotulo, prox(), c);
   return { pptx: p, dados: d, consolidado: c, nomeArquivo: `MBR_Controle_${mes.replace("-", "")}.pptx` };
 }
