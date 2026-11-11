@@ -54,7 +54,7 @@ test("Gera o .pptx da Seção 2 com dados mínimos", async () => {
   expect(d.kpis.acuracia).toBe(100);
   const { pptx, nomeArquivo } = montarMbr(F, "2026-09");
   expect(nomeArquivo).toBe("MBR_Controle_202609.pptx");
-  expect((pptx as any).slides.length).toBe(34); // +Itens sem movimentação item a item, Furo de ficha e Rupturas; sem fontes da Seção 3/4: cada slide sai com o aviso de indisponível
+  expect((pptx as any).slides.length).toBe(41); // +Scorecard executivo, Ponte de valor, Dois piores, Evolução dos controles, Ruptura × excesso, Atlas e Plano de ação; +Itens sem movimentação item a item, Furo de ficha e Rupturas; sem fontes da Seção 3/4: cada slide sai com o aviso de indisponível
   const buf = (await pptx.write({ outputType: "nodebuffer" })) as Buffer;
   expect(buf.length).toBeGreaterThan(10000);
   // PowerPoint pede "Reparar" quando o rótulo de dados usa uma posição que o tipo de gráfico não aceita (ex.: inEnd em linha)
