@@ -7,7 +7,8 @@ import { ALTURA, LARGURA, nomeMes } from "./formato";
 import { slideAberturaSecao, slideCapa } from "./kit";
 import { ITENS_SECAO2, SLIDES_SECAO2 } from "./secao2";
 import { ITENS_SECAO1, slideResumoExecutivo, slideScorecard, type Consolidado } from "./secao1";
-import { DESCRICAO_SECAO3, ITENS_SECAO3, slideBaixas, slideDispersao, slideFarol, slideFefo, slideInvestimento, slidePacotes, slideRecuperacao, slideSemMovimentacao, slideTestes } from "./secao3";
+import { slideRupturas } from "./rupturas";
+import { DESCRICAO_SECAO3, ITENS_SECAO3, slideBaixas, slideDispersao, slideFarol, slideFefo, slideFuroFicha, slideInvestimento, slideItensSemMov, slidePacotes, slideRecuperacao, slideSemMovimentacao, slideTestes } from "./secao3";
 import { slideAberturaAtlas, slideAberturaMetas, slideFechamentoModulos, slideImpacto, slideMetas, slideProximosPassos, slidesFechamentoAcoes } from "./secao4";
 import type { Riscos } from "./fontes3";
 
@@ -57,10 +58,13 @@ export function montarMbr(F: FontesMbr, mes: string, geradoEm = new Date(), R: P
   slidePacotes(p, rotulo, prox(), R?.pacotes ?? null, mes);
   slideFarol(p, rotulo, prox(), R?.farol ?? null, geradoEm);
   slideSemMovimentacao(p, rotulo, prox(), R?.semMov ?? null, geradoEm);
+  slideItensSemMov(p, rotulo, prox(), R?.semMov ?? null);
   slideRecuperacao(p, rotulo, prox(), R?.recuperacao ?? null);
   slideDispersao(p, rotulo, prox(), R?.dispersao ?? null);
+  slideFuroFicha(p, rotulo, prox(), R?.dispersao ?? null);
   slideTestes(p, rotulo, prox(), R?.testes ?? null);
   slideFefo(p, rotulo, prox(), R?.fefo ?? null);
+  slideRupturas(p, rotulo, prox(), R?.rupturas ?? null);
   // Seção 4
   slideAberturaMetas(p, rotulo, prox(), R?.metas ?? null);
   slideMetas(p, rotulo, prox(), R?.metas ?? null, R?.fechamento ?? null);
