@@ -31,14 +31,20 @@ export const fundo = (s: Slide, cor: string) => { s.background = { color: cor };
 
 /** `alerta`: palavra destacada (marca-texto amarelo) antes do título, ex.: "Atenção – Acompanhamento Individual…". */
 export function cabecalho(s: Slide, titulo: string, mesLabel: string, pagina: number, subtitulo?: string, alerta?: string) {
-  texto(s, MARGEM, 0.32, 9.5, 0.22, "RELATÓRIO EXECUTIVO · MÁGIO CHOCOLATES", { tamanho: 10, negrito: true, cor: COR.VERDE_AMAZONIA });
+  // Padrão Operations Report: marca à esquerda, "Operations Report · mês" e página à direita, título-conclusão e régua.
+  texto(s, MARGEM, 0.3, 6, 0.22, "M Á G I O   C H O C O L A T E S", { tamanho: 9, negrito: true, cor: COR.VERDE_AMAZONIA });
+  s.addShape("line" as any, { x: MARGEM, y: 1.47, w: LARGURA - 2 * MARGEM, h: 0, line: { color: COR.AZUL_INSTITUCIONAL, width: 1 } });
   if (alerta) {
     const o = { fontFace: FONTE, fontSize: 24, bold: true, color: COR.AZUL_INSTITUCIONAL };
     s.addText([{ text: alerta, options: { ...o, highlight: "FFFF00" } as any }, { text: ` – ${titulo}`, options: o }], { x: MARGEM, y: 0.58, w: LARGURA - MARGEM - 0.4, h: 0.45, margin: 0, valign: "top", wrap: true, fit: "none" });
-  } else texto(s, MARGEM, 0.58, 9.7, 0.55, titulo, { tamanho: 24, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
-  if (subtitulo) texto(s, MARGEM, 1.1, 9.7, 0.35, subtitulo, { tamanho: 13 });
-  texto(s, LARGURA - 2.9, 0.32, 2.4, 0.3, mesLabel.toUpperCase(), { tamanho: 11, negrito: true, cor: COR.VERDE_AMAZONIA, alinhamento: "right" });
-  texto(s, LARGURA - 2.9, ALTURA - 0.42, 2.4, 0.3, String(pagina).padStart(2, "0"), { tamanho: 10, alinhamento: "right" });
+  } else {
+    // título-conclusão em uma linha: reduz a fonte conforme o tamanho da frase
+    const tam = titulo.length > 95 ? 15 : titulo.length > 80 ? 17 : titulo.length > 64 ? 19 : 22;
+    texto(s, MARGEM, 0.58, LARGURA - 2 * MARGEM - 0.9, 0.5, titulo, { tamanho: tam, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
+  }
+  if (subtitulo) texto(s, MARGEM, 1.08, LARGURA - 2 * MARGEM - 0.9, 0.35, subtitulo, { tamanho: 11.5 });
+  texto(s, LARGURA - 4.4, 0.28, 3.9, 0.22, `Operations Report · ${mesLabel}`, { tamanho: 9, cor: COR.SEM_DADO, alinhamento: "right" });
+  texto(s, LARGURA - 1.5, 0.5, 1, 0.3, String(pagina).padStart(2, "0"), { tamanho: 13, negrito: true, cor: COR.VERDE_AMAZONIA, alinhamento: "right" });
 }
 
 export type Kpi = { valor: string; rotulo: string; cor?: string; contexto?: string | null; corContexto?: string; borda?: string | null };
@@ -210,18 +216,22 @@ export function corContraste(hex: string) {
 // ---------- slides de estrutura ----------
 export function slideCapa(p: Pptx, mesLabel: string, geradoEm: string) {
   const s = p.addSlide(); fundo(s, COR.AZUL_INSTITUCIONAL);
-  texto(s, 1, 2.55, 11.3, 0.3, "MÁGIO CHOCOLATES", { tamanho: 14, negrito: true, cor: COR.AZUL_CLARO });
-  texto(s, 1, 2.95, 11.3, 1.1, "MBR Executivo - Controle", { tamanho: 40, negrito: true, cor: COR.BRANCO });
-  texto(s, 1, 3.8, 11.3, 0.5, "Inteligência e controle operacional · Atlas", { tamanho: 18, cor: COR.AZUL_CLARO });
+  texto(s, 1, 2.3, 11.3, 0.3, "M Á G I O   ·   C H O C O L A T E S", { tamanho: 13, negrito: true, cor: COR.AZUL_CLARO });
+  texto(s, 1, 2.7, 11.3, 0.4, "OPERATIONS REPORT · CONTROLE", { tamanho: 14, negrito: true, cor: COR.VERDE_AMAZONIA });
+  texto(s, 1, 3.15, 11.3, 1.1, "Executive Operations Report", { tamanho: 40, negrito: true, cor: COR.BRANCO });
+  texto(s, 1, 4.05, 11.3, 0.5, "Controle de estoque, riscos e decisões · Stock Savvy", { tamanho: 18, cor: COR.AZUL_CLARO });
   texto(s, 1, 6.55, 11.3, 0.4, `${mesLabel}  ·  Gerado automaticamente pelo Stock Savvy em ${geradoEm}`, { tamanho: 13, cor: COR.OFF_WHITE });
 }
 export function slideAberturaSecao(p: Pptx, mesLabel: string, pagina: number, n: number, total: number, titulo: string, descricao: string, itens: string[]) {
   const s = p.addSlide(); fundo(s, COR.AZUL_INSTITUCIONAL);
-  texto(s, MARGEM, 0.32, 4, 0.3, `SEÇÃO ${n} DE ${total}`, { tamanho: 11, negrito: true, cor: COR.AZUL_CLARO });
-  texto(s, LARGURA - 2.9, 0.32, 2.4, 0.3, mesLabel.toUpperCase(), { tamanho: 11, negrito: true, cor: COR.AZUL_CLARO, alinhamento: "right" });
-  texto(s, MARGEM, 1.15, LARGURA - 2 * MARGEM, 1, titulo, { tamanho: 34, negrito: true, cor: COR.BRANCO });
-  texto(s, MARGEM, 2.15, LARGURA - 2 * MARGEM, 0.6, descricao, { tamanho: 15, cor: COR.AZUL_CLARO });
-  let y = 3.15;
+  // Divisor no padrão Operations Report: número grande da seção, título e descrição
+  texto(s, MARGEM, 0.32, 6, 0.3, "M Á G I O   C H O C O L A T E S", { tamanho: 10, negrito: true, cor: COR.AZUL_CLARO });
+  texto(s, LARGURA - 4.4, 0.32, 3.9, 0.3, `Operations Report · ${mesLabel}`, { tamanho: 10, cor: COR.AZUL_CLARO, alinhamento: "right" });
+  texto(s, MARGEM, 1.0, 3.2, 1.9, String(n).padStart(2, "0"), { tamanho: 110, negrito: true, cor: COR.VERDE_AMAZONIA });
+  s.addShape("line" as any, { x: MARGEM + 3.4, y: 1.45, w: 0.6, h: 0, line: { color: COR.AZUL_CLARO, width: 2 } });
+  texto(s, MARGEM + 3.4, 1.55, LARGURA - 2 * MARGEM - 3.4, 0.8, titulo, { tamanho: 32, negrito: true, cor: COR.BRANCO });
+  texto(s, MARGEM + 3.4, 2.35, LARGURA - 2 * MARGEM - 3.4, 0.6, descricao, { tamanho: 14, cor: COR.AZUL_CLARO });
+  let y = 3.35;
   texto(s, MARGEM, y, 4, 0.28, "NESTA SEÇÃO", { tamanho: 11, negrito: true, cor: COR.AZUL_CLARO }); y += 0.4;
   for (const it of itens) {
     texto(s, MARGEM, y, 0.24, 0.3, "•", { tamanho: 14, negrito: true, cor: COR.AZUL_CLARO });
