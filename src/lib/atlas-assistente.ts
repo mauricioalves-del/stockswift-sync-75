@@ -21,7 +21,6 @@ export const MODULOS_VOZ: Modulo[] = [
   { rota: "/atlas/acuracia-ponderada", nome: "Acurácia Ponderada", conteudo: "Acurácia item a item, IAQ (quantidade) e IAP (valor), concentração do valor divergente e recorrentes de risco.", palavras: ["acurácia ponderada", "acurácia"] },
   { rota: "/atlas/fechamento-inventario", nome: "Fechamento Inventário", conteudo: "Fechamentos por almoxarifado, itens, as três ciências (Diretor de Operações, Coordenador Financeiro e Responsável pelo Departamento) e PDF.", palavras: ["fechamento inventário", "fechamento de inventário", "fechamento"] },
   { rota: "/atlas/pos-inventario", nome: "Pós-Inventário", conteudo: "Ações corretivas dos itens divergentes do fechamento, com responsável, prazo e checklist.", palavras: ["pós-inventário", "pós inventário", "pos inventario"] },
-  { rota: "/atlas/cadastros", nome: "Cadastros", conteudo: "Produtos, almoxarifados e hipóteses de causa do Atlas.", palavras: ["cadastros", "cadastro"] },
   { rota: "/logs", nome: "Auditoria", conteudo: "Log das ações, incluindo o histórico do Atlas.", palavras: ["auditoria"] },
   { rota: "/usuarios", nome: "Usuários", conteudo: "Usuários, papéis e o vínculo com os logins do Atlas.", palavras: ["usuários", "usuarios"] },
   { rota: "/baixas", nome: "Relatório de Baixa", conteudo: "Todas as baixas operacionais (avaria, vencimento, descarte...) e as aprovações.", palavras: ["relatório de baixa", "relatorio de baixa", "relatório de baixas", "baixas operacionais", "baixa operacional"] },

@@ -10,7 +10,7 @@ import {
   PackageCheck, Hourglass, Gem, SearchCheck, Store, FileSpreadsheet,
  TrendingDown,
  ReceiptText,
- SlidersHorizontal, UserPlus, Orbit, Scale, ListChecks, Gauge, Upload, Database } from "lucide-react";
+ SlidersHorizontal, UserPlus, Orbit, Scale, ListChecks, Gauge, Upload } from "lucide-react";
 import oncaIcono from "@/assets/onca-icono.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -145,6 +145,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/fechamento-mensal", label: "Fechamento Mensal", icon: CalendarCheck, role: "any" },
       { to: "/relatorios", label: "Relatório de Inventário", icon: FileBarChart2, role: "any" },
       { to: "/relatorios/pacote-baixas", label: "Pacote de Baixas", icon: PackageMinus, role: "any" },
+      { to: "/atlas/mbr", label: "MBR", icon: FileBarChart2, role: "any" },
     ],
   },
   {
@@ -155,8 +156,6 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/atlas/mapeamento-passivos", label: "Mapeamento de Passivos", icon: AlertTriangle, role: "any" },
       { to: "/atlas/importar", label: "Importar", icon: Upload, role: "write" },
       { to: "/atlas/acuracia-ponderada", label: "Acurácia Ponderada", icon: Scale, role: "any" },
-      { to: "/atlas/mbr", label: "MBR", icon: FileBarChart2, role: "any" },
-      { to: "/atlas/cadastros", label: "Cadastros", icon: Database, role: "write" },
     ],
   },
   // { to: "/emails", label: "Cadastro de E-mails", icon: Mail, role: "admin" } as NavItem,
