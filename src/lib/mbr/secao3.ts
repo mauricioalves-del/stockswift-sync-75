@@ -1,7 +1,7 @@
 // MBR — Seção 3: Mapeamento de Riscos e Passivos, lida direto dos dashboards do Stock Savvy (sem export .html).
 // Geometria e textos do modelo final aprovado (MBR - Controle - Setembro).
-import { ALTURA, COR, LARGURA, MARGEM, fmtMoeda, fmtNum, fmtPct, fmtSinal, rotuloMes, statusMenorMelhor } from "./formato";
-import { cabecalho, caixaLeitura, funil, graficoBarrasH, graficoEmpilhado, graficoMulti, graficoRosca, linhaKpis, novoSlide, tabela, texto, type Pptx, type Slide } from "./kit";
+import { ALTURA, COR, LARGURA, MARGEM, fmtMoeda, fmtNum, fmtPct, fmtPP, fmtSinal, rotuloMes, statusMenorMelhor } from "./formato";
+import { cabecalho, caixaLeitura, funil, graficoBarrasH, graficoComboDuplo, graficoEmpilhado, graficoMulti, graficoRosca, linhaKpis, novoSlide, tabela, texto, type Pptx, type Slide } from "./kit";
 import { FAIXAS_PARADO, STATUS_FAROL, type DadosBaixas, type DadosDispersao, type DadosFarol, type DadosFefo, type DadosInvestimento, type DadosPacotes, type DadosRecuperacao, type DadosSemMov, type DadosTestes } from "./dados3";
 
 const LC = LARGURA - 2 * MARGEM;
@@ -23,21 +23,23 @@ function semDados(s: Slide, dado: unknown, titulo: string, msg: string) {
 }
 const erroFonte = (nome: string) => `Não foi possível ler os dados de ${nome} no Stock Savvy agora — confira o acesso à tela e gere o MBR de novo.`;
 
-export const ITENS_SECAO3 = ["Pacote de Baixas – Operações", "Pacote de Baixas – Investimento Operacional", "Controle de Pacotes de Baixa", "Farol de Shelf-Life", "Risco de Obsolescência de Materiais", "Recuperação de Shelf", "Dispersão de Ficha Técnica", "Testes Industriais", "Controle de FEFO"];
+export const ITENS_SECAO3 = ["Pacote de Baixas – Operações", "Pacote de Baixas – Investimento Operacional", "Controle de Pacotes de Baixa", "Farol de Shelf-Life", "Itens sem Movimentação", "Itens sem Movimentação — Item a Item", "Recuperação de Shelf", "Dispersão de Ficha Técnica — Pareto", "Furo de Ficha Técnica", "Testes Industriais", "Controle de FEFO", "Indicador de Rupturas"];
 export const DESCRICAO_SECAO3 = "Passivos e baixas, validade de lotes, estoque parado, recuperação de shelf, dispersão de ficha técnica, Testes Industriais e FEFO — lidos direto do Stock Savvy.";
 
 // ---------- Dashboard Baixas Operacionais ----------
 export function slideBaixas(p: Pptx, mesLabel: string, pag: number, d: DadosBaixas | null, mes: string) {
   const s = novoSlide(p);
-  cabecalho(s, "Dashboard Baixas Operacionais", mesLabel, pag, "Retrato do mês — fonte oficial de Baixas/Passivos no MBR (Dashboard de Baixas Operacionais do Stock Savvy)");
+  const ano = mes.slice(0, 4);
+  cabecalho(s, d ? `Baixas operacionais fecham o mês em ${fmtMoeda(d.total)} e somam ${fmtMoeda(d.acumuladoAno)} no ano` : "Baixas operacionais", mesLabel, pag, "Fechamento do mês e acumulado anual (jan até o mês do relatório) — Relatório de Baixa do Stock Savvy, baixas aprovadas.");
   if (semDados(s, d, "Baixas Operacionais indisponíveis", erroFonte("Baixas Operacionais"))) return;
   const b = d!;
-  linhaKpis(s, 1.55, [
-    { valor: fmtMoeda(b.total), rotulo: "Prejuízo Total no Período", cor: COR.ERRO },
-    { valor: fmtPct(b.pctDestaque), rotulo: `Concentrado em ${b.motivoDestaque ?? "—"}` },
-    { valor: b.setorTop ?? "—", rotulo: "Setor de Maior Impacto" },
-    { valor: b.grupoTop ?? "—", rotulo: "Grupo de Maior Impacto" },
-  ], 0.65, 0.383, 20);
+  const varMes = b.totalMesAnterior ? ((b.total - b.totalMesAnterior) / b.totalMesAnterior) * 100 : null;
+  linhaKpis(s, 1.62, [
+    { valor: fmtMoeda(b.total), rotulo: "Fechamento do mês", cor: COR.ERRO, contexto: `${fmtNum(b.quantidade)} baixa(s)${varMes != null ? ` · ${varMes > 0 ? "+" : ""}${fmtNum(varMes, 1)}% vs. mês anterior` : ""}` },
+    { valor: fmtMoeda(b.acumuladoAno), rotulo: `Acumulado ${ano} (jan–${mesLabel.slice(0, 3).toLowerCase()})`, cor: COR.ERRO, contexto: `${fmtNum(b.quantidadeAno)} baixa(s) no ano` },
+    { valor: fmtPct(b.pctDestaque), rotulo: `Maior motivo: ${b.motivoDestaque ?? "—"}` },
+    { valor: b.setorTop ?? "—", rotulo: "Almoxarifado de maior impacto" },
+  ], 0.7, 0.383, 20);
   const paleta = [COR.ERRO, COR.ATENCAO, COR.AZUL_INSTITUCIONAL, COR.VERDE_AMAZONIA, COR.INFO, COR_FAROL.Urgente, COR_FAROL.Perigo, COR.AZUL_CLARO, COR.SEM_DADO];
   if (b.meses.length && b.series.length) {
     const cats = b.meses.map((m) => MESES_LONGOS[Number(m.slice(5, 7)) - 1]);
@@ -46,10 +48,10 @@ export function slideBaixas(p: Pptx, mesLabel: string, pag: number, d: DadosBaix
   } else caixaLeitura(s, MARGEM, 2.32, LC, 1.95, "Evolução mensal", "Sem baixa aprovada nos últimos 12 meses.", { corRotulo: COR.ATENCAO, tamanho: 12 });
   const lc = (LC - 0.35) / 2, x2 = MARGEM + lc + 0.35, yt = 4.37, ht = 2.05;
   texto(s, MARGEM, yt, lc, 0.24, "TOP BAIXAS POR SKU", { tamanho: 10.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
-  if (b.rankingSku.length) tabela(s, MARGEM, yt + 0.24, lc, ht, ["Ranking", "Descrição", "Total Baixas", "Classif."], b.rankingSku.slice(0, 6).map((r, i) => [String(i + 1), corte(`${r.sku} - ${r.descricao}`, 24), fmtMoeda(r.total, 2), { t: r.classif, cor: r.classif === "Investigar" ? COR.ERRO : COR.SUCESSO }]), { larguras: [1, 2.2, 1.1, 1.1], tamanho: 9.5 });
+  if (b.rankingSku.length) tabela(s, MARGEM, yt + 0.24, lc, ht, ["#", "SKU · Produto", "Total no mês"], b.rankingSku.slice(0, 6).map((r, i) => [String(i + 1), corte(`${r.sku} - ${r.descricao}`, 40), { t: fmtMoeda(r.total, 2), cor: COR.ERRO, negrito: true }]), { larguras: [0.45, 3.6, 1.35], tamanho: 9.5 });
   else caixaLeitura(s, MARGEM, yt + 0.24, lc, ht, "Top baixas por SKU", "Nenhuma baixa aprovada no mês.");
   texto(s, x2, yt, lc, 0.24, "BAIXAS POR MOTIVO", { tamanho: 10.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
-  if (b.tabelaMotivo.length) tabela(s, x2, yt + 0.24, lc, ht, ["Motivo", "Total por Motivo", "%", "Classif. Prejuízo"], b.tabelaMotivo.slice(0, 6).map((r) => [corte(r.motivo, 22), fmtMoeda(r.total, 2), `${r.pct.toFixed(2)}%`, r.classif ?? "—"]), { larguras: [1.8, 1.2, 0.7, 1.2], tamanho: 9.5 });
+  if (b.tabelaMotivo.length) tabela(s, x2, yt + 0.24, lc, ht, ["Motivo", "Total no mês", "Part."], b.tabelaMotivo.slice(0, 6).map((r) => [corte(r.motivo, 34), fmtMoeda(r.total, 2), `${r.pct.toFixed(1)}%`]), { larguras: [3.0, 1.45, 0.95], tamanho: 9.5 });
   else caixaLeitura(s, x2, yt + 0.24, lc, ht, "Baixas por motivo", "Nenhuma baixa aprovada no mês.");
   texto(s, MARGEM, 6.7, LC, 0.35, `Cartões e tabelas: baixas aprovadas de ${dataBr(`${mes}-01`)} a ${dataBr(`${mes}-${String(new Date(Date.UTC(+mes.slice(0, 4), +mes.slice(5, 7), 0)).getUTCDate())}`)} no Relatório de Baixa do Stock Savvy, sem Cortesia, Degustação, Uso e Consumo e Sensorial/Inovações (Investimento Operacional). Gráfico: até 12 meses até o mês deste relatório — cobre uma janela maior que os cartões, então os totais não batem entre si.`, { tamanho: 9, italico: true });
 }
@@ -169,8 +171,8 @@ export function slideFarol(p: Pptx, mesLabel: string, pag: number, d: DadosFarol
 // ---------- Materiais sem movimentação (Risco de Obsolescência) ----------
 export function slideSemMovimentacao(p: Pptx, mesLabel: string, pag: number, d: DadosSemMov | null, geradoEm: Date) {
   const s = novoSlide(p);
-  cabecalho(s, "Materiais sem movimentação", mesLabel, pag, `Retrato do estoque parado sem movimento em ${geradoEm.toLocaleDateString("pt-BR")} — Risco de Obsolescência do Stock Savvy`);
-  if (semDados(s, d, "Risco de Obsolescência indisponível", erroFonte("Risco de Obsolescência"))) return;
+  cabecalho(s, d ? `Itens sem movimentação: ${fmtNum(d.qtd)} lotes parados somam ${fmtMoeda(d.total)}` : "Itens sem movimentação", mesLabel, pag, `Retrato do estoque parado sem movimento em ${geradoEm.toLocaleDateString("pt-BR")} — por faixa de dias parado, almoxarifado e grupo`);
+  if (semDados(s, d, "Itens sem movimentação indisponíveis", erroFonte("Itens sem movimentação"))) return;
   const o = d!, pf = o.porFaixa;
   linhaKpis(s, 1.55, FAIXAS_PARADO.map((f) => ({ valor: fmtNum(pf[f].qtd), rotulo: `${f} Dias Parado`, cor: COR_PARADO[f], contexto: fmtMoeda(pf[f].valor), corContexto: COR_PARADO[f], borda: f === "+90" && pf[f].qtd ? COR_PARADO[f] : null })), 0.68);
   const lg = (LC - 0.4) / 2, x2 = MARGEM + lg + 0.4, yG = 2.5, hG = 2.4;
@@ -180,6 +182,42 @@ export function slideSemMovimentacao(p: Pptx, mesLabel: string, pag: number, d: 
   if (o.porGrupo.length) graficoEmpilhado(p, s, x2, yG, lg, hG, o.porGrupo.map((g) => g.nome), series(o.porGrupo), { horizontal: true, percentual: true, tamEixo: 8 });
   else caixaLeitura(s, x2, yG, lg, hG, "Sem dados", "Nenhum material parado por grupo.", { tamanho: 11 });
   tresTabelas(s, FAIXAS_PARADO.map((f) => ({ titulo: `${f} DIAS`, cor: COR_PARADO[f], itens: pf[f].itens, total: pf[f].valor })), "Valor", "Nenhum lote nesta faixa.");
+}
+
+/** Itens sem movimentação — item a item: maiores valores parados, com almoxarifado, grupo, faixa e lote. */
+export function slideItensSemMov(p: Pptx, mesLabel: string, pag: number, d: DadosSemMov | null) {
+  const s = novoSlide(p);
+  const top = d?.itens ?? [];
+  const tot = d?.total ?? 0, somaTop = top.reduce((a, x) => a + x.valor, 0);
+  cabecalho(s, d && top.length ? `Os ${top.length} maiores itens parados concentram ${fmtMoeda(somaTop)} (${fmtPct(tot ? (100 * somaTop) / tot : null)} do valor sem giro)` : "Itens sem movimentação — item a item", mesLabel, pag, "Ranking por valor do estoque sem movimentação — prioridade de ação comercial, transferência ou baixa.");
+  if (semDados(s, d, "Itens sem movimentação indisponíveis", erroFonte("Itens sem movimentação"))) return;
+  if (!top.length) { caixaLeitura(s, MARGEM, 1.7, LC, 1.2, "Sem itens parados", "Nenhum lote sem movimentação acima de 30 dias.", { tamanho: 13 }); return; }
+  tabela(s, MARGEM, 1.65, LC, 4.6, ["#", "SKU", "Produto", "Almoxarifado", "Grupo", "Lote", "Dias parado", "Valor"], top.map((x, i) => [String(i + 1), x.sku, corte(x.descricao, 40), x.almox, corte(x.grupo, 18), x.lote ?? "—", { t: x.faixa, cor: COR_PARADO[x.faixa as keyof typeof COR_PARADO] ?? COR.CINZA_TEXTO, negrito: true }, { t: fmtMoeda(x.valor, 2), negrito: true }]), { larguras: [0.4, 1.2, 3.6, 1.7, 1.5, 1.3, 1.1, 1.5], tamanho: 9.5 });
+  caixaLeitura(s, MARGEM, 6.35, LC, 0.6, "Leitura", `Total parado: ${fmtMoeda(tot)} em ${fmtNum(d!.qtd)} lotes · acima de 90 dias: ${fmtMoeda(d!.porFaixa["+90"].valor)} (${fmtNum(d!.porFaixa["+90"].qtd)} lotes) — prioridade para destino comercial antes da obsolescência.`, { tamanho: 10 });
+}
+
+/** Furo de ficha técnica: % das linhas OP × material fora da tolerância e a perda do mês classificada pela causa. */
+export function slideFuroFicha(p: Pptx, mesLabel: string, pag: number, d: DadosDispersao | null) {
+  const s = novoSlide(p);
+  const f = d?.furo;
+  cabecalho(s, f?.pctMes != null ? `Furo de ficha técnica em ${fmtPct(f.pctMes)} das linhas${f.deltaPP != null ? ` (${f.deltaPP > 0 ? "+" : ""}${fmtPP(f.deltaPP)} vs. mês anterior)` : ""}` : "Furo de ficha técnica", mesLabel, pag, "Linhas OP × material com consumo real fora da tolerância da ficha, e a perda do mês classificada pela causa provável.");
+  if (semDados(s, f, "Furo de ficha técnica indisponível", erroFonte("Dispersão de Ficha Técnica"))) return;
+  const x = f!, maior = x.classes[0];
+  linhaKpis(s, 1.62, [
+    { valor: fmtPct(x.pctMes), rotulo: "Furo de ficha (linhas fora da tolerância)", cor: (x.pctMes ?? 0) > 30 ? COR.ERRO : COR.ATENCAO },
+    { valor: x.deltaPP == null ? "—" : `${x.deltaPP > 0 ? "+" : ""}${fmtPP(x.deltaPP)}`, rotulo: "Variação vs. mês anterior", cor: (x.deltaPP ?? 0) > 0 ? COR.ERRO : COR.SUCESSO },
+    { valor: `${fmtNum(x.foraMes)} / ${fmtNum(x.linhasMes)}`, rotulo: "Linhas fora / analisadas" },
+    { valor: fmtMoeda(x.perdaTotal), rotulo: "Perda classificada no mês", cor: COR.ERRO },
+    { valor: maior ? fmtPct(maior.pct) : "—", rotulo: maior ? `Maior causa: ${maior.nome}` : "Maior causa" },
+  ], 0.7);
+  const lg = (LC - 0.35) / 2, x2 = MARGEM + lg + 0.35;
+  texto(s, MARGEM, 2.5, lg, 0.25, "EVOLUÇÃO DO FURO DE FICHA (% DAS LINHAS)", { tamanho: 10.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
+  if (x.serie.length) graficoComboDuplo(p, s, MARGEM, 2.78, lg, 2.5, x.serie.map((m) => rotuloMes(m.mes)), { nome: "Linhas analisadas", valores: x.serie.map((m) => m.linhas), cor: COR.AZUL_CLARO, formato: "#,##0", rotulos: true }, { nome: "Furo (%)", valores: x.serie.map((m) => (m.pct == null ? null : Math.round(m.pct * 10) / 10)) as any, cor: COR.ERRO, formato: "0.0" });
+  texto(s, x2, 2.5, lg, 0.25, "PERDA DO MÊS POR CLASSIFICAÇÃO", { tamanho: 10.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
+  if (x.classes.length) graficoBarrasH(p, s, x2, 2.78, lg, 2.5, x.classes.map((c) => c.nome), "Perda (R$)", x.classes.map((c) => c.valor), { cor: COR.ERRO, formato: '"R$ "#,##0' });
+  else caixaLeitura(s, x2, 2.78, lg, 2.5, "Sem perda", "Nenhuma perda de consumo no mês.");
+  const leg: Record<string, string> = { "Processo instável": "desvio grande e variável entre OPs: atacar na linha", "Revisar ficha técnica": "desvio sistemático: a quantidade da ficha não representa o real", "Apontamento / compensação": "perde numa OP e sobra em outra: corrigir apontamento", "Não previsto na ficha": "material consumido fora da ficha: substituição ou ficha desatualizada", "Sob controle (residual)": "material aderente, perda pontual", "Sem histórico suficiente": "menos de 3 OPs em 6 meses" };
+  tabela(s, MARGEM, 5.45, LC, 1.35, ["Classificação", "Perda no mês", "Part.", "Leitura / ação"], x.classes.slice(0, 5).map((c) => [c.nome, fmtMoeda(c.valor), fmtPct(c.pct), leg[c.nome] ?? "—"]), { larguras: [2.6, 1.5, 0.9, 7.33], tamanho: 9.5 });
 }
 
 // ---------- Recuperação de Shelf ----------
@@ -212,7 +250,7 @@ export function slideRecuperacao(p: Pptx, mesLabel: string, pag: number, d: Dado
 // ---------- Dispersão de Ficha Técnica ----------
 export function slideDispersao(p: Pptx, mesLabel: string, pag: number, d: DadosDispersao | null) {
   const s = novoSlide(p);
-  cabecalho(s, "Dispersão de Ficha Técnica", mesLabel, pag, "Ficha Técnica × Consumo real por Ordem de Produção — filtrado pelo mês deste relatório");
+  cabecalho(s, d?.pareto?.length ? `Dispersão de ficha: ${d.pareto[0].descricao} lidera a perda de processo (${fmtMoeda(d.pareto[0].perda)})` : "Dispersão de Ficha Técnica", mesLabel, pag, "Ficha técnica × consumo real por OP — Pareto das maiores diferenças de material previsto na ficha (sem material não previsto)");
   if (semDados(s, d, "Dispersão de Ficha Técnica indisponível", erroFonte("Dispersão de Ficha Técnica"))) return;
   const x = d!;
   if (!x.ops) { caixaLeitura(s, MARGEM, 1.6, LC, 1.4, `Sem OPs analisadas em ${mesLabel}`, "Não há Ordem de Produção com consumo importado neste mês na Dispersão de Lote do Stock Savvy.", { corRotulo: COR.ATENCAO, tamanho: 13 }); return; }
@@ -231,9 +269,9 @@ export function slideDispersao(p: Pptx, mesLabel: string, pag: number, d: DadosD
     yS = 4.78;
   }
   const hS = 6.35 - yS, xd = MARGEM + 6.3 + 0.35, ld = LARGURA - MARGEM - xd;
-  texto(s, MARGEM, yS, 6.3, 0.24, "MATERIAIS COM MAIOR PERDA NO MÊS (R$)", { tamanho: 10.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
-  if (x.topPerda.length) graficoBarrasH(p, s, MARGEM, yS + 0.28, 6.3, hS - 0.28, x.topPerda.map((t) => corte(t.descricao, 26)), "Perda", x.topPerda.map((t) => Math.round(t.liq * 100) / 100), { cor: COR.ERRO, formato: "#,##0" });
-  else caixaLeitura(s, MARGEM, yS + 0.28, 6.3, hS - 0.28, "Materiais com maior perda", "Nenhum material com perda líquida neste mês.");
+  texto(s, MARGEM, yS, 6.3, 0.24, `PARETO DAS MAIORES DIFERENÇAS (PERDA DE PROCESSO, R$)${x.top10Pct != null ? ` · TOP 10 = ${fmtPct(x.top10Pct)}` : ""}`, { tamanho: 10.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
+  if (x.pareto.length) graficoComboDuplo(p, s, MARGEM, yS + 0.28, 6.3, hS - 0.28, x.pareto.map((t) => corte(t.descricao, 14)), { nome: "Perda (R$)", valores: x.pareto.map((t) => t.perda), cor: COR.ERRO, formato: '"R$ "#,##0', rotulos: false }, { nome: "% acumulado", valores: x.pareto.map((t) => Math.round(t.acumPct)), cor: COR.ATENCAO, formato: "0" });
+  else caixaLeitura(s, MARGEM, yS + 0.28, 6.3, hS - 0.28, "Pareto da perda", "Nenhum material com perda de processo neste mês.");
   texto(s, xd, yS, ld, 0.24, "MATERIAIS COM MAIOR ECONOMIA", { tamanho: 10.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
   if (x.topEconomia.length) tabela(s, xd, yS + 0.28, ld, hS - 0.28, ["Material", "OPs", "Economia"], x.topEconomia.map((t) => [corte(t.descricao, 24), fmtNum(t.freq), fmtMoeda(-t.liq)]), { larguras: [2.4, 0.8, 1.4], tamanho: 10, margemV: 0.02 });
   else caixaLeitura(s, xd, yS + 0.28, ld, hS - 0.28, "Economia", "Sem economia líquida registrada neste mês.");
