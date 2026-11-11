@@ -45,6 +45,7 @@ export async function carregarRupturas(mes: string) {
     vendaPerdida: rows.reduce((a, r) => a + (Number(r.venda_perdida_rs) || 0), 0),
     skus: itens.size, porLoja: porLoja.sort((a, b) => (b.pct ?? 0) - (a.pct ?? 0)),
     topItens: [...itens.values()].map((x) => ({ ...x, lojas: x.lojas.size })).sort((a, b) => b.vendaPerdida - a.vendaPerdida || b.dias - a.dias).slice(0, 8),
+    itens: [...itens.values()].map((x) => ({ sku: x.sku, descricao: x.descricao, dias: x.dias, lojas: x.lojas.size, vendaPerdida: x.vendaPerdida })),
     causas: [...causas].map(([nome, n]) => ({ nome, n, pct: rows.length ? (100 * n) / rows.length : 0 })).sort((a, b) => b.n - a.n),
   };
 }
