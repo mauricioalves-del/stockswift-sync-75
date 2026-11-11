@@ -210,7 +210,7 @@ export function slideEvolucaoControles(p: Pptx, mesLabel: string, pag: number, c
   cabecalho(s, ganho != null ? `Desde o Controle de Movimentados, a acurácia item a item ganhou ${fmtPP(ganho)} na média` : "Evolução operacional desde a implantação dos controles", mesLabel, pag, "Indicador antes × depois de cada controle implantado — o que mudou na operação com cada rotina nova.");
   const cats = ep.map((e) => e.rotulo);
   graficoMulti(p, s, MARGEM, 1.62, 8.2, 2.75, cats, [{ nome: "Acurácia item a item", valores: ep.map((e) => e.item) as any, cor: COR.ERRO }, { nome: "IAP", valores: ep.map((e) => e.iap) as any, cor: COR.AZUL_INSTITUCIONAL }, { nome: "Conciliação diária", valores: ep.map((e) => mov.find((m) => m.mes === e.mes)?.pct ?? null) as any, cor: COR.VERDE_AMAZONIA }], { formato: "0" });
-  if (impl) texto(s, MARGEM, 4.37, 8.2, 0.22, `Controle de Movimentados implantado em ${rotuloMes(impl)} — a linha verde começa aí.`, { tamanho: 9, cor: COR.SEM_DADO });
+  if (impl) texto(s, MARGEM, 4.37, 8.2, 0.22, `Controle de Movimentados implantado em ${rotuloMes(impl)} — as barras verdes começam aí.`, { tamanho: 9, cor: COR.SEM_DADO });
   if (linhas.length) tabela(s, MARGEM, 4.65, 8.2, Math.min(2.25, 0.36 * (linhas.length + 1)), ["Controle", "Desde", "Indicador", "Antes", "Agora", "Ganho"], linhas.map((l) => [l[0], l[1], l[2], l[3], { t: l[4], negrito: true }, { t: l[5], cor: l[5].endsWith("▲") ? COR.SUCESSO : COR.ERRO, negrito: true }]), { larguras: [1.7, 0.7, 3.2, 0.8, 0.8, 1.0], tamanho: 9 });
   const melhor = [...linhas].sort((a, b) => parseFloat(b[5].replace(",", ".")) - parseFloat(a[5].replace(",", ".")))[0];
   painelLeitura(s, MARGEM + 8.45, 1.62, LC - 8.45, 5.28, "O que os controles entregaram", [
