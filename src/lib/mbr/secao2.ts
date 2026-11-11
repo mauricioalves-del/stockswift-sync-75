@@ -1,11 +1,11 @@
 // MBR — Seção 2: Inventários e Movimentados (porte fiel dos slides do gerador do Atlas).
-import { ALMOX_LOJA, ALMOX_PATIO_PAULISTA, ALTURA, COR, LARGURA, MARGEM, linhasEstimadas, fmtMoeda, fmtNum, fmtPct, fmtSinal, nomeMes, pontosTendencia, r2, rotuloMes, statusEvolucao, statusMaiorMelhor, tendenciaLinear, type Status } from "./formato";
+import { ALMOX_LOJA, ALMOX_PATIO_PAULISTA, ALTURA, COR, LARGURA, MARGEM, linhasEstimadas, fmtMoeda, fmtNum, fmtPct, fmtPP, fmtSinal, nomeMes, pontosTendencia, r2, rotuloMes, statusEvolucao, statusMaiorMelhor, tendenciaLinear, type Status } from "./formato";
 import { alturaCaixaLeitura, cabecalho, caixaLeitura, graficoColunas, graficoComboDuplo, graficoMulti, linhaKpis, novoSlide, tabela, texto, type Celula, type Pptx, type Slide } from "./kit";
 import { prejuizoPorAlmox, type DadosMbr, type ItemConc, type ItemScorecardAlmox } from "./dados";
 
 const LC = LARGURA - 2 * MARGEM;          // largura cheia
 const FIM = ALTURA - 0.42;                // fim da zona segura
-const pctMom = (v: number | null | undefined) => fmtSinal(v, (x) => fmtPct(x));
+const pctMom = (v: number | null | undefined) => fmtSinal(v, (x) => fmtPP(x));
 
 /** Bloco "Resultado por almoxarifado" + Top faltas + Top sobras (3 colunas), sobre a lista de concentração de valor. */
 function tabelasAlmoxTop(s: Slide, y: number, itens: ItemConc[], comp: DadosMbr["porAlmox"], campo: "item" | "iap" | "iaq", rotulo: string, porValor: boolean, rotuloQtd: string) {
@@ -22,7 +22,10 @@ function tabelasAlmoxTop(s: Slide, y: number, itens: ItemConc[], comp: DadosMbr[
   ([["FALTAS", faltas, "-", COR.ERRO, "Faltas", "Sem falta calculável neste recorte."], ["SOBRAS", sobras, "+", COR.SUCESSO, "Sobras", "Sem sobra calculável neste recorte."]] as const).forEach(([tit, l, sinal, cor, vazio, msg], k) => {
     const x = xs[k + 1];
     texto(s, x, y, lc, at, `TOP ${tit} DO MÊS (${rotuloQtd.toUpperCase()})`, { tamanho: 9.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
-    if (l.length) tabela(s, x, y + at, lc, h, ["SKU", "Descrição", rotuloQtd.slice(0, 8)], l.map((i) => [i.sku, (i.descricao || "—").slice(0, 15), { t: `${sinal}${rot(i)}`, cor, negrito: true }]), { larguras: [1.1, 1.6, 1], tamanho: 9 });
+    // item a item: custo unitário visível ao lado do valor (padrão Operations Report)
+    const custoUn = (i: ItemConc) => (Math.abs(i.divergencia) > 0 ? i.valor / Math.abs(i.divergencia) : null);
+    if (l.length && campo === "item") tabela(s, x, y + at, lc, h, ["SKU", "Descrição", "Custo un.", rotuloQtd.slice(0, 8)], l.map((i) => [i.sku, (i.descricao || "—").slice(0, 13), fmtMoeda(custoUn(i), 2), { t: `${sinal}${rot(i)}`, cor, negrito: true }]), { larguras: [0.95, 1.35, 0.75, 0.85], tamanho: 8.5 });
+    else if (l.length) tabela(s, x, y + at, lc, h, ["SKU", "Descrição", rotuloQtd.slice(0, 8)], l.map((i) => [i.sku, (i.descricao || "—").slice(0, 15), { t: `${sinal}${rot(i)}`, cor, negrito: true }]), { larguras: [1.1, 1.6, 1], tamanho: 9 });
     else caixaLeitura(s, x, y + at, lc, h, vazio, msg);
   });
   return { yFim: y + at + h, pior: ord[0] ?? null, faltas, sobras };
@@ -181,7 +184,7 @@ export function slideLoja(p: Pptx, mesLabel: string, pag: number, d: DadosMbr) {
     y = 2.74 + 1 + 0.12;
   } else { caixaLeitura(s, MARGEM, 2.5, LC, 1, `Evolução do ${ALMOX_LOJA}`, "Sem histórico suficiente de fechamentos ainda."); y = 2.5 + 1 + 0.12; }
   const yr = topFaltaSobra(s, y, d.faltaSobraLoja);
-  let r = delta != null && delta > 0 ? `${ALMOX_LOJA} melhora ${fmtPct(delta)} no item a item frente ao inventário anterior, fechando o mês em ${fmtPct(item)}` : `${ALMOX_LOJA} fecha o mês em ${fmtPct(item)} de acurácia item a item`;
+  let r = delta != null && delta > 0 ? `${ALMOX_LOJA} melhora ${fmtPP(delta)} no item a item frente ao inventário anterior, fechando o mês em ${fmtPct(item)}` : `${ALMOX_LOJA} fecha o mês em ${fmtPct(item)} de acurácia item a item`;
   if (dist != null) r += `, ainda ${fmtPct(Math.abs(dist))} abaixo da média dos demais almoxarifados`;
   if (comp?.iap != null) r += `. Ponderado por valor (IAP), o resultado sobe para ${fmtPct(comp.iap)} — a maior parte do impacto financeiro já está concentrada em poucos itens, não espalhada por todo o estoque`;
   const inicio = serie[0]?.mes;
@@ -236,7 +239,7 @@ export function slidePatio(p: Pptx, mesLabel: string, pag: number, d: DadosMbr) 
     if (gapIap != null) r += `. Ponderado por valor (IAP), o resultado sobe para ${fmtPct(comp!.iap)} — distorção de ${fmtPct(Math.abs(gapIap))} entre os dois modelos, maior concentração de impacto financeiro em poucos itens`;
     r += ". Por ser o 1º ciclo neste almoxarifado, o indicado é acompanhar se o próximo inventário confirma melhora (curva de aprendizado operacional, mesmo padrão já visto em outros almoxarifados) ou se o resultado se repete.";
   } else {
-    r = `${ALMOX_PATIO_PAULISTA} fecha o mês em ${fmtPct(item)} de acurácia item a item${delta != null ? ` (${delta >= 0 ? "+" : ""}${fmtPct(delta)} vs. o inventário anterior)` : ""}`;
+    r = `${ALMOX_PATIO_PAULISTA} fecha o mês em ${fmtPct(item)} de acurácia item a item${delta != null ? ` (${delta >= 0 ? "+" : ""}${fmtPP(delta)} vs. o inventário anterior)` : ""}`;
     if (dist != null) r += `, ${fmtPct(Math.abs(dist))} ${dist > 0 ? "abaixo" : "acima"} da média dos demais almoxarifados`;
     if (comp?.iap != null) r += `. Ponderado por valor (IAP), o resultado fica em ${fmtPct(comp.iap)}`;
     r += ".";
@@ -304,8 +307,8 @@ export function linhaScorecardAlmox(i: ItemScorecardAlmox) {
   const sm: Status | null = i.movAplicavel ? statusEvolucao(i.deltaMov) : null;
   const status = sm && ORDEM_EVOL[sm.label] < ORDEM_EVOL[sf.label] ? sm : sf;
   const partes = [`Acurácia ${fmtPct(i.acuracia)}`];
-  if (i.deltaAcuracia != null) partes.push(`(${i.deltaAcuracia >= 0 ? "+" : ""}${fmtPct(i.deltaAcuracia)} vs. mês anterior)`);
-  if (i.movAplicavel) { partes.push(`· Movimentados ${fmtPct(i.mov)}`); if (i.deltaMov != null) partes.push(`(${i.deltaMov >= 0 ? "+" : ""}${fmtPct(i.deltaMov)})`); }
+  if (i.deltaAcuracia != null) partes.push(`(${i.deltaAcuracia >= 0 ? "+" : ""}${fmtPP(i.deltaAcuracia)} vs. mês anterior)`);
+  if (i.movAplicavel) { partes.push(`· Movimentados ${fmtPct(i.mov)}`); if (i.deltaMov != null) partes.push(`(${i.deltaMov >= 0 ? "+" : ""}${fmtPP(i.deltaMov)})`); }
   else partes.push("· Movimentados: não aplicável a este almoxarifado");
   if (i.iap != null) partes.push(`· IAP ${fmtPct(i.iap)}`);
   const critica = i.acuracia != null && i.acuracia < 85;
