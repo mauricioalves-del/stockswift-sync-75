@@ -216,7 +216,10 @@ export function semMovimentacao(rows: ObsRow[], grupoDe: (id: string) => string 
   };
   // visibilidade item a item: maiores valores parados (todas as faixas)
   const itens = [...l].sort(desc((r) => r.v)).slice(0, 14).map((r) => ({ sku: r.id_produto, descricao: r.descricao || r.id_produto, almox: r.almoxarifado || "—", grupo: r.grupo ?? "—", faixa: r.faixa!, lote: r.lote ?? null, valor: r.v }));
-  return { porFaixa, total: r2(soma(l, (r) => r.v)), qtd: l.length, porAlmox: por((r) => r.almoxarifado || "—"), porGrupo: por((r) => r.grupo!), itens };
+  const porSku = new Map<string, { sku: string; descricao: string; valor: number; almox: Set<string> }>();
+  for (const r of l) { const k = normSku(r.id_produto); const e = porSku.get(k) ?? { sku: r.id_produto, descricao: r.descricao || r.id_produto, valor: 0, almox: new Set<string>() }; e.valor += r.v; if (r.almoxarifado) e.almox.add(r.almoxarifado); porSku.set(k, e); }
+  return { porFaixa, total: r2(soma(l, (r) => r.v)), qtd: l.length, porAlmox: por((r) => r.almoxarifado || "—"), porGrupo: por((r) => r.grupo!), itens,
+    skus: [...porSku.values()].map((e) => ({ sku: e.sku, descricao: e.descricao, valor: r2(e.valor), almox: [...e.almox].join(", ") })) };
 }
 export type DadosSemMov = ReturnType<typeof semMovimentacao>;
 
