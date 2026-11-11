@@ -71,8 +71,13 @@ export function baixasOperacionais(rows: BaixaRow[], c: CtxBaixas, mes: string) 
     totMotivo.set(nome, (totMotivo.get(nome) ?? 0) + v);
   }
   const series = [...totMotivo].sort((a, b) => b[1] - a[1]).map(([nome]) => ({ nome, valores: meses.map((m) => r2(porMesMot.get(m)?.get(nome) ?? 0)) }));
+  // acumulado do ano (janeiro até o mês do relatório) e mês anterior
+  const ano = mes.slice(0, 4);
+  const doAno = aprov.filter((b) => { const m = String(b.data_solicitacao).slice(0, 7); return m.startsWith(ano) && m <= mes; });
+  const mesAnt = mesesAte(mes, 2)[0];
+  const totalMesAnterior = r2(soma(aprov.filter((b) => String(b.data_solicitacao).slice(0, 7) === mesAnt), vlr));
   return {
-    total, quantidade: doMes.length,
+    total, quantidade: doMes.length, acumuladoAno: r2(soma(doAno, vlr)), quantidadeAno: doAno.length, totalMesAnterior,
     motivoDestaque: destaque ? c.motivoNome.get(destaque[0]) ?? "—" : null,
     pctDestaque: destaque && total > 0 ? (destaque[1] / total) * 100 : null,
     setorTop: top(porSetor), grupoTop: top(porGrupo), rankingSku, tabelaMotivo, meses, series,
@@ -209,7 +214,9 @@ export function semMovimentacao(rows: ObsRow[], grupoDe: (id: string) => string 
     for (const r of l) { const k = chave(r); const e = m.get(k) ?? { nome: k, total: 0, "30-60": 0, "61-90": 0, "+90": 0 }; (e as any)[r.faixa!] += r.v; e.total += r.v; m.set(k, e); }
     return [...m.values()].sort(desc((x) => x.total)) as ({ nome: string; total: number } & Record<(typeof FAIXAS_PARADO)[number], number>)[];
   };
-  return { porFaixa, total: r2(soma(l, (r) => r.v)), porAlmox: por((r) => r.almoxarifado || "—"), porGrupo: por((r) => r.grupo!) };
+  // visibilidade item a item: maiores valores parados (todas as faixas)
+  const itens = [...l].sort(desc((r) => r.v)).slice(0, 14).map((r) => ({ sku: r.id_produto, descricao: r.descricao || r.id_produto, almox: r.almoxarifado || "—", grupo: r.grupo ?? "—", faixa: r.faixa!, lote: r.lote ?? null, valor: r.v }));
+  return { porFaixa, total: r2(soma(l, (r) => r.v)), qtd: l.length, porAlmox: por((r) => r.almoxarifado || "—"), porGrupo: por((r) => r.grupo!), itens };
 }
 export type DadosSemMov = ReturnType<typeof semMovimentacao>;
 
@@ -276,7 +283,16 @@ export function dispersaoFicha(rows: ImpactoRow[], P: ParamDispersao, mes: strin
     const l = linhas.filter((r) => r.mes === m), p = soma(l, (r) => (r.impacto > 0 ? r.impacto : 0)), e = soma(l, (r) => (r.impacto < 0 ? -r.impacto : 0));
     return { mes: m, perda: r2(p), economia: r2(e), liquido: r2(p - e), n: l.length };
   });
+  // Pareto das maiores diferenças (perda de processo: material previsto na ficha) e furo de ficha classificado
+  const prevDoMes = doMes.filter((r) => Number(r.qtd_previsto) > 0);
+  const pm = new Map<string, { desc: string; perda: number; dif: number; ops: Set<string> }>();
+  for (const r of prevDoMes) { if (r.impacto <= 0) continue; const e = pm.get(r.material) ?? { desc: r.desc_material || r.material, perda: 0, dif: 0, ops: new Set<string>() }; e.perda += r.impacto; e.dif += Number(r.qtd_dif) || 0; e.ops.add(r.op); pm.set(r.material, e); }
+  const pl = [...pm].map(([material, e]) => ({ material, descricao: e.desc, perda: r2(e.perda), dif: e.dif, ops: e.ops.size })).sort(desc((x) => x.perda));
+  const totPerda = soma(pl, (x) => x.perda); let ac = 0;
+  const pareto = pl.slice(0, 12).map((x) => { ac += x.perda; return { ...x, acumPct: totPerda ? (100 * ac) / totPerda : 0 }; });
+  const furo = classificarFuro(linhas, P.faixas, mes);
   return {
+    pareto, totalPerdaProcesso: r2(totPerda), materiaisComPerda: pl.length, top10Pct: totPerda ? (100 * soma(pl.slice(0, 10), (x) => x.perda)) / totPerda : null, furo,
     ops: ops.size, taxaFuro: ops.size ? (100 * opsFuro.size) / ops.size : 0, perda: r2(perda), economia: r2(economia), liquido: r2(perda - economia), opsCriticas: opsCriticas.size,
     cronicos: matriz.filter((m) => m.freq >= P.limFreq).length, limFreq: P.limFreq, pctTop20: totAbs ? (100 * soma(matriz.slice(0, 20), (m) => m.abs)) / totAbs : 0,
     serie: serie.slice(serie.findIndex((s) => s.n > 0) < 0 ? serie.length : serie.findIndex((s) => s.n > 0)),
@@ -285,6 +301,42 @@ export function dispersaoFicha(rows: ImpactoRow[], P: ParamDispersao, mes: strin
   };
 }
 export type DadosDispersao = ReturnType<typeof dispersaoFicha>;
+
+/**
+ * Furo de ficha técnica: % das linhas OP × material (com ficha) fora da tolerância de atenção, por mês, e a perda do
+ * mês classificada pela causa provável (viés × variabilidade por material, mesmo modelo do painel de Dispersão):
+ * processo instável, ficha técnica a revisar, apontamento/compensação, material não previsto na ficha e residual.
+ */
+export function classificarFuro(linhas: { mes: string | null; material: string; desc_material: string | null; op: string; qtd_previsto: number; qtd_consumo: number; qtd_dif: number; impacto: number }[], faixas: Faixas, mes: string) {
+  const pct = (r: { qtd_previsto: number; qtd_dif: number }) => (Number(r.qtd_previsto) > 0 ? (100 * Number(r.qtd_dif)) / Number(r.qtd_previsto) : null);
+  const serie = mesesAte(mes, 6).map((m) => {
+    const l = linhas.filter((r) => r.mes === m && Number(r.qtd_previsto) > 0);
+    const fora = l.filter((r) => Math.abs(pct(r)!) > faixas.atencao).length;
+    return { mes: m, linhas: l.length, fora, pct: l.length ? (100 * fora) / l.length : null };
+  }).filter((x) => x.linhas > 0);
+  const doMes = linhas.filter((r) => r.mes === mes);
+  // viés e variabilidade por material com até 6 meses de histórico (estabilidade do diagnóstico)
+  const janela = new Set(mesesAte(mes, 6));
+  const porMat = new Map<string, number[]>(), difs = new Map<string, { dif: number; prev: number }>();
+  for (const r of linhas) { if (!r.mes || !janela.has(r.mes)) continue; const p = pct(r); if (p === null) continue; porMat.set(r.material, [...(porMat.get(r.material) ?? []), Math.max(-200, Math.min(200, p))]); const d = difs.get(r.material) ?? { dif: 0, prev: 0 }; d.dif += Number(r.qtd_dif) || 0; d.prev += Number(r.qtd_previsto) || 0; difs.set(r.material, d); }
+  const diag = new Map<string, string>();
+  for (const [m, ps] of porMat) {
+    if (ps.length < 3) { diag.set(m, "Sem histórico suficiente"); continue; }
+    const media = ps.reduce((a, b) => a + b, 0) / ps.length, dp = Math.sqrt(ps.reduce((a, b) => a + (b - media) ** 2, 0) / (ps.length - 1));
+    const d = difs.get(m)!, vies = d.prev ? (100 * d.dif) / d.prev : 0, sist = Math.abs(vies) > faixas.atencao, inst = dp > faixas.critico;
+    diag.set(m, sist && !inst ? "Revisar ficha técnica" : sist && inst ? "Processo instável" : inst ? "Apontamento / compensação" : "Sob controle (residual)");
+  }
+  const cls = new Map<string, number>();
+  for (const r of doMes) {
+    if (!(r.impacto > 0)) continue;
+    const k = Number(r.qtd_previsto) > 0 ? (diag.get(r.material) ?? "Sem histórico suficiente") : "Não previsto na ficha";
+    cls.set(k, (cls.get(k) ?? 0) + r.impacto);
+  }
+  const tot = [...cls.values()].reduce((a, b) => a + b, 0);
+  const classes = [...cls].map(([nome, valor]) => ({ nome, valor: r2(valor), pct: tot ? (100 * valor) / tot : 0 })).sort(desc((x) => x.valor));
+  const atual = serie.find((x) => x.mes === mes) ?? null, ant = serie.length >= 2 && serie.at(-1)?.mes === mes ? serie.at(-2)! : null;
+  return { serie, pctMes: atual?.pct ?? null, deltaPP: atual?.pct != null && ant?.pct != null ? atual.pct - ant.pct : null, linhasMes: atual?.linhas ?? 0, foraMes: atual?.fora ?? 0, classes, perdaTotal: r2(tot) };
+}
 
 // ---------- Testes Industriais (producao.testes-industriais: v_teste_industrial_consumo) ----------
 export type TesteRow = { ano_mes: string; numero_op: string; material: string; desc_material: string | null; qtd_consumo: number; custo_unit_medio: number | null };
