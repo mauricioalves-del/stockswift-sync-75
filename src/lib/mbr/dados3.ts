@@ -421,6 +421,9 @@ export type Meta = {
   metaMes: number | null; realizadoMes: number | null; realizadoTexto: string | null; atingMes: number | null; realAcum: number | null;
   serie: { meta: number | null; realizado: number | string | null; ating: number | null }[];
   sinalInconsistente: boolean; acumuladoSomado: boolean; mediaAteMes: number | null;
+  /** Export em grade (2026/27): meta e real acumulados, atingimento como veio no export e o recalculado pelo sentido da meta. */
+  menorMelhor?: boolean; agregacao?: string | null; metaAcum?: number | null; atingAcum?: number | null;
+  atingOrigemMes?: number | null; atingOrigemAcum?: number | null; corrigida?: boolean; batidaMes?: boolean | null; batidaAcum?: boolean | null;
 };
 export type DadosMetas = { colaborador: string | null; somaPesos: number | null; pesosOk: boolean; metas: Meta[]; idxMes: number; enviadoEm: string | null };
 type El = { children: ArrayLike<El> | Iterable<El>; childNodes: Iterable<{ nodeType: number; textContent: string | null }>; tagName: string; textContent: string | null; querySelector(s: string): El | null; querySelectorAll(s: string): ArrayLike<El> | Iterable<El>; getAttribute(n: string): string | null; nextElementSibling: El | null; value?: string };
@@ -434,7 +437,69 @@ function txtSep(e: El | null | undefined) {
   return out.filter(Boolean).join(" ").replace(/\s+/g, " ");
 }
 /** Lê o export "Minhas metas" (grid de metas + painel mensal de cada meta). `doc` = DOMParser().parseFromString(html). */
+/**
+ * Atingimento pelo sentido da meta. Metas de perda (prejuízo, valores negativos) são "menor é melhor": o export usa
+ * Real ÷ Meta e mostra 66% quando a perda ficou abaixo do teto; o correto é Meta ÷ Real (perda menor → acima de 100%).
+ */
+export function atingimentoMeta(meta: number | null, real: number | null, menorMelhor: boolean): number | null {
+  if (meta == null || real == null) return null;
+  const m = Math.abs(meta), r = Math.abs(real);
+  if (menorMelhor) return r === 0 ? (m === 0 ? 100 : 200) : Math.round((m / r) * 1000) / 10;
+  return m === 0 ? null : Math.round((real / meta) * 1000) / 10;
+}
+const semAcentoM = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/** Export "Minhas metas" no formato de grade mensal (linhas tr[data-goal-grid-row], célula do mês com title "Meta: x · Real: y"). */
+function extrairMetasGrade(doc: { querySelectorAll(s: string): ArrayLike<El> | Iterable<El> }, mes: string, enviadoEm: string | null): DadosMetas | null {
+  const rows = [...(doc.querySelectorAll("tr[data-goal-grid-row]") as Iterable<El>)];
+  if (!rows.length) return null;
+  const ths = [...(doc.querySelectorAll("thead th") as Iterable<El>)].map((t) => txt(t));
+  const iSet = ths.findIndex((t) => MESES_METAS.includes(t.slice(0, 3)));
+  const mesesCol = ths.slice(iSet).map((t) => MESES_METAS.indexOf(t.slice(0, 3)));
+  const idx = Number(mes.slice(5, 7)) - 1, colMes = mesesCol.indexOf(idx);
+  const dono = [...(doc.querySelectorAll("tbody tr") as Iterable<El>)].find((r) => !r.getAttribute("data-goal-grid-row") && /meta\(s\)/i.test(txt(r)));
+  const colaborador = dono ? txt(dono).replace(/você.*$/i, "").replace(/·.*$/, "").trim() || null : null;
+  const metas: Meta[] = [];
+  for (const row of rows) {
+    const tds = [...(row.querySelectorAll("td") as Iterable<El>)]; if (tds.length < 5 + mesesCol.length) continue;
+    const botoes = [...(tds[0].querySelectorAll("button") as Iterable<El>)];
+    const descricao = txt(botoes.at(-1) ?? tds[0]).replace(/Ver detalhes/g, "").trim();
+    const tags = [...(tds[0].querySelectorAll("div.flex > div") as Iterable<El>)].map((d) => txt(d));
+    const unidade = tags[0] ?? null, agregacao = tags[1] ?? null;
+    const cel = tds.slice(5, 5 + mesesCol.length).map((c) => {
+      const t = c.querySelector("[title]")?.getAttribute("title") ?? "";
+      const mm = /Meta:\s*([^·]+)·\s*Real:\s*(.+)$/.exec(t);
+      return { meta: mm ? numBr(mm[1]) : null, realTxt: mm ? mm[2].trim() : txt(c), real: mm ? numBr(mm[2]) : numBr(txt(c)) };
+    });
+    const booleano = cel.some((c) => /^(sim|não|nao)$/i.test(c.realTxt)) || /^(sim|não|nao)$/i.test(txt(tds[1]));
+    const tipo: Meta["tipo"] = booleano ? "booleano" : "numerico";
+    const metaAnual = numBr(txt(tds[1])), metaAcum = numBr(txt(tds[2])), realAcum = numBr(txt(tds[3])), atingOrigemAcum = numBr(txt(tds[4]));
+    const menorMelhor = !booleano && (/preju[ií]zo|perda|desvio|ruptura|furo/i.test(semAcentoM(descricao)) || (metaAcum ?? metaAnual ?? 0) < 0);
+    const serie = MESES_METAS.map(() => ({ meta: null as number | null, realizado: null as number | string | null, ating: null as number | null }));
+    mesesCol.forEach((mi, k) => {
+      if (mi < 0) return; const c = cel[k];
+      serie[mi] = booleano ? { meta: null, realizado: /^(sim|não|nao)$/i.test(c.realTxt) ? c.realTxt : null, ating: /^sim$/i.test(c.realTxt) ? 100 : /^n[ãa]o$/i.test(c.realTxt) ? 0 : null }
+        : { meta: c.meta, realizado: c.real, ating: atingimentoMeta(c.meta, c.real, menorMelhor) };
+    });
+    const pctSpan = (c: El | undefined) => { for (const sp of [...((c?.querySelectorAll("span") ?? []) as Iterable<El>)]) { const t = txt(sp); if (/^-?\d+(,\d+)?%$/.test(t)) return numBr(t); } return null; };
+    const sm = serie[idx], origem = colMes >= 0 ? pctSpan(tds[5 + colMes]) : null;
+    const atingMes = sm?.ating ?? null, atingAcum = booleano ? (/^sim$/i.test(txt(tds[1])) ? 100 : null) : atingimentoMeta(metaAcum, realAcum, menorMelhor);
+    metas.push({
+      descricao, direcao: booleano ? "sim/não" : menorMelhor ? "menor" : "maior", unidade, tipo, peso: null,
+      metaMes: booleano ? null : sm?.meta ?? null, realizadoMes: booleano ? null : (sm?.realizado as number | null) ?? null, realizadoTexto: booleano ? ((sm?.realizado as string | null) ?? null) : null,
+      atingMes, realAcum, serie, sinalInconsistente: false, acumuladoSomado: false, mediaAteMes: null,
+      menorMelhor, agregacao, metaAcum, atingAcum, atingOrigemMes: origem, atingOrigemAcum,
+      corrigida: menorMelhor && origem != null && atingMes != null && Math.abs(origem - atingMes) > 1,
+      batidaMes: atingMes == null ? null : atingMes >= 100, batidaAcum: atingAcum == null ? null : atingAcum >= 100,
+    });
+  }
+  if (!metas.length) return null;
+  return { colaborador, somaPesos: null, pesosOk: true, metas, idxMes: idx, enviadoEm };
+}
+
 export function extrairMetas(doc: { querySelectorAll(s: string): ArrayLike<El> | Iterable<El> }, mes: string, enviadoEm: string | null = null): DadosMetas | null {
+  const grade = extrairMetasGrade(doc, mes, enviadoEm);
+  if (grade) return grade;
   const idx = Number(mes.slice(5, 7)) - 1;
   const grids = [...(doc.querySelectorAll("div.grid") as Iterable<El>)];
   if (grids.length < 3) return null;
