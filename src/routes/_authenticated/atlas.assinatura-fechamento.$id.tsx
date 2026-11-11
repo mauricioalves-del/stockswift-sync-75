@@ -32,11 +32,11 @@ function AssinaturaFechamento() {
     <div className="mx-auto w-full max-w-6xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="flex items-center gap-2 text-2xl font-bold"><PenLine className="size-6" /> Assinatura do fechamento de inventário</h1>
-        <Link to="/atlas/fechamento-inventario" className="inline-flex items-center gap-1 text-sm text-primary hover:underline"><ArrowLeft className="size-4" /> Todos os fechamentos</Link>
+        <Link to="/atlas/acuracia-ponderada" search={{ visao: "fechamento" }} className="inline-flex items-center gap-1 text-sm text-primary hover:underline"><ArrowLeft className="size-4" /> Todos os fechamentos</Link>
       </div>
       <div className="rounded-xl border bg-card p-4">
         <FechamentoDetalhe id={n} gestor={gestor} assina={assina} almoxes={almox.data ?? []} papelInicial={papel} comoPagina
-          onMudou={recarregar} onClose={() => navigate({ to: "/atlas/fechamento-inventario" })} />
+          onMudou={recarregar} onClose={() => navigate({ to: "/atlas/acuracia-ponderada", search: { visao: "fechamento" } })} />
       </div>
     </div>
   );

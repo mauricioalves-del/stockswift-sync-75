@@ -1,8 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AtlasGrafico, atlasCores } from "@/components/atlas/AtlasGrafico";
-import { ChevronDown, ChevronUp, Loader2, MousePointerClick, Scale } from "lucide-react";
+import { BarChart3, CalendarCheck, ChevronDown, ChevronUp, ListChecks, Loader2, MousePointerClick, Scale } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PainelInventario } from "@/routes/_authenticated/atlas.painel-inventario";
+import { FechamentoInventario } from "@/routes/_authenticated/atlas.fechamento-inventario";
+import { PreInventarioPage } from "@/routes/_authenticated/gestao.pre-inventario";
 import { Secao, Th } from "@/components/abast-dash/comum";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,8 +15,16 @@ import { carregarInventario, comparativo, comparativoPorAlmox, comparativoPorGru
 
 export const Route = createFileRoute("/_authenticated/atlas/acuracia-ponderada")({
   component: AcuraciaPonderada,
+  validateSearch: (s: Record<string, unknown>): { visao?: Visao; fechamento?: number } => {
+    const visao = VISOES.includes(s.visao as Visao) ? (s.visao as Visao) : undefined;
+    const n = Number(s.fechamento);
+    return { ...(visao ? { visao } : {}), ...(Number.isInteger(n) && n > 0 ? { fechamento: n } : {}) };
+  },
   head: () => ({ meta: [{ title: "Acurácia Ponderada — Atlas" }, { name: "description", content: "Comparativo dos modelos de acurácia, Pareto, magnitude e evolução mensal do Atlas." }, { property: "og:title", content: "Acurácia Ponderada — Atlas" }, { property: "og:description", content: "Comparativo dos modelos de acurácia, Pareto, magnitude e evolução mensal do Atlas." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
+
+const VISOES = ["acuracia", "painel-inventario", "fechamento", "pre-inventario"] as const;
+type Visao = (typeof VISOES)[number];
 
 const brl = (n: number | null | undefined) => (n == null ? "—" : Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }));
 const brl2 = (n: number | null | undefined) => (n == null ? "—" : Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }));
@@ -85,6 +97,9 @@ const modelosMoM = {
 
 
 function AcuraciaPonderada() {
+  const busca = Route.useSearch();
+  const [visao, setVisao] = useState<Visao>(busca.visao ?? "acuracia");
+  useEffect(() => { if (busca.visao) setVisao(busca.visao); }, [busca.visao]);
   const q = useQuery({ queryKey: ["atlas-inventario"], queryFn: carregarInventario, staleTime: 120000 });
   const [almox, setAlmox] = useState<string | null>(null);
   const [mes, setMes] = useState<string | null>(null);
@@ -109,11 +124,19 @@ function AcuraciaPonderada() {
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-2 rounded-xl bg-slate-900 px-5 py-4 text-white">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-5 py-4 text-white">
         <h1 className="flex items-center gap-2 text-xl font-bold"><Scale className="size-5" /> Acurácia Ponderada <span className="ml-2 text-sm font-normal text-slate-300">Item a item · IAQ · IAP</span></h1>
+        <Tabs value={visao} onValueChange={(v) => setVisao(v as Visao)}>
+          <TabsList className="h-8 flex-wrap">
+            <TabsTrigger value="acuracia" className="text-xs"><Scale className="mr-1 size-3.5" /> Acurácia Ponderada</TabsTrigger>
+            <TabsTrigger value="painel-inventario" className="text-xs"><BarChart3 className="mr-1 size-3.5" /> Painel Inventário</TabsTrigger>
+            <TabsTrigger value="fechamento" className="text-xs"><CalendarCheck className="mr-1 size-3.5" /> Fechamento Inventário</TabsTrigger>
+            <TabsTrigger value="pre-inventario" className="text-xs"><ListChecks className="mr-1 size-3.5" /> Pré-inventário</TabsTrigger>
+          </TabsList>
+        </Tabs>
         <div className="text-xs text-slate-300">Competência: {mes ? `${mes.slice(5)}/${mes.slice(0, 4)}` : "todas"} · Leitura: {q.dataUpdatedAt ? new Date(q.dataUpdatedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—"}</div>
       </div>
-      {!r ? <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Carregando os fechamentos…</div> : (
+      {visao === "painel-inventario" ? <PainelInventario embutido /> : visao === "fechamento" ? <FechamentoInventario embutido fechamentoUrl={busca.fechamento} /> : visao === "pre-inventario" ? <PreInventarioPage embutido /> : !r ? <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Carregando os fechamentos…</div> : (
         <>
           <Secao letra="A" titulo="Filtros">
             <div className="flex flex-wrap items-end gap-3">

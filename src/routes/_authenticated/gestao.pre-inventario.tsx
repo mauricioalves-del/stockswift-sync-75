@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -21,7 +21,9 @@ import {
 } from "@/lib/pre-inventario";
 
 export const Route = createFileRoute("/_authenticated/gestao/pre-inventario")({
-  component: PreInventarioPage,
+  // A tela agora é uma aba do dashboard Acurácia Ponderada; links antigos continuam funcionando.
+  beforeLoad: () => { throw redirect({ to: "/atlas/acuracia-ponderada", search: { visao: "pre-inventario" }, replace: true }); },
+  component: () => <PreInventarioPage />,
   head: () => ({ meta: [
     { title: "Pré-inventário | Stock Savvy" },
     { name: "description", content: "Preparação, checklist e pendências dos inventários agendados no Stock Savvy." },
@@ -41,7 +43,7 @@ function Fase({ inv, hoje }: { inv: InventarioAgendado; hoje: string }) {
   return <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${f.cls}`}>{f.rotulo}</span>;
 }
 
-function PreInventarioPage() {
+export function PreInventarioPage({ embutido = false }: { embutido?: boolean }) {
   const qc = useQueryClient();
   const { role } = useRole();
   const gestor = role === "ADMINISTRADOR" || role === "GERENTE";
@@ -81,7 +83,7 @@ function PreInventarioPage() {
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Pré-inventário</h1>
+          {!embutido && <h1 className="text-2xl font-bold">Pré-inventário</h1>}
           <p className="text-sm text-muted-foreground">Preparação do almoxarifado antes de cada inventário agendado: checklist, pendências a zerar e liberação formal.</p>
         </div>
         {gestor && <Button onClick={() => setAgendar(true)} className="gap-2"><Plus className="size-4" /> Agendar inventário</Button>}

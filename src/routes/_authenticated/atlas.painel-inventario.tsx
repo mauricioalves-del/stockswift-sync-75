@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AtlasGrafico, atlasCores } from "@/components/atlas/AtlasGrafico";
@@ -8,7 +8,9 @@ import { FiltrosInv } from "@/components/atlas/FiltrosInv";
 import { carregarInventario, evolucaoMensal, kpis, opcoesInv, porAlmox, porGrupo, rankingFinanceiro, rankingSku } from "@/lib/atlas-inventario";
 
 export const Route = createFileRoute("/_authenticated/atlas/painel-inventario")({
-  component: PainelInventario,
+  // A tela agora é uma aba do dashboard Acurácia Ponderada; links antigos continuam funcionando.
+  beforeLoad: () => { throw redirect({ to: "/atlas/acuracia-ponderada", search: { visao: "painel-inventario" }, replace: true }); },
+  component: () => <PainelInventario />,
   head: () => ({ meta: [{ title: "Painel de Inventário — Atlas" }, { name: "description", content: "Acurácia dos fechamentos, evolução mensal e rankings financeiros do inventário Atlas." }, { property: "og:title", content: "Painel de Inventário — Atlas" }, { property: "og:description", content: "Acurácia dos fechamentos, evolução mensal e rankings financeiros do inventário Atlas." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
 
@@ -16,7 +18,7 @@ const brl = (n: number | null | undefined) => (n == null ? "—" : Number(n).toL
 const un = (n: number | null | undefined, d = 0) => (n == null ? "—" : Number(n).toLocaleString("pt-BR", { maximumFractionDigits: d }));
 const mesRot = (m: string) => `${m.slice(5)}/${m.slice(0, 4)}`;
 
-function PainelInventario() {
+export function PainelInventario({ embutido = false }: { embutido?: boolean }) {
   const q = useQuery({ queryKey: ["atlas-inventario"], queryFn: carregarInventario, staleTime: 120000 });
   const [almox, setAlmox] = useState<string | null>(null);
   const [mes, setMes] = useState<string | null>(null);
@@ -30,7 +32,7 @@ function PainelInventario() {
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold"><BarChart3 className="size-6" /> Painel Inventário</h1>
+          {!embutido && <h1 className="flex items-center gap-2 text-2xl font-bold"><BarChart3 className="size-6" /> Painel Inventário</h1>}
           <p className="text-sm text-muted-foreground">Resultado dos fechamentos de inventário (conciliação contábil × físico). Acurácia = % de itens sem divergência; o valor é o da planilha de fechamento.</p>
         </div>
         {r && <FiltrosInv almox={almox} setAlmox={setAlmox} mes={mes} setMes={setMes} op={r.op} />}

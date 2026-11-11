@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -15,22 +15,23 @@ import { FechamentoDetalheDialog, brl, dt, quemSou, sb, un } from "@/components/
 import { ABA_FECHAMENTO, PAPEIS_ASSINATURA, importarFechamento, statusAssinatura } from "@/lib/atlas-fechamento";
 
 export const Route = createFileRoute("/_authenticated/atlas/fechamento-inventario")({
-  component: FechamentoInventario,
   // ?fechamento=<id> abre o fechamento direto (link do alerta diário de assinatura).
   validateSearch: (s: Record<string, unknown>): { fechamento?: number } => {
     const n = Number(s.fechamento);
     return Number.isInteger(n) && n > 0 ? { fechamento: n } : {};
   },
+  // A tela agora é uma aba do dashboard Acurácia Ponderada; links antigos continuam funcionando.
+  beforeLoad: ({ search }) => { throw redirect({ to: "/atlas/acuracia-ponderada", search: { visao: "fechamento", ...(search.fechamento ? { fechamento: search.fechamento } : {}) }, replace: true }); },
+  component: () => <FechamentoInventario />,
   head: () => ({ meta: [{ title: "Fechamento Inventário — Atlas" }] }),
 });
 
-function FechamentoInventario() {
+export function FechamentoInventario({ embutido = false, fechamentoUrl }: { embutido?: boolean; fechamentoUrl?: number }) {
   const { role } = useRole();
   const gestor = role === "ADMINISTRADOR" || role === "GERENTE";
   const assina = gestor || role === "DIRETOR_OPERACOES" || role === "COORDENADOR_FINANCEIRO";
   const qc = useQueryClient();
   const [almox, setAlmox] = useState("todos");
-  const { fechamento: fechamentoUrl } = Route.useSearch();
   const [aberto, setAberto] = useState<number | null>(fechamentoUrl ?? null);
   const [responsaveis, setResponsaveis] = useState(false);
   const [importando, setImportando] = useState(false);
@@ -63,7 +64,7 @@ function FechamentoInventario() {
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold"><CalendarCheck className="size-6" /> Fechamento Inventário</h1>
+          {!embutido && <h1 className="flex items-center gap-2 text-2xl font-bold"><CalendarCheck className="size-6" /> Fechamento Inventário</h1>}
           <p className="max-w-4xl text-sm text-muted-foreground">Cada fechamento importado gera os itens, as divergências (investigadas pelo motor do Atlas) e as ações de pós-inventário. O inventário só fica <strong>Fechado</strong> com as três ciências: {Object.values(PAPEIS_ASSINATURA).join(", ")}.</p>
         </div>
         <div className="flex flex-wrap gap-2">
