@@ -38,7 +38,7 @@ export async function coletarSinais(d: DivAnalise, descricao: string | null) {
   const ini7 = addDias(dia, -7), fim7 = addDias(dia, 7), ini60 = addDias(dia, -60);
   const seguro = async (p: Promise<any>) => { try { const r = await p; return r?.data ?? []; } catch { return []; } };
   const palavras = chaveSemelhanca(descricao);
-  const [baixas, notas, transf, invAtual, invArq, outras, ops, fat, fatSem] = await Promise.all([
+  const [baixas, notas, transf, invAtual, invArq, outras, ops, fat, fatSem, itensMissao] = await Promise.all([
     seguro(sb.from("baixa_operacional").select("codigo_produto, origem, lote, quantidade, status_fluxo, motivo_baixa_id, data_solicitacao, responsavel_nome").in("codigo_produto", ids).in("status_fluxo", ["PENDENTE", "APROVADA"]).limit(50)),
     seguro(sb.from("notas_transferencia_recebimento").select("nr_nf, almox, qtd, lote, dt_emissao, recebimento, dt_recebimento, nota_cancelada").in("cod_prod", ids).gte("dt_emissao", ini60).limit(50)),
     seguro(sb.from("atlas_transferencias").select("almoxarifado_origem, almoxarifado_destino, quantidade, data_saida, data_entrada, documento").in("sku", ids).is("data_entrada", null).limit(50)),
@@ -48,7 +48,12 @@ export async function coletarSinais(d: DivAnalise, descricao: string | null) {
     seguro(sb.from("producao_consumo").select("id_op, data_producao, produto, desc_produto, qtd_consumo, qtd_previsto, qtd_dif").in("material", ids).gte("data_producao", addDias(dia, -5)).lte("data_producao", addDias(dia, 2)).limit(100)),
     seguro(sb.from("atlas_faturamento").select("sku, descricao, data_faturamento, quantidade, origem").in("sku", ids).gte("data_faturamento", addDias(dia, -5)).lte("data_faturamento", addDias(dia, 5)).limit(50)),
     palavras.length ? seguro(sb.from("atlas_faturamento").select("sku, descricao, data_faturamento, quantidade, origem").ilike("descricao", `%${palavras[0]}%`).gte("data_faturamento", addDias(dia, -5)).lte("data_faturamento", addDias(dia, 5)).limit(200)) : Promise.resolve([]),
+    // contagem cíclica da loja: Missões de Inventário (itens contados × saldo previsto)
+    seguro(sb.from("missoes_itens").select("missao_id, lote, quantidade_prevista, quantidade_contada, updated_at").in("codigo_produto", ids).not("quantidade_contada", "is", null).gte("updated_at", ini60).limit(200)),
   ]);
+  const idsMissao = [...new Set(itensMissao.map((i: any) => i.missao_id))];
+  const missoes: any[] = idsMissao.length ? await seguro(sb.from("missoes").select("id, titulo, id_local, origem, data_execucao, status").in("id", idsMissao)) : [];
+  const porMissao = new Map(missoes.map((m: any) => [m.id, m]));
   const sinais: Sinal[] = [];
   // 1) Baixas pendentes do SKU / lote / almox
   for (const b of baixas) {
@@ -65,6 +70,22 @@ export async function coletarSinais(d: DivAnalise, descricao: string | null) {
   // 3) Última contagem de loja / inventário por local (sobra ou falta)
   const ultimas = new Map<string, any>();
   for (const c of [...invAtual, ...invArq]) { const k = String(c.origem); const o = ultimas.get(k); if (!o || String(c.data_contagem) > String(o.data_contagem)) ultimas.set(k, c); }
+  // contagens cíclicas (missões): soma os lotes da última missão contada de cada local
+  const ultMissao = new Map<string, { m: any; prev: number; cont: number; lotes: string[] }>();
+  for (const it of itensMissao) {
+    const m = porMissao.get(it.missao_id); if (!m) continue;
+    const loc = String(m.id_local || m.origem || "Loja"), dataM = String(m.data_execucao ?? it.updated_at).slice(0, 10);
+    const o = ultMissao.get(loc);
+    if (o && String(o.m.data_execucao ?? "").slice(0, 10) > dataM) continue;
+    const alvo = o && o.m.id === m.id ? o : { m, prev: 0, cont: 0, lotes: [] as string[] };
+    alvo.prev += Number(it.quantidade_prevista) || 0; alvo.cont += Number(it.quantidade_contada) || 0; if (it.lote) alvo.lotes.push(String(it.lote));
+    ultMissao.set(loc, alvo);
+  }
+  for (const [loc, x] of ultMissao) {
+    const dv = x.cont - x.prev; if (Math.abs(dv) < 1e-9) continue;
+    const oposto = Math.sign(dv) !== Math.sign(div) && div !== 0;
+    sinais.push({ fonte: "Contagem de loja / inventário", titulo: `Contagem cíclica em ${loc}: ${dv > 0 ? "sobra" : "falta"} de ${Math.abs(dv).toLocaleString("pt-BR")} un`, detalhe: `${String(x.m.data_execucao ?? "").slice(0, 10)} · ${x.m.titulo ?? "missão"} · sistema ${x.prev.toLocaleString("pt-BR")} × contado ${x.cont.toLocaleString("pt-BR")}${x.lotes.length ? ` · lote(s) ${[...new Set(x.lotes)].slice(0, 3).join(", ")}` : ""}${oposto ? " · sinal oposto ao desta divergência: o material pode ter ido para a loja sem transferência" : ""}`, hipotese: oposto ? "Transferencia_Pendente" : "Falha_Inventario", compat: oposto ? compatibilidade(dv, div) : "presenca", qtd: dv, data: x.m.data_execucao });
+  }
   for (const [loc, c] of ultimas) {
     const dv = Number(c.divergencia ?? (Number(c.quantidade_contada) - Number(c.saldo_sistemico))) || 0;
     if (!dv) continue;
