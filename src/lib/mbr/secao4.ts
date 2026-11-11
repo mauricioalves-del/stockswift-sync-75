@@ -1,5 +1,5 @@
 // MBR — Seção 4: Metas Individuais (upload do .html) e Atlas (Impacto, Fechamento Mensal do Stock Savvy, Próximos Passos).
-import { ALTURA, COR, LARGURA, MARGEM, fmtMoeda, fmtNum, fmtPct, nomeMes, r2 } from "./formato";
+import { ALTURA, COR, LARGURA, MARGEM, fmtMoeda, fmtNum, fmtPct, fmtPP, nomeMes, r2 } from "./formato";
 import { badge, cabecalho, caixaLeitura, graficoEmpilhado, linhaKpis, listaMarcadores, novoSlide, retangulo, slideAberturaSecao, tabela, texto, type Celula, type Pptx } from "./kit";
 import type { DadosFechamento, DadosMetas, Meta } from "./dados3";
 import { montarScorecard, type Consolidado } from "./secao1";
@@ -77,7 +77,7 @@ export function slideMetas(p: Pptx, mesLabel: string, pag: number, dado: DadosMe
 }
 
 // ---------- Atlas ----------
-export const MODULOS_NATIVOS = ["Painel de Inventário — fechamento por almoxarifado", "Acurácia Ponderada por Valor (IAP)", "Mapeamento de Passivos e Baixas Operacionais", "Shelf Life — Farol de Validade", "Mapeamento de Risco de Obsolescência", "Controle de Movimentados — reconciliação diária"];
+export const MODULOS_NATIVOS = ["Painel de Inventário — fechamento por almoxarifado", "Acurácia Ponderada por Valor (IAP)", "Mapeamento de Passivos e Baixas Operacionais", "Shelf Life — Farol de Validade", "Mapeamento de Risco de Itens sem Movimentação", "Controle de Movimentados — reconciliação diária"];
 export const ITENS_ATLAS = ["Impacto do Atlas", "Fechamento Stock Savvy — Mapeamento por Módulo", "Fechamento Stock Savvy — Principais Ações", "Próximos Passos"];
 export function slideAberturaAtlas(p: Pptx, mesLabel: string, pag: number) {
   slideAberturaSecao(p, mesLabel, pag, 4, 4, "Atlas", "Cobertura de processos hoje e melhorias esperadas com o uso contínuo da ferramenta.", ITENS_ATLAS);
@@ -92,7 +92,7 @@ export function slideImpacto(p: Pptx, mesLabel: string, pag: number, c: Consolid
   linhaKpis(s, 1.55, [
     { valor: fmtNum(MODULOS_NATIVOS.length), rotulo: "Frentes Nativas Mapeadas pelo Atlas" },
     { valor: fmtNum(controlesIntegrados), rotulo: "Controles do Stock Savvy no MBR", cor: controlesIntegrados ? COR.SUCESSO : COR.CINZA_TEXTO },
-    { valor: delta == null ? "—" : delta >= 0 ? `+${fmtPct(delta)}` : fmtPct(delta), rotulo: "Ganho de Acurácia (Movimentados)", cor: (delta ?? 0) >= 0 ? COR.SUCESSO : COR.ERRO },
+    { valor: delta == null ? "—" : delta >= 0 ? `+${fmtPP(delta)}` : fmtPP(delta), rotulo: "Ganho de Acurácia (Movimentados)", cor: (delta ?? 0) >= 0 ? COR.SUCESSO : COR.ERRO },
     { valor: fmtMoeda(visibilidade), rotulo: "Valor sob Visibilidade Ativa" },
   ]);
   const le = 6.3;
@@ -100,7 +100,7 @@ export function slideImpacto(p: Pptx, mesLabel: string, pag: number, c: Consolid
   listaMarcadores(s, MARGEM, 3.4, le, 3, [...MODULOS_NATIVOS, controlesIntegrados ? `${controlesIntegrados} controle(s) do Stock Savvy lido(s) direto do banco — sem export manual de .html.` : "Nenhum controle do Stock Savvy com dado neste mês."], COR.VERDE_AMAZONIA, 12);
   const xd = MARGEM + le + 0.35;
   const t = delta != null && pri
-    ? `Desde a implantação do Controle de Movimentados, em ${nomeMes(pri.mes)}, a acurácia da reconciliação diária avançou ${fmtPct(delta)} — mesma lógica de leitura contínua que hoje também sustenta Shelf Life, Mapeamento de Risco de Obsolescência e os controles do Stock Savvy integrados neste relatório. Quanto mais meses de uso contínuo, mais preciso o histórico e mais cedo cada divergência aparece — o próximo ganho esperado é reduzir o tempo entre a divergência ocorrer e ela ser tratada, hoje limitado pela cadência de conferência manual.`
+    ? `Desde a implantação do Controle de Movimentados, em ${nomeMes(pri.mes)}, a acurácia da reconciliação diária avançou ${fmtPP(delta)} — mesma lógica de leitura contínua que hoje também sustenta Shelf Life, Mapeamento de Risco de Obsolescência e os controles do Stock Savvy integrados neste relatório. Quanto mais meses de uso contínuo, mais preciso o histórico e mais cedo cada divergência aparece — o próximo ganho esperado é reduzir o tempo entre a divergência ocorrer e ela ser tratada, hoje limitado pela cadência de conferência manual.`
     : "Ainda não há histórico suficiente pra medir o ganho de acurácia desde a implantação — a leitura aparece a partir do segundo mês de dados do Controle de Movimentados.";
   caixaLeitura(s, xd, 3.05, LARGURA - MARGEM - xd, 3.35, "Melhorias Previstas com o Uso Contínuo", t, { tamanho: 12 });
   texto(s, MARGEM, 6.55, LC, 0.5, "Cobertura e integrações medidas neste relatório — não é uma projeção genérica: cada número acima vem dos mesmos dados que alimentam as telas do Stock Savvy no dia a dia.", { tamanho: 9.5, italico: true });
