@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { AnaliseDivergencia } from "@/components/atlas/AnaliseDivergencia";
 import { COLS_DIV, avisoBaixaPendente, carregarBase, investigarEGravar, investigarLote, logAtlas, normDiv, resolverDivergencia, type Base, type Div } from "@/lib/atlas-investigacao";
 
 export const Route = createFileRoute("/_authenticated/atlas/divergencias")({
@@ -267,7 +268,7 @@ function Detalhe({ id, pode, hipoteses, nomeHip, desc, onClose, onMudou }: { id:
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+      <DialogContent className="max-h-[95vh] w-[96vw] max-w-[1400px] overflow-y-auto">
         <DialogHeader><DialogTitle>Divergência #{id}{d ? ` · ${d.sku}` : ""}</DialogTitle></DialogHeader>
         {!d ? <Loader2 className="mx-auto size-5 animate-spin" /> : (
           <div className="space-y-4 text-sm">
@@ -283,11 +284,13 @@ function Detalhe({ id, pode, hipoteses, nomeHip, desc, onClose, onMudou }: { id:
             </div>
             {d.observacao_origem && <div className="rounded-md bg-muted px-3 py-2 text-xs"><span className="font-medium">Obs. da planilha:</span> {d.observacao_origem}</div>}
             {d.observacao_investigacao && <div className="rounded-md bg-sky-50 px-3 py-2 text-xs dark:bg-sky-950/30"><span className="font-medium">Em investigação:</span> {d.observacao_investigacao} <span className="text-muted-foreground">— {d.observacao_investigacao_por}, {dt(d.observacao_investigacao_em)}</span></div>}
+            <AnaliseDivergencia d={{ id: d.id, sku: d.sku, almoxarifado: d.almoxarifado, data_deteccao: String(d.data_deteccao ?? "").slice(0, 10), divergencia_qtd: Number(d.divergencia_qtd) || 0, categoria_produto: d.categoria_produto, lote: d.lote ?? null }}
+              motor={dist} nomeHip={nomeHip} descricao={desc?.get(d.sku) ?? null} onUsar={pode && d.status !== "Resolvida" ? (h) => { setConf((c) => ({ ...c, hip: h })); toast.success(`Causa "${nomeHip(h)}" selecionada para a confirmação.`); } : undefined} />
             {aviso && <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"><Clock className="mt-0.5 size-4 shrink-0" />{aviso}</div>}
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <div className="text-xs font-medium uppercase text-muted-foreground">Diagnóstico</div>
+                <div className="text-xs font-medium uppercase text-muted-foreground">Motor de regras e modelo</div>
                 {d.hipotese_confirmada ? <div><span className="font-semibold">{nomeHip(d.hipotese_confirmada)}</span> <span className="text-xs text-muted-foreground">confirmada por {d.responsavel ?? "—"} em {dt(d.resolvido_em)}</span>{d.solucao_aplicada && <div className="text-xs">{d.solucao_aplicada}</div>}</div>
                   : d.hipotese_regras ? <div><span className="font-semibold">{nomeHip(d.hipotese_ia)}</span> <span className="text-xs text-muted-foreground">{un(d.confianca_ia, 1)}% · regras: {nomeHip(d.hipotese_regras)} {un(d.confianca_regras, 1)}%{d.hipotese_ml ? ` · modelo: ${nomeHip(d.hipotese_ml)} ${un(d.confianca_ml, 1)}%` : ""}</span></div>
                   : <div className="text-muted-foreground">Investigação pendente — clique em Reinvestigar.</div>}
