@@ -14,6 +14,7 @@ import {
 const sb = supabase as any;
 import { carregarRupturas } from "./rupturas";
 import { carregarAtlasMbr } from "./executivo";
+import { carregarAutomacoes } from "./automacoes";
 export const CHAVE_METAS = "metas_individuais";
 export const SKU_TESTE_INDUSTRIAL = "05104122";
 
@@ -130,6 +131,7 @@ export async function carregarRiscos(mes: string, hoje = new Date(), progresso?:
     fechamento, metas,
     rupturas: await seguro("Disponibilidade das lojas (rupturas)", falhas, () => carregarRupturas(mes)),
     atlas: await seguro("Divergências do Atlas", falhas, () => carregarAtlasMbr(mes)),
+    automacoes: await seguro("Automações (log de auditoria)", falhas, () => carregarAutomacoes(mes)),
   };
 }
 export type Riscos = Awaited<ReturnType<typeof carregarRiscos>>;
