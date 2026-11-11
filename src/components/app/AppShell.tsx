@@ -156,7 +156,6 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/atlas/mapeamento-passivos", label: "Mapeamento de Passivos", icon: AlertTriangle, role: "any" },
       { to: "/atlas/importar", label: "Importar", icon: Upload, role: "write" },
       { to: "/atlas/acuracia-ponderada", label: "Acurácia Ponderada", icon: Scale, role: "any" },
-      { to: "/atlas/pos-inventario", label: "Pós-Inventário", icon: ClipboardList, role: "any" },
       { to: "/atlas/mbr", label: "MBR", icon: FileBarChart2, role: "any" },
       { to: "/atlas/cadastros", label: "Cadastros", icon: Database, role: "write" },
     ],

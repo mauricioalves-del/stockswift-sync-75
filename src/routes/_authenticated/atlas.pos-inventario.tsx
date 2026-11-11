@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -16,7 +16,9 @@ import { lerTudo } from "@/lib/atlas-investigacao";
 import { STATUS_ACAO, reconciliarAcoes } from "@/lib/atlas-fechamento";
 
 export const Route = createFileRoute("/_authenticated/atlas/pos-inventario")({
-  component: PosInventario,
+  // A tela agora é uma aba do dashboard Acurácia Ponderada; links antigos continuam funcionando.
+  beforeLoad: () => { throw redirect({ to: "/atlas/acuracia-ponderada", search: { visao: "pos-inventario" }, replace: true }); },
+  component: () => <PosInventario />,
   head: () => ({ meta: [{ title: "Pós-Inventário — Atlas" }] }),
 });
 
@@ -41,7 +43,7 @@ async function log(acao: string, detalhes: Record<string, unknown>, id?: number)
   await sb.from("atlas_log_auditoria").insert({ username: await quem(), acao, entidade: id != null ? "acao_pos_inventario" : null, entidade_id: id != null ? String(id) : null, detalhes, criado_em: new Date().toISOString() });
 }
 
-function PosInventario() {
+export function PosInventario({ embutido = false }: { embutido?: boolean }) {
   const { role } = useRole();
   const pode = role === "ADMINISTRADOR" || role === "GERENTE";
   const qc = useQueryClient();
@@ -84,7 +86,7 @@ function PosInventario() {
     <div className="w-full space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold"><ClipboardList className="size-6" /> Pós-Inventário</h1>
+          {!embutido && <h1 className="flex items-center gap-2 text-2xl font-bold"><ClipboardList className="size-6" /> Pós-Inventário</h1>}
           <p className="max-w-4xl text-sm text-muted-foreground">Ações corretivas dos itens divergentes nos fechamentos. A importação de um fechamento abre ação para cada item com "obs pós inv" e conclui sozinha as ações de quem voltou a não divergir.</p>
         </div>
         {pode && <div className="flex gap-2"><Button size="sm" variant="outline" className="gap-1" disabled={ocupado} onClick={reconciliar}><RefreshCw className="size-4" /> Reconciliar automaticamente</Button><Button size="sm" className="gap-1" onClick={() => setEditar("nova")}><Plus className="size-4" /> Nova ação</Button></div>}

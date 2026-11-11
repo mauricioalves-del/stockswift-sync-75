@@ -2,11 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AtlasGrafico, atlasCores } from "@/components/atlas/AtlasGrafico";
-import { BarChart3, CalendarCheck, ChevronDown, ChevronUp, ListChecks, Loader2, MousePointerClick, Scale } from "lucide-react";
+import { BarChart3, CalendarCheck, ChevronDown, ClipboardList, ChevronUp, ListChecks, Loader2, MousePointerClick, Scale } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PainelInventario } from "@/routes/_authenticated/atlas.painel-inventario";
 import { FechamentoInventario } from "@/routes/_authenticated/atlas.fechamento-inventario";
 import { PreInventarioPage } from "@/routes/_authenticated/gestao.pre-inventario";
+import { PosInventario } from "@/routes/_authenticated/atlas.pos-inventario";
 import { Secao, Th } from "@/components/abast-dash/comum";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -23,7 +24,7 @@ export const Route = createFileRoute("/_authenticated/atlas/acuracia-ponderada")
   head: () => ({ meta: [{ title: "Acurácia Ponderada — Atlas" }, { name: "description", content: "Comparativo dos modelos de acurácia, Pareto, magnitude e evolução mensal do Atlas." }, { property: "og:title", content: "Acurácia Ponderada — Atlas" }, { property: "og:description", content: "Comparativo dos modelos de acurácia, Pareto, magnitude e evolução mensal do Atlas." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
 
-const VISOES = ["acuracia", "painel-inventario", "fechamento", "pre-inventario"] as const;
+const VISOES = ["acuracia", "painel-inventario", "fechamento", "pre-inventario", "pos-inventario"] as const;
 type Visao = (typeof VISOES)[number];
 
 const brl = (n: number | null | undefined) => (n == null ? "—" : Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }));
@@ -132,11 +133,12 @@ function AcuraciaPonderada() {
             <TabsTrigger value="painel-inventario" className="text-xs"><BarChart3 className="mr-1 size-3.5" /> Painel Inventário</TabsTrigger>
             <TabsTrigger value="fechamento" className="text-xs"><CalendarCheck className="mr-1 size-3.5" /> Fechamento Inventário</TabsTrigger>
             <TabsTrigger value="pre-inventario" className="text-xs"><ListChecks className="mr-1 size-3.5" /> Pré-inventário</TabsTrigger>
+            <TabsTrigger value="pos-inventario" className="text-xs"><ClipboardList className="mr-1 size-3.5" /> Pós-Inventário</TabsTrigger>
           </TabsList>
         </Tabs>
         <div className="text-xs text-slate-300">Competência: {mes ? `${mes.slice(5)}/${mes.slice(0, 4)}` : "todas"} · Leitura: {q.dataUpdatedAt ? new Date(q.dataUpdatedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—"}</div>
       </div>
-      {visao === "painel-inventario" ? <PainelInventario embutido /> : visao === "fechamento" ? <FechamentoInventario embutido fechamentoUrl={busca.fechamento} /> : visao === "pre-inventario" ? <PreInventarioPage embutido /> : !r ? <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Carregando os fechamentos…</div> : (
+      {visao === "painel-inventario" ? <PainelInventario embutido /> : visao === "fechamento" ? <FechamentoInventario embutido fechamentoUrl={busca.fechamento} /> : visao === "pre-inventario" ? <PreInventarioPage embutido /> : visao === "pos-inventario" ? <PosInventario embutido /> : !r ? <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Carregando os fechamentos…</div> : (
         <>
           <Secao letra="A" titulo="Filtros">
             <div className="flex flex-wrap items-end gap-3">
