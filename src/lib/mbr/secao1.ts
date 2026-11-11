@@ -130,4 +130,4 @@ export function slideScorecard(p: Pptx, mesLabel: string, pag: number, c: Consol
   tabela(s, MARGEM, 1.65, LC, 4.9, ["Frente", "Status", "Leitura Executiva", "Próximo Passo"],
     montarScorecard(c).map((l): Celula[] => [{ t: l.frente, cor: COR.AZUL_INSTITUCIONAL, negrito: true }, { t: l.status.label, cor: l.status.cor, negrito: true }, l.leitura, l.passo]), { larguras: [2, 1.1, 3.4, 3], tamanho: 13 });
 }
-export const ITENS_SECAO1 = ["Resumo Executivo", "Scorecard do Mês"];
+export const ITENS_SECAO1 = ["Scorecard Executivo (meta × realizado)", "Ponte de Valor do Controle", "Resumo Executivo", "Scorecard do Mês"];
