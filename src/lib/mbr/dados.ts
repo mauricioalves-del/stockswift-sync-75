@@ -107,6 +107,13 @@ export function coletarDados(F: FontesMbr, mes: string) {
     movimentadosPorAlmox: movimentadosPorAlmox(F, mes),
     evolucaoMovimentados: evolucaoMovimentados(F, null, mes),
     scorecardAlmox: scorecardAlmox(F, mes),
+    // os dois piores almoxarifados do mês (acurácia item a item), com evolução e maiores faltas/sobras
+    piores: comparativoPorAlmox(D, mes).filter((c) => c.item != null).sort((a, b) => (a.item ?? 0) - (b.item ?? 0)).slice(0, 2).map((c) => ({
+      almox: c.chave, item: c.item, iap: c.iap, iaq: c.iaq,
+      evolucao: ate(evolucaoPonderada(D, c.chave)).slice(-6),
+      faltaSobra: faltaSobra(D, { almox: c.chave, mes }, 5),
+      mov: movimentadosPorAlmox(F, mes).find((m) => m.almoxarifado === c.chave)?.pct ?? null,
+    })),
   };
 }
 export type DadosMbr = ReturnType<typeof coletarDados>;
