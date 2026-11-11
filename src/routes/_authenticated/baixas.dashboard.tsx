@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { ExportarHtmlButton } from "@/components/app/ExportarHtmlButton";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -22,7 +22,9 @@ import { DetalheMotivoBaixasDialog, type DetalheMotivoCtx } from "@/components/b
 
 
 export const Route = createFileRoute("/_authenticated/baixas/dashboard")({
-  component: BaixasDashboard,
+  // A tela agora é uma aba do Pacote de Baixas (Relatórios); links antigos continuam funcionando.
+  beforeLoad: () => { throw redirect({ to: "/relatorios/pacote-baixas", search: { visao: "dashboard" }, replace: true }); },
+  component: () => <BaixasDashboard />,
   head: () => ({ meta: [
     { title: "Dashboard Baixas Operacionais — Controle Operacional" },
     { name: "description", content: "Análise de baixas aprovadas por grupo de produto, motivo, setor e solicitante no Controle Operacional." },
@@ -98,7 +100,7 @@ function MotivoLegend({ items }: { items: { id: string; nome: string; cor: strin
   );
 }
 
-function BaixasDashboard() {
+export function BaixasDashboard({ embutido = false }: { embutido?: boolean }) {
   const [from, setFrom] = useState<string>(isoDaysAgo(60));
   const [to, setTo] = useState<string>(todayISO());
   const [almoxFilter, setAlmoxFilter] = useState<string>("__all__");
@@ -405,9 +407,9 @@ function BaixasDashboard() {
   if (gruposQ.isError || gruposQ.isPending) {
     return (
       <div className="w-full space-y-4">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
+        {!embutido && <h1 className="text-2xl font-bold flex items-center gap-2">
           <BarChart3 className="size-6" /> Dashboard Baixas Operacionais
-        </h1>
+        </h1>}
         {gruposQ.isError ? (
           <div role="alert" className="space-y-3 text-destructive">
             <p>Não foi possível carregar os grupos de produtos. Os indicadores não foram exibidos para evitar classificações incompletas.</p>
@@ -437,9 +439,9 @@ function BaixasDashboard() {
 
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          {!embutido && <h1 className="text-2xl font-bold flex items-center gap-2">
             <BarChart3 className="size-6" /> Dashboard Baixas Operacionais
-          </h1>
+          </h1>}
           <p className="text-sm text-muted-foreground">Análise executiva de prejuízo por motivo, setor, grupo e solicitante.</p>
         </div>
         <div className="flex items-end gap-2">

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { exportarInvestimentoHtml } from "@/lib/export-investimento-html";
 import type { ReactNode } from "react";
@@ -20,7 +20,9 @@ import {
 } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/baixas/investimento-operacional")({
-  component: InvestimentoOperacionalDashboard,
+  // A tela agora é uma aba do Pacote de Baixas (Relatórios); links antigos continuam funcionando.
+  beforeLoad: () => { throw redirect({ to: "/relatorios/pacote-baixas", search: { visao: "investimento" }, replace: true }); },
+  component: () => <InvestimentoOperacionalDashboard />,
   head: () => ({ meta: [
     { title: "Investimento Operacional — Controle Operacional" },
     { name: "description", content: "Acompanhamento de baixas por Cortesia, Degustação, Sensorial/Inovações e Uso e Consumo, tratadas como investimento operacional, não perda." },
@@ -166,7 +168,7 @@ function ListaCompletaDialog({ ctx, onOpenChange }: { ctx: ListaCtx; onOpenChang
   );
 }
 
-function InvestimentoOperacionalDashboard() {
+export function InvestimentoOperacionalDashboard({ embutido = false }: { embutido?: boolean }) {
   const [from, setFrom] = useState<string>(isoDaysAgo(90));
   const [to, setTo] = useState<string>(todayISO());
   const [lista, setLista] = useState<ListaCtx>(null);
@@ -293,7 +295,7 @@ function InvestimentoOperacionalDashboard() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Investimento Operacional</h1>
+          {!embutido && <h1 className="text-2xl font-bold">Investimento Operacional</h1>}
           <p className="text-sm text-muted-foreground">
             Cortesia, Degustação, Sensorial/Inovações e Uso e Consumo — tratados como investimento operacional, não perda.
           </p>

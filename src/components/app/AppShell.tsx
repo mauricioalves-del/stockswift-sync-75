@@ -134,8 +134,6 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/gestao/modelos-checklist", label: "Modelos de Checklist", icon: FolderTree, role: "write" },
       { to: "/gestao/plano-integracao", label: "Plano de Integração", icon: UserPlus, role: "any" },
       { to: "/baixas", label: "Baixas Operacionais", icon: PackageMinus, role: "write" },
-      { to: "/baixas/dashboard", label: "Dashboard Baixas", icon: BarChart3, role: "any" },
-    { to: "/baixas/investimento-operacional", label: "Investimento Operacional", icon: Sparkles, role: "any" },
       { to: "/missoes", label: "Missões de Inventário", icon: Target, role: "admin" },
       { to: "/abc", label: "Classificação ABC", icon: BarChart3, role: "admin" },
     ],
@@ -146,6 +144,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/dashboard", label: "Dashboard Executivo", icon: LayoutDashboard, role: "any" },
       { to: "/fechamento-mensal", label: "Fechamento Mensal", icon: CalendarCheck, role: "any" },
       { to: "/relatorios", label: "Relatório de Inventário", icon: FileBarChart2, role: "any" },
+      { to: "/relatorios/pacote-baixas", label: "Pacote de Baixas", icon: PackageMinus, role: "any" },
     ],
   },
   {
@@ -174,6 +173,10 @@ const NAV: (NavItem | NavGroup)[] = [
 function isGroup(n: NavItem | NavGroup): n is NavGroup { return (n as NavGroup).items !== undefined; }
 function isSubGroup(i: NavItem | NavSubGroup): i is NavSubGroup { return (i as NavSubGroup).items !== undefined; }
 const subTemAtivo = (i: NavItem | NavSubGroup, pathname: string) => isSubGroup(i) ? i.items.some((x) => pathname.startsWith(x.to)) : pathname.startsWith(i.to);
+// Todos os destinos do menu: um item só fica destacado se nenhum outro mais específico também casar com a página.
+const TODOS_DESTINOS: string[] = NAV.flatMap((n) => (isGroup(n) ? n.items.flatMap((i) => (isSubGroup(i) ? i.items.map((x) => x.to) : [i.to])) : [n.to]));
+const casa = (to: string, pathname: string) => pathname === to || (to !== "/dashboard" && pathname.startsWith(to + "/"));
+const itemAtivo = (to: string, pathname: string) => casa(to, pathname) && !TODOS_DESTINOS.some((o) => o.length > to.length && o.startsWith(to + "/") && casa(o, pathname));
 const subPodeVer = (i: NavItem | NavSubGroup, canSee: (x: NavItem) => boolean) => isSubGroup(i) ? i.items.some(canSee) : canSee(i);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -486,7 +489,7 @@ function NavSubGroupBlock({ group, pathname, onNavigate }: { group: NavSubGroup;
 
 function NavLeaf({ item, pathname, onNavigate, compact, collapsed }: { item: NavItem; pathname: string; onNavigate?: () => void; compact?: boolean; collapsed?: boolean }) {
   const Icon = item.icon;
-  const active = pathname === item.to || (item.to !== "/dashboard" && pathname.startsWith(item.to + "/"));
+  const active = itemAtivo(item.to, pathname);
   if (collapsed) {
     return (
       <Link to={item.to} onClick={onNavigate} title={item.label} aria-label={item.label}

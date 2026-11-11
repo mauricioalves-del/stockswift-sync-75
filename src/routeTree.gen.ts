@@ -90,6 +90,7 @@ import { Route as AuthenticatedProducaoDispersaoRouteImport } from './routes/_au
 import { Route as AuthenticatedProducaoPcpRouteImport } from './routes/_authenticated/producao.pcp'
 import { Route as AuthenticatedProducaoSolicitacaoMateriaisRouteImport } from './routes/_authenticated/producao.solicitacao-materiais'
 import { Route as AuthenticatedProducaoTestesIndustriaisRouteImport } from './routes/_authenticated/producao.testes-industriais'
+import { Route as AuthenticatedRelatoriosPacoteBaixasRouteImport } from './routes/_authenticated/relatorios_.pacote-baixas'
 import { Route as AuthenticatedShelfLifeAcoesRouteImport } from './routes/_authenticated/shelf-life.acoes'
 import { Route as AuthenticatedShelfLifeDashboardRouteImport } from './routes/_authenticated/shelf-life.dashboard'
 import { Route as AuthenticatedShelfLifeDoiRouteImport } from './routes/_authenticated/shelf-life.doi'
@@ -586,6 +587,12 @@ const AuthenticatedProducaoTestesIndustriaisRoute =
     path: '/producao/testes-industriais',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedRelatoriosPacoteBaixasRoute =
+  AuthenticatedRelatoriosPacoteBaixasRouteImport.update({
+    id: '/relatorios_/pacote-baixas',
+    path: '/relatorios/pacote-baixas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedShelfLifeAcoesRoute =
   AuthenticatedShelfLifeAcoesRouteImport.update({
     id: '/shelf-life/acoes',
@@ -845,6 +852,7 @@ export interface FileRoutesByFullPath {
   '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   '/producao/testes-industriais': typeof AuthenticatedProducaoTestesIndustriaisRoute
+  '/relatorios/pacote-baixas': typeof AuthenticatedRelatoriosPacoteBaixasRoute
   '/shelf-life/acoes': typeof AuthenticatedShelfLifeAcoesRoute
   '/shelf-life/dashboard': typeof AuthenticatedShelfLifeDashboardRoute
   '/shelf-life/doi': typeof AuthenticatedShelfLifeDoiRoute
@@ -957,6 +965,7 @@ export interface FileRoutesByTo {
   '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   '/producao/testes-industriais': typeof AuthenticatedProducaoTestesIndustriaisRoute
+  '/relatorios/pacote-baixas': typeof AuthenticatedRelatoriosPacoteBaixasRoute
   '/shelf-life/acoes': typeof AuthenticatedShelfLifeAcoesRoute
   '/shelf-life/dashboard': typeof AuthenticatedShelfLifeDashboardRoute
   '/shelf-life/doi': typeof AuthenticatedShelfLifeDoiRoute
@@ -1071,6 +1080,7 @@ export interface FileRoutesById {
   '/_authenticated/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/_authenticated/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   '/_authenticated/producao/testes-industriais': typeof AuthenticatedProducaoTestesIndustriaisRoute
+  '/_authenticated/relatorios_/pacote-baixas': typeof AuthenticatedRelatoriosPacoteBaixasRoute
   '/_authenticated/shelf-life/acoes': typeof AuthenticatedShelfLifeAcoesRoute
   '/_authenticated/shelf-life/dashboard': typeof AuthenticatedShelfLifeDashboardRoute
   '/_authenticated/shelf-life/doi': typeof AuthenticatedShelfLifeDoiRoute
@@ -1185,6 +1195,7 @@ export interface FileRouteTypes {
     | '/producao/pcp'
     | '/producao/solicitacao-materiais'
     | '/producao/testes-industriais'
+    | '/relatorios/pacote-baixas'
     | '/shelf-life/acoes'
     | '/shelf-life/dashboard'
     | '/shelf-life/doi'
@@ -1297,6 +1308,7 @@ export interface FileRouteTypes {
     | '/producao/pcp'
     | '/producao/solicitacao-materiais'
     | '/producao/testes-industriais'
+    | '/relatorios/pacote-baixas'
     | '/shelf-life/acoes'
     | '/shelf-life/dashboard'
     | '/shelf-life/doi'
@@ -1410,6 +1422,7 @@ export interface FileRouteTypes {
     | '/_authenticated/producao/pcp'
     | '/_authenticated/producao/solicitacao-materiais'
     | '/_authenticated/producao/testes-industriais'
+    | '/_authenticated/relatorios_/pacote-baixas'
     | '/_authenticated/shelf-life/acoes'
     | '/_authenticated/shelf-life/dashboard'
     | '/_authenticated/shelf-life/doi'
@@ -2031,6 +2044,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProducaoTestesIndustriaisRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/relatorios_/pacote-baixas': {
+      id: '/_authenticated/relatorios_/pacote-baixas'
+      path: '/relatorios/pacote-baixas'
+      fullPath: '/relatorios/pacote-baixas'
+      preLoaderRoute: typeof AuthenticatedRelatoriosPacoteBaixasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/shelf-life/acoes': {
       id: '/_authenticated/shelf-life/acoes'
       path: '/shelf-life/acoes'
@@ -2334,6 +2354,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProducaoPcpRoute: typeof AuthenticatedProducaoPcpRoute
   AuthenticatedProducaoSolicitacaoMateriaisRoute: typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   AuthenticatedProducaoTestesIndustriaisRoute: typeof AuthenticatedProducaoTestesIndustriaisRoute
+  AuthenticatedRelatoriosPacoteBaixasRoute: typeof AuthenticatedRelatoriosPacoteBaixasRoute
   AuthenticatedShelfLifeAcoesRoute: typeof AuthenticatedShelfLifeAcoesRoute
   AuthenticatedShelfLifeDashboardRoute: typeof AuthenticatedShelfLifeDashboardRoute
   AuthenticatedShelfLifeDoiRoute: typeof AuthenticatedShelfLifeDoiRoute
@@ -2461,6 +2482,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedProducaoSolicitacaoMateriaisRoute,
   AuthenticatedProducaoTestesIndustriaisRoute:
     AuthenticatedProducaoTestesIndustriaisRoute,
+  AuthenticatedRelatoriosPacoteBaixasRoute:
+    AuthenticatedRelatoriosPacoteBaixasRoute,
   AuthenticatedShelfLifeAcoesRoute: AuthenticatedShelfLifeAcoesRoute,
   AuthenticatedShelfLifeDashboardRoute: AuthenticatedShelfLifeDashboardRoute,
   AuthenticatedShelfLifeDoiRoute: AuthenticatedShelfLifeDoiRoute,
