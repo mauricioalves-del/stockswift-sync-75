@@ -13,6 +13,7 @@ import {
 
 const sb = supabase as any;
 import { carregarRupturas } from "./rupturas";
+import { carregarAtlasMbr } from "./executivo";
 export const CHAVE_METAS = "metas_individuais";
 export const SKU_TESTE_INDUSTRIAL = "05104122";
 
@@ -128,6 +129,7 @@ export async function carregarRiscos(mes: string, hoje = new Date(), progresso?:
     fefo: fefo && justs && grupos ? controleFefo(aplicarJustificativas(fefo, justs), resolvedorGrupoFefo(grupos), mes) : null,
     fechamento, metas,
     rupturas: await seguro("Disponibilidade das lojas (rupturas)", falhas, () => carregarRupturas(mes)),
+    atlas: await seguro("Divergências do Atlas", falhas, () => carregarAtlasMbr(mes)),
   };
 }
 export type Riscos = Awaited<ReturnType<typeof carregarRiscos>>;
