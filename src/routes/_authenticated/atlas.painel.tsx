@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/atlas/painel")({
   component: AtlasPainel,
-  validateSearch: (s: Record<string, unknown>): { visao?: Visao } => (s.visao === "farol" || s.visao === "divergencias" || s.visao === "painel" ? { visao: s.visao } : {}),
+  validateSearch: (s: Record<string, unknown>): { visao?: Visao; div?: number } => ({ ...(s.visao === "farol" || s.visao === "divergencias" || s.visao === "painel" ? { visao: s.visao } : {}), ...(Number(s.div) > 0 ? { div: Number(s.div) } : {}) }),
   head: () => ({ meta: [{ title: "Movimentados — Atlas" }, { name: "description", content: "Acurácia das contagens diárias, Farol de Movimentados e lista de divergências do Atlas." }, { property: "og:title", content: "Movimentados — Atlas" }, { property: "og:description", content: "Acurácia das contagens diárias, Farol de Movimentados e lista de divergências do Atlas." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
 
@@ -161,7 +161,7 @@ function AtlasPainel() {
         <div className="text-xs text-slate-300">Leitura: {atualizado}</div>
       </div>
 
-      {visao === "farol" ? <FarolMovimentadosPage /> : visao === "divergencias" ? <DivergenciasPage embutido /> : q.isLoading || !r ? <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Carregando o histórico…</div> : (
+      {visao === "farol" ? <FarolMovimentadosPage /> : visao === "divergencias" ? <DivergenciasPage embutido abrirId={busca.div} /> : q.isLoading || !r ? <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Carregando o histórico…</div> : (
         <>
           <Secao letra="A" titulo="Filtros">
             <div className="flex flex-wrap items-end gap-3">

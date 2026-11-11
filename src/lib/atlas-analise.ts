@@ -9,7 +9,15 @@ import { ALMOX_SS_PARA_ATLAS, MOTIVO_PARA_HIPOTESE } from "./atlas-investigacao"
 
 const sb = supabase as any;
 export type Compat = "exata" | "compativel" | "parcial" | "presenca";
-export type Sinal = { fonte: string; titulo: string; detalhe: string; hipotese: string; compat: Compat; qtd?: number | null; data?: string | null };
+/** Registro de origem do sinal, para abrir direto a tela onde a ação aconteceu. */
+export type LinkSinal =
+  | { tipo: "baixa"; id: string; aba: "fila" | "historico" }
+  | { tipo: "recebimento"; nf: string; sku: string }
+  | { tipo: "missao"; id: string }
+  | { tipo: "inventario"; busca: string }
+  | { tipo: "divergencia"; id: number }
+  | { tipo: "op"; material: string };
+export type Sinal = { fonte: string; titulo: string; detalhe: string; hipotese: string; compat: Compat; qtd?: number | null; data?: string | null; link?: LinkSinal };
 export type DivAnalise = { id: number; sku: string; almoxarifado: string; data_deteccao: string; divergencia_qtd: number; categoria_produto?: string | null; lote?: string | null };
 
 const RAZAO: Record<Compat, number> = { exata: 6, compativel: 3, parcial: 1.8, presenca: 1.3 };
@@ -39,13 +47,13 @@ export async function coletarSinais(d: DivAnalise, descricao: string | null) {
   const seguro = async (p: Promise<any>) => { try { const r = await p; return r?.data ?? []; } catch { return []; } };
   const palavras = chaveSemelhanca(descricao);
   const [baixas, notas, transf, invAtual, invArq, outras, ops, fat, fatSem, itensMissao] = await Promise.all([
-    seguro(sb.from("baixa_operacional").select("codigo_produto, origem, lote, quantidade, status_fluxo, motivo_baixa_id, data_solicitacao, responsavel_nome").in("codigo_produto", ids).in("status_fluxo", ["PENDENTE", "APROVADA"]).limit(50)),
-    seguro(sb.from("notas_transferencia_recebimento").select("nr_nf, almox, qtd, lote, dt_emissao, recebimento, dt_recebimento, nota_cancelada").in("cod_prod", ids).gte("dt_emissao", ini60).limit(50)),
-    seguro(sb.from("atlas_transferencias").select("almoxarifado_origem, almoxarifado_destino, quantidade, data_saida, data_entrada, documento").in("sku", ids).is("data_entrada", null).limit(50)),
+    seguro(sb.from("baixa_operacional").select("id, codigo_produto, origem, lote, quantidade, status_fluxo, motivo_baixa_id, data_solicitacao, responsavel_nome").in("codigo_produto", ids).in("status_fluxo", ["PENDENTE", "APROVADA"]).limit(50)),
+    seguro(sb.from("notas_transferencia_recebimento").select("nr_nf, cod_prod, almox, qtd, lote, dt_emissao, recebimento, dt_recebimento, nota_cancelada").in("cod_prod", ids).gte("dt_emissao", ini60).limit(50)),
+    seguro(sb.from("atlas_transferencias").select("sku, almoxarifado_origem, almoxarifado_destino, quantidade, data_saida, data_entrada, documento").in("sku", ids).is("data_entrada", null).limit(50)),
     seguro(sb.from("inventario").select("origem, data_contagem, saldo_sistemico, quantidade_contada, divergencia, lote").in("id_produto", ids).gte("data_contagem", ini60).limit(100)),
     seguro(sb.from("inventario_arquivado").select("origem, data_contagem, saldo_sistemico, quantidade_contada, divergencia, lote").in("id_produto", ids).gte("data_contagem", ini60).limit(200)),
     seguro(sb.from("atlas_divergencias").select("id, almoxarifado, data_deteccao, divergencia_qtd, status, hipotese_confirmada").in("sku", ids).gte("data_deteccao", ini7).lte("data_deteccao", fim7).neq("id", d.id).limit(50)),
-    seguro(sb.from("producao_consumo").select("id_op, data_producao, produto, desc_produto, qtd_consumo, qtd_previsto, qtd_dif").in("material", ids).gte("data_producao", addDias(dia, -5)).lte("data_producao", addDias(dia, 2)).limit(100)),
+    seguro(sb.from("producao_consumo").select("id_op, material, data_producao, produto, desc_produto, qtd_consumo, qtd_previsto, qtd_dif").in("material", ids).gte("data_producao", addDias(dia, -5)).lte("data_producao", addDias(dia, 2)).limit(100)),
     seguro(sb.from("atlas_faturamento").select("sku, descricao, data_faturamento, quantidade, origem").in("sku", ids).gte("data_faturamento", addDias(dia, -5)).lte("data_faturamento", addDias(dia, 5)).limit(50)),
     palavras.length ? seguro(sb.from("atlas_faturamento").select("sku, descricao, data_faturamento, quantidade, origem").ilike("descricao", `%${palavras[0]}%`).gte("data_faturamento", addDias(dia, -5)).lte("data_faturamento", addDias(dia, 5)).limit(200)) : Promise.resolve([]),
     // contagem cíclica da loja: Missões de Inventário (itens contados × saldo previsto)
@@ -60,16 +68,16 @@ export async function coletarSinais(d: DivAnalise, descricao: string | null) {
     const mesmoAlmox = b.origem === almoxSS || ALMOX_SS_PARA_ATLAS[b.origem] === d.almoxarifado;
     const hip = MOTIVO_PARA_HIPOTESE[b.motivo_baixa_id]?.[0] ?? "Avaria_Perda";
     const c = div < 0 ? compatibilidade(Number(b.quantidade), div) : "presenca";
-    sinais.push({ fonte: "Baixas", titulo: `Baixa ${b.status_fluxo === "PENDENTE" ? "pendente de aprovação" : "aprovada e não executada"}${mesmoAlmox ? " no mesmo almoxarifado" : ` em ${b.origem}`}`, detalhe: `${Number(b.quantidade).toLocaleString("pt-BR")} un${b.lote ? ` · lote ${b.lote}` : ""}${b.responsavel_nome ? ` · ${b.responsavel_nome}` : ""}${b.data_solicitacao ? ` · ${String(b.data_solicitacao).slice(0, 10)}` : ""}`, hipotese: hip, compat: mesmoAlmox ? c : "presenca", qtd: Number(b.quantidade), data: b.data_solicitacao });
+    sinais.push({ fonte: "Baixas", titulo: `Baixa ${b.status_fluxo === "PENDENTE" ? "pendente de aprovação" : "aprovada e não executada"}${mesmoAlmox ? " no mesmo almoxarifado" : ` em ${b.origem}`}`, detalhe: `${Number(b.quantidade).toLocaleString("pt-BR")} un${b.lote ? ` · lote ${b.lote}` : ""}${b.responsavel_nome ? ` · ${b.responsavel_nome}` : ""}${b.data_solicitacao ? ` · ${String(b.data_solicitacao).slice(0, 10)}` : ""}`, hipotese: hip, compat: mesmoAlmox ? c : "presenca", qtd: Number(b.quantidade), data: b.data_solicitacao, link: b.id ? { tipo: "baixa", id: String(b.id), aba: b.status_fluxo === "PENDENTE" ? "fila" : "historico" } : undefined });
   }
   // 2) Estoque em trânsito (notas sem recebimento e transferências sem entrada)
   for (const n of notas.filter((x: any) => !x.nota_cancelada && (x.recebimento === "Pendente" || !x.dt_recebimento)))
-    sinais.push({ fonte: "Trânsito", titulo: `Nota de transferência ${n.nr_nf} sem recebimento`, detalhe: `${Number(n.qtd).toLocaleString("pt-BR")} un para ${n.almox}${n.lote ? ` · lote ${n.lote}` : ""} · emitida ${String(n.dt_emissao).slice(0, 10)}`, hipotese: "Transferencia_Pendente", compat: compatibilidade(Number(n.qtd), div), qtd: Number(n.qtd), data: n.dt_emissao });
+    sinais.push({ fonte: "Trânsito", titulo: `Nota de transferência ${n.nr_nf} sem recebimento`, detalhe: `${Number(n.qtd).toLocaleString("pt-BR")} un para ${n.almox}${n.lote ? ` · lote ${n.lote}` : ""} · emitida ${String(n.dt_emissao).slice(0, 10)}`, hipotese: "Transferencia_Pendente", compat: compatibilidade(Number(n.qtd), div), qtd: Number(n.qtd), data: n.dt_emissao, link: { tipo: "recebimento", nf: String(n.nr_nf), sku: String(n.cod_prod ?? d.sku) } });
   for (const t of transf.filter((x: any) => x.almoxarifado_origem === d.almoxarifado || x.almoxarifado_destino === d.almoxarifado))
-    sinais.push({ fonte: "Trânsito", titulo: `Transferência ${t.documento ?? ""} sem entrada no destino`, detalhe: `${Number(t.quantidade).toLocaleString("pt-BR")} un · ${t.almoxarifado_origem} → ${t.almoxarifado_destino}`, hipotese: "Transferencia_Pendente", compat: compatibilidade(Number(t.quantidade), div), qtd: Number(t.quantidade), data: t.data_saida });
+    sinais.push({ fonte: "Trânsito", titulo: `Transferência ${t.documento ?? ""} sem entrada no destino`, detalhe: `${Number(t.quantidade).toLocaleString("pt-BR")} un · ${t.almoxarifado_origem} → ${t.almoxarifado_destino}`, hipotese: "Transferencia_Pendente", compat: compatibilidade(Number(t.quantidade), div), qtd: Number(t.quantidade), data: t.data_saida, link: { tipo: "recebimento", nf: String(t.documento ?? ""), sku: String(t.sku ?? d.sku) } });
   // 3) Última contagem de loja / inventário por local (sobra ou falta)
   const ultimas = new Map<string, any>();
-  for (const c of [...invAtual, ...invArq]) { const k = String(c.origem); const o = ultimas.get(k); if (!o || String(c.data_contagem) > String(o.data_contagem)) ultimas.set(k, c); }
+  for (const c of [...invAtual.map((x: any) => ({ ...x, _atual: true })), ...invArq]) { const k = String(c.origem); const o = ultimas.get(k); if (!o || String(c.data_contagem) > String(o.data_contagem)) ultimas.set(k, c); }
   // contagens cíclicas (missões): soma os lotes da última missão contada de cada local
   const ultMissao = new Map<string, { m: any; prev: number; cont: number; lotes: string[] }>();
   for (const it of itensMissao) {
@@ -84,20 +92,20 @@ export async function coletarSinais(d: DivAnalise, descricao: string | null) {
   for (const [loc, x] of ultMissao) {
     const dv = x.cont - x.prev; if (Math.abs(dv) < 1e-9) continue;
     const oposto = Math.sign(dv) !== Math.sign(div) && div !== 0;
-    sinais.push({ fonte: "Contagem de loja / inventário", titulo: `Contagem cíclica em ${loc}: ${dv > 0 ? "sobra" : "falta"} de ${Math.abs(dv).toLocaleString("pt-BR")} un`, detalhe: `${String(x.m.data_execucao ?? "").slice(0, 10)} · ${x.m.titulo ?? "missão"} · sistema ${x.prev.toLocaleString("pt-BR")} × contado ${x.cont.toLocaleString("pt-BR")}${x.lotes.length ? ` · lote(s) ${[...new Set(x.lotes)].slice(0, 3).join(", ")}` : ""}${oposto ? " · sinal oposto ao desta divergência: o material pode ter ido para a loja sem transferência" : ""}`, hipotese: oposto ? "Transferencia_Pendente" : "Falha_Inventario", compat: oposto ? compatibilidade(dv, div) : "presenca", qtd: dv, data: x.m.data_execucao });
+    sinais.push({ fonte: "Contagem de loja / inventário", titulo: `Contagem cíclica em ${loc}: ${dv > 0 ? "sobra" : "falta"} de ${Math.abs(dv).toLocaleString("pt-BR")} un`, detalhe: `${String(x.m.data_execucao ?? "").slice(0, 10)} · ${x.m.titulo ?? "missão"} · sistema ${x.prev.toLocaleString("pt-BR")} × contado ${x.cont.toLocaleString("pt-BR")}${x.lotes.length ? ` · lote(s) ${[...new Set(x.lotes)].slice(0, 3).join(", ")}` : ""}${oposto ? " · sinal oposto ao desta divergência: o material pode ter ido para a loja sem transferência" : ""}`, hipotese: oposto ? "Transferencia_Pendente" : "Falha_Inventario", compat: oposto ? compatibilidade(dv, div) : "presenca", qtd: dv, data: x.m.data_execucao, link: { tipo: "missao", id: String(x.m.id) } });
   }
   for (const [loc, c] of ultimas) {
     const dv = Number(c.divergencia ?? (Number(c.quantidade_contada) - Number(c.saldo_sistemico))) || 0;
     if (!dv) continue;
     const oposto = Math.sign(dv) !== Math.sign(div) && div !== 0;
-    sinais.push({ fonte: "Contagem de loja / inventário", titulo: `Última contagem em ${loc}: ${dv > 0 ? "sobra" : "falta"} de ${Math.abs(dv).toLocaleString("pt-BR")} un`, detalhe: `${String(c.data_contagem).slice(0, 10)} · sistema ${c.saldo_sistemico} × contado ${c.quantidade_contada}${c.lote ? ` · lote ${c.lote}` : ""}${oposto ? " · sinal oposto ao desta divergência: o material pode ter ido para lá sem registro" : ""}`, hipotese: oposto ? "Transferencia_Pendente" : "Falha_Inventario", compat: oposto ? compatibilidade(dv, div) : "presenca", qtd: dv, data: c.data_contagem });
+    sinais.push({ fonte: "Contagem de loja / inventário", titulo: `Última contagem em ${loc}: ${dv > 0 ? "sobra" : "falta"} de ${Math.abs(dv).toLocaleString("pt-BR")} un`, detalhe: `${String(c.data_contagem).slice(0, 10)} · sistema ${c.saldo_sistemico} × contado ${c.quantidade_contada}${c.lote ? ` · lote ${c.lote}` : ""}${oposto ? " · sinal oposto ao desta divergência: o material pode ter ido para lá sem registro" : ""}`, hipotese: oposto ? "Transferencia_Pendente" : "Falha_Inventario", compat: oposto ? compatibilidade(dv, div) : "presenca", qtd: dv, data: c.data_contagem, link: c._atual ? { tipo: "inventario", busca: k0(d.sku) } : undefined });
   }
   // 4) Contagem de movimentados nas outras operações (±7 dias)
   for (const o of outras) {
     const q = Number(o.divergencia_qtd) || 0;
-    if (o.almoxarifado === d.almoxarifado) { sinais.push({ fonte: "Movimentados", titulo: `Nova divergência no mesmo almox em ${String(o.data_deteccao).slice(0, 10)}`, detalhe: `${q.toLocaleString("pt-BR")} un · ${o.status}${o.hipotese_confirmada ? ` · ${o.hipotese_confirmada}` : ""}`, hipotese: q === -div ? "Movimentacao_Duplicada" : "Erro_Operacional", compat: q === -div ? "exata" : "presenca", qtd: q, data: o.data_deteccao }); continue; }
+    if (o.almoxarifado === d.almoxarifado) { sinais.push({ fonte: "Movimentados", titulo: `Nova divergência no mesmo almox em ${String(o.data_deteccao).slice(0, 10)}`, detalhe: `${q.toLocaleString("pt-BR")} un · ${o.status}${o.hipotese_confirmada ? ` · ${o.hipotese_confirmada}` : ""}`, hipotese: q === -div ? "Movimentacao_Duplicada" : "Erro_Operacional", compat: q === -div ? "exata" : "presenca", qtd: q, data: o.data_deteccao, link: { tipo: "divergencia", id: Number(o.id) } }); continue; }
     const oposto = Math.sign(q) !== Math.sign(div);
-    sinais.push({ fonte: "Movimentados", titulo: `${q > 0 ? "Sobra" : "Falta"} de ${Math.abs(q).toLocaleString("pt-BR")} un em ${o.almoxarifado}`, detalhe: `${String(o.data_deteccao).slice(0, 10)} · ${o.status}${oposto ? " · compensa esta divergência: movimentação física sem transferência ou apontamento no almox errado" : ""}`, hipotese: oposto ? "Transferencia_Pendente" : "Erro_Operacional", compat: oposto ? compatibilidade(q, div) : "presenca", qtd: q, data: o.data_deteccao });
+    sinais.push({ fonte: "Movimentados", titulo: `${q > 0 ? "Sobra" : "Falta"} de ${Math.abs(q).toLocaleString("pt-BR")} un em ${o.almoxarifado}`, detalhe: `${String(o.data_deteccao).slice(0, 10)} · ${o.status}${oposto ? " · compensa esta divergência: movimentação física sem transferência ou apontamento no almox errado" : ""}`, hipotese: oposto ? "Transferencia_Pendente" : "Erro_Operacional", compat: oposto ? compatibilidade(q, div) : "presenca", qtd: q, data: o.data_deteccao, link: { tipo: "divergencia", id: Number(o.id) } });
   }
   // 5) Apontamento de OP do material (−5 a +2 dias)
   for (const p of ops) {
@@ -105,7 +113,7 @@ export async function coletarSinais(d: DivAnalise, descricao: string | null) {
     const naoApontado = Number(p.qtd_consumo) === 0 && Number(p.qtd_previsto) > 0;
     // falta no estoque + OP com consumo apontado abaixo do previsto: o consumo real saiu do estoque sem apontamento
     const indica = naoApontado || (div < 0 && dif < 0) || (div > 0 && dif > 0);
-    sinais.push({ fonte: "OP", titulo: `OP ${p.id_op} (${p.desc_produto || p.produto}) ${naoApontado ? "sem consumo apontado" : dif ? `apontou ${dif > 0 ? "+" : ""}${dif.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} vs ficha` : "aderente à ficha"}`, detalhe: `${String(p.data_producao).slice(0, 10)} · previsto ${p.qtd_previsto} · apontado ${p.qtd_consumo}`, hipotese: indica ? "Falha_No_Apontamento" : "Consumo_Parcial_OP", compat: indica ? compatibilidade(naoApontado ? Number(p.qtd_previsto) : dif, div) : "presenca", qtd: dif, data: p.data_producao });
+    sinais.push({ fonte: "OP", titulo: `OP ${p.id_op} (${p.desc_produto || p.produto}) ${naoApontado ? "sem consumo apontado" : dif ? `apontou ${dif > 0 ? "+" : ""}${dif.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} vs ficha` : "aderente à ficha"}`, detalhe: `${String(p.data_producao).slice(0, 10)} · previsto ${p.qtd_previsto} · apontado ${p.qtd_consumo}`, hipotese: indica ? "Falha_No_Apontamento" : "Consumo_Parcial_OP", compat: indica ? compatibilidade(naoApontado ? Number(p.qtd_previsto) : dif, div) : "presenca", qtd: dif, data: p.data_producao, link: { tipo: "op", material: String(p.material ?? d.sku) } });
   }
   // 6) Faturamento do SKU e de produtos semelhantes (±5 dias)
   for (const f of fat) sinais.push({ fonte: "Faturamento", titulo: `Faturamento do próprio SKU em ${String(f.data_faturamento).slice(0, 10)}`, detalhe: `${Number(f.quantidade).toLocaleString("pt-BR")} un${f.origem ? ` · ${f.origem}` : ""}`, hipotese: "Pendencia_Faturamento", compat: compatibilidade(Number(f.quantidade), div), qtd: Number(f.quantidade), data: f.data_faturamento });

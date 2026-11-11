@@ -40,7 +40,7 @@ async function usuarioAtual(): Promise<string> {
 }
 
 /** Lista de divergências; também exibida como aba dentro de Atlas › Movimentados. */
-export function DivergenciasPage({ embutido = false }: { embutido?: boolean }) {
+export function DivergenciasPage({ embutido = false, abrirId }: { embutido?: boolean; abrirId?: number }) {
   const { role } = useRole();
   const pode = role === "ADMINISTRADOR" || role === "GERENTE";
   const qc = useQueryClient();
@@ -48,7 +48,8 @@ export function DivergenciasPage({ embutido = false }: { embutido?: boolean }) {
   const [ordem, setOrdem] = useState<{ col: "data_deteccao" | "valor_estimado" | "confianca_ia" | "id"; asc: boolean }>({ col: "data_deteccao", asc: false });
   const [pag, setPag] = useState(0);
   const [sel, setSel] = useState<Set<number>>(new Set());
-  const [aberta, setAberta] = useState<number | null>(null);
+  const [aberta, setAberta] = useState<number | null>(abrirId ?? null);
+  useEffect(() => { if (abrirId) setAberta(abrirId); }, [abrirId]);
   const [lote, setLote] = useState(false);
   const [rodando, setRodando] = useState<string | null>(null);
   useEffect(() => { setPag(0); setSel(new Set()); }, [f, ordem]);

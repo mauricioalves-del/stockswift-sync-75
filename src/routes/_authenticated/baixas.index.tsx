@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -41,7 +41,12 @@ import { ResumoExecutivoBaixas, DetalheBaixaDialog, BadgeAprovacao } from "@/com
 
 
 
+type AbaBaixas = "nova" | "fila" | "historico";
 export const Route = createFileRoute("/_authenticated/baixas/")({
+  validateSearch: (s: Record<string, unknown>): { aba?: AbaBaixas; baixa?: string } => ({
+    ...(s.aba === "nova" || s.aba === "fila" || s.aba === "historico" ? { aba: s.aba } : {}),
+    ...(s.baixa ? { baixa: String(s.baixa) } : {}),
+  }),
   component: BaixasPage,
   head: () => ({ meta: [{ title: "Baixas Operacionais | Stock Savvy" }, { name: "description", content: "Solicitações de baixa, centros de custo, aprovação e histórico de estoque." }, { property: "og:title", content: "Baixas Operacionais | Stock Savvy" }, { property: "og:description", content: "Controle das baixas operacionais com centros de custo e rastreabilidade." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
@@ -61,6 +66,7 @@ const STATUS_TONES: Record<string, string> = {
 function BaixasPage() {
   const { isAdmin, role } = useRole();
   const podeImportar = isAdmin || role === "GERENTE";
+  const { aba, baixa } = Route.useSearch();
   return (
     <div className="w-full space-y-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -73,18 +79,30 @@ function BaixasPage() {
         {podeImportar && <ImportarBaixasDialog />}
       </div>
 
-      <Tabs defaultValue="nova">
+      <Tabs defaultValue={aba ?? "nova"}>
         <TabsList>
           <TabsTrigger value="nova">Nova Solicitação</TabsTrigger>
           <TabsTrigger value="fila">Fila de Aprovação</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
         <TabsContent value="nova"><NovaBaixaForm /></TabsContent>
-        <TabsContent value="fila"><FilaAprovacao /></TabsContent>
-        <TabsContent value="historico"><Historico /></TabsContent>
+        <TabsContent value="fila"><FilaAprovacao abrirId={aba === "fila" ? baixa : undefined} /></TabsContent>
+        <TabsContent value="historico"><Historico abrirId={aba === "historico" ? baixa : undefined} /></TabsContent>
       </Tabs>
     </div>
   );
+}
+
+/** Abre uma única vez o resumo da baixa indicada no link (ex.: vindo das evidências de uma divergência). */
+function useAbrirBaixaDoLink(abrirId: string | undefined, lista: any[] | undefined, abrir: (b: any) => void) {
+  const feito = useRef<string | null>(null);
+  useEffect(() => {
+    if (!abrirId || feito.current === abrirId || !lista) return;
+    const b = lista.find((x: any) => String(x.id) === abrirId);
+    if (!b) return;
+    feito.current = abrirId;
+    abrir(b);
+  }, [abrirId, lista]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 type CarrinhoItem = {
@@ -648,7 +666,7 @@ function useBaixas(statuses: string[]) {
   });
 }
 
-function FilaAprovacao() {
+function FilaAprovacao({ abrirId }: { abrirId?: string }) {
   const { isAdmin } = useRole();
   const { roles: meusPapeis } = useMyRoles();
   const minhasEtapas = useMemo<Etapa[]>(() => {
@@ -679,6 +697,7 @@ function FilaAprovacao() {
   const [fAssinatura, setFAssinatura] = useState("todos");
   const [editando, setEditando] = useState<any | null>(null);
   const [detalhe, setDetalhe] = useState<any | null>(null);
+  useAbrirBaixaDoLink(abrirId, data, (b) => { setDetalhe(b); setFCodigo(String(b.codigo_produto ?? "")); });
   const [assinando, setAssinando] = useState(false);
   const [aprovandoAdmin, setAprovandoAdmin] = useState(false);
   const [nfeIds, setNfeIds] = useState<string[] | null>(null);
@@ -1495,7 +1514,7 @@ function EditarBaixaDialog({ baixa, onClose, onSaved }: { baixa: any | null; onC
   );
 }
 
-function Historico() {
+function Historico({ abrirId }: { abrirId?: string }) {
   const { isAdmin } = useRole();
   const qc = useQueryClient();
   const { data } = useBaixas(["APROVADA", "REPROVADA", "EXECUTADA"]);
@@ -1506,6 +1525,7 @@ function Historico() {
   const [sortBy, setSortBy] = useState<"data" | "valor">("valor");
   const [ordem, setOrdem] = useState<"desc" | "asc">("desc");
   const [detalhe, setDetalhe] = useState<any | null>(null);
+  useAbrirBaixaDoLink(abrirId, data, (b) => { setDetalhe(b); setBusca(String(b.codigo_produto ?? "")); });
 
   const motivosUnicos = useMemo(() => {
     const s = new Set<string>();

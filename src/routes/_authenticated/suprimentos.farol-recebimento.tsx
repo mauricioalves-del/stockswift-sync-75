@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,10 @@ import { diasUteisEntre } from "@/lib/recebimento-transferencias";
 import { ImportarRecebimentoDialog } from "@/components/suprimentos/ImportarRecebimentoDialog";
 
 export const Route = createFileRoute("/_authenticated/suprimentos/farol-recebimento")({
+  validateSearch: (s: Record<string, unknown>): { nf?: string; sku?: string } => ({
+    ...(s.nf ? { nf: String(s.nf) } : {}),
+    ...(s.sku ? { sku: String(s.sku) } : {}),
+  }),
   component: FarolRecebimentoPage,
   head: () => ({ meta: [
     { title: "Farol de Recebimento Pendente — Controle Operacional" },
@@ -47,7 +51,10 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+const semZeros = (v: unknown) => String(v ?? "").trim().replace(/^0+/, "");
+
 function FarolRecebimentoPage() {
+  const { nf: nfLink, sku: skuLink } = Route.useSearch();
   const pendentesQ = useQuery({
     queryKey: ["farol-recebimento-pendente"],
     queryFn: async () => {
@@ -83,6 +90,17 @@ function FarolRecebimentoPage() {
       .map((r) => ({ ...r, diasUteis: diasUteisEntre(r.dt_emissao, hoje) }))
       .sort((a, b) => b.diasUteis - a.diasUteis);
   }, [pendentesQ.data, hoje]);
+
+  // Filtro vindo de um link (ex.: evidências de divergência): a nota indicada; sem ela, as notas pendentes do SKU.
+  const filtroLink = useMemo(() => {
+    if (!nfLink && !skuLink) return null;
+    const porNota = nfLink ? porNF.filter((r) => semZeros(r.nr_nf) === semZeros(nfLink)) : [];
+    if (porNota.length) return { linhas: porNota, achouNota: true };
+    const porSku = skuLink ? porNF.filter((r) => r.produtos.some((p) => semZeros(p.cod_prod) === semZeros(skuLink))) : [];
+    return { linhas: porSku, achouNota: false };
+  }, [porNF, nfLink, skuLink]);
+  const linhas = filtroLink ? filtroLink.linhas : porNF;
+  const abertasEf = (nf: string) => abertas[nf] ?? (filtroLink !== null && linhas.length <= 3);
 
   const totalGeral = porNF.reduce((s, r) => s + r.valor, 0);
   const totalItens = porNF.reduce((s, r) => s + r.itens, 0);
@@ -128,9 +146,21 @@ function FarolRecebimentoPage() {
         </Card>
       </div>
 
+      {filtroLink && !pendentesQ.isLoading && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-violet-300 bg-violet-50 px-3 py-2 text-sm dark:border-violet-800 dark:bg-violet-950/30">
+          <span>
+            {filtroLink.achouNota
+              ? <>Mostrando a nota <b>{nfLink}</b>.</>
+              : <>{nfLink ? <>O documento <b>{nfLink}</b> não está entre as notas pendentes de recebimento (pode já ter sido recebido ou ainda não ter sido importado). </> : null}
+                {skuLink ? <>{linhas.length ? <>Notas pendentes com o produto <b>{skuLink}</b>:</> : <>Nenhuma nota pendente com o produto <b>{skuLink}</b>.</>}</> : null}</>}
+          </span>
+          <Link to="/suprimentos/farol-recebimento" search={{}} className="ml-auto text-xs font-medium underline">Ver todas as notas</Link>
+        </div>
+      )}
+
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">{porNF.length} nota(s) pendente(s) de recebimento</CardTitle>
+          <CardTitle className="text-base">{linhas.length} nota(s) pendente(s) de recebimento</CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
@@ -149,10 +179,10 @@ function FarolRecebimentoPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {porNF.map((r) => (
+              {linhas.map((r) => (
                 <Fragment key={r.nr_nf}>
-                <TableRow className="cursor-pointer" onClick={() => setAbertas((a) => ({ ...a, [r.nr_nf]: !a[r.nr_nf] }))}>
-                  <TableCell>{abertas[r.nr_nf] ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}</TableCell>
+                <TableRow className="cursor-pointer" onClick={() => setAbertas((a) => ({ ...a, [r.nr_nf]: !abertasEf(r.nr_nf) }))}>
+                  <TableCell>{abertasEf(r.nr_nf) ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}</TableCell>
                   <TableCell>{r.estado || "—"}</TableCell>
                   <TableCell className="font-mono text-xs">{r.nr_nf}</TableCell>
                   <TableCell>{fmtDataBR(r.dt_emissao)}</TableCell>
@@ -167,7 +197,7 @@ function FarolRecebimentoPage() {
                   <TableCell className="text-right">{fmtNum(r.qtd)}</TableCell>
                   <TableCell className="text-right font-medium">{fmtBRL(r.valor)}</TableCell>
                 </TableRow>
-                {abertas[r.nr_nf] && (
+                {abertasEf(r.nr_nf) && (
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
                     <TableCell colSpan={10} className="p-3">
                       <Table>
@@ -197,7 +227,7 @@ function FarolRecebimentoPage() {
                 )}
                 </Fragment>
               ))}
-              {!porNF.length && (
+              {!linhas.length && (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center text-muted-foreground py-6">
                     {pendentesQ.isLoading ? "Carregando..." : "Nenhuma transferência pendente de recebimento."}

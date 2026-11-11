@@ -2,10 +2,11 @@
 // gráficos do histórico do SKU (divergências, falta × sobra, motivos e acurácia dos apontamentos).
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Brain, Loader2, PackageSearch, Truck, ClipboardList, Factory, Receipt, History, Boxes } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Brain, Loader2, PackageSearch, Truck, ClipboardList, Factory, Receipt, History, Boxes, ExternalLink } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
-import { analisarIA, coletarSinais, type DivAnalise, type Sinal } from "@/lib/atlas-analise";
+import { analisarIA, coletarSinais, type DivAnalise, type LinkSinal, type Sinal } from "@/lib/atlas-analise";
 
 const sb = supabase as any;
 const ICONE: Record<string, any> = { Baixas: PackageSearch, "Trânsito": Truck, "Contagem de loja / inventário": ClipboardList, Movimentados: Boxes, OP: Factory, Faturamento: Receipt };
@@ -15,6 +16,20 @@ const COMPAT: Record<string, { rot: string; cls: string }> = {
 };
 const CORES = ["#2563eb", "#f59e0b", "#16a34a", "#dc2626", "#8b5cf6", "#0891b2", "#db2777", "#65a30d"];
 const dm = (s?: string | null) => (s ? `${s.slice(8, 10)}/${s.slice(5, 7)}` : "—");
+
+/** Link direto para o registro que pode ter causado a divergência (abre em nova aba para manter a análise aberta). */
+function LinkEvidencia({ l }: { l: LinkSinal }) {
+  const cls = "inline-flex items-center gap-1 rounded border border-violet-300 bg-violet-50 px-1.5 py-0.5 text-[11px] font-medium text-violet-700 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-300";
+  const ic = <ExternalLink className="size-3" />;
+  switch (l.tipo) {
+    case "baixa": return <Link to="/baixas" search={{ aba: l.aba, baixa: l.id }} target="_blank" className={cls}>{ic}Abrir baixa</Link>;
+    case "recebimento": return <Link to="/suprimentos/farol-recebimento" search={{ nf: l.nf || undefined, sku: l.sku || undefined }} target="_blank" className={cls}>{ic}Ver recebimento</Link>;
+    case "missao": return <Link to="/missoes/$id" params={{ id: l.id }} target="_blank" className={cls}>{ic}Abrir contagem</Link>;
+    case "inventario": return <Link to="/inventario" search={{ busca: l.busca }} target="_blank" className={cls}>{ic}Ver inventário</Link>;
+    case "divergencia": return <Link to="/atlas/painel" search={{ visao: "divergencias", div: l.id }} target="_blank" className={cls}>{ic}Abrir divergência #{l.id}</Link>;
+    case "op": return <Link to="/producao/material/$material" params={{ material: l.material }} target="_blank" className={cls}>{ic}Ver OPs do material</Link>;
+  }
+}
 
 export function AnaliseDivergencia({ d, motor, nomeHip, descricao, onUsar }: { d: DivAnalise; motor: { hipotese: string; confianca: number }[]; nomeHip: (c?: string | null) => string; descricao: string | null; onUsar?: (hipotese: string) => void }) {
   const [aba, setAba] = useState<"ia" | "sinais" | "graficos">("ia");
@@ -98,7 +113,8 @@ export function AnaliseDivergencia({ d, motor, nomeHip, descricao, onUsar }: { d
           <div className="mb-1 flex items-center gap-2 text-sm font-semibold"><Ic className="size-4 text-violet-600" />{f}<span className="ml-auto text-xs font-normal text-muted-foreground">{ss.length ? `${ss.length} achado(s)` : "nada encontrado"}</span></div>
           {ss.length === 0 ? <p className="text-xs text-muted-foreground">Sem registro na janela da divergência.</p> : <ul className="space-y-1.5">{ss.slice(0, 6).map((s, i) => <li key={i} className="text-xs">
             <div className="flex items-start gap-1.5"><span className={`shrink-0 rounded px-1.5 text-[10px] font-semibold ${COMPAT[s.compat].cls}`}>{COMPAT[s.compat].rot}</span><span className="font-medium">{s.titulo}</span></div>
-            <div className="pl-1 text-muted-foreground">{s.detalhe} → <span className="text-foreground">{nomeHip(s.hipotese)}</span></div></li>)}</ul>}
+            <div className="pl-1 text-muted-foreground">{s.detalhe} → <span className="text-foreground">{nomeHip(s.hipotese)}</span></div>
+            {s.link && <div className="mt-0.5 pl-1"><LinkEvidencia l={s.link} /></div>}</li>)}</ul>}
         </div>); })}</div>}
 
       {aba === "graficos" && <div className="grid gap-4 lg:grid-cols-2">

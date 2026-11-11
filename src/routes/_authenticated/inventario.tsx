@@ -13,6 +13,7 @@ import { ClipboardList, ScanLine, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/inventario")({
+  validateSearch: (s: Record<string, unknown>): { busca?: string } => (s.busca ? { busca: String(s.busca) } : {}),
   component: InventarioPage,
   head: () => ({ meta: [{ title: "Inventário" }] }),
 });
@@ -20,7 +21,8 @@ export const Route = createFileRoute("/_authenticated/inventario")({
 const PAGE_SIZE = 25;
 
 function InventarioPage() {
-  const [search, setSearch] = useState("");
+  const { busca } = Route.useSearch();
+  const [search, setSearch] = useState(busca ?? "");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(0);
 
