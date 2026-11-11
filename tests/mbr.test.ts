@@ -54,7 +54,7 @@ test("Gera o .pptx da Seção 2 com dados mínimos", async () => {
   expect(d.kpis.acuracia).toBe(100);
   const { pptx, nomeArquivo } = montarMbr(F, "2026-09");
   expect(nomeArquivo).toBe("MBR_Controle_202609.pptx");
-  expect((pptx as any).slides.length).toBe(31); // sem fontes da Seção 3/4: cada slide sai com o aviso de indisponível
+  expect((pptx as any).slides.length).toBe(34); // +Itens sem movimentação item a item, Furo de ficha e Rupturas; sem fontes da Seção 3/4: cada slide sai com o aviso de indisponível
   const buf = (await pptx.write({ outputType: "nodebuffer" })) as Buffer;
   expect(buf.length).toBeGreaterThan(10000);
   // PowerPoint pede "Reparar" quando o rótulo de dados usa uma posição que o tipo de gráfico não aceita (ex.: inEnd em linha)
@@ -154,6 +154,6 @@ test("Metas: leitura do export \"Minhas metas\" (pesos, mês, alerta de acumulad
 test("Scorecard do mês: ordem do modelo final e status por frente", () => {
   const d: any = { kpis: { acuracia: 81.8, total: 811, divergentes: 10, resultado: 0 }, comparativo: { item: 81.8, iaq: 99, iap: 99.6, gap: -17.8 }, evolucaoPonderada: [], movimentados: { pct: 87, itens_analisados: 100, itens_com_divergencia: 13 }, evolucaoMovimentados: [{ mes: "2026-05", pct: 66 }, { mes: "2026-09", pct: 87 }] };
   const l = montarScorecard({ d, baixas: null, pacotes: null, farol: null, obsolescencia: null, fefo: null });
-  expect(l.map((x) => x.frente)).toEqual(["Acurácia Ponderada", "Painel de Inventário", "Mapeamento de Passivos", "Shelf Life", "Mapeamento de Risco (Obsolescência)", "Controle de Movimentados"]);
+  expect(l.map((x) => x.frente)).toEqual(["Acurácia Ponderada", "Painel de Inventário", "Mapeamento de Passivos", "Shelf Life", "Itens sem Movimentação (risco de validade sem giro)", "Controle de Movimentados"]);
   expect([l[0].status.label, l[1].status.label, l[5].status.label]).toEqual(["Em avanço", "Crítico", "Em avanço"]);
 });
