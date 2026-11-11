@@ -233,10 +233,13 @@ export function slideAberturaSecao(p: Pptx, mesLabel: string, pagina: number, n:
   texto(s, MARGEM + 3.4, 2.35, LARGURA - 2 * MARGEM - 3.4, 0.6, descricao, { tamanho: 14, cor: COR.AZUL_CLARO });
   let y = 3.35;
   texto(s, MARGEM, y, 4, 0.28, "NESTA SEÇÃO", { tamanho: 11, negrito: true, cor: COR.AZUL_CLARO }); y += 0.4;
-  for (const it of itens) {
-    texto(s, MARGEM, y, 0.24, 0.3, "•", { tamanho: 14, negrito: true, cor: COR.AZUL_CLARO });
-    texto(s, MARGEM + 0.28, y, LARGURA - 2 * MARGEM - 0.28, 0.3, it, { tamanho: 13, cor: COR.BRANCO }); y += 0.4;
-  }
+  // lista em duas colunas quando a seção tem muitos itens, para não passar do rodapé
+  const duas = itens.length > 8, porCol = duas ? Math.ceil(itens.length / 2) : itens.length, passo = Math.min(0.4, (ALTURA - 0.7 - y) / Math.max(1, porCol)), lw = duas ? (LARGURA - 2 * MARGEM) / 2 : LARGURA - 2 * MARGEM;
+  itens.forEach((it, i) => {
+    const col = duas && i >= porCol ? 1 : 0, yy = y + (i - col * porCol) * passo, xx = MARGEM + col * lw;
+    texto(s, xx, yy, 0.24, 0.3, "•", { tamanho: 14, negrito: true, cor: COR.AZUL_CLARO });
+    texto(s, xx + 0.28, yy, lw - 0.4, 0.3, it, { tamanho: 13, cor: COR.BRANCO });
+  });
   texto(s, LARGURA - 2.9, ALTURA - 0.42, 2.4, 0.3, String(pagina).padStart(2, "0"), { tamanho: 10, cor: COR.AZUL_CLARO, alinhamento: "right" });
 }
 export const novoSlide = (p: Pptx) => { const s = p.addSlide(); fundo(s, COR.BRANCO); return s; };
