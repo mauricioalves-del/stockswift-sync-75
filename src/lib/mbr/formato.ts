@@ -55,6 +55,8 @@ export function fmtNum(v: number | null | undefined, casas = 0) {
   return (v < 0 && Number(t) !== 0 ? "-" : "") + milhar + (dec ? "," + dec : "");
 }
 export const fmtPct = (v: number | null | undefined, casas = 1) => (v == null ? "—" : `${fmtNum(v, casas)}%`);
+/** Diferença entre percentuais: pontos percentuais (pp), padrão do Operations Report. */
+export const fmtPP = (v: number | null | undefined, casas = 1) => (v == null ? "—" : `${fmtNum(v, casas)} pp`);
 export const fmtMoeda = (v: number | null | undefined, casas = 0) => (v == null ? "—" : `${v < 0 ? "-" : ""}R$ ${fmtNum(Math.abs(v), casas)}`);
 export const fmtSinal = (v: number | null | undefined, fmt: (x: number) => string) => (v == null ? "—" : v >= 0 ? `+${fmt(v)}` : fmt(v));
 
