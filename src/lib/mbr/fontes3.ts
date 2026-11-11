@@ -12,6 +12,7 @@ import {
 } from "./dados3";
 
 const sb = supabase as any;
+import { carregarRupturas } from "./rupturas";
 export const CHAVE_METAS = "metas_individuais";
 export const SKU_TESTE_INDUSTRIAL = "05104122";
 
@@ -72,7 +73,7 @@ export async function carregarRiscos(mes: string, hoje = new Date(), progresso?:
     }),
     seguro("Farol de Shelf-Life", falhas, () => tudo<any>("estoque_sistemico", "id, id_produto, descricao, lote, quantidade, custo_unitario, origem, data_validade", (q) => q.gt("quantidade", 0))),
     seguro("Giro do Controle de Movimentados", falhas, () => tudo<any>("atlas_movimentacoes_historico", "id, sku, saida", (q) => q.eq("origem", "movimentacao").gte("data_movimento", inicio90))),
-    seguro("Risco de Obsolescência", falhas, () => tudo<any>("v_risco_obsoletos", "id_produto, descricao, almoxarifado, lote, valor, faixa", (q) => q.neq("faixa", "movimentado"), ["id_produto", "almoxarifado", "lote"])),
+    seguro("Itens sem movimentação", falhas, () => tudo<any>("v_risco_obsoletos", "id_produto, descricao, almoxarifado, lote, valor, faixa", (q) => q.neq("faixa", "movimentado"), ["id_produto", "almoxarifado", "lote"])),
   ]);
   const lf = lotes ? lotesFarol(lotes, grupoUpper, hoje) : null;
   const giro = new Map<string, number>();
@@ -126,6 +127,7 @@ export async function carregarRiscos(mes: string, hoje = new Date(), progresso?:
     testes: testes ? testesIndustriais(testes, mes) : null,
     fefo: fefo && justs && grupos ? controleFefo(aplicarJustificativas(fefo, justs), resolvedorGrupoFefo(grupos), mes) : null,
     fechamento, metas,
+    rupturas: await seguro("Disponibilidade das lojas (rupturas)", falhas, () => carregarRupturas(mes)),
   };
 }
 export type Riscos = Awaited<ReturnType<typeof carregarRiscos>>;
