@@ -8,6 +8,7 @@ import { slideAberturaSecao, slideCapa } from "./kit";
 import { ITENS_SECAO2, SLIDES_SECAO2 } from "./secao2";
 import { ITENS_SECAO1, slideResumoExecutivo, slideScorecard, type Consolidado } from "./secao1";
 import { slideRupturas } from "./rupturas";
+import { marcosLinhaTempo, slideAutomacoes, slideLinhaTempo, slidesPdca } from "./automacoes";
 import { slideDivergenciasAtlas, slideDoisPiores, slideEvolucaoControles, slidePlanoAcao, slidePonteValor, slideRupturaExcesso, slideScorecardExec, type Extras } from "./executivo";
 import { DESCRICAO_SECAO3, ITENS_SECAO3, slideBaixas, slideDispersao, slideFarol, slideFefo, slideFuroFicha, slideInvestimento, slideItensSemMov, slidePacotes, slideRecuperacao, slideSemMovimentacao, slideTestes } from "./secao3";
 import { slideAberturaAtlas, slideAberturaMetas, slideFechamentoModulos, slideImpacto, slideMetas, slideProximosPassos, slidesFechamentoAcoes } from "./secao4";
@@ -78,6 +79,9 @@ export function montarMbr(F: FontesMbr, mes: string, geradoEm = new Date(), R: P
   slideAberturaAtlas(p, rotulo, prox());
   slideImpacto(p, rotulo, prox(), c, controlesIntegrados(R));
   slideDivergenciasAtlas(p, rotulo, prox(), R?.atlas ?? null);
+  slideAutomacoes(p, rotulo, prox(), R?.automacoes ?? null);
+  slideLinhaTempo(p, rotulo, prox(), marcosLinhaTempo(mes, c, X));
+  slidesPdca(p, rotulo, prox, c, X);
   slideFechamentoModulos(p, rotulo, prox(), R?.fechamento ?? null);
   slidesFechamentoAcoes(p, rotulo, prox, R?.fechamento ?? null);
   slidePlanoAcao(p, rotulo, prox(), R?.fechamento ?? null);
