@@ -37,6 +37,52 @@ function valorMeta(m: Meta, v: number | null, texto: string | null) {
   return u === "%" ? fmtPct(v) : ["R$", "RS", "REAIS"].includes(u) ? fmtMoeda(v, 2) : fmtNum(v, 1);
 }
 export function slideMetas(p: Pptx, mesLabel: string, pag: number, dado: DadosMetas | null, fech: DadosFechamento | null) {
+  if (dado && !dado.metas.some((m) => m.menorMelhor !== undefined)) return slideMetasLegado(p, mesLabel, pag, dado, fech);
+  const s = novoSlide(p);
+  if (!dado) {
+    cabecalho(s, "Metas Individuais", mesLabel, pag, "Metas individuais x resultados operacionais consolidados — filtrado pelo mês deste relatório");
+    caixaLeitura(s, MARGEM, 1.6, LC, 1.4, "Metas Individuais ainda não enviadas", "Suba o .html exportado da tela \"Minhas metas\" na tela do MBR (Atlas > MBR) para que as metas do mês apareçam neste relatório.", { corRotulo: COR.ATENCAO, tamanho: 13 });
+    return;
+  }
+  const M = dado.metas, mesNome = mesLabel.split(" ")[0].toLowerCase();
+  const batidas = M.filter((m) => m.batidaMes).length, batAc = M.filter((m) => m.batidaAcum).length;
+  const perdas = M.filter((m) => m.menorMelhor && m.metaMes != null && m.realizadoMes != null);
+  const folga = (m: Meta) => (m.metaMes ? (1 - Math.abs(m.realizadoMes!) / Math.abs(m.metaMes)) * 100 : 0);
+  cabecalho(s, `${batidas} de ${M.length} metas batidas em ${mesNome}${perdas.length ? `; perdas ${perdas.map((m) => `${fmtNum(folga(m), 0)}%`).join(" e ")} abaixo do teto` : ""}`, mesLabel, pag, `Metas individuais de ${dado.colaborador ?? "—"} — atingimento recalculado pelo sentido de cada meta (perda: menor é melhor).`);
+  const corr = M.filter((m) => m.corrigida).length;
+  linhaKpis(s, 1.62, [
+    { valor: `${batidas}/${M.length}`, rotulo: `Metas batidas em ${mesNome}`, cor: batidas === M.length ? COR.SUCESSO : COR.ATENCAO },
+    { valor: `${batAc}/${M.length}`, rotulo: "Batidas no acumulado", cor: batAc === M.length ? COR.SUCESSO : COR.ATENCAO },
+    ...perdas.slice(0, 2).map((m) => ({ valor: fmtMoeda(m.realizadoMes, 0), rotulo: `${/acabado/i.test(m.descricao) ? "Prejuízo PA" : /mat[ée]ria/i.test(m.descricao) ? "Prejuízo MP" : corteMeta(m.descricao, 14)} · teto ${fmtMoeda(m.metaMes, 0)}`, cor: COR.SUCESSO })),
+    { valor: fmtNum(corr), rotulo: "Atingimentos corrigidos", cor: corr ? COR.ATENCAO : COR.SUCESSO },
+  ], 0.7);
+  const fmtV = (m: Meta, v: number | null | undefined) => (v == null ? "—" : (m.unidade ?? "").includes("%") ? fmtPct(v, 2) : fmtMoeda(v, 0));
+  const linhas: Celula[][] = M.map((m) => {
+    const st = m.batidaMes == null ? { t: "—", cor: COR.CINZA_TEXTO } : m.batidaMes ? { t: "Batida", cor: COR.SUCESSO } : { t: "Não batida", cor: COR.ERRO };
+    return [corteMeta(m.descricao, 40), m.tipo === "booleano" ? "Sim/Não" : m.menorMelhor ? "Menor é melhor" : "Maior é melhor",
+      m.tipo === "booleano" ? "Sim" : fmtV(m, m.metaMes), m.tipo === "booleano" ? (m.realizadoTexto ?? "—") : fmtV(m, m.realizadoMes),
+      { t: m.atingMes == null ? "—" : fmtPct(m.atingMes, 0), negrito: true, cor: m.batidaMes ? COR.SUCESSO : COR.ERRO },
+      { t: m.atingOrigemMes == null ? "—" : `${fmtNum(m.atingOrigemMes, 0)}%`, cor: m.corrigida ? COR.ERRO : COR.CINZA_TEXTO },
+      m.tipo === "booleano" ? "—" : `${fmtV(m, m.realAcum)} × ${fmtV(m, m.metaAcum)} (${m.atingAcum == null ? "—" : fmtPct(m.atingAcum, 0)})`,
+      { t: st.t, cor: st.cor, negrito: true }];
+  });
+  const hT = Math.min(2.7, 0.42 + 0.4 * linhas.length);
+  tabela(s, MARGEM, 2.5, LC, hT, ["Meta", "Sentido", "Meta (mês)", "Realizado (mês)", "Atingimento", "Export mostrava", "Acumulado: real × meta", "Status"], linhas, { larguras: [3.3, 1.35, 1.15, 1.3, 1.05, 1.15, 2.55, 0.98], tamanho: 9.5 });
+  const y = 2.5 + hT + 0.2, lm = (LC - 0.3) / 2, hB = Math.max(1.1, ALTURA - 0.55 - y);
+  const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const metaMp = M.find((m) => norm(m.descricao).includes("prejuizo") && norm(m.descricao).includes("materia prima"));
+  const perdaReal = fech?.pnl?.perda_real;
+  if (metaMp?.realizadoMes != null && perdaReal != null) {
+    const div = (Math.abs(Math.abs(metaMp.realizadoMes) - Math.abs(perdaReal)) / Math.max(Math.abs(perdaReal), 1)) * 100, ok = div <= 15;
+    caixaLeitura(s, MARGEM, y, lm, hB, "Cruzamento com o Stock Savvy — prejuízo de matéria-prima", `Meta individual: ${fmtMoeda(metaMp.realizadoMes, 2)} · Fechamento Mensal ("perda real"): ${fmtMoeda(perdaReal, 2)} · diferença ${fmtPct(div)}. ${ok ? "Os dois números batem dentro da margem de 15%." : "Diferença acima de 15%: conferir a origem dos lançamentos."}`, { corRotulo: ok ? COR.SUCESSO : COR.ATENCAO, tamanho: 10 });
+  } else caixaLeitura(s, MARGEM, y, lm, hB, "Cruzamento com o Stock Savvy — prejuízo de matéria-prima", "O Fechamento Mensal deste mês não tem perda real calculada para cruzar com a meta.", { corRotulo: COR.ATENCAO, tamanho: 10 });
+  const exPerda = perdas[0];
+  caixaLeitura(s, MARGEM + lm + 0.3, y, lm, hB, "Leitura da métrica", corr ? `O export calcula Real ÷ Meta também para metas de perda: em ${exPerda ? `"${corteMeta(exPerda.descricao, 34)}" a perda de ${fmtMoeda(exPerda.realizadoMes, 0)} contra teto de ${fmtMoeda(exPerda.metaMes, 0)} aparece como ${fmtNum(exPerda.atingOrigemMes, 0)}%` : "metas de perda o atingimento aparece invertido"}, como se a meta não tivesse sido batida. Para perda, menor é melhor: atingimento = Meta ÷ Real — perda abaixo do teto fica acima de 100%. Ajustar a fórmula na ferramenta de metas.` : "Atingimentos do export coerentes com o sentido de cada meta.", { corRotulo: corr ? COR.ATENCAO : COR.SUCESSO, tamanho: 10 });
+  texto(s, MARGEM, ALTURA - 0.45, LC, 0.32, `Fonte: export "Minhas metas" enviado na tela do MBR${dado.enviadoEm ? ` em ${dado.enviadoEm}` : ""}. Atingimento recalculado pelo Stock Savvy; a coluna "Export mostrava" traz o número original.`, { tamanho: 9, italico: true });
+}
+const corteMeta = (t: string, n: number) => (t.length > n ? t.slice(0, n).replace(/\s+\S*$/, "") + "…" : t);
+
+function slideMetasLegado(p: Pptx, mesLabel: string, pag: number, dado: DadosMetas | null, fech: DadosFechamento | null) {
   const s = novoSlide(p);
   cabecalho(s, "Metas Individuais", mesLabel, pag, "Metas individuais x resultados operacionais consolidados — filtrado pelo mês deste relatório");
   if (!dado) {
