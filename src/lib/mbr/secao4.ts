@@ -78,7 +78,7 @@ export function slideMetas(p: Pptx, mesLabel: string, pag: number, dado: DadosMe
 
 // ---------- Atlas ----------
 export const MODULOS_NATIVOS = ["Painel de Inventário — fechamento por almoxarifado", "Acurácia Ponderada por Valor (IAP)", "Mapeamento de Passivos e Baixas Operacionais", "Shelf Life — Farol de Validade", "Mapeamento de Risco de Itens sem Movimentação", "Controle de Movimentados — reconciliação diária"];
-export const ITENS_ATLAS = ["Impacto do Atlas", "Divergências e IA do Atlas", "Fechamento Stock Savvy — Mapeamento por Módulo", "Fechamento Stock Savvy — Principais Ações", "Plano de Ação e Follow-up", "Próximos Passos"];
+export const ITENS_ATLAS = ["Impacto do Atlas", "Divergências e IA do Atlas", "Automações em Operação", "Linha do Tempo das Implantações", "PDCA da Operação de Controle", "Fechamento Stock Savvy — Mapeamento por Módulo", "Fechamento Stock Savvy — Principais Ações", "Plano de Ação e Follow-up", "Próximos Passos"];
 export function slideAberturaAtlas(p: Pptx, mesLabel: string, pag: number) {
   slideAberturaSecao(p, mesLabel, pag, 4, 4, "Atlas", "Cobertura de processos hoje e melhorias esperadas com o uso contínuo da ferramenta.", ITENS_ATLAS);
 }
