@@ -53,7 +53,7 @@ export async function carregarAtlasMbr(mes: string) {
 }
 export type DadosAtlasMbr = Awaited<ReturnType<typeof carregarAtlasMbr>>;
 
-export type Extras = { rupturas: DadosRupturas | null; dispersao: DadosDispersao | null; semMov: DadosSemMov | null; recuperacao: DadosRecuperacao | null; fechamento: DadosFechamento | null; atlas: DadosAtlasMbr | null;
+export type Extras = { mes?: string; rupturas: DadosRupturas | null; dispersao: DadosDispersao | null; semMov: DadosSemMov | null; recuperacao: DadosRecuperacao | null; fechamento: DadosFechamento | null; atlas: DadosAtlasMbr | null;
   metas?: DadosMetas | null; automacoes?: { linhas: { envios: number | null }[] } | null };
 
 // ---------------- 1 · Scorecard executivo ----------------
@@ -92,25 +92,37 @@ export function slideScorecardExec(p: Pptx, mesLabel: string, pag: number, c: Co
   caixaLeitura(s, MARGEM, 5.95, LC, 1.0, "Leitura executiva", piores.length ? `Fora da meta: ${piores.map((l) => `${l.frente} (${l.val} vs. meta ${l.meta})`).join("; ")}. As metas padrão estão no gerador e podem virar cadastro em Configurações.` : "Todas as frentes dentro da meta no mês.", { tamanho: 10.5 });
 }
 
-// ---------------- 2 · Ponte de valor ----------------
+// ---------------- 2 · Ponte de valor (mês analisado) ----------------
+/**
+ * Ponte de valor só do mês do relatório: recuperação de shelf e divergências resolvidas no mês, fichas técnicas que
+ * não repetiram o erro depois do farol (valor que deixou de ser perdido), resultado do inventário, perda por
+ * vencimento do mês e dispersão reincidente (mesma ficha errando de novo). Baixas operacionais ficam de fora.
+ */
 export function slidePonteValor(p: Pptx, mesLabel: string, pag: number, c: Consolidado, x: Extras) {
-  const s = novoSlide(p);
-  const inv = c.d.kpis.resultado ?? 0, rec = x.recuperacao ? (x.recuperacao.receitaRecuperada ?? 0) + (x.recuperacao.savingRecuperado ?? 0) : 0;
-  const div = x.atlas?.valorResolvido ?? 0;
-  const etapas: [string, number][] = [["Recuperação de shelf", rec], ["Divergências resolvidas", div], ["Resultado do inventário", inv], ["Baixas operacionais", -(c.baixas?.total ?? 0)], ["Perda por vencimento", -(x.recuperacao?.perdaVencimento ?? 0)], ["Dispersão (perda de processo)", -(x.dispersao?.totalPerdaProcesso ?? 0)]];
+  const s = novoSlide(p), mes = x.mes ?? "";
+  const rm = x.recuperacao?.mensal?.find((m) => m.mes === mes);
+  const inv = c.d.kpis.resultado ?? 0, cor = x.dispersao?.correcao;
+  const etapas: [string, number][] = [
+    ["Recuperação de shelf no mês", rm ? rm.receita + rm.saving : 0],
+    ["Divergências resolvidas", x.atlas?.valorResolvido ?? 0],
+    ["Fichas corrigidas após o farol", cor?.valorCorrigido ?? 0],
+    ["Resultado do inventário", inv],
+    ["Perda por vencimento", -(rm?.perda ?? 0)],
+    ["Dispersão reincidente", -(cor?.perdaReincidente ?? 0)],
+  ];
   const perdas = -etapas.filter(([, v]) => v < 0).reduce((a, [, v]) => a + v, 0), ganhos = etapas.filter(([, v]) => v > 0).reduce((a, [, v]) => a + v, 0), liq = ganhos - perdas;
-  cabecalho(s, `Controle recuperou ${fmtMoeda(ganhos)} e registrou ${fmtMoeda(perdas)} de perdas: líquido de ${liq >= 0 ? "+" : ""}${fmtMoeda(liq)}`, mesLabel, pag, "Ponte de valor — perdas e recuperações do mês numa única régua, em R$.");
-  // cascata com série-base transparente (todas as barras acima de zero quando os ganhos vêm primeiro)
+  cabecalho(s, `${mesLabel.split(" ")[0]}: controle recuperou ${fmtMoeda(ganhos)} e registrou ${fmtMoeda(perdas)} de perdas — líquido de ${liq >= 0 ? "+" : ""}${fmtMoeda(liq)}`, mesLabel, pag, "Ponte de valor do mês analisado — recuperações, fichas corrigidas, inventário, vencidos e dispersão reincidente. Baixas operacionais não entram.");
   const ord = [...etapas.filter(([, v]) => v > 0), ...etapas.filter(([, v]) => v <= 0)];
   let acc = 0; const base: number[] = [], neg: number[] = [], pos: number[] = [], cats: string[] = [];
   for (const [n, v] of ord) { const ini = acc; acc += v; cats.push(n); base.push(Math.max(0, v >= 0 ? ini : acc)); neg.push(v < 0 ? -v : 0); pos.push(v > 0 ? v : 0); }
-  cats.push("Resultado líquido"); base.push(Math.min(0, acc) === acc ? 0 : 0); neg.push(acc < 0 ? -acc : 0); pos.push(acc > 0 ? acc : 0);
+  cats.push("Resultado líquido do mês"); base.push(0); neg.push(acc < 0 ? -acc : 0); pos.push(acc > 0 ? acc : 0);
   graficoEmpilhado(p, s, MARGEM, 1.65, 8.2, 5.25, cats, [{ nome: "base", valores: base, cor: COR.BRANCO }, { nome: "Perda", valores: neg, cor: COR.ERRO }, { nome: "Recuperação", valores: pos, cor: COR.SUCESSO }], { formato: '"R$ "#,##0', rotulos: false, tamEixo: 8 } as any);
+  const itens: [string, string][] = [];
+  if (cor?.corrigidas.length) itens.push([`${cor.corrigidas.length} ficha(s) não repetiram o erro`, `${cor.corrigidas.slice(0, 3).map((k) => `${corte(k.descricao, 24)} (${fmtMoeda(k.perdaAnterior)} no mês anterior)`).join("; ")}.`]);
+  if (cor?.reincidentes.length) itens.push([`${cor.reincidentes.length} ficha(s) repetiram o erro`, `${cor.reincidentes.slice(0, 2).map((k) => `${corte(k.descricao, 24)} (${fmtMoeda(k.perda)})`).join("; ")} — revisar ficha ou processo.`]);
+  itens.push([`Vencidos no mês: ${fmtMoeda(rm?.perda ?? 0)}`, "Perda por vencimento do mês analisado (Dashboard Shelf Life)."]);
   const maior = ord.filter(([, v]) => v < 0).sort((a, b) => a[1] - b[1])[0];
-  painelLeitura(s, MARGEM + 8.45, 1.65, LC - 8.45, 5.25, "Leitura do resultado", [
-    [ganhos >= perdas ? `Recuperação cobre ${fmtNum(perdas ? ganhos / perdas : 0, 1)}× a perda` : `Recuperação cobre ${fmtPct(perdas ? (100 * ganhos) / perdas : 0, 0)} da perda`, `Ações de lote e divergências resolvidas somam ${fmtMoeda(ganhos)}.`],
-    maior ? [`Maior perda: ${maior[0]}`, `${fmtMoeda(-maior[1])} no mês.`] : ["Sem perdas no mês", "—"],
-  ], maior ? `Atacar ${maior[0].toLowerCase()} e acompanhar o resultado líquido mês a mês.` : "Manter a régua no próximo MBR.");
+  painelLeitura(s, MARGEM + 8.45, 1.65, LC - 8.45, 5.25, "Leitura do mês", itens, maior ? `Atacar ${maior[0].toLowerCase()} (${fmtMoeda(-maior[1])}) e manter a correção das fichas que pararam de errar.` : "Manter as correções e acompanhar o próximo mês.");
 }
 
 // ---------------- 3 · Ruptura × excesso ----------------
