@@ -9,12 +9,12 @@ import { ITENS_SECAO2, SLIDES_SECAO2 } from "./secao2";
 import { ITENS_SECAO1, slideResumoExecutivo, slideScorecard, type Consolidado } from "./secao1";
 import { slideRupturas } from "./rupturas";
 import { marcosLinhaTempo, slideAutomacoes, slideLinhaTempo, slidesPdca } from "./automacoes";
-import { slideDivergenciasAtlas, slideDoisPiores, slideEvolucaoControles, slidePlanoAcao, slidePonteValor, slideRupturaExcesso, slideScorecardExec, type Extras } from "./executivo";
+import { slideDivergenciasAtlas, slideDoisPiores, slideEvolucaoControles, slideMapeamentoAcoes, slidePlanoAcao, slidePonteValor, slideResultados, slideRupturaExcesso, slideScorecardExec, type Extras } from "./executivo";
 import { DESCRICAO_SECAO3, ITENS_SECAO3, slideBaixas, slideDispersao, slideFarol, slideFefo, slideFuroFicha, slideInvestimento, slideItensSemMov, slidePacotes, slideRecuperacao, slideSemMovimentacao, slideTestes } from "./secao3";
 import { slideAberturaAtlas, slideAberturaMetas, slideFechamentoModulos, slideImpacto, slideMetas, slideProximosPassos, slidesFechamentoAcoes } from "./secao4";
 import type { Riscos } from "./fontes3";
 
-export const TOTAL_SECOES = 4;
+export const TOTAL_SECOES = 5;
 
 /** Lê do banco tudo o que o MBR usa (tabelas atlas_* migradas do Atlas). */
 export async function carregarFontesMbr(): Promise<FontesMbr> {
@@ -48,7 +48,9 @@ export function montarMbr(F: FontesMbr, mes: string, geradoEm = new Date(), R: P
   slideCapa(p, rotulo, geradoEm.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).replace(",", ""));
   // Seção 1
   slideAberturaSecao(p, rotulo, prox(), 1, TOTAL_SECOES, "Resumo Executivo Geral", "Leitura consolidada do mês e status por frente monitorada.", ITENS_SECAO1);
-  const X: Extras = { rupturas: R?.rupturas ?? null, dispersao: R?.dispersao ?? null, semMov: R?.semMov ?? null, recuperacao: R?.recuperacao ?? null, fechamento: R?.fechamento ?? null, atlas: R?.atlas ?? null };
+  const X: Extras = { rupturas: R?.rupturas ?? null, dispersao: R?.dispersao ?? null, semMov: R?.semMov ?? null, recuperacao: R?.recuperacao ?? null, fechamento: R?.fechamento ?? null, atlas: R?.atlas ?? null, metas: R?.metas ?? null, automacoes: R?.automacoes ?? null };
+  slideResultados(p, rotulo, prox(), c, X);
+  slideMapeamentoAcoes(p, rotulo, prox(), R?.fechamento ?? null);
   slideScorecardExec(p, rotulo, prox(), c, X);
   slidePonteValor(p, rotulo, prox(), c, X);
   slideResumoExecutivo(p, rotulo, prox(), c);
