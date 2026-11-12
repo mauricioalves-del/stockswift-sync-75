@@ -48,18 +48,20 @@ export function montarMbr(F: FontesMbr, mes: string, geradoEm = new Date(), R: P
   slideCapa(p, rotulo, geradoEm.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).replace(",", ""));
   // Seção 1
   slideAberturaSecao(p, rotulo, prox(), 1, TOTAL_SECOES, "Resumo Executivo Geral", "Leitura consolidada do mês e status por frente monitorada.", ITENS_SECAO1);
-  const X: Extras = { rupturas: R?.rupturas ?? null, dispersao: R?.dispersao ?? null, semMov: R?.semMov ?? null, recuperacao: R?.recuperacao ?? null, fechamento: R?.fechamento ?? null, atlas: R?.atlas ?? null, metas: R?.metas ?? null, automacoes: R?.automacoes ?? null };
+  const X: Extras = { mes, rupturas: R?.rupturas ?? null, dispersao: R?.dispersao ?? null, semMov: R?.semMov ?? null, recuperacao: R?.recuperacao ?? null, fechamento: R?.fechamento ?? null, atlas: R?.atlas ?? null, metas: R?.metas ?? null, automacoes: R?.automacoes ?? null };
   slideResultados(p, rotulo, prox(), c, X);
-  slideMapeamentoAcoes(p, rotulo, prox(), R?.fechamento ?? null);
-  slideScorecardExec(p, rotulo, prox(), c, X);
   slidePonteValor(p, rotulo, prox(), c, X);
   slideResumoExecutivo(p, rotulo, prox(), c);
   slideScorecard(p, rotulo, prox(), c);
   // Seção 2
   slideAberturaSecao(p, rotulo, prox(), 2, TOTAL_SECOES, "Inventários e Movimentados", "Acurácia de fechamento, ponderação por valor e reconciliação diária sistema x físico.", ITENS_SECAO2);
+  // ordem pedida: os dois piores depois do Item a Item; a evolução dos controles depois do Controle de Movimentados
+  const [fIap, fIaq, fConc, fFaixas, fItem, fMov, fScoreAlmox] = SLIDES_SECAO2;
+  for (const f of [fIap, fIaq, fConc, fFaixas, fItem]) f(p, rotulo, prox(), d);
   slideDoisPiores(p, rotulo, prox(), c);
+  fMov(p, rotulo, prox(), d);
   slideEvolucaoControles(p, rotulo, prox(), c, X);
-  for (const f of SLIDES_SECAO2) f(p, rotulo, prox(), d);
+  fScoreAlmox(p, rotulo, prox(), d);
   // Seção 3
   slideAberturaSecao(p, rotulo, prox(), 3, TOTAL_SECOES, "Mapeamento de Riscos e Passivos", DESCRICAO_SECAO3, ITENS_SECAO3);
   slideBaixas(p, rotulo, prox(), R?.baixas ?? null, mes);
@@ -73,13 +75,10 @@ export function montarMbr(F: FontesMbr, mes: string, geradoEm = new Date(), R: P
   slideFuroFicha(p, rotulo, prox(), R?.dispersao ?? null);
   slideTestes(p, rotulo, prox(), R?.testes ?? null);
   slideFefo(p, rotulo, prox(), R?.fefo ?? null);
-  slideRupturas(p, rotulo, prox(), R?.rupturas ?? null);
-  slideRupturaExcesso(p, rotulo, prox(), X);
   // Seção 4
   slideAberturaMetas(p, rotulo, prox(), R?.metas ?? null);
   slideMetas(p, rotulo, prox(), R?.metas ?? null, R?.fechamento ?? null);
   slideAberturaAtlas(p, rotulo, prox());
-  slideImpacto(p, rotulo, prox(), c, controlesIntegrados(R));
   slideDivergenciasAtlas(p, rotulo, prox(), R?.atlas ?? null);
   slideAutomacoes(p, rotulo, prox(), R?.automacoes ?? null);
   slideLinhaTempo(p, rotulo, prox(), marcosLinhaTempo(mes, c, X));
