@@ -36,7 +36,7 @@ export function cabecalho(s: Slide, titulo: string, mesLabel: string, pagina: nu
   s.addShape("line" as any, { x: MARGEM, y: 1.47, w: LARGURA - 2 * MARGEM, h: 0, line: { color: COR.AZUL_INSTITUCIONAL, width: 1 } });
   if (alerta) {
     const o = { fontFace: FONTE, fontSize: 24, bold: true, color: COR.AZUL_INSTITUCIONAL };
-    s.addText([{ text: alerta, options: { ...o, highlight: "FFFF00" } as any }, { text: ` – ${titulo}`, options: o }], { x: MARGEM, y: 0.58, w: LARGURA - MARGEM - 0.4, h: 0.45, margin: 0, valign: "top", wrap: true, fit: "none" });
+    s.addText([{ text: alerta, options: { ...o, color: COR.ERRO } as any }, { text: ` – ${titulo}`, options: o }], { x: MARGEM, y: 0.58, w: LARGURA - MARGEM - 0.4, h: 0.45, margin: 0, valign: "top", wrap: true, fit: "none" });
   } else {
     // título-conclusão em uma linha: reduz a fonte conforme o tamanho da frase
     const tam = titulo.length > 95 ? 15 : titulo.length > 80 ? 17 : titulo.length > 64 ? 19 : 22;
