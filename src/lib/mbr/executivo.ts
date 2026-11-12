@@ -2,10 +2,10 @@
 // ponte de valor do controle, ruptura × excesso, divergências e IA do Atlas, plano de ação, os dois piores
 // almoxarifados de inventário e a evolução operacional desde a implantação de cada controle.
 import { supabase } from "@/integrations/supabase/client";
-import { mesesAte, fimDoMes, normSku, type DadosDispersao, type DadosFechamento, type DadosRecuperacao, type DadosSemMov } from "./dados3";
+import { mesesAte, fimDoMes, normSku, type DadosDispersao, type DadosFechamento, type DadosMetas, type DadosRecuperacao, type DadosSemMov } from "./dados3";
 import type { DadosRupturas } from "./rupturas";
 import type { Consolidado } from "./secao1";
-import { COR, LARGURA, MARGEM, fmtMoeda, fmtNum, fmtPct, fmtPP, rotuloMes } from "./formato";
+import { ALTURA, COR, LARGURA, MARGEM, fmtMoeda, fmtNum, fmtPct, fmtPP, rotuloMes } from "./formato";
 import { cabecalho, caixaLeitura, graficoBarrasH, graficoEmpilhado, graficoMulti, graficoRosca, linhaKpis, novoSlide, retangulo, tabela, texto, type Pptx, type Slide } from "./kit";
 
 const sb = supabase as any;
@@ -53,7 +53,8 @@ export async function carregarAtlasMbr(mes: string) {
 }
 export type DadosAtlasMbr = Awaited<ReturnType<typeof carregarAtlasMbr>>;
 
-export type Extras = { rupturas: DadosRupturas | null; dispersao: DadosDispersao | null; semMov: DadosSemMov | null; recuperacao: DadosRecuperacao | null; fechamento: DadosFechamento | null; atlas: DadosAtlasMbr | null };
+export type Extras = { rupturas: DadosRupturas | null; dispersao: DadosDispersao | null; semMov: DadosSemMov | null; recuperacao: DadosRecuperacao | null; fechamento: DadosFechamento | null; atlas: DadosAtlasMbr | null;
+  metas?: DadosMetas | null; automacoes?: { linhas: { envios: number | null }[] } | null };
 
 // ---------------- 1 · Scorecard executivo ----------------
 /** Metas padrão do controle (ajustáveis aqui até virarem cadastro em Configurações). */
@@ -218,4 +219,65 @@ export function slideEvolucaoControles(p: Pptx, mesLabel: string, pag: number, c
     melhor ? [`Destaque: ${melhor[0]}`, `${melhor[2]}: ${melhor[3]} → ${melhor[4]}.`] : ["Sem séries suficientes", "—"],
     ["Leitura contínua", "Cada controle mede sua frente; o ganho de acurácia vem da soma das rotinas."],
   ], "Manter as rotinas diárias e levar os controles que ainda não melhoraram para revisão de processo.");
+}
+
+// ---------------- Resultados alcançados no período ----------------
+/** Todas as frentes com o ponto de partida do controle, o mês anterior, o mês atual e o resultado acumulado. */
+export function linhasResultados(c: Consolidado, x: Extras) {
+  const d = c.d, ep = d.evolucaoPonderada.filter((e) => e.item != null || e.iap != null), mov = d.evolucaoMovimentados.filter((m) => m.pct != null);
+  const pri = ep[0], ant = ep.at(-2), at = ep.at(-1);
+  const pp = (a?: number | null, b?: number | null) => (a == null || b == null ? "—" : `${b - a > 0 ? "+" : ""}${fmtPP(b - a)}`);
+  type L = { frente: string; ind: string; inicio: string; anterior: string; atual: string; ganho: string; bom: boolean | null };
+  const L: L[] = [];
+  const add = (l: L) => L.push(l);
+  add({ frente: "Inventário", ind: `IAP — acurácia por valor (desde ${pri?.rotulo ?? "—"})`, inicio: fmtPct(pri?.iap), anterior: fmtPct(ant?.iap), atual: fmtPct(at?.iap), ganho: pp(pri?.iap, at?.iap), bom: pri?.iap != null && at?.iap != null ? at.iap >= pri.iap : null });
+  add({ frente: "Inventário", ind: "IAQ — acurácia por quantidade", inicio: fmtPct(pri?.iaq), anterior: fmtPct(ant?.iaq), atual: fmtPct(at?.iaq), ganho: pp(pri?.iaq, at?.iaq), bom: pri?.iaq != null && at?.iaq != null ? at.iaq >= pri.iaq : null });
+  add({ frente: "Inventário", ind: "Acurácia item a item", inicio: fmtPct(pri?.item), anterior: fmtPct(ant?.item), atual: fmtPct(at?.item), ganho: pp(pri?.item, at?.item), bom: pri?.item != null && at?.item != null ? at.item >= pri.item : null });
+  add({ frente: "Movimentados", ind: `Conciliação diária (desde ${mov[0] ? rotuloMes(mov[0].mes) : "—"})`, inicio: fmtPct(mov[0]?.pct), anterior: fmtPct(mov.at(-2)?.pct), atual: fmtPct(mov.at(-1)?.pct), ganho: pp(mov[0]?.pct, mov.at(-1)?.pct), bom: mov.length ? mov.at(-1)!.pct! >= mov[0].pct! : null });
+  if (c.baixas) add({ frente: "Baixas", ind: "Baixa operacional aprovada (mês · acumulado do ano)", inicio: "—", anterior: fmtMoeda(c.baixas.totalMesAnterior), atual: fmtMoeda(c.baixas.total), ganho: `${fmtMoeda(c.baixas.acumuladoAno)} no ano`, bom: c.baixas.totalMesAnterior ? c.baixas.total <= c.baixas.totalMesAnterior : null });
+  if (x.recuperacao) add({ frente: "Shelf life", ind: "Recuperação por ações de lote (receita + saving, ano)", inicio: "—", anterior: "—", atual: fmtMoeda((x.recuperacao.receitaRecuperada ?? 0) + (x.recuperacao.savingRecuperado ?? 0)), ganho: `perda evitada ${fmtMoeda(x.recuperacao.perdaEvitada ?? null)}`, bom: true });
+  const fs = x.dispersao?.furo.serie ?? [];
+  if (fs.length) add({ frente: "Dispersão", ind: "Furo de ficha técnica (linhas fora da tolerância)", inicio: fmtPct(fs[0].pct), anterior: fmtPct(fs.at(-2)?.pct), atual: fmtPct(fs.at(-1)?.pct), ganho: pp(fs[0].pct, fs.at(-1)?.pct), bom: (fs.at(-1)?.pct ?? 0) <= (fs[0].pct ?? 0) });
+  const rs = (x.rupturas?.serie ?? []).filter((r) => r.pct != null);
+  if (rs.length) add({ frente: "Abastecimento", ind: "Ruptura das lojas", inicio: fmtPct(rs[0].pct), anterior: fmtPct(rs.at(-2)?.pct), atual: fmtPct(rs.at(-1)?.pct), ganho: rs.length > 1 ? pp(rs[0].pct, rs.at(-1)?.pct) : "1º mês", bom: rs.length > 1 ? (rs.at(-1)?.pct ?? 0) <= (rs[0].pct ?? 0) : (rs[0].pct ?? 0) <= 3 });
+  const fe: any = c.fefo;
+  if (fe) add({ frente: "FEFO", ind: "Taxa de quebra de FEFO", inicio: "—", anterior: "—", atual: fmtPct(fe?.atual?.taxa ?? fe?.taxa), ganho: fe?.deltaTaxa != null ? `${fe.deltaTaxa > 0 ? "+" : ""}${fmtPP(fe.deltaTaxa)} vs. mês ant.` : "—", bom: (fe?.deltaTaxa ?? 0) <= 0 });
+  const as = (x.atlas?.serieAcerto ?? []).filter((r) => r.acerto != null);
+  if (x.atlas) add({ frente: "Atlas", ind: `Divergências resolvidas no mês · acerto da IA`, inicio: as[0] ? fmtPct(as[0].acerto, 0) : "—", anterior: as.at(-2) ? fmtPct(as.at(-2)!.acerto, 0) : "—", atual: `${fmtNum(x.atlas.resolvidas)} · ${fmtPct(x.atlas.acertoMes, 0)}`, ganho: `${fmtNum(x.atlas.abertas)} em aberto`, bom: null });
+  if (x.metas?.metas.length) { const m = x.metas.metas, b = m.filter((k) => k.batidaMes ?? (k.atingMes != null && k.atingMes >= 100)).length; add({ frente: "Metas individuais", ind: "Metas batidas no mês", inicio: "—", anterior: "—", atual: `${b} de ${m.length}`, ganho: b === m.length ? "todas batidas" : `${m.length - b} não batida(s)`, bom: b === m.length }); }
+  if (x.automacoes) add({ frente: "Automação", ind: "Automações ativas · execuções no mês", inicio: "—", anterior: "—", atual: `${fmtNum(x.automacoes.linhas.length)} · ${fmtNum(x.automacoes.linhas.reduce((t, a) => t + (a.envios ?? 0), 0))}`, ganho: "rotinas sem intervenção manual", bom: true });
+  const R = x.fechamento?.resumo ?? [];
+  if (R.length) { const cri = R.reduce((a, r) => a + r.acoes_criadas, 0), con = R.reduce((a, r) => a + r.acoes_concluidas, 0); add({ frente: "Ações", ind: "Ações do Stock Savvy concluídas no mês", inicio: "—", anterior: "—", atual: `${fmtNum(con)} de ${fmtNum(cri)}`, ganho: fmtPct(cri ? (100 * con) / cri : null, 0), bom: cri ? con / cri >= 0.9 : null }); }
+  return L;
+}
+
+export function slideResultados(p: Pptx, mesLabel: string, pag: number, c: Consolidado, x: Extras) {
+  const s = novoSlide(p), L = linhasResultados(c, x);
+  const melhorou = L.filter((l) => l.bom === true).length;
+  cabecalho(s, `Resultados do período: ${melhorou} de ${L.length} indicadores evoluíram ou estão no patamar esperado`, mesLabel, pag, "Todas as frentes do controle — ponto de partida, mês anterior, mês atual e resultado acumulado (variações de percentual em pp).");
+  tabela(s, MARGEM, 1.62, LC, Math.min(5.3, 0.3 * (L.length + 1)), ["Frente", "Indicador", "Início do controle", "Mês anterior", "Mês atual", "Resultado no período"], L.map((l) => [{ t: l.frente, negrito: true, cor: COR.AZUL_INSTITUCIONAL }, l.ind, l.inicio, l.anterior, { t: l.atual, negrito: true }, { t: l.ganho, negrito: true, cor: l.bom === true ? COR.SUCESSO : l.bom === false ? COR.ERRO : COR.CINZA_TEXTO }]), { larguras: [1.6, 4.3, 1.4, 1.4, 1.6, 2.03], tamanho: 10 });
+  texto(s, MARGEM, ALTURA - 0.55, LC, 0.3, "Verde: evoluiu desde o início do controle ou está no patamar esperado · Vermelho: piorou · Cinza: sem base de comparação.", { tamanho: 9, cor: COR.SEM_DADO });
+}
+
+// ---------------- Mapeamento das ações ----------------
+export function slideMapeamentoAcoes(p: Pptx, mesLabel: string, pag: number, f: DadosFechamento | null) {
+  const s = novoSlide(p);
+  const R = [...(f?.resumo ?? [])].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
+  const cri = R.reduce((a, r) => a + r.acoes_criadas, 0), con = R.reduce((a, r) => a + r.acoes_concluidas, 0), abe = R.reduce((a, r) => a + r.acoes_em_aberto, 0);
+  cabecalho(s, cri ? `Mapeamento das ações: ${fmtNum(cri)} ações em ${R.length} frentes, ${fmtPct((100 * con) / cri, 0)} concluídas` : "Mapeamento das ações do período", mesLabel, pag, "Cada frente do Stock Savvy: ações criadas, concluídas e em aberto, o que elas movimentaram e a principal ação do período.");
+  if (!R.length) { caixaLeitura(s, MARGEM, 1.7, LC, 1.2, "Sem ações", "O Fechamento Mensal do Stock Savvy não tem ações registradas neste período.", { corRotulo: COR.ATENCAO }); return; }
+  linhaKpis(s, 1.62, [
+    { valor: fmtNum(cri), rotulo: "Ações mapeadas no período" },
+    { valor: fmtNum(con), rotulo: "Concluídas", cor: COR.SUCESSO },
+    { valor: fmtNum(abe), rotulo: "Em aberto", cor: abe ? COR.ATENCAO : COR.SUCESSO },
+    { valor: fmtPct((100 * con) / cri, 0), rotulo: "Taxa de conclusão", cor: con / cri >= 0.9 ? COR.SUCESSO : COR.ATENCAO },
+    { valor: fmtNum(R.length), rotulo: "Frentes com ação" },
+  ], 0.7);
+  const top = new Map<string, { item: string; detalhe: string; valor: number; unidade: string }>();
+  for (const t of f?.topGeral ?? []) if (!top.has(t.modulo) || t.rnk < 2) top.set(t.modulo, t);
+  const valor = (v: number, u: string) => (/r\$/i.test(u ?? "") ? fmtMoeda(v) : `${fmtNum(v)} ${u ?? ""}`.trim());
+  tabela(s, MARGEM, 2.5, LC, Math.min(4.4, 0.42 * (R.length + 1)), ["Frente", "Criadas", "Concluídas", "Em aberto", "% concl.", "Movimentado", "Principal ação do período", "Status"],
+    R.map((r) => { const t = top.get(r.modulo), pc = r.acoes_criadas ? (100 * r.acoes_concluidas) / r.acoes_criadas : null;
+      return [{ t: r.modulo, negrito: true }, fmtNum(r.acoes_criadas), { t: fmtNum(r.acoes_concluidas), cor: COR.SUCESSO }, { t: fmtNum(r.acoes_em_aberto), cor: r.acoes_em_aberto ? COR.ERRO : COR.CINZA_TEXTO, negrito: !!r.acoes_em_aberto }, fmtPct(pc, 0), valor(r.valor_ou_quantidade, r.unidade_valor), t ? corte(`${t.item}${t.detalhe ? ` — ${t.detalhe}` : ""}`, 62) : "—", r.status_geral]; }),
+    { larguras: [2.2, 0.8, 0.95, 0.9, 0.8, 1.35, 4.2, 1.13], tamanho: 9.5 });
 }
