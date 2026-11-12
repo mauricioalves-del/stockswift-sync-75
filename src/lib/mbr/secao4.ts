@@ -13,7 +13,7 @@ const corte = (t: string | null | undefined, n: number) => { const s = String(t 
 // ---------- Metas Individuais ----------
 const alertaMeta = (m: Meta) => m.sinalInconsistente || m.acumuladoSomado;
 export function slideAberturaMetas(p: Pptx, mesLabel: string, pag: number, metas: DadosMetas | null) {
-  slideAberturaSecao(p, mesLabel, pag, 4, 4, "Metas Individuais", "Metas individuais x resultados operacionais consolidados — filtrado pelo mês deste relatório",
+  slideAberturaSecao(p, mesLabel, pag, 4, 5, "Metas Individuais", "Metas individuais x resultados operacionais consolidados — filtrado pelo mês deste relatório",
     metas ? metas.metas.slice(0, 8).map((m) => m.descricao + (alertaMeta(m) ? " ⚠" : "")) : ["Metas Individuais (aguardando o .html do mês)"]);
 }
 
@@ -126,7 +126,7 @@ function slideMetasLegado(p: Pptx, mesLabel: string, pag: number, dado: DadosMet
 export const MODULOS_NATIVOS = ["Painel de Inventário — fechamento por almoxarifado", "Acurácia Ponderada por Valor (IAP)", "Mapeamento de Passivos e Baixas Operacionais", "Shelf Life — Farol de Validade", "Mapeamento de Risco de Itens sem Movimentação", "Controle de Movimentados — reconciliação diária"];
 export const ITENS_ATLAS = ["Impacto do Atlas", "Divergências e IA do Atlas", "Automações em Operação", "Linha do Tempo das Implantações", "PDCA da Operação de Controle", "Fechamento Stock Savvy — Mapeamento por Módulo", "Fechamento Stock Savvy — Principais Ações", "Plano de Ação e Follow-up", "Próximos Passos"];
 export function slideAberturaAtlas(p: Pptx, mesLabel: string, pag: number) {
-  slideAberturaSecao(p, mesLabel, pag, 4, 4, "Atlas", "Cobertura de processos hoje e melhorias esperadas com o uso contínuo da ferramenta.", ITENS_ATLAS);
+  slideAberturaSecao(p, mesLabel, pag, 5, 5, "Atlas", "Cobertura de processos hoje e melhorias esperadas com o uso contínuo da ferramenta.", ITENS_ATLAS);
 }
 
 export function slideImpacto(p: Pptx, mesLabel: string, pag: number, c: Consolidado, controlesIntegrados: number) {
