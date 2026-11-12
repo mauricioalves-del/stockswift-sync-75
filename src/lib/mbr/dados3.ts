@@ -294,8 +294,14 @@ export function dispersaoFicha(rows: ImpactoRow[], P: ParamDispersao, mes: strin
   const totPerda = soma(pl, (x) => x.perda); let ac = 0;
   const pareto = pl.slice(0, 12).map((x) => { ac += x.perda; return { ...x, acumPct: totPerda ? (100 * ac) / totPerda : 0 }; });
   const furo = classificarFuro(linhas, P.faixas, mes);
+  // Fichas que pararam de errar depois do farol (perda no mês anterior e nenhuma no mês) × as que repetiram o erro
+  const perdaPor = (m: string) => { const mm = new Map<string, { descricao: string; perda: number }>(); for (const r of linhas) { if (r.mes !== m || !(Number(r.qtd_previsto) > 0) || !(r.impacto > 0)) continue; const e = mm.get(r.material) ?? { descricao: r.desc_material || r.material, perda: 0 }; e.perda += r.impacto; mm.set(r.material, e); } return mm; };
+  const pAnt = perdaPor(mesAnterior(mes)), pAt = perdaPor(mes);
+  const corrigidas = [...pAnt].filter(([k]) => !pAt.has(k)).map(([material, e]) => ({ material, descricao: e.descricao, perdaAnterior: r2(e.perda) })).sort(desc((x) => x.perdaAnterior));
+  const reincidentes = [...pAt].filter(([k]) => pAnt.has(k)).map(([material, e]) => ({ material, descricao: e.descricao, perda: r2(e.perda), perdaAnterior: r2(pAnt.get(material)!.perda) })).sort(desc((x) => x.perda));
+  const correcao = { corrigidas, reincidentes, valorCorrigido: r2(soma(corrigidas, (x) => x.perdaAnterior)), perdaReincidente: r2(soma(reincidentes, (x) => x.perda)) };
   return {
-    pareto, totalPerdaProcesso: r2(totPerda), materiaisComPerda: pl.length, top10Pct: totPerda ? (100 * soma(pl.slice(0, 10), (x) => x.perda)) / totPerda : null, furo,
+    pareto, correcao, totalPerdaProcesso: r2(totPerda), materiaisComPerda: pl.length, top10Pct: totPerda ? (100 * soma(pl.slice(0, 10), (x) => x.perda)) / totPerda : null, furo,
     ops: ops.size, taxaFuro: ops.size ? (100 * opsFuro.size) / ops.size : 0, perda: r2(perda), economia: r2(economia), liquido: r2(perda - economia), opsCriticas: opsCriticas.size,
     cronicos: matriz.filter((m) => m.freq >= P.limFreq).length, limFreq: P.limFreq, pctTop20: totAbs ? (100 * soma(matriz.slice(0, 20), (m) => m.abs)) / totAbs : 0,
     serie: serie.slice(serie.findIndex((s) => s.n > 0) < 0 ? serie.length : serie.findIndex((s) => s.n > 0)),
