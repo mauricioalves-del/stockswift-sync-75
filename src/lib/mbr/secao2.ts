@@ -289,7 +289,7 @@ export function slideMovimentados(p: Pptx, mesLabel: string, pag: number, d: Dad
   const xd = MARGEM + le + 0.35;
   const ti = pri && ganho != null
     ? ganho > 0
-      ? `Desde a implantação do Controle de Movimentados, em ${nomeMes(pri.mes)}, a acurácia da reconciliação diária subiu de ${fmtPct(pri.pct)} para ${fmtPct(r.pct)} — um ganho de ${fmtPct(ganho)}. Esse é o efeito direto de passar a reconciliar o livro-caixa bruto todo dia, em vez de só no fechamento periódico.`
+      ? `Desde a implantação do Controle de Movimentados, em ${nomeMes(pri.mes)}, a acurácia da reconciliação diária subiu de ${fmtPct(pri.pct)} para ${fmtPct(r.pct)} — um ganho de ${fmtPP(ganho)}. Esse é o efeito direto de passar a reconciliar o livro-caixa bruto todo dia, em vez de só no fechamento periódico.`
       : `Desde a implantação, em ${nomeMes(pri.mes)}, a acurácia da reconciliação diária está em ${fmtPct(r.pct)}, ainda sem ganho consistente frente ao ponto de partida (${fmtPct(pri.pct)}) — vale olhar os itens com divergência recorrente antes do próximo fechamento.`
     : "Ainda não há dado suficiente pra comparar com o ponto de partida da implantação.";
   caixaLeitura(s, xd, 3.05, LARGURA - MARGEM - xd, hTopo + 0.3, "Impacto da Implantação", ti, { tamanho: 12 });
