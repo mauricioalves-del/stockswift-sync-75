@@ -1,4 +1,5 @@
 // Diálogo de Ressalvas do pedido: busca no catálogo aprovado, aviso de disponibilidade e totais das sugestões.
+import { CAIXA_GRANEL } from "./abastecimento-dados";
 export type CatProduto = { sku: string; descricao: string; classe?: string | null };
 export type SugRessalva = { id_produto: string; descricao: string; qtd: number; caixa?: number; fracionar?: boolean };
 export type SaldoProduto = { estoque: number; reservado_outros: number; saldo_inicial: number };
@@ -41,9 +42,9 @@ export function saldoParaExtra(saldo: SaldoProduto | null | undefined, qtdNoPedi
   const ja = Math.max(0, Number(qtdNoPedido) || 0);
   return { ...saldo, reservado_outros: saldo.reservado_outros + ja, saldo_inicial: saldo.saldo_inicial - ja };
 }
-/** Caixa do produto: abast_produto.full_case (> 1, arredondado para cima); família vendida solta ou sem cadastro = 1. Mesma regra do motor. */
+/** Caixa do produto: granéis = CAIXA_GRANEL (30); demais abast_produto.full_case (> 1, arredondado para cima) ou 1 sem cadastro. Mesma regra do motor. */
 export function caixaDoProduto(fullCase: unknown, solto: boolean): number {
-  if (solto) return 1;
+  if (solto) return CAIXA_GRANEL;
   const fc = Number(fullCase);
   return Number.isFinite(fc) && fc > 1 ? Math.ceil(fc) : 1;
 }

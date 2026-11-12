@@ -55,7 +55,7 @@ function CaixariaPage() {
     { k: "sku", r: "SKU", t: "txt", v: (l) => l.id },
     { k: "produto", r: "Produto", t: "txt", v: (l) => l.descricao },
     { k: "categoria", r: "Categoria", t: "cat", v: (l) => l.categoria || "(sem categoria)" },
-    { k: "cadastro", r: "Cadastro", t: "cat", v: (l) => (l.caixa == null ? (l.solto ? "Solto (granel)" : "Sem caixa") : l.noUniverso ? "Com caixa" : "Fora do universo") },
+    { k: "cadastro", r: "Cadastro", t: "cat", v: (l) => (l.solto ? `Granel (${l.caixa} un)` : l.caixa == null ? "Sem caixa" : l.noUniverso ? "Com caixa" : "Fora do universo") },
     { k: "saldocd", r: "Saldo CD", t: "num", al: "right", v: (l) => l.saldoCD },
     { k: "caixa", r: "Unid./caixa", t: "num", al: "right", v: (l) => l.caixa },
     ...lojasVisiveis.map((x) => ({ k: "expo_" + x.codigo, r: "Expo. " + x.nome.replace(/^Loja /, ""), t: "num" as const, al: "right" as const, v: (l: LinhaCaixaria) => l.expo[x.codigo]?.valor ?? null })),
@@ -123,7 +123,7 @@ function CaixariaPage() {
   function exportar() {
     const esc = (s: unknown) => `"${String(s ?? "").replace(/"/g, '""')}"`;
     const cab = ["SKU", "Produto", "Categoria", "Cadastro", "Saldo CD", "Unidades por caixa", ...lojasVisiveis.map((x) => "Exposição " + x.nome)];
-    const corpo = linhas.map((l) => [l.id, l.descricao, l.categoria, l.caixa == null ? (l.solto ? "Solto (granel)" : "Sem caixa") : "Com caixa", String(l.saldoCD).replace(".", ","), l.caixa ?? "", ...lojasVisiveis.map((x) => l.expo[x.codigo]?.valor ?? (regras[x.codigo] != null ? `${regras[x.codigo]} (regra)` : ""))].map(esc).join(";"));
+    const corpo = linhas.map((l) => [l.id, l.descricao, l.categoria, l.solto ? `Granel (${l.caixa} un)` : l.caixa == null ? "Sem caixa" : "Com caixa", String(l.saldoCD).replace(".", ","), l.caixa ?? "", ...lojasVisiveis.map((x) => l.expo[x.codigo]?.valor ?? (regras[x.codigo] != null ? `${regras[x.codigo]} (regra)` : ""))].map(esc).join(";"));
     const url = URL.createObjectURL(new Blob(["\uFEFF" + [cab.map(esc).join(";"), ...corpo].join("\r\n")], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = "Caixaria_Exposicao.csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
@@ -197,15 +197,15 @@ function CaixariaPage() {
               <td className="p-2 font-mono text-xs">{l.id}</td>
               <td className="p-2 max-w-[260px] truncate" title={l.descricao}>{l.descricao || "—"}</td>
               <td className="p-2 text-xs">{l.categoria || <span className="text-muted-foreground">{categoriasQ.isLoading ? "Carregando…" : categoriasQ.isError ? "Indisponível" : "sem categoria"}</span>}</td>
-              <td className="p-2"><span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold ${l.caixa == null ? (l.solto ? "bg-slate-100 text-slate-600 border-slate-200" : "bg-amber-100 text-amber-800 border-amber-200") : l.noUniverso ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{l.caixa == null ? (l.solto ? "Solto (granel)" : "Sem caixa") : l.noUniverso ? "Com caixa" : "Fora do universo"}</span></td>
+              <td className="p-2"><span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold ${l.solto ? "bg-slate-100 text-slate-600 border-slate-200" : l.caixa == null ? "bg-amber-100 text-amber-800 border-amber-200" : l.noUniverso ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>{l.solto ? `Granel (${l.caixa} un)` : l.caixa == null ? "Sem caixa" : l.noUniverso ? "Com caixa" : "Fora do universo"}</span></td>
               <td className="p-2 text-right">{n1(l.saldoCD)}{l.caixa && l.caixa > 1 ? <span className="ml-1 text-[10px] text-muted-foreground">({Math.floor(l.saldoCD / l.caixa)} cx)</span> : null}</td>
-              <td className="p-2 text-right">{editar ? <CelulaNum valor={l.caixa} placeholder="1" titulo="Unidades por caixa fechada" aoSalvar={(n) => salvarCaixa(l, n)} /> : n1(l.caixa)}</td>
+              <td className="p-2 text-right">{editar && !l.solto ? <CelulaNum valor={l.caixa} placeholder="1" titulo="Unidades por caixa fechada" aoSalvar={(n) => salvarCaixa(l, n)} /> : n1(l.caixa)}</td>
               {lojasVisiveis.map((x) => <td key={x.codigo} className="p-2 text-right">{editar ? <CelulaNum valor={l.expo[x.codigo]?.valor ?? null} placeholder={regras[x.codigo] != null ? String(regras[x.codigo]) : "0"} vazioLimpa titulo={regras[x.codigo] != null ? `Exposição na ${x.nome}: vazio segue a regra da loja (${regras[x.codigo]} un); digite um valor para criar exceção` : `Exposição na loja ${x.nome} (vazio remove)`} aoSalvar={(n) => salvarExpo(l, x.codigo, n)} /> : n1(l.expo[x.codigo]?.valor ?? regras[x.codigo] ?? null)}</td>)}
               {editar && <td className="p-2 text-right">{l.idCaixaDb ? <button type="button" title="Excluir a caixaria deste item" aria-label={`Excluir caixaria de ${l.id}`} className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600" onClick={() => excluir(l)}><Trash2 className="size-4" /></button> : null}</td>}
             </tr>))}
         </tbody>
       </table></div></CardContent></Card>
-      <p className="text-xs text-muted-foreground">Item sem caixa cadastrada é tratado como caixa de 1 unidade. Granéis são vendidos soltos: não têm padrão de caixa e são pedidos por consumo médio × cobertura. Excluir a caixaria não apaga vendas, estoque nem a exposição.</p>
+      <p className="text-xs text-muted-foreground">Item sem caixa cadastrada é tratado como caixa de 1 unidade. Granéis usam sempre caixa de 30 bombons, em todas as lojas. Excluir a caixaria não apaga vendas, estoque nem a exposição.</p>
     </div>
   );
 }

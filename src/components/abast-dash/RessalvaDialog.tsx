@@ -80,12 +80,12 @@ export function RessalvaDialog({ p, onClose, onOk }: { p: PedidoRessalva; onClos
   });
   const saldos = saldosQ.data ?? new Map<string, SaldoProduto>();
   const validos = p.itens.filter((i) => i.aceito !== false && !(i.origem === "SUGESTAO_COMERCIAL" && i.aceito == null));
-  // Caixaria: mesma regra do motor (abast_produto.full_case; família vendida solta não tem caixa). Dados já em cache na tela de Pedidos.
+  // Caixaria: mesma regra do motor (abast_produto.full_case; granéis sempre em caixa de 30). Dados já em cache na tela de Pedidos.
   const caixaDe = useMemo(() => {
     const fc = new Map<string, unknown>((bruto.data?.produtos ?? []).map((x) => [nk(x.id_produto), x.full_case]));
     const fam = new Map<string, string>((bruto.data?.familias ?? []).map((x) => [nk(x.codigo_produto), x.familia]));
     const fracionada = lojaSemCaixa(p.loja);   // loja abastecida sem caixa fechada (Jesuíno)
-    return (sku: string) => (fracionada ? 1 : caixaDoProduto(fc.get(nk(sku)), ehSolto(fam.get(nk(sku)) ?? "")));
+    return (sku: string) => { const solto = ehSolto(fam.get(nk(sku)) ?? ""); return fracionada && !solto ? 1 : caixaDoProduto(fc.get(nk(sku)), solto); };   // granéis: caixa de 30 em toda loja
   }, [bruto.data, p.loja]);
   // Disponível no CD para extra = saldo do banco (já sem os outros pedidos) menos o que este pedido já leva do SKU
   const qtdNoPedido = useMemo(() => { const m = new Map<string, number>(); for (const i of validos) m.set(chaveSku(i.id_produto), (m.get(chaveSku(i.id_produto)) ?? 0) + Number(i.qtd_pedida)); return m; }, [p.itens]);

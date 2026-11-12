@@ -13,7 +13,9 @@ import { chaveSaldoBaixa, somarBaixasEmAberto, saldoLiquidoBaixas, type BaixaRep
 
 export const nk = (s: unknown): string => String(s ?? "").trim().replace(/^0+/, "");
 export const GRUPO_ACABADO = "Produto Acabado";
-/** Famílias vendidas soltas, sem padrão de caixaria: pedido por consumo médio × cobertura (sem arredondar em caixa e sem aviso "sem caixa"). */
+/** Granéis: caixaria fixa de 30 bombons em todas as lojas (inclusive as fracionadas), independente do cadastro de caixa do SKU. */
+export const CAIXA_GRANEL = 30;
+/** Famílias de granéis: pedido arredondado na caixa de granel (CAIXA_GRANEL), sem aviso "sem caixa". */
 export const FAMILIAS_SEM_CAIXA = ["graneis"];
 const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 export const ehSolto = (familia: string) => FAMILIAS_SEM_CAIXA.includes(semAcento(familia));
@@ -170,7 +172,7 @@ export function montarItens(b: Bruto, o: { base: Base2; denominador: Denominador
       const it = calcularItem2({
         sku: idCanon, descricao: e?.desc?.trim() || b.portfolioDescricoes?.[sku] || m.produto || idCanon, categoria: familia, ativo: true, masterPresente: true,
         estoque: saldoLiquidoBaixas(estoqueBruto, baixasPendentes), exposicao: expo ?? 0, vendaDiaReal: r.cmd, consensoDia: cons, fatorRealizacao: fr ? fr.fator : null,
-        classeAbc: abcDe.get(sku) ?? null, fullCase: fracionada ? 1 : fcDe.get(sku) ?? 1, custo: e?.custo ?? null, saldoCD: saldoLiquidoBaixas(e?.cd ?? 0, baixasCD),
+        classeAbc: abcDe.get(sku) ?? null, fullCase: solto ? CAIXA_GRANEL : fracionada ? 1 : fcDe.get(sku) ?? 1, custo: e?.custo ?? null, saldoCD: saldoLiquidoBaixas(e?.cd ?? 0, baixasCD),
         emTransito: transito.get(`${l.codigo}|${sku}`) ?? 0, pedidoAberto: pedAb.get(`${l.codigo}|${sku}`) ?? 0, pedidoManual: manual ?? null,
       }, rp.p, o.base);
       if (!familia) semFamilia.push({ loja: l.codigo, sku: it.sku, descricao: it.descricao, linha: m.linha || m.tipo });
