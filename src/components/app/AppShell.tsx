@@ -33,27 +33,19 @@ type NavGroup = { id: string; label: string; icon: React.ComponentType<{ classNa
 const NAV: (NavItem | NavGroup)[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, role: "any" } as NavItem,
   {
-    id: "cadastro", label: "Cadastro", icon: FolderTree, role: "write",
-    items: [
-      { to: "/origens", label: "Almox", icon: Warehouse, role: "write" },
-      { to: "/motivos-baixa", label: "Motivos de Baixa", icon: PackageMinus, role: "write" },
-      { to: "/contextos-baixa", label: "Áreas e Operações de Baixa", icon: Tags, role: "write" },
-      { to: "/emails", label: "E-mails", icon: Mail, role: "admin" },
-      { to: "/importar", label: "Sincronização de Estoque", icon: RefreshCw, role: "write" },
-      { to: "/custo-contabil", label: "Investigação de Custo", icon: SearchCheck, role: "write" },
-      { to: "/importar-familias", label: "Importador de Famílias", icon: Leaf, role: "write" },
-      { to: "/grupos", label: "Importador de Grupos", icon: Layers, role: "write" },
-      { to: "/categorias", label: "Cadastro de Categoria", icon: Tags, role: "write" },
-
-    ],
-  },
-  {
     id: "inventario", label: "Inventário", icon: Package, role: "any",
     items: [
-      { to: "/contar", label: "Contagem", icon: ClipboardList, role: "write" },
-      { to: "/scanner", label: "Scanner", icon: ScanLine, role: "write" },
-      { to: "/recontagem", label: "Recontagem", icon: RotateCcw, role: "write" },
-      { to: "/quebras-fefo", label: "Quebras de FEFO", icon: AlertTriangle, role: "write" },
+      // Módulos do antigo pilar Atlas (solicitação de 13/11/2026), na ordem pedida:
+      { to: "/atlas/inicio", label: "Início", icon: Orbit, role: "any" },
+      { to: "/atlas/acuracia-ponderada", label: "Acurácia Ponderada", icon: Scale, role: "any" },
+      { to: "/atlas/painel", label: "Movimentados", icon: LayoutDashboard, role: "any" },
+      { to: "/atlas/mapeamento-passivos", label: "Mapeamento de Passivos", icon: AlertTriangle, role: "any" },
+      { to: "/atlas/importar", label: "Importar", icon: Upload, role: "write" },
+      // Ocultados do menu (solicitação de 13/11/2026) — rotas preservadas:
+      // { to: "/contar", label: "Contagem", icon: ClipboardList, role: "write" },
+      // { to: "/scanner", label: "Scanner", icon: ScanLine, role: "write" },
+      // { to: "/recontagem", label: "Recontagem", icon: RotateCcw, role: "write" },
+      // { to: "/quebras-fefo", label: "Quebras de FEFO", icon: AlertTriangle, role: "write" },
     ],
   },
   {
@@ -148,20 +140,25 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/atlas/mbr", label: "MBR", icon: FileBarChart2, role: "any" },
     ],
   },
-  {
-    id: "atlas", label: "Atlas", icon: Orbit, role: "any",
-    items: [
-      { to: "/atlas/inicio", label: "Início", icon: Orbit, role: "any" },
-      { to: "/atlas/painel", label: "Movimentados", icon: LayoutDashboard, role: "any" },
-      { to: "/atlas/mapeamento-passivos", label: "Mapeamento de Passivos", icon: AlertTriangle, role: "any" },
-      { to: "/atlas/importar", label: "Importar", icon: Upload, role: "write" },
-      { to: "/atlas/acuracia-ponderada", label: "Acurácia Ponderada", icon: Scale, role: "any" },
-    ],
-  },
   // { to: "/emails", label: "Cadastro de E-mails", icon: Mail, role: "admin" } as NavItem,
   {
     id: "configuracoes", label: "Configurações", icon: SettingsIcon, role: "admin",
     items: [
+      // Antigo pilar Cadastro (solicitação de 13/11/2026):
+      {
+        id: "cadastro", label: "Cadastro",
+        items: [
+          { to: "/origens", label: "Almox", icon: Warehouse, role: "write" },
+          { to: "/motivos-baixa", label: "Motivos de Baixa", icon: PackageMinus, role: "write" },
+          { to: "/contextos-baixa", label: "Áreas e Operações de Baixa", icon: Tags, role: "write" },
+          { to: "/emails", label: "E-mails", icon: Mail, role: "admin" },
+          { to: "/importar", label: "Sincronização de Estoque", icon: RefreshCw, role: "write" },
+          { to: "/custo-contabil", label: "Investigação de Custo", icon: SearchCheck, role: "write" },
+          { to: "/importar-familias", label: "Importador de Famílias", icon: Leaf, role: "write" },
+          { to: "/grupos", label: "Importador de Grupos", icon: Layers, role: "write" },
+          { to: "/categorias", label: "Cadastro de Categoria", icon: Tags, role: "write" },
+        ],
+      },
       { to: "/config", label: "Configurações", icon: SettingsIcon, role: "admin" },
       { to: "/logs", label: "Auditoria", icon: ScrollText, role: "admin" },
       { to: "/usuarios", label: "Usuários", icon: UsersIcon, role: "admin" },
