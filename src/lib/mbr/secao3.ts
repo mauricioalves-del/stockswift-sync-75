@@ -5,6 +5,8 @@ import { cabecalho, caixaLeitura, funil, graficoBarrasH, graficoComboDuplo, graf
 import { FAIXAS_PARADO, STATUS_FAROL, type DadosBaixas, type DadosDispersao, type DadosFarol, type DadosFefo, type DadosInvestimento, type DadosPacotes, type DadosRecuperacao, type DadosSemMov, type DadosTestes } from "./dados3";
 
 const LC = LARGURA - 2 * MARGEM;
+/** Total por coluna resumido: 17.097 → "17k"; abaixo de mil mostra o valor. */
+const FORMATO_K = '[>=1000]#,##0,"k";#,##0';
 export const COR_FAROL = { Vencido: "7B3B2E", Urgente: "F1704B", Perigo: "F2C14E", "Atenção": "2CC5A8" } as const;
 const COR_PARADO = { "30-60": COR_FAROL["Atenção"], "61-90": COR_FAROL.Perigo, "+90": COR_FAROL.Urgente } as const;
 export const PALETA_INV: Record<string, string> = { Cortesia: "4FC3F7", "Degustação": "81C784", "Sensorial/Inovações": "BA68C8", "Uso e Consumo": "FFB74D" };
@@ -59,12 +61,12 @@ export function slideBaixas(p: Pptx, mesLabel: string, pag: number, d: DadosBaix
 // ---------- Investimento Operacional ----------
 export function slideInvestimento(p: Pptx, mesLabel: string, pag: number, d: DadosInvestimento | null) {
   const s = novoSlide(p);
-  cabecalho(s, "Investimento Operacional", mesLabel, pag, "Cortesia, Degustação, Sensorial/Inovações e Uso e Consumo — fonte oficial do indicador");
+  cabecalho(s, d ? `Investimento operacional de ${fmtMoeda(d.total)} em ${mesLabel.split(" ")[0].toLowerCase()}; ${fmtMoeda(d.totalAno)} no ano` : "Investimento Operacional", mesLabel, pag, "Cortesia, Degustação, Sensorial/Inovações e Uso e Consumo — baixas realizadas no mês analisado; tendência dos últimos 6 meses.");
   if (semDados(s, d, "Investimento Operacional indisponível", erroFonte("Investimento Operacional"))) return;
   const v = d!;
-  if (!v.qtd) { caixaLeitura(s, MARGEM, 1.6, LC, 1.4, `Sem lançamentos até ${mesLabel}`, "Nenhuma baixa de Cortesia, Degustação, Sensorial/Inovações ou Uso e Consumo no ano até o mês deste relatório.", { corRotulo: COR.ATENCAO, tamanho: 13 }); return; }
+  if (!v.qtdAno) { caixaLeitura(s, MARGEM, 1.6, LC, 1.4, `Sem lançamentos até ${mesLabel}`, "Nenhuma baixa de Cortesia, Degustação, Sensorial/Inovações ou Uso e Consumo no ano até o mês deste relatório.", { corRotulo: COR.ATENCAO, tamanho: 13 }); return; }
   linhaKpis(s, 1.55, [
-    { valor: fmtMoeda(v.total, 2), rotulo: "Total Investido no Período", cor: COR.ERRO, contexto: `${fmtNum(v.qtd)} lançamentos` },
+    { valor: fmtMoeda(v.total, 2), rotulo: `Total investido em ${mesLabel.split(" ")[0].toLowerCase()}`, cor: COR.ERRO, contexto: `${fmtNum(v.qtd)} lançamentos no mês` },
     ...v.porMotivo.map((m) => ({ valor: fmtMoeda(m.valor, 2), rotulo: m.nome, contexto: `${fmtNum(m.qtd)} lançamentos` })),
   ], 0.68, 0.383, 20);
   const yT = 1.55 + 0.68 + 0.14, hT = 1.3;
@@ -72,7 +74,7 @@ export function slideInvestimento(p: Pptx, mesLabel: string, pag: number, d: Dad
   const totais = v.meses.map((_, i) => v.serie.reduce((a, x) => a + (x.valores[i] ?? 0), 0));
   graficoEmpilhado(p, s, MARGEM, yT + 0.26, LC, hT - 0.26, v.meses.map(mesCurto), v.serie.map((x) => ({ nome: x.nome, valores: x.valores, cor: PALETA_INV[x.nome] })), { formato: '"R$ "#,##0', totais, corTotais: COR.AZUL_INSTITUCIONAL, tamEixo: 8 });
   const yW = yT + hT + 0.2, hW = 1.58, gap = 0.2, wW = (LC - 2 * gap) / 3, xs = [MARGEM, MARGEM + wW + gap, MARGEM + 2 * (wW + gap)];
-  texto(s, xs[0], yW, wW, 0.2, "VALOR POR MOTIVO", { tamanho: 9.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
+  texto(s, xs[0], yW, wW, 0.2, "VALOR POR MOTIVO NO MÊS", { tamanho: 9.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
   graficoBarrasH(p, s, xs[0], yW + 0.22, wW, hW - 0.22, v.porMotivo.map((m) => m.nome), "Valor", v.porMotivo.map((m) => m.valor), { cores: v.porMotivo.map((m) => PALETA_INV[m.nome]), formato: '"R$ "#,##0' });
   const rotCampo = (c: "contexto" | "almox", ctx: string) => (c === "contexto" ? ctx : "Por Almoxarifado");
   if (v.rosca.grupos.length) {
@@ -89,7 +91,9 @@ export function slideInvestimento(p: Pptx, mesLabel: string, pag: number, d: Dad
     texto(s, x, yTab, wT, 0.2, `TOP 3 — ${m.nome}`.toUpperCase(), { tamanho: 9.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
     if (top.length) tabela(s, x, yTab + 0.22, wT, hTab - 0.22, ["SKU", "Produto", "Valor"], top.map((r) => [r.sku, corte(r.descricao || "—", 20), fmtMoeda(r.valor, 2)]), { larguras: [1.2, 1.3, 1], tamanho: 8.5, margemV: 0.02 });
   });
-  texto(s, MARGEM, ALTURA - 0.32, LC, 0.24, `Fonte: Relatório de Baixa do Stock Savvy (baixas não reprovadas) com motivo de investimento operacional, de ${dataBr(v.inicio)} a ${dataBr(v.fim)}.`, { tamanho: 8.5, italico: true });
+  // rodapé: resumo geral do ano por categoria
+  texto(s, MARGEM, ALTURA - 0.42, LC, 0.22, `Acumulado ${v.inicio.slice(0, 4)} (${dataBr(v.inicio)} a ${dataBr(v.fim)}): ${v.porMotivoAno.map((m) => `${m.nome} ${fmtMoeda(m.valor)}`).join(" · ")} · Total ${fmtMoeda(v.totalAno)} (${fmtNum(v.qtdAno)} lançamentos)`, { tamanho: 9, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
+  texto(s, MARGEM, ALTURA - 0.2, LC, 0.18, `Fonte: Relatório de Baixa do Stock Savvy (baixas não reprovadas) com motivo de investimento operacional. Cards, gráficos e tops: ${dataBr(v.inicioMes)} a ${dataBr(v.fim)}.`, { tamanho: 8, italico: true });
 }
 
 // ---------- Controle de Pacotes de Baixa ----------
@@ -161,7 +165,7 @@ export function slideFarol(p: Pptx, mesLabel: string, pag: number, d: DadosFarol
   ], 0.68);
   const lg = (LC - 0.4) / 2, x2 = MARGEM + lg + 0.4, yG = 2.5, hG = 2.4;
   const series = (l: DadosFarol["porAlmox"]) => STATUS_FAROL.map((st) => ({ nome: st, valores: l.map((a) => a[st]), cor: COR_FAROL[st] })).filter((x) => x.valores.some((v) => v));
-  if (f.porAlmox.length) graficoEmpilhado(p, s, MARGEM, yG, lg, hG, f.porAlmox.slice(0, 12).map((a) => a.nome), series(f.porAlmox.slice(0, 12)), { formato: '"R$ "#,##0', rotacao: -45, tamEixo: 8 });
+  if (f.porAlmox.length) { const l = f.porAlmox.slice(0, 12), sr = series(l); graficoEmpilhado(p, s, MARGEM, yG, lg, hG, l.map((a) => a.nome), sr, { formato: '"R$ "#,##0', rotacao: -45, tamEixo: 8, totais: l.map((_, i) => sr.reduce((t, x) => t + (Number(x.valores[i]) || 0), 0)), formatoTotais: FORMATO_K, corTotais: COR.AZUL_INSTITUCIONAL }); }
   else caixaLeitura(s, MARGEM, yG, lg, hG, "Sem dados", "Nenhum lote em risco de validade por almoxarifado.", { tamanho: 11 });
   if (f.porGrupo.length) graficoEmpilhado(p, s, x2, yG, lg, hG, f.porGrupo.map((g) => g.nome), series(f.porGrupo), { horizontal: true, percentual: true, tamEixo: 8 });
   else caixaLeitura(s, x2, yG, lg, hG, "Sem dados", "Nenhum lote em risco de validade por grupo.", { tamanho: 11 });
@@ -177,7 +181,7 @@ export function slideSemMovimentacao(p: Pptx, mesLabel: string, pag: number, d: 
   linhaKpis(s, 1.55, FAIXAS_PARADO.map((f) => ({ valor: fmtNum(pf[f].qtd), rotulo: `${f} Dias Parado`, cor: COR_PARADO[f], contexto: fmtMoeda(pf[f].valor), corContexto: COR_PARADO[f], borda: f === "+90" && pf[f].qtd ? COR_PARADO[f] : null })), 0.68);
   const lg = (LC - 0.4) / 2, x2 = MARGEM + lg + 0.4, yG = 2.5, hG = 2.4;
   const series = (l: DadosSemMov["porAlmox"]) => FAIXAS_PARADO.map((f) => ({ nome: f, valores: l.map((a) => a[f]), cor: COR_PARADO[f] })).filter((x) => x.valores.some((v) => v));
-  if (o.porAlmox.length) graficoEmpilhado(p, s, MARGEM, yG, lg, hG, o.porAlmox.slice(0, 8).map((a) => a.nome), series(o.porAlmox.slice(0, 8)), { formato: '"R$ "#,##0', rotacao: -45, tamEixo: 8 });
+  if (o.porAlmox.length) { const l = o.porAlmox.slice(0, 8), sr = series(l); graficoEmpilhado(p, s, MARGEM, yG, lg, hG, l.map((a) => a.nome), sr, { formato: '"R$ "#,##0', rotacao: -45, tamEixo: 8, totais: l.map((_, i) => sr.reduce((t, x) => t + (Number(x.valores[i]) || 0), 0)), formatoTotais: FORMATO_K, corTotais: COR.AZUL_INSTITUCIONAL }); }
   else caixaLeitura(s, MARGEM, yG, lg, hG, "Sem dados", "Nenhum material parado por almoxarifado.", { tamanho: 11 });
   if (o.porGrupo.length) graficoEmpilhado(p, s, x2, yG, lg, hG, o.porGrupo.map((g) => g.nome), series(o.porGrupo), { horizontal: true, percentual: true, tamEixo: 8 });
   else caixaLeitura(s, x2, yG, lg, hG, "Sem dados", "Nenhum material parado por grupo.", { tamanho: 11 });
