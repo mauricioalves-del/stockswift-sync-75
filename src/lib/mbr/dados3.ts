@@ -91,13 +91,16 @@ export function investimentoOperacional(rows: BaixaRow[], c: CtxBaixas, mes: str
   const ini = `${mes.slice(0, 4)}-01-01`, fim = fimDoMes(mes);
   const linhas = rows.filter((b) => b.status_fluxo !== "REPROVADA").map((b) => ({ ...b, motivo: nomeMotivo(c, b) ?? "" }))
     .filter((b) => MOTIVOS_INVESTIMENTO.includes(b.motivo)).filter((b) => { const d = diaLocal(b.data_solicitacao); return d >= ini && d <= fim; });
-  const porMotivo = MOTIVOS_INVESTIMENTO.map((nome) => { const l = linhas.filter((b) => b.motivo === nome); return { nome, valor: r2(soma(l, vlr)), qtd: l.length }; });
+  // cards, gráficos e tops = baixas do mês analisado; o acumulado do ano vai para o rodapé
+  const doMes = linhas.filter((b) => diaLocal(b.data_solicitacao) >= `${mes}-01`);
+  const porMotivoDe = (l: typeof linhas) => MOTIVOS_INVESTIMENTO.map((nome) => { const x = l.filter((b) => b.motivo === nome); return { nome, valor: r2(soma(x, vlr)), qtd: x.length }; });
+  const porMotivo = porMotivoDe(doMes), porMotivoAno = porMotivoDe(linhas);
   const mesesTodos = [...new Set(linhas.map((b) => String(b.data_solicitacao).slice(0, 7)))].sort(), meses = mesesTodos.slice(-6);
   const serie = MOTIVOS_INVESTIMENTO.map((nome) => ({ nome, valores: meses.map((m) => r2(soma(linhas.filter((b) => b.motivo === nome && String(b.data_solicitacao).startsWith(m)), vlr))) }));
   const agrupar = (motivo: string) => {
     const por = (campo: (b: (typeof linhas)[number]) => string | null) => {
       const g = new Map<string, number>();
-      for (const b of linhas.filter((x) => x.motivo === motivo)) { const k = campo(b) || "Não informado"; g.set(k, (g.get(k) ?? 0) + vlr(b)); }
+      for (const b of doMes.filter((x) => x.motivo === motivo)) { const k = campo(b) || "Não informado"; g.set(k, (g.get(k) ?? 0) + vlr(b)); }
       return [...g].map(([nome, valor]) => ({ nome, valor: r2(valor) })).sort(desc((x) => x.valor));
     };
     const ctx = por((b) => b.contexto_baixa);
@@ -107,10 +110,11 @@ export function investimentoOperacional(rows: BaixaRow[], c: CtxBaixas, mes: str
   };
   const tops = Object.fromEntries(MOTIVOS_INVESTIMENTO.map((nome) => {
     const m = new Map<string, { sku: string; descricao: string; valor: number }>();
-    for (const b of linhas.filter((x) => x.motivo === nome)) { const e = m.get(b.codigo_produto) ?? { sku: b.codigo_produto, descricao: b.descricao ?? "", valor: 0 }; e.valor += vlr(b); m.set(b.codigo_produto, e); }
+    for (const b of doMes.filter((x) => x.motivo === nome)) { const e = m.get(b.codigo_produto) ?? { sku: b.codigo_produto, descricao: b.descricao ?? "", valor: 0 }; e.valor += vlr(b); m.set(b.codigo_produto, e); }
     return [nome, [...m.values()].sort(desc((x) => x.valor)).slice(0, 3)];
   })) as Record<string, { sku: string; descricao: string; valor: number }[]>;
-  return { inicio: ini, fim, total: r2(soma(linhas, vlr)), qtd: linhas.length, porMotivo, meses, serie, rosca: agrupar("Cortesia"), funil: agrupar("Degustação"), tops };
+  return { inicio: ini, fim, inicioMes: `${mes}-01`, total: r2(soma(doMes, vlr)), qtd: doMes.length, porMotivo, meses, serie, rosca: agrupar("Cortesia"), funil: agrupar("Degustação"), tops,
+    totalAno: r2(soma(linhas, vlr)), qtdAno: linhas.length, porMotivoAno };
 }
 export type DadosInvestimento = ReturnType<typeof investimentoOperacional>;
 
@@ -292,7 +296,7 @@ export function dispersaoFicha(rows: ImpactoRow[], P: ParamDispersao, mes: strin
   for (const r of prevDoMes) { if (r.impacto <= 0) continue; const e = pm.get(r.material) ?? { desc: r.desc_material || r.material, perda: 0, dif: 0, ops: new Set<string>() }; e.perda += r.impacto; e.dif += Number(r.qtd_dif) || 0; e.ops.add(r.op); pm.set(r.material, e); }
   const pl = [...pm].map(([material, e]) => ({ material, descricao: e.desc, perda: r2(e.perda), dif: e.dif, ops: e.ops.size })).sort(desc((x) => x.perda));
   const totPerda = soma(pl, (x) => x.perda); let ac = 0;
-  const pareto = pl.slice(0, 12).map((x) => { ac += x.perda; return { ...x, acumPct: totPerda ? (100 * ac) / totPerda : 0 }; });
+  const pareto = pl.slice(0, 10).map((x) => { ac += x.perda; return { ...x, acumPct: totPerda ? (100 * ac) / totPerda : 0 }; });
   const furo = classificarFuro(linhas, P.faixas, mes);
   // Fichas que pararam de errar depois do farol (perda no mês anterior e nenhuma no mês) × as que repetiram o erro
   const perdaPor = (m: string) => { const mm = new Map<string, { descricao: string; perda: number }>(); for (const r of linhas) { if (r.mes !== m || !(Number(r.qtd_previsto) > 0) || !(r.impacto > 0)) continue; const e = mm.get(r.material) ?? { descricao: r.desc_material || r.material, perda: 0 }; e.perda += r.impacto; mm.set(r.material, e); } return mm; };
