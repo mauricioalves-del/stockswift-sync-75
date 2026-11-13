@@ -159,7 +159,7 @@ export function graficoComboDuplo(p: Pptx, s: Slide, x: number, y: number, w: nu
 }
 
 /** Colunas (ou barras, `horizontal`) empilhadas por série; `percentual` = 100% empilhado; `totais` = rótulo do total no topo. */
-export function graficoEmpilhado(p: Pptx, s: Slide, x: number, y: number, w: number, h: number, cats: string[], series: { nome: string; valores: Pts; cor: string }[], o: { horizontal?: boolean; percentual?: boolean; formato?: string; totais?: Pts | null; corTotais?: string; legenda?: boolean; rotulos?: boolean; tamEixo?: number; rotacao?: number } = {}) {
+export function graficoEmpilhado(p: Pptx, s: Slide, x: number, y: number, w: number, h: number, cats: string[], series: { nome: string; valores: Pts; cor: string }[], o: { horizontal?: boolean; percentual?: boolean; formato?: string; totais?: Pts | null; corTotais?: string; formatoTotais?: string; legenda?: boolean; rotulos?: boolean; tamEixo?: number; rotacao?: number } = {}) {
   const dados = series.map((v) => ({ name: v.nome, labels: cats, values: v.valores as number[] }));
   const barra = { barDir: o.horizontal ? "bar" : "col", barGrouping: o.percentual ? "percentStacked" : "stacked", chartColors: series.map((v) => v.cor), barGapWidthPct: 60, overlap: 100 };
   const base = {
@@ -168,7 +168,7 @@ export function graficoEmpilhado(p: Pptx, s: Slide, x: number, y: number, w: num
     catAxisOrientation: o.horizontal ? "maxMin" : "minMax", catAxisLabelRotate: o.rotacao,
   } as any;
   if (o.totais && !o.horizontal) {
-    const linha = { type: p.ChartType.line, data: [{ name: "Total", labels: cats, values: o.totais as number[] }], options: { chartColors: [COR.BRANCO], lineSize: 0, lineDataSymbol: "none", showValue: true, dataLabelPosition: "t", dataLabelFontSize: 8, dataLabelColor: o.corTotais ?? COR.CINZA_TEXTO, dataLabelFormatCode: o.formato ?? "#,##0" } };
+    const linha = { type: p.ChartType.line, data: [{ name: "Total", labels: cats, values: o.totais as number[] }], options: { chartColors: [COR.BRANCO], lineSize: 0, lineDataSymbol: "none", showValue: true, dataLabelPosition: "t", dataLabelFontSize: 8, dataLabelColor: o.corTotais ?? COR.CINZA_TEXTO, dataLabelFormatCode: o.formatoTotais ?? o.formato ?? "#,##0", dataLabelFontBold: true } };
     s.addChart([{ type: p.ChartType.bar, data: dados, options: { ...barra, showValue: !!o.rotulos } }, linha] as any, { ...base, valAxes: [{ showValAxisTitle: false, valAxisLabelFormatCode: o.formato ?? "#,##0", valAxisLabelFontSize: o.tamEixo ?? 9, valAxisLabelColor: COR.CINZA_TEXTO, valGridLine: { color: COR.CINZA_CLARO, size: 0.75 } }], catAxes: [{ catAxisTitle: "", catAxisLabelFontSize: o.tamEixo ?? 9, catAxisLabelColor: COR.CINZA_TEXTO, catAxisLabelRotate: o.rotacao }] } as any);
   } else s.addChart(p.ChartType.bar, dados, { ...base, ...barra } as any);
 }
