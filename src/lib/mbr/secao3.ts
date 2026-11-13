@@ -25,7 +25,7 @@ function semDados(s: Slide, dado: unknown, titulo: string, msg: string) {
 }
 const erroFonte = (nome: string) => `Não foi possível ler os dados de ${nome} no Stock Savvy agora — confira o acesso à tela e gere o MBR de novo.`;
 
-export const ITENS_SECAO3 = ["Pacote de Baixas – Operações", "Pacote de Baixas – Investimento Operacional", "Controle de Pacotes de Baixa", "Farol de Shelf-Life", "Itens sem Movimentação", "Itens sem Movimentação — Item a Item", "Recuperação de Shelf", "Dispersão de Ficha Técnica — Pareto", "Furo de Ficha Técnica", "Testes Industriais", "Controle de FEFO"];
+export const ITENS_SECAO3 = ["Pacote de Baixas – Operações", "Pacote de Baixas – Investimento Operacional", "Controle de Pacotes de Baixa", "Farol de Shelf-Life", "Próximos 30 Dias (validade)", "Itens sem Movimentação", "Itens sem Movimentação — Item a Item", "Recuperação de Shelf", "Dispersão de Ficha Técnica — Pareto", "Furo de Ficha Técnica", "Testes Industriais", "Controle de FEFO"];
 export const DESCRICAO_SECAO3 = "Passivos e baixas, validade de lotes, estoque parado, recuperação de shelf, dispersão de ficha técnica, Testes Industriais e FEFO — lidos direto do Stock Savvy.";
 
 // ---------- Dashboard Baixas Operacionais ----------
