@@ -18,6 +18,7 @@ import { planejarSku, estimarDemandaReal, cargaSemanal, semanaDeProducao, type R
 import { somasRealizacao } from "@/lib/abastecimento-realizacao";
 import { carregarBomCompleta, type BomLinha } from "@/lib/pcp-bom";
 import { fichaPorUnidade } from "@/lib/pcp-ficha";
+import { estruturaAplicada, suficienciaProducao } from "@/lib/pcp-suficiencia";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,9 @@ const ROT: Record<Severidade, string> = { critica: "Crítica (≤14 dias)", alta
 type LinhaPlanoCiclo = LinhaPlano & { foraDoCiclo?: boolean };
 const DIAS_SEMANA = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
 const un = (v: number) => Math.round(v).toLocaleString("pt-BR");
+const nd = (v: number, d = 0) => v.toLocaleString("pt-BR", { maximumFractionDigits: d });
+const fmtSemana = (w: string) => `${w.slice(8, 10)}/${w.slice(5, 7)}`;
+const fmtData = fmtSemana;
 const dataBr = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
 const fimDoMes = (mes: string) => { const d = new Date(Date.UTC(+mes.slice(0, 4), +mes.slice(5, 7), 0)); return d.toISOString().slice(0, 10); };
 const diasEntre = (a: string, b: string) => Math.round((Date.UTC(+b.slice(0, 4), +b.slice(5, 7) - 1, +b.slice(8, 10)) - Date.UTC(+a.slice(0, 4), +a.slice(5, 7) - 1, +a.slice(8, 10))) / 86400000) + 1;
@@ -97,6 +101,16 @@ function ProjecaoCdPage() {
     },
   });
 
+  // Premissa: produzir só itens validados na relação de produtos para abastecimento — classes Linha e MTO.
+  const classesQ = useQuery({
+    queryKey: ["pcp-classes-portfolio"], staleTime: 10 * 60_000,
+    queryFn: async () => {
+      const rows = await fetchAll<any>((f, t) => (supabase as any).from("abast_classificacoes_portfolio").select("sku, classe, vigencia, registrado_em").order("vigencia", { ascending: false }).order("registrado_em", { ascending: false }).range(f, t));
+      const m = new Map<string, string>();
+      for (const r of rows) { const k = nk(r.sku); if (!m.has(k)) m.set(k, String(r.classe ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase()); }
+      return m;
+    },
+  });
   const calc = useMemo(() => {
     const d = dados.data;
     if (!d || d.consenso.length === 0) return null;
@@ -188,10 +202,15 @@ function ProjecaoCdPage() {
     for (const [k, m] of motor) for (const o of m.ordens) if (o.liberar <= limite) plano.push({ sku: canon.get(k) ?? k, descricao: m.descricao, quantidade: o.quantidade, produzirAte: o.liberar, dataRuptura: m.dataRupturaCD ?? o.chegada, urgente: o.urgente, foraDoCiclo: o.foraDoCiclo, severidade: m.severidade });
     plano.sort((a, b) => a.produzirAte.localeCompare(b.produzirAte) || b.quantidade - a.quantidade);
     // Todas as ordens do horizonte (plano mestre e compras); o plano de 30 dias continua para a lista detalhada.
+    // Só Linha e MTO entram no plano de produção; os demais seguem na projeção, mas sem ordem
+    const classes = classesQ.data;
+    const foraPortfolio: { sku: string; descricao: string; classe: string | null; quantidade: number }[] = [];
+    if (classes && classes.size) for (const [k, m] of motor) { const cl = classes.get(k) ?? null; if (cl !== "LINHA" && cl !== "MTO" && m.ordens.length) { foraPortfolio.push({ sku: canon.get(k) ?? k, descricao: m.descricao, classe: cl, quantidade: m.ordens.reduce((a, o) => a + o.quantidade, 0) }); m.ordens = []; } }
+    for (let i = plano.length - 1; i >= 0; i--) if (classes && classes.size && !["LINHA", "MTO"].includes(classes.get(nk(plano[i].sku)) ?? "")) plano.splice(i, 1);
     const ordensTodas: OrdemMps[] = [];
     for (const [k, m] of motor) for (const o of m.ordens) ordensTodas.push({ sku: canon.get(k) ?? k, descricao: m.descricao, quantidade: o.quantidade, liberar: o.liberar, urgente: o.urgente });
-    return { vazio: false as const, inicio, N, ultimoMes, projs, plano, almoxDe, motor, probAprov, ordensTodas, demSemana, realizacaoGeral: totMalha > 0 ? totReal / totMalha : null };
-  }, [dados.data, leadTime, segCD, diasTransito, comCafe, diasQual, diasProc, shelfMin, zServ, diaRev]);
+    return { vazio: false as const, inicio, N, ultimoMes, projs, plano, almoxDe, motor, probAprov, ordensTodas, demSemana, foraPortfolio, classesCarregadas: !!classes?.size, realizacaoGeral: totMalha > 0 ? totReal / totMalha : null };
+  }, [dados.data, classesQ.data, leadTime, segCD, diasTransito, comCafe, diasQual, diasProc, shelfMin, zServ, diaRev]);
 
   const projFiltradas = useMemo(() => {
     if (!calc || calc.vazio) return [];
@@ -258,6 +277,20 @@ function ProjecaoCdPage() {
       return { bom, saldos, custos };
     },
   });
+  const suf = useMemo(() => {
+    if (!bomQ.data || !calc || calc.vazio) return null;
+    try { return suficienciaProducao(mps.linhas.map((l) => ({ sku: l.sku, descricao: l.descricao, porSemana: l.porSemana })), semanas, bomQ.data.bom as any, bomQ.data.saldos, { prazoPPDias: Math.max(1, Number(leadTime) || 7), hoje: calc.inicio }); } catch { return null; }
+  }, [bomQ.data, calc, mps, semanas, leadTime]);
+  const skusPlano = useMemo(() => mps.linhas.map((l) => l.sku), [mps]);
+  const opsQ = useQuery({
+    enabled: pode && skusPlano.length > 0 && !!bomQ.data, queryKey: ["pcp-ops-estrutura", skusPlano.join(",")], staleTime: 10 * 60_000,
+    queryFn: async () => {
+      const desde = new Date(Date.now() - 120 * 86400000).toISOString().slice(0, 10), ids = [...new Set(skusPlano.flatMap((s) => [s, nk(s), `0${nk(s)}`]))], out: any[] = [];
+      for (let i = 0; i < ids.length; i += 150) out.push(...await fetchAll<any>((f, t) => (supabase as any).from("producao_consumo").select("id_op, data_producao, produto, desc_produto, material, desc_material, qtd_consumo, qtd_produzida, um").in("produto", ids.slice(i, i + 150)).gte("data_producao", desde).range(f, t)));
+      return out;
+    },
+  });
+  const estrutura = useMemo(() => (opsQ.data && bomQ.data ? estruturaAplicada(opsQ.data, bomQ.data.bom as any, skusPlano) : []), [opsQ.data, bomQ.data, skusPlano]);
   const mrp = useMemo(() => {
     if (!bomQ.data || !calc || calc.vazio || !ordensSel.length) return null;
     try { return mrpPorSemana(ordensSel, bomQ.data.bom, bomQ.data.saldos, bomQ.data.custos, { leadCompraDias: Math.max(0, Number(leadCompra) || 0), hoje: calc.inicio }); }
@@ -328,7 +361,7 @@ function ProjecaoCdPage() {
 
       <Secao letra="A" titulo="Premissas do plano e consenso" acao={<button type="button" onClick={() => setVerPremissas(!verPremissas)} className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">{verPremissas ? "Ocultar" : "Ajustar premissas"} <ChevronDown className={`size-4 transition ${verPremissas ? "rotate-180" : ""}`} /></button>}>
         <div className="flex flex-wrap gap-2 text-xs">
-          {[["Prazo de produção", `${leadTime} d`], ["Liberação da Qualidade", `${diasQual} d`], ["Processo → disponível", `${diasProc} d`], ["Chegada das notas", `${diasTransito} d`], ["Segurança do CD", `${segCD} d`], ["Shelf mínimo", `${shelfMin} d`], ["Capacidade", `${un(cap)} un/sem`], ["Lead time de compra", `${leadCompra} d`], ["Nível de serviço (z)", zServ], ["Revisão do plano", diaRev === "" ? "qualquer dia" : DIAS_SEMANA[Number(diaRev)]]].map(([t, v]) => <span key={t} className="rounded-full border bg-muted/40 px-2.5 py-1"><span className="text-muted-foreground">{t}:</span> <b>{v}</b></span>)}
+          {[["Prazo de produção", `${leadTime} d`], ["Liberação da Qualidade", `${diasQual} d`], ["Processo → disponível", `${diasProc} d`], ["Chegada das notas", `${diasTransito} d`], ["Segurança do CD", `${segCD} d`], ["Shelf mínimo", `${shelfMin} d`], ["Capacidade", `${un(cap)} un/sem`], ["Lead time de compra", `${leadCompra} d`], ["Nível de serviço (z)", zServ], ["Revisão do plano", diaRev === "" ? "qualquer dia" : DIAS_SEMANA[Number(diaRev)]], ["Produção", calc && !calc.vazio && calc.classesCarregadas ? `só Linha e MTO${calc.foraPortfolio.length ? ` · ${calc.foraPortfolio.length} SKU(s) fora do plano` : ""}` : "só Linha e MTO (portfólio não carregado)"]].map(([t, v]) => <span key={t} className="rounded-full border bg-muted/40 px-2.5 py-1"><span className="text-muted-foreground">{t}:</span> <b>{v}</b></span>)}
         </div>
         {verPremissas && <div className="mt-3 flex flex-wrap items-end gap-3 text-sm">
           {([["Prazo de produção (dias)", leadTime, setLeadTime], ["Segurança do CD (dias)", segCD, setSegCD], ["Chegada das notas ao CD (dias)", diasTransito, setDiasTransito], ["Liberação da Qualidade (dias)", diasQual, setDiasQual], ["Processo → disponível (dias)", diasProc, setDiasProc], ["Shelf mínimo p/ despacho (dias)", shelfMin, setShelfMin], ["Capacidade semanal (un)", capSem, setCapSem], ["Lead time de compra (dias)", leadCompra, setLeadCompra], ["Nível de serviço (z)", zServ, setZServ]] as [string, string, (v: string) => void][]).map(([t, v, f]) => (
@@ -474,7 +507,48 @@ function ProjecaoCdPage() {
           </>)}
         </Secao>
 
-        <Secao letra="H" titulo="Projeção de ruptura por SKU" acao={<Button size="sm" variant="outline" className="gap-1" onClick={() => csv(`Projecao_CD_${calc.inicio}.csv`, ["SKU", "Produto", "Severidade", "Estoque CD", "Estoque lojas", "Em trânsito (lojas)", "Entrada no CD (notas)", "Demanda no horizonte", "Ruptura do CD", "Dias até a ruptura", "Déficit"], projFiltradas.map((p) => [p.sku, p.descricao, ROT[p.severidade], p.estoqueCD, p.estoqueLojas, p.trLojas, p.entCD, Math.round(p.demandaTotal), p.dataRupturaCD ?? "", p.diasAteRuptura ?? "", Math.round(p.deficit)]))}><Download className="size-4" /> CSV</Button>}>
+        <Secao letra="H" titulo="Suficiência de estoque para produção (Produto em Processo → matéria-prima)">
+          {!suf ? <p className="text-sm text-muted-foreground">Carregando a ficha técnica e o saldo de Fábrica + Processo + Qualidade…</p> : <>
+            <p className="mb-3 text-xs text-muted-foreground">Para cada ordem do plano (só Linha e MTO), a ficha técnica é aberta em <b>Produto em Processo</b> (subconjunto do 1º nível) e matéria-prima. O saldo de PP é consumido semana a semana; se faltar, a OP do PP é sugerida {leadTime} dia(s) antes da semana em que falta — sem correria — e a matéria-prima para produzi-lo é verificada.</p>
+            <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-6">
+              <Kpi t="PP no plano" v={un(suf.resumo.pp)} d={`${un(suf.resumo.ppCobertos)} cobertos pelo saldo`} />
+              <Kpi t="OPs de PP sugeridas" v={un(suf.resumo.opsPP)} d="antecipar para não faltar" tom={suf.resumo.opsPP ? "text-amber-600" : "text-emerald-600"} />
+              <Kpi t="OPs de PP já atrasadas" v={un(suf.resumo.opsAtrasadas)} d="data de liberação passou" tom={suf.resumo.opsAtrasadas ? "text-red-600" : "text-emerald-600"} />
+              <Kpi t="PP sem matéria-prima" v={un(suf.resumo.ppSemMp)} d="falta MP para a OP do PP" tom={suf.resumo.ppSemMp ? "text-red-600" : "text-emerald-600"} />
+              <Kpi t="MP faltando" v={un(suf.resumo.mpFaltando)} d="no horizonte do plano" tom={suf.resumo.mpFaltando ? "text-red-600" : "text-emerald-600"} />
+              <Kpi t="SKUs sem ficha" v={un(suf.semFicha.length)} d="fora da verificação" tom={suf.semFicha.length ? "text-amber-600" : ""} />
+            </div>
+            <div className="max-h-[420px] overflow-auto rounded-md border">
+              <Table><TableHeader className="sticky top-0 bg-muted"><TableRow><Th c="Produto em Processo" /><Th c="Saldo" />{semanas.map((w) => <Th key={w} c={fmtSemana(w)} />)}<Th c="Cobertura" /><Th c="OP sugerida" /><Th c="Matéria-prima" /></TableRow></TableHeader>
+                <TableBody>{suf.pp.map((l) => <TableRow key={l.id} className={l.sugestao?.atrasada ? "bg-red-50/60 dark:bg-red-950/20" : l.sugestao ? "bg-amber-50/50 dark:bg-amber-950/10" : ""}>
+                  <TableCell className="text-xs"><div className="font-medium">{l.item}</div><div className="font-mono text-[10px] text-muted-foreground">{l.id} · usado em {l.usadoEm.length} produto(s)</div></TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">{nd(l.saldo, 2)} {l.um}</TableCell>
+                  {l.necessidade.map((n, i) => <TableCell key={i} className={`text-right text-xs tabular-nums ${l.semanaFalta !== null && i >= l.semanaFalta ? "font-semibold text-red-600" : ""}`}>{n ? nd(n, 2) : "·"}</TableCell>)}
+                  <TableCell className="text-xs">{l.semanaFalta === null ? <span className="font-semibold text-emerald-700">todo o horizonte</span> : <span className="font-semibold text-red-600">falta na sem. {fmtSemana(semanas[l.semanaFalta])}</span>}</TableCell>
+                  <TableCell className="text-xs">{l.sugestao ? <><b>{nd(l.sugestao.quantidade, 2)} {l.um}</b><div className={l.sugestao.atrasada ? "font-semibold text-red-600" : "text-muted-foreground"}>liberar até {fmtData(l.sugestao.liberarAte)}{l.sugestao.atrasada ? " (atrasada)" : ""}</div></> : "—"}</TableCell>
+                  <TableCell className="text-xs">{!l.sugestao ? "—" : l.mpFaltantes.length ? <span className="text-red-600">falta {l.mpFaltantes.slice(0, 2).map((m) => `${m.item} (${nd(m.falta, 2)} ${m.um})`).join("; ")}</span> : <span className="text-emerald-700">disponível</span>}</TableCell>
+                </TableRow>)}
+                  {!suf.pp.length && <TableRow><TableCell colSpan={semanas.length + 5} className="py-6 text-center text-sm text-muted-foreground">Nenhum Produto em Processo na ficha dos SKUs do plano.</TableCell></TableRow>}</TableBody></Table>
+            </div>
+            {suf.mp.some((m) => m.falta > 0) && <p className="mt-2 text-xs text-muted-foreground">Matéria-prima que falta para produto e PP: {suf.mp.filter((m) => m.falta > 0).slice(0, 6).map((m) => `${m.item} (${nd(m.falta, 2)} ${m.um}, sem. ${m.semanaFalta !== null ? fmtSemana(semanas[m.semanaFalta]) : "—"})`).join(" · ")}. O plano de compras (G) traz o prazo de cada uma.</p>}
+          </>}
+        </Secao>
+
+        <Secao letra="I" titulo="Estrutura aplicada nas últimas OPs × ficha técnica">
+          <p className="mb-3 text-xs text-muted-foreground">Consumo real por unidade produzida nas 3 últimas OPs apontadas de cada SKU do plano (últimos 120 dias), comparado à ficha técnica. Mostra o que precisa ser ajustado na ficha e na quebra de subitens para a verificação de matéria-prima refletir a produção real.</p>
+          {opsQ.isLoading ? <p className="text-sm text-muted-foreground">Carregando as OPs apontadas…</p> : !estrutura.some((e) => e.linhas.length) ? <p className="text-sm text-emerald-700">As últimas OPs dos SKUs do plano seguem a ficha técnica (desvio até 10%).</p> :
+            <div className="max-h-[420px] overflow-auto rounded-md border"><Table><TableHeader className="sticky top-0 bg-muted"><TableRow><Th c="Produto" /><Th c="OPs analisadas" /><Th c="Material" /><Th c="Ficha / un" /><Th c="Real / un" /><Th c="Desvio" /><Th c="Leitura" /></TableRow></TableHeader>
+              <TableBody>{estrutura.filter((e) => e.linhas.length).slice(0, 25).flatMap((e) => e.linhas.map((l, i) => <TableRow key={`${e.produto}-${l.id}`}>
+                {i === 0 && <TableCell rowSpan={e.linhas.length} className="align-top text-xs"><div className="font-medium">{e.descricao}</div><div className="font-mono text-[10px] text-muted-foreground">{e.produto}</div></TableCell>}
+                {i === 0 && <TableCell rowSpan={e.linhas.length} className="align-top text-xs">{e.ops.join(", ")}</TableCell>}
+                <TableCell className="text-xs"><span className="font-mono text-[10px]">{l.id}</span> {l.item}</TableCell>
+                <TableCell className="text-right text-xs tabular-nums">{l.ficha == null ? "—" : nd(l.ficha, 4)}</TableCell>
+                <TableCell className="text-right text-xs tabular-nums">{l.real == null ? "—" : nd(l.real, 4)}</TableCell>
+                <TableCell className={`text-right text-xs font-semibold ${l.desvio == null ? "text-violet-600" : l.desvio > 0 ? "text-red-600" : "text-amber-600"}`}>{l.desvio == null ? "fora da ficha" : `${l.desvio > 0 ? "+" : ""}${nd(l.desvio, 1)}%`}</TableCell>
+                <TableCell className="text-xs">{l.leitura}</TableCell></TableRow>))}</TableBody></Table></div>}
+        </Secao>
+
+        <Secao letra="J" titulo="Projeção de ruptura por SKU" acao={<Button size="sm" variant="outline" className="gap-1" onClick={() => csv(`Projecao_CD_${calc.inicio}.csv`, ["SKU", "Produto", "Severidade", "Estoque CD", "Estoque lojas", "Em trânsito (lojas)", "Entrada no CD (notas)", "Demanda no horizonte", "Ruptura do CD", "Dias até a ruptura", "Déficit"], projFiltradas.map((p) => [p.sku, p.descricao, ROT[p.severidade], p.estoqueCD, p.estoqueLojas, p.trLojas, p.entCD, Math.round(p.demandaTotal), p.dataRupturaCD ?? "", p.diasAteRuptura ?? "", Math.round(p.deficit)]))}><Download className="size-4" /> CSV</Button>}>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             {(["TODOS", "critica", "alta", "media", "baixa", "ok"] as const).map((sv) => (
               <button key={sv} onClick={() => setFiltro(sv)} className={`rounded-full border px-3 py-1 text-xs ${filtro === sv ? "border-slate-900 bg-slate-900 font-semibold text-white" : "hover:bg-muted"}`}>
