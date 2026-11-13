@@ -151,7 +151,7 @@ export type LoteRow = { id_produto: string; descricao: string | null; lote: stri
 export const STATUS_FAROL = ["Vencido", "Urgente", "Perigo", "Atenção"] as const;
 export type StatusFarol = (typeof STATUS_FAROL)[number];
 const STATUS_DA_FAIXA: Record<string, StatusFarol> = { VENCIDO: "Vencido", "30": "Urgente", "60": "Perigo", "90": "Atenção" };
-export type LoteFarol = { sku: string; descricao: string; lote: string; almox: string; grupo: string | null; quantidade: number; valor: number; status: StatusFarol };
+export type LoteFarol = { sku: string; descricao: string; lote: string; almox: string; grupo: string | null; quantidade: number; valor: number; status: StatusFarol; validade?: string | null; dias?: number | null };
 
 export function lotesFarol(rows: LoteRow[], grupoDe: Map<string, string>, hoje = new Date()): LoteFarol[] {
   const out: LoteFarol[] = [];
@@ -160,7 +160,8 @@ export function lotesFarol(rows: LoteRow[], grupoDe: Map<string, string>, hoje =
     if (qtd <= 0) continue;
     const st = STATUS_DA_FAIXA[faixaDeRisco(r.data_validade, hoje) ?? ""];
     if (!st) continue; // sem validade ou fora do radar (> 90 dias)
-    out.push({ sku: String(r.id_produto ?? ""), descricao: String(r.descricao ?? ""), lote: String(r.lote ?? ""), almox: String(r.origem ?? ""), grupo: grupoDe.get(upper(r.id_produto)) ?? null, quantidade: qtd, valor: qtd * (Number(r.custo_unitario) || 0), status: st });
+    out.push({ sku: String(r.id_produto ?? ""), descricao: String(r.descricao ?? ""), lote: String(r.lote ?? ""), almox: String(r.origem ?? ""), grupo: grupoDe.get(upper(r.id_produto)) ?? null, quantidade: qtd, valor: qtd * (Number(r.custo_unitario) || 0), status: st,
+      validade: r.data_validade ? String(r.data_validade).slice(0, 10) : null, dias: r.data_validade ? Math.round((new Date(`${String(r.data_validade).slice(0, 10)}T12:00:00`).getTime() - hoje.getTime()) / 86400000) : null });
   }
   return out;
 }
@@ -175,7 +176,12 @@ export function farolShelf(lotes: LoteFarol[]) {
     for (const x of l) { const e = m.get(x.sku) ?? { descricao: x.descricao || x.sku, custo: 0 }; e.custo += x.valor; m.set(x.sku, e); }
     return [s, { qtd: l.length, valor: r2(soma(l, (x) => x.valor)), top: [...m.values()].sort(desc((x) => x.custo)).slice(0, 5) }];
   })) as Record<StatusFarol, { qtd: number; valor: number; top: { descricao: string; custo: number }[] }>;
-  return { status, totalLotes: lotes.length, valorTotal: r2(soma(lotes, (x) => x.valor)), porAlmox: por((l) => l.almox || "—"), porGrupo: por((l) => l.grupo || "Sem grupo") };
+  // próximos 30 dias: vencidos + vencem em até 30 dias, lote a lote
+  const p30 = lotes.filter((l) => l.status === "Vencido" || l.status === "Urgente");
+  const proximos30 = { valor: r2(soma(p30, (x) => x.valor)), lotes: p30.length, skus: new Set(p30.map((x) => x.sku)).size,
+    porAlmox: [...p30.reduce((m, l) => m.set(l.almox || "—", (m.get(l.almox || "—") ?? 0) + l.valor), new Map<string, number>())].map(([nome, valor]) => ({ nome, valor: r2(valor) })).sort(desc((x) => x.valor)),
+    itens: [...p30].sort(desc((x) => x.valor)).slice(0, 12).map((l) => ({ sku: l.sku, descricao: l.descricao, lote: l.lote, almox: l.almox, valor: r2(l.valor), dias: l.dias ?? null, grupo: l.grupo })) };
+  return { status, totalLotes: lotes.length, valorTotal: r2(soma(lotes, (x) => x.valor)), porAlmox: por((l) => l.almox || "—"), porGrupo: por((l) => l.grupo || "Sem grupo"), proximos30 };
 }
 export type DadosFarol = ReturnType<typeof farolShelf>;
 
