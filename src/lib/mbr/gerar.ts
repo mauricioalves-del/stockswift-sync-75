@@ -8,6 +8,7 @@ import { slideAberturaSecao, slideCapa } from "./kit";
 import { ITENS_SECAO2, SLIDES_SECAO2 } from "./secao2";
 import { ITENS_SECAO1, slideResumoExecutivo, slideScorecard, type Consolidado } from "./secao1";
 import { slideRupturas } from "./rupturas";
+import { reincidencia, slideFarolMov, slidePlanoReincidencia, slideProximos30, slideReincidencia } from "./operacao";
 import { marcosLinhaTempo, slideAutomacoes, slideLinhaTempo, slidesPdca } from "./automacoes";
 import { slideDivergenciasAtlas, slideDoisPiores, slideEvolucaoControles, slideMapeamentoAcoes, slidePlanoAcao, slidePonteValor, slideResultados, slideRupturaExcesso, slideScorecardExec, type Extras } from "./executivo";
 import { DESCRICAO_SECAO3, ITENS_SECAO3, slideBaixas, slideDispersao, slideFarol, slideFefo, slideFuroFicha, slideInvestimento, slideItensSemMov, slidePacotes, slideRecuperacao, slideSemMovimentacao, slideTestes } from "./secao3";
@@ -59,7 +60,11 @@ export function montarMbr(F: FontesMbr, mes: string, geradoEm = new Date(), R: P
   const [fIap, fIaq, fConc, fFaixas, fItem, fMov, fScoreAlmox] = SLIDES_SECAO2;
   for (const f of [fIap, fIaq, fConc, fFaixas, fItem]) f(p, rotulo, prox(), d);
   slideDoisPiores(p, rotulo, prox(), c);
+  const reinc = reincidencia(F.inv, mes);
+  slideReincidencia(p, rotulo, prox(), reinc);
+  slidePlanoReincidencia(p, rotulo, prox(), reinc, mes);
   fMov(p, rotulo, prox(), d);
+  slideFarolMov(p, rotulo, prox(), R?.farolMov ?? null);
   slideEvolucaoControles(p, rotulo, prox(), c, X);
   fScoreAlmox(p, rotulo, prox(), d);
   // Seção 3
@@ -68,6 +73,7 @@ export function montarMbr(F: FontesMbr, mes: string, geradoEm = new Date(), R: P
   slideInvestimento(p, rotulo, prox(), R?.investimento ?? null);
   slidePacotes(p, rotulo, prox(), R?.pacotes ?? null, mes);
   slideFarol(p, rotulo, prox(), R?.farol ?? null, geradoEm);
+  slideProximos30(p, rotulo, prox(), R?.farol ?? null);
   slideSemMovimentacao(p, rotulo, prox(), R?.semMov ?? null, geradoEm);
   slideItensSemMov(p, rotulo, prox(), R?.semMov ?? null);
   slideRecuperacao(p, rotulo, prox(), R?.recuperacao ?? null);
