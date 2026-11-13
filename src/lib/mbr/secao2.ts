@@ -95,15 +95,16 @@ export function slideIaq(p: Pptx, mesLabel: string, pag: number, d: DadosMbr) {
 
 export function slideConcentracao(p: Pptx, mesLabel: string, pag: number, d: DadosMbr) {
   const s = novoSlide(p);
-  cabecalho(s, "Acurácia Ponderada — Concentração de Risco", mesLabel, pag, "Curva de Pareto — onde o valor em risco está concentrado neste mês");
-  const c = d.concentracao, top = c.itens.slice(0, 20);
+  cabecalho(s, "Acurácia Ponderada — Concentração de Risco", mesLabel, pag, "Pareto das 10 maiores perdas do mês analisado e os maiores exemplos de divergência");
+  const c = d.concentracao;
+  // Pareto só com as 10 maiores perdas (faltas) do mês analisado
+  const perdas = c.itens.filter((i) => i.divergencia < 0).sort((x, y) => y.valor - x.valor), top = perdas.slice(0, 10);
+  const totPerda = perdas.reduce((a, i) => a + i.valor, 0);
   if (top.length) {
-    const cats = top.map((i) => i.sku), vb = top.map((i) => i.valor), vl = top.map((i) => i.pctAcum);
-    const resto = c.totalDivergentes - top.length;
-    if (resto > 0) { cats.push(`+${fmtNum(resto)} itens`); vb.push(Math.max(c.valorTotal - vb.reduce((a, b) => a + b, 0), 0)); vl.push(100); }
-    texto(s, MARGEM, 1.65, LC, 0.24, `CONCENTRAÇÃO DE VALOR (CURVA DE PARETO) — TOP ${top.length} SKUS + CAUDA`, { tamanho: 10.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
-    graficoComboDuplo(p, s, MARGEM, 1.93, LC, 1.85, cats, { nome: "Valor (R$)", valores: vb, cor: COR.VERDE_AMAZONIA, formato: "#,##0" }, { nome: "% acumulado do valor", valores: vl, cor: COR.ATENCAO, formato: '0"%"' });
-    texto(s, MARGEM, 3.83, LC, 0.35, c.topNPct != null ? `Os ${c.topN} maiores SKUs divergentes concentram ${fmtPct(c.topNPct)} do valor em risco do mês (${fmtMoeda(c.valorTotal)} no total, ${fmtNum(c.totalDivergentes)} itens divergentes).` : "Concentração de valor não disponível neste recorte.", { tamanho: 10 });
+    let ac = 0; const cats = top.map((i) => (i.descricao || i.sku).slice(0, 16)), vb = top.map((i) => i.valor), vl = top.map((i) => { ac += i.valor; return totPerda ? Math.round((ac / totPerda) * 1000) / 10 : 0; });
+    texto(s, MARGEM, 1.65, LC, 0.24, `PARETO DAS ${top.length} MAIORES PERDAS DO MÊS (FALTAS, R$)`, { tamanho: 10.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
+    graficoComboDuplo(p, s, MARGEM, 1.93, LC, 1.85, cats, { nome: "Perda (R$)", valores: vb, cor: COR.ERRO, formato: "#,##0" }, { nome: "% acumulado das perdas", valores: vl, cor: COR.ATENCAO, formato: '0"%"' });
+    texto(s, MARGEM, 3.83, LC, 0.35, `As ${top.length} maiores perdas somam ${fmtMoeda(top.reduce((a, i) => a + i.valor, 0))} — ${fmtPct(totPerda ? (100 * top.reduce((a, i) => a + i.valor, 0)) / totPerda : null)} das faltas do mês (${fmtMoeda(totPerda)} em ${fmtNum(perdas.length)} itens com falta).`, { tamanho: 10 });
   } else caixaLeitura(s, MARGEM, 1.65, LC, 2.4, "Curva de Pareto", "Sem item divergente com custo cadastrado neste recorte para montar a curva de concentração de valor.");
   const yt = 4.3;
   texto(s, MARGEM, yt, LC, 0.24, "TOP 10 MAIORES EXEMPLOS DO MÊS", { tamanho: 10.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
