@@ -171,18 +171,8 @@ export function FichaItem({ ctx, onClose }: { ctx: ContextoFicha; onClose: () =>
 
         {aba === "materiais" && s && <div className="space-y-2">
           {s.semFicha || !s.ficha?.linhas.length ? <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Produto sem ficha técnica cadastrada: não é possível verificar os materiais. Cadastre em Produção › Auditoria de Ficha Técnica.</p> : <>
-            <p className="text-xs text-muted-foreground">Ficha técnica completa, em todos os níveis (subconjuntos e matérias-primas), para {s.ficha.baseEhPlano ? <><b>{un(s.ficha.qtdBase)} un</b> do plano deste produto</> : "1 unidade (o produto não tem ordens no plano)"}. Saldo = Fábrica + Processo + Qualidade. A falta e a semana de ruptura vêm do plano de compras, que abate primeiro o saldo dos subconjuntos e consome o estoque com todas as ordens do plano.</p>
-            <div className="max-h-96 overflow-auto rounded-md border"><table className="w-full text-sm"><thead className="sticky top-0 bg-muted text-xs"><tr><th className="px-2 py-1 text-left">Componente</th><th className="px-2 py-1 text-left">Tipo</th><th className="px-2 py-1 text-right">Por unidade</th><th className="px-2 py-1 text-right">Necessidade</th><th className="px-2 py-1 text-right">Saldo</th><th className="px-2 py-1 text-right">Cobertura</th><th className="px-2 py-1 text-right">Situação no plano</th></tr></thead>
-              <tbody>{s.ficha.linhas.map((x) => { const c = (s.materiais ?? []).find((m) => m.id === x.id); const cobre = x.necessidade > 0 ? x.saldo / x.necessidade : null; return (
-                <tr key={x.id + x.pai} className={`border-t ${x.tipo === "Subconjunto" ? "bg-muted/30 font-medium" : ""}`}>
-                  <td className="px-2 py-1" style={{ paddingLeft: `${8 + (x.nivel - 1) * 16}px` }}><span className="font-mono text-xs">{x.id}</span> {x.item}</td>
-                  <td className="px-2 py-1 text-xs">{x.tipo === "Subconjunto" ? "Subconjunto" : "Matéria-prima"}</td>
-                  <td className="px-2 py-1 text-right tabular-nums">{un(x.porUn, 4)} {x.um}</td>
-                  <td className="px-2 py-1 text-right tabular-nums">{un(x.necessidade, 2)}</td>
-                  <td className="px-2 py-1 text-right tabular-nums">{un(x.saldo, 2)}</td>
-                  <td className={`px-2 py-1 text-right ${cobre !== null && cobre < 1 ? "font-semibold text-red-600" : "text-emerald-700"}`}>{cobre === null ? "—" : cobre >= 10 ? "≥ 10×" : `${un(cobre * 100)}%`}</td>
-                  <td className={`px-2 py-1 text-right text-xs ${c?.falta ? "font-semibold text-red-600" : ""}`}>{c ? (c.falta > 0 ? `falta ${un(c.falta, 2)} · semana ${dm(c.primeiraFalta)} · comprar até ${dm(c.comprarAte)}${c.atrasado ? " (vencido)" : ""}` : "coberto") : x.tipo === "Subconjunto" ? (x.saldo >= x.necessidade ? "coberto pelo saldo do subconjunto" : "produzir o subconjunto") : "não demandado (subconjunto com saldo)"}</td>
-                </tr>); })}</tbody></table></div>
+            <p className="text-xs text-muted-foreground">Composição do produto como no cadastro do ERP: primeiro a <b>estrutura central</b> (subconjuntos e materiais usados direto no produto) para {s.ficha.baseEhPlano ? <><b>{un(s.ficha.qtdBase)} un</b> do plano</> : "1 unidade (o produto não tem ordens no plano)"}. Quando um subconjunto não tem saldo para atender, abre-se a estrutura dele para avaliar a produção — só pela quantidade que falta. Saldo = Fábrica + Processo + Qualidade.</p>
+            <ComposicaoFicha linhas={s.ficha.linhas} materiais={s.materiais ?? []} />
           </>}
         </div>}
 
@@ -213,4 +203,46 @@ export function FichaItem({ ctx, onClose }: { ctx: ContextoFicha; onClose: () =>
 
 function Kpi({ t, v, d, tom }: { t: string; v: string; d?: string; tom?: string }) {
   return <div className="rounded-md border p-2"><div className="text-[11px] text-muted-foreground">{t}</div><div className={`text-lg font-bold tabular-nums ${tom ?? ""}`}>{v}</div>{d && <div className="text-[11px] text-muted-foreground">{d}</div>}</div>;
+}
+
+
+/** Composição em níveis: estrutura central do produto e, para cada subconjunto sem saldo suficiente, a sublista
+ *  dos componentes necessários para produzir só a parte que falta (recursivo, como no apontamento de OP). */
+function ComposicaoFicha({ linhas, materiais }: { linhas: LinhaFicha[]; materiais: ItemCompra[] }) {
+  const filhos = (pai: LinhaFicha) => linhas.filter((l) => l.nivel === pai.nivel + 1 && l.pai === pai.id);
+  const [fechados, setFechados] = useState<Set<string>>(new Set());
+  const alternar = (k: string) => setFechados((f) => { const n = new Set(f); n.has(k) ? n.delete(k) : n.add(k); return n; });
+  const centrais = linhas.filter((l) => l.nivel === 1);
+  const resumo = { total: centrais.length, faltando: centrais.filter((l) => l.saldo < l.necessidade - 1e-9).length, subSemSaldo: centrais.filter((l) => l.tipo === "Subconjunto" && l.saldo < l.necessidade - 1e-9).length };
+  const Linha = ({ x, nec, prof, chave }: { x: LinhaFicha; nec: number; prof: number; chave: string }) => {
+    const falta = Math.max(0, nec - x.saldo), cobre = nec > 0 ? x.saldo / nec : null, sub = x.tipo === "Subconjunto", kids = sub ? filhos(x) : [];
+    const abre = sub && falta > 1e-9 && kids.length > 0, aberto = abre && !fechados.has(chave);
+    const c = materiais.find((m) => m.id === x.id);
+    const situacao = sub ? (falta <= 1e-9 ? "atende pelo saldo" : kids.length ? `produzir ${un(falta, 2)} ${x.um}` : `falta ${un(falta, 2)} ${x.um} · subconjunto sem estrutura cadastrada`)
+      : c?.falta ? `falta ${un(c.falta, 2)} · semana ${dm(c.primeiraFalta)} · comprar até ${dm(c.comprarAte)}${c.atrasado ? " (vencido)" : ""}` : falta > 1e-9 ? `falta ${un(falta, 2)} ${x.um}` : "atende pelo saldo";
+    return <>
+      <tr className={`border-t ${prof === 0 ? (sub ? "bg-muted/40 font-medium" : "") : "bg-amber-50/40 dark:bg-amber-950/10 text-[13px]"}`}>
+        <td className="px-2 py-1" style={{ paddingLeft: `${8 + prof * 20}px` }}>
+          {abre ? <button type="button" onClick={() => alternar(chave)} className="mr-1 inline-block w-4 text-xs text-muted-foreground hover:text-foreground">{aberto ? "▾" : "▸"}</button> : <span className="mr-1 inline-block w-4" />}
+          <span className="font-mono text-xs">{x.id}</span> {x.item}</td>
+        <td className="px-2 py-1 text-xs">{sub ? "Subconjunto" : "Matéria-prima"}</td>
+        <td className="px-2 py-1 text-right tabular-nums">{un(x.porUn, 4)} {x.um}</td>
+        <td className="px-2 py-1 text-right tabular-nums">{un(nec, 2)}</td>
+        <td className="px-2 py-1 text-right tabular-nums">{un(x.saldo, 2)}</td>
+        <td className={`px-2 py-1 text-right ${cobre !== null && cobre < 1 ? "font-semibold text-red-600" : "text-emerald-700"}`}>{cobre === null ? "—" : cobre >= 10 ? "≥ 10×" : `${un(cobre * 100)}%`}</td>
+        <td className={`px-2 py-1 text-right text-xs ${falta > 1e-9 || c?.falta ? "font-semibold text-red-600" : "text-emerald-700"}`}>{situacao}</td>
+      </tr>
+      {aberto && <tr className="bg-amber-50/40 dark:bg-amber-950/10"><td colSpan={7} className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300" style={{ paddingLeft: `${28 + prof * 20}px` }}>Estrutura para produzir {un(falta, 2)} {x.um} de {x.item}</td></tr>}
+      {aberto && kids.map((k) => <Linha key={k.id} x={k} nec={x.porUn ? falta * (k.porUn / x.porUn) : 0} prof={prof + 1} chave={`${chave}>${k.id}`} />)}
+    </>;
+  };
+  return <>
+    <div className="flex flex-wrap gap-2 text-xs">
+      <span className="rounded-full border px-2.5 py-1">Estrutura central: <b>{resumo.total}</b> componente(s)</span>
+      <span className={`rounded-full border px-2.5 py-1 ${resumo.faltando ? "border-red-300 text-red-700" : "border-emerald-300 text-emerald-700"}`}>Sem saldo para o plano: <b>{resumo.faltando}</b></span>
+      {resumo.subSemSaldo > 0 && <span className="rounded-full border border-amber-300 px-2.5 py-1 text-amber-800">Subconjuntos a produzir: <b>{resumo.subSemSaldo}</b> — estrutura aberta abaixo</span>}
+    </div>
+    <div className="max-h-96 overflow-auto rounded-md border"><table className="w-full text-sm"><thead className="sticky top-0 bg-muted text-xs"><tr><th className="px-2 py-1 text-left">Componente</th><th className="px-2 py-1 text-left">Tipo</th><th className="px-2 py-1 text-right">Qtd por un</th><th className="px-2 py-1 text-right">Necessidade</th><th className="px-2 py-1 text-right">Saldo</th><th className="px-2 py-1 text-right">Cobertura</th><th className="px-2 py-1 text-right">Situação</th></tr></thead>
+      <tbody>{centrais.map((x) => <Linha key={x.id} x={x} nec={x.necessidade} prof={0} chave={x.id} />)}</tbody></table></div>
+  </>;
 }
