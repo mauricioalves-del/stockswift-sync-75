@@ -332,7 +332,7 @@ export function slideScorecardAlmox(p: Pptx, mesLabel: string, pag: number, d: D
     linhas.map((l): Celula[] => [{ t: l.frente, cor: COR.AZUL_INSTITUCIONAL, negrito: true }, { t: l.status.label, cor: l.status.cor, negrito: true }, l.leitura, l.passo]), { larguras: [1.6, 1, 3.6, 3.3], tamanho: tam });
 }
 
-export const ITENS_SECAO2 = ["Acurácia Ponderada (IAP)", "Acurácia Ponderada (IAQ)", "Acurácia Ponderada — Concentração de Risco", "Acurácia Ponderada — Detalhamento por Faixa", "Inventário Item a Item", "Os Dois Piores Resultados de Inventário", "Controle de Movimentados", "Evolução Operacional dos Controles", "Scorecard de Inventário por Almoxarifado"];
+export const ITENS_SECAO2 = ["Acurácia Ponderada (IAP)", "Acurácia Ponderada (IAQ)", "Acurácia Ponderada — Concentração de Risco", "Acurácia Ponderada — Detalhamento por Faixa", "Inventário Item a Item", "Os Dois Piores Resultados de Inventário", "Reincidência de Divergências", "Plano de Ação — Reincidência", "Controle de Movimentados", "Farol de Movimentados (rotina por setor)", "Evolução Operacional dos Controles", "Scorecard de Inventário por Almoxarifado"];
 /** Ordem dos slides da Seção 2 no modelo final (Loja e Pátio, com o alerta "Atenção", fecham a seção). */
 export const SLIDES_SECAO2 = [slideIap, slideIaq, slideConcentracao, slideFaixas, slideItemAItem, slideMovimentados, slideScorecardAlmox];
 export const SLIDES_ACOMPANHAMENTO = [slideLoja, slidePatio]; // fora do relatório; mantidos para uso futuro
