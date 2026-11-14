@@ -170,7 +170,7 @@ export function FichaItem({ ctx, onClose }: { ctx: ContextoFicha; onClose: () =>
         </div>}
 
         {aba === "materiais" && s && <div className="space-y-2">
-          {s.semFicha || !s.ficha?.linhas.length ? <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Produto sem ficha técnica cadastrada: não é possível verificar os materiais. Cadastre em Produção › Auditoria de Ficha Técnica.</p> : <>
+          {s.ficha === null && !s.semFicha ? <p className="text-sm text-muted-foreground">Carregando a ficha técnica e o saldo de Fábrica + Processo + Qualidade…</p> : s.semFicha || !s.ficha?.linhas.length ? <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Produto sem ficha técnica cadastrada: não é possível verificar os materiais. Cadastre em Produção › Auditoria de Ficha Técnica.</p> : <>
             <p className="text-xs text-muted-foreground">Composição do produto como no cadastro do ERP: primeiro a <b>estrutura central</b> (subconjuntos e materiais usados direto no produto) para {s.ficha.baseEhPlano ? <><b>{un(s.ficha.qtdBase)} un</b> do plano</> : "1 unidade (o produto não tem ordens no plano)"}. Quando um subconjunto não tem saldo para atender, abre-se a estrutura dele para avaliar a produção — só pela quantidade que falta. Saldo = Fábrica + Processo + Qualidade.</p>
             <ComposicaoFicha linhas={s.ficha.linhas} materiais={s.materiais ?? []} />
           </>}
