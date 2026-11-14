@@ -17,3 +17,14 @@ test("Uma OP por ordem, PA em un e PP em kg; MoM, diário, top 10 e DOI", () => 
   expect(mocajuba.doi).toBe(30); // 60 un ÷ (180/90 un/dia)
   expect(r.doi.find((d) => d.produto === "0020305006")!.doi).toBe(180); // 4 kg ÷ (2 kg/90 d)
 });
+
+test("Quantidade produzida deduzida da ficha quando a OP não traz qtd_produzida", () => {
+  const c = [
+    { id_op: "5886", data_producao: "2026-11-10", produto: "05004043", material: "019021424", qtd_previsto: 53, qtd_consumo: 53, qtd_produzida: null },
+    { id_op: "5886", data_producao: "2026-11-10", produto: "05004043", material: "0050305025", qtd_previsto: 265, qtd_consumo: 265, qtd_produzida: null },
+    { id_op: "5886", data_producao: "2026-11-10", produto: "05004043", material: "0190213123", qtd_previsto: 0.0123, qtd_consumo: 0.0106, qtd_produzida: null },
+  ];
+  const ficha: Record<string, number> = { "019021424": 1, "50305025": 5, "190213123": 0.000232 };
+  const ops = opsDeConsumo(c, () => "Produto Acabado", (_p, m) => ficha[m.replace(/^0+/, "")] ?? ficha[m] ?? null);
+  expect(ops[0].qtd).toBe(53);
+});
