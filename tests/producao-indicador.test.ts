@@ -37,3 +37,15 @@ test("Produto em processo medido pela massa consumida em kg", () => {
   const ops = opsDeConsumo(c as any, () => "Produto em Processo", () => 0.001);
   expect(ops[0].qtd).toBe(50);
 });
+
+test("Série começa na produção ativa, pareto de custo e mais vendidos com rupturas por família", async () => {
+  const { paretoCusto, maisVendidos } = await import("../src/lib/producao-indicador");
+  const c = [{ id_op: "1", data_producao: "2026-10-05", produto: "05004010", material: "X", qtd_previsto: 100, qtd_consumo: 100, custo_unit_medio_congelado: 2, um: "PC" }, { id_op: "2", data_producao: "2026-10-06", produto: "05004012", material: "X", qtd_previsto: 10, qtd_consumo: 10, custo_unit_medio_congelado: 2, um: "PC" }];
+  const ops = opsDeConsumo(c as any, () => "Produto Acabado", () => 1);
+  const r = indicadorProducao(ops, c as any, "2026-10", { estoque: [], vendas: [], hoje: "2026-10-31" });
+  expect(r.serie.map((s) => s.mes)).toEqual(["2026-10"]);
+  const p = paretoCusto(ops, "PA", () => true, 10);
+  expect(p.itens[0]).toMatchObject({ produto: "05004010", custo: 200, custoUn: 2 });
+  const mv = maisVendidos(ops, [{ sku: "5004010", data_movimento: "2026-10-10", quantidade: 90 }], [{ id_produto: "05004010", familia: "Povos da Floresta", data: "2026-10-20", loja: "A", em_ruptura: true, venda_perdida_rs: 30 }, { id_produto: "05004010", familia: "Povos da Floresta", data: "2026-10-21", loja: "B", em_ruptura: true, venda_perdida_rs: 20 }], [{ id_produto: "5004010", quantidade: 30 }], "2026-10-31", "Todas");
+  expect(mv.top[0]).toMatchObject({ venda: 90, producao: 100, diasLoja: 2, diasRuptura: 2, perda: 50, doi: 30 });
+});
