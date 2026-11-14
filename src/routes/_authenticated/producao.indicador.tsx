@@ -1,6 +1,6 @@
 // Indicador de Produção — painel executivo no padrão da Dispersão de Lote.
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,8 +25,11 @@ function Kpi({ t, v, d, tom }: { t: string; v: string; d?: string; tom?: string 
 
 function IndicadorProducaoPage() {
   const hoje = new Date().toISOString().slice(0, 10);
+  // só busca no navegador, já autenticado: no servidor a consulta volta vazia (RLS) e ficava em cache
+  const [noCliente, setNoCliente] = useState(false);
+  useEffect(() => setNoCliente(true), []);
   const q = useQuery({
-    queryKey: ["indicador-producao"], staleTime: 10 * 60_000,
+    enabled: noCliente, queryKey: ["indicador-producao", "v2"], staleTime: 10 * 60_000,
     queryFn: async () => {
       const desde = new Date(Date.now() - 400 * 86400000).toISOString().slice(0, 10), d90 = new Date(Date.now() - 95 * 86400000).toISOString().slice(0, 10);
       const [consumo, grupos, estoque, vendas, bom, apont] = await Promise.all([
@@ -64,7 +67,7 @@ function IndicadorProducaoPage() {
         <div className="w-44"><div className="mb-1 text-xs text-muted-foreground">Mês analisado</div>
           <Select value={mes} onValueChange={setMesSel}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{meses.map((m) => <SelectItem key={m} value={m}>{mesRot(m)}</SelectItem>)}</SelectContent></Select></div>
       </div>
-      {q.isLoading ? <p className="py-10 text-center text-sm text-muted-foreground">Carregando as OPs apontadas…</p> : !r ? <p className="py-10 text-center text-sm text-muted-foreground">Nenhuma OP apontada no período.</p> : <>
+      {q.isLoading || !noCliente || q.fetchStatus === "fetching" && !q.data ? <p className="py-10 text-center text-sm text-muted-foreground">Carregando as OPs apontadas…</p> : q.isError ? <p className="py-10 text-center text-sm text-red-600">Não foi possível ler as OPs: {String((q.error as any)?.message ?? q.error)}</p> : !r ? <p className="py-10 text-center text-sm text-muted-foreground">Nenhuma OP apontada no período.</p> : <>
         <Secao letra="A" titulo={`Indicadores de ${mesRot(mes)}`}>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Kpi t="Produto acabado produzido" v={`${nf(r.kpis.paUn)} un`} d={mom(r.kpis.momPA)} tom={r.kpis.momPA != null && r.kpis.momPA < 0 ? "text-red-600" : "text-emerald-700"} />
