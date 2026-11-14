@@ -1,7 +1,7 @@
 // Indicador de Produção: volume produzido por mês e por dia, mix Produto Acabado (un) × Produto em Processo e
 // subconjuntos (kg), top 10, MoM, capacidade demonstrada, aderência de consumo à ficha (base da Dispersão de Lote)
 // e DOI — dias de suficiência do estoque produzido.
-export type ConsumoLinha = { id_op: string | number; data_producao: string; produto: string; desc_produto?: string | null; qtd_produzida?: number | null; material?: string | null; qtd_consumo?: number | null; qtd_previsto?: number | null; impacto_rs_congelado?: number | null };
+export type ConsumoLinha = { id_op: string | number; data_producao: string; produto: string; desc_produto?: string | null; qtd_produzida?: number | null; material?: string | null; qtd_consumo?: number | null; qtd_previsto?: number | null; impacto_rs_congelado?: number | null; um?: string | null };
 export type Op = { op: string; data: string; mes: string; produto: string; descricao: string; qtd: number; tipo: "PA" | "PP" };
 const k0 = (s: unknown) => String(s ?? "").trim().replace(/^0+/, "");
 const mesesAte = (mes: string, n: number) => { const out: string[] = []; let [a, m] = mes.split("-").map(Number); for (let i = 0; i < n; i++) { out.unshift(`${a}-${String(m).padStart(2, "0")}`); m--; if (!m) { m = 12; a--; } } return out; };
@@ -15,17 +15,22 @@ const var_ = (a: number, b: number) => (b ? (a - b) / b : null);
  * quantidade produzida apontada (quando existir). PA = grupo "Produto Acabado" (un); demais = processo (kg).
  */
 export function opsDeConsumo(linhas: ConsumoLinha[], grupoDe: (sku: string) => string | null, porUn: (produto: string, material: string) => number | null = () => null, apontada: Map<string, number> = new Map()): Op[] {
-  const m = new Map<string, Op & { est: number[] }>();
+  const m = new Map<string, Op & { est: number[]; kg: number }>();
   for (const l of linhas) {
     // o mesmo número de OP pode existir em empresas diferentes: a chave é OP + produto
     const k = `${l.id_op}|${k0(l.produto)}`; if (!l.data_producao) continue;
     let e = m.get(k);
-    if (!e) { const g = (grupoDe(l.produto) ?? "").toLowerCase(); e = { op: String(l.id_op), data: String(l.data_producao).slice(0, 10), mes: String(l.data_producao).slice(0, 7), produto: l.produto, descricao: l.desc_produto || l.produto, qtd: Number(l.qtd_produzida) || 0, tipo: g.includes("acabado") ? "PA" : "PP", est: [] }; m.set(k, e); }
+    if (!e) { const g = (grupoDe(l.produto) ?? "").toLowerCase(); e = { op: String(l.id_op), data: String(l.data_producao).slice(0, 10), mes: String(l.data_producao).slice(0, 7), produto: l.produto, descricao: l.desc_produto || l.produto, qtd: Number(l.qtd_produzida) || 0, tipo: g.includes("acabado") ? "PA" : "PP", est: [], kg: 0 }; m.set(k, e); }
+    // balanço de massa: produto em processo (kg) ≈ soma do consumo dos materiais em kg (g convertido)
+    const um = String(l.um ?? "").trim().toUpperCase(), cons = Number(l.qtd_consumo) || 0;
+    if (um === "KG") e.kg += cons; else if (um === "G" || um === "GR") e.kg += cons / 1000;
     const pu = l.material ? porUn(l.produto, l.material) : null, prev = Number(l.qtd_previsto) || 0;
     if (pu && pu > 0 && prev > 0) e.est.push(prev / pu);
   }
-  return [...m.values()].map(({ est, ...o }) => {
+  return [...m.values()].map(({ est, kg, ...o }) => {
     if (o.qtd > 0) return o;
+    // processo em kg: a massa que entrou na OP é a medida mais fiel (a ficha do subconjunto mistura bases diferentes)
+    if (o.tipo === "PP" && kg > 0) return { ...o, qtd: Math.round(kg * 1000) / 1000 };
     if (est.length) { const s = [...est].sort((a, b) => a - b), md = s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2; return { ...o, qtd: Math.round(md * 1000) / 1000 }; }
     return { ...o, qtd: apontada.get(o.op) ?? 0 };
   }).filter((o) => o.qtd > 0);
