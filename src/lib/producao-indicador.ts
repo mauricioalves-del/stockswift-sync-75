@@ -8,17 +8,27 @@ const mesesAte = (mes: string, n: number) => { const out: string[] = []; let [a,
 const diasNoMes = (mes: string) => new Date(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0).getDate();
 const var_ = (a: number, b: number) => (b ? (a - b) / b : null);
 
-/** Uma linha por OP (a quantidade produzida se repete em cada material consumido). PA = grupo "Produto Acabado". */
-export function opsDeConsumo(linhas: ConsumoLinha[], grupoDe: (sku: string) => string | null): Op[] {
-  const m = new Map<string, Op>();
+/**
+ * Uma linha por OP. A quantidade produzida não vem preenchida no consumo, então é deduzida da ficha técnica:
+ * para cada material previsto na OP, previsto ÷ quantidade por unidade da ficha (1º nível) = unidades produzidas;
+ * a OP recebe a mediana dessas estimativas (robusta a um material com ficha errada). Se não houver ficha, usa a
+ * quantidade produzida apontada (quando existir). PA = grupo "Produto Acabado" (un); demais = processo (kg).
+ */
+export function opsDeConsumo(linhas: ConsumoLinha[], grupoDe: (sku: string) => string | null, porUn: (produto: string, material: string) => number | null = () => null, apontada: Map<string, number> = new Map()): Op[] {
+  const m = new Map<string, Op & { est: number[] }>();
   for (const l of linhas) {
-    const k = String(l.id_op); if (!l.data_producao) continue;
-    const q = Number(l.qtd_produzida) || 0, e = m.get(k);
-    if (e) { e.qtd = Math.max(e.qtd, q); continue; }
-    const g = (grupoDe(l.produto) ?? "").toLowerCase();
-    m.set(k, { op: k, data: String(l.data_producao).slice(0, 10), mes: String(l.data_producao).slice(0, 7), produto: l.produto, descricao: l.desc_produto || l.produto, qtd: q, tipo: g.includes("acabado") ? "PA" : "PP" });
+    // o mesmo número de OP pode existir em empresas diferentes: a chave é OP + produto
+    const k = `${l.id_op}|${k0(l.produto)}`; if (!l.data_producao) continue;
+    let e = m.get(k);
+    if (!e) { const g = (grupoDe(l.produto) ?? "").toLowerCase(); e = { op: String(l.id_op), data: String(l.data_producao).slice(0, 10), mes: String(l.data_producao).slice(0, 7), produto: l.produto, descricao: l.desc_produto || l.produto, qtd: Number(l.qtd_produzida) || 0, tipo: g.includes("acabado") ? "PA" : "PP", est: [] }; m.set(k, e); }
+    const pu = l.material ? porUn(l.produto, l.material) : null, prev = Number(l.qtd_previsto) || 0;
+    if (pu && pu > 0 && prev > 0) e.est.push(prev / pu);
   }
-  return [...m.values()].filter((o) => o.qtd > 0);
+  return [...m.values()].map(({ est, ...o }) => {
+    if (o.qtd > 0) return o;
+    if (est.length) { const s = [...est].sort((a, b) => a - b), md = s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2; return { ...o, qtd: Math.round(md * 1000) / 1000 }; }
+    return { ...o, qtd: apontada.get(o.op) ?? 0 };
+  }).filter((o) => o.qtd > 0);
 }
 
 export type Estoque = { id_produto: string; quantidade: number };
