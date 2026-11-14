@@ -43,3 +43,11 @@ test("Ações recomendadas priorizam o que é urgente", () => {
   expect(a.map((x) => x.area)).toContain("Capacidade");
   expect(a.some((x) => x.area === "Demanda")).toBe(true);
 });
+
+test("MRP encontra a ficha mesmo quando o SKU do plano vem sem o zero à esquerda", async () => {
+  const { mrpPorSemana } = await import("../src/lib/pcp-plano");
+  const bom = [{ id_produto: "05104028", id_subconjunto: "05104028", id_item: "MASSA", item: "Massa", qtd: 0.01, tem_filho: false, item_unidade: "KG" }];
+  const r = mrpPorSemana([{ sku: "5104028", descricao: "Língua de Onça", quantidade: 100, liberar: "2026-11-16" } as any], bom as any, { MASSA: 0 }, {}, { leadCompraDias: 15, hoje: "2026-11-13" });
+  expect(r.semBom).toEqual([]);
+  expect(r.itens[0]?.id).toBe("MASSA");
+});
