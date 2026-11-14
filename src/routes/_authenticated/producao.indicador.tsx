@@ -29,11 +29,11 @@ function IndicadorProducaoPage() {
   const [noCliente, setNoCliente] = useState(false);
   useEffect(() => setNoCliente(true), []);
   const q = useQuery({
-    enabled: noCliente, queryKey: ["indicador-producao", "v2"], staleTime: 10 * 60_000,
+    enabled: noCliente, queryKey: ["indicador-producao", "v3"], staleTime: 10 * 60_000,
     queryFn: async () => {
       const desde = new Date(Date.now() - 400 * 86400000).toISOString().slice(0, 10), d90 = new Date(Date.now() - 95 * 86400000).toISOString().slice(0, 10);
       const [consumo, grupos, estoque, vendas, bom, apont] = await Promise.all([
-        fetchAll<ConsumoLinha>((f, t) => sb.from("producao_consumo").select("id_op, data_producao, produto, desc_produto, qtd_produzida, material, qtd_consumo, qtd_previsto, impacto_rs_congelado").gte("data_producao", desde).order("data_producao").range(f, t)),
+        fetchAll<ConsumoLinha>((f, t) => sb.from("producao_consumo").select("id_op, data_producao, produto, desc_produto, qtd_produzida, material, qtd_consumo, qtd_previsto, impacto_rs_congelado, um").gte("data_producao", desde).order("data_producao").range(f, t)),
         fetchAll<any>((f, t) => sb.from("grupo_produtos").select("codigo_produto, grupo").range(f, t)),
         fetchAll<any>((f, t) => sb.from("estoque_sistemico").select("id_produto, quantidade").gt("quantidade", 0).range(f, t)).catch(() => []),
         fetchAll<any>((f, t) => sb.from("historico_consumo").select("sku, data_movimento, quantidade").gte("data_movimento", d90).range(f, t)).catch(() => []),
@@ -63,7 +63,7 @@ function IndicadorProducaoPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><h1 className="text-3xl font-bold tracking-tight">Indicador de Produção</h1><p className="text-sm text-muted-foreground">Volume produzido, mix Produto Acabado × Produto em Processo, capacidade, aderência à ficha e dias de suficiência do estoque produzido. Base: OPs apontadas (Dispersão de Lote); quantidade produzida deduzida da ficha técnica (previsto ÷ quantidade por unidade).</p></div>
+        <div><h1 className="text-3xl font-bold tracking-tight">Indicador de Produção</h1><p className="text-sm text-muted-foreground">Volume produzido, mix Produto Acabado × Produto em Processo, capacidade, aderência à ficha e dias de suficiência do estoque produzido. Base: OPs apontadas (Dispersão de Lote); acabado: quantidade deduzida da ficha técnica (previsto ÷ quantidade por unidade); em processo: massa consumida em kg.</p></div>
         <div className="w-44"><div className="mb-1 text-xs text-muted-foreground">Mês analisado</div>
           <Select value={mes} onValueChange={setMesSel}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{meses.map((m) => <SelectItem key={m} value={m}>{mesRot(m)}</SelectItem>)}</SelectContent></Select></div>
       </div>
