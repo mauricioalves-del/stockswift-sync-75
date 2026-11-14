@@ -28,3 +28,12 @@ test("Quantidade produzida deduzida da ficha quando a OP não traz qtd_produzida
   const ops = opsDeConsumo(c, () => "Produto Acabado", (_p, m) => ficha[m.replace(/^0+/, "")] ?? ficha[m] ?? null);
   expect(ops[0].qtd).toBe(53);
 });
+
+test("Produto em processo medido pela massa consumida em kg", () => {
+  const c = [
+    { id_op: "9", data_producao: "2026-11-10", produto: "9990307008", material: "9990107001", qtd_previsto: 50, qtd_consumo: 48, um: "KG" },
+    { id_op: "9", data_producao: "2026-11-10", produto: "9990307008", material: "0140106004", qtd_previsto: 2, qtd_consumo: 2000, um: "G" },
+  ];
+  const ops = opsDeConsumo(c as any, () => "Produto em Processo", () => 0.001);
+  expect(ops[0].qtd).toBe(50);
+});
