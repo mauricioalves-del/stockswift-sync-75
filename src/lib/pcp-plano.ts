@@ -67,12 +67,13 @@ export function mrpPorSemana(ordens: OrdemMps[], bom: BomLinha[], saldos: Record
     const comBom = new Set<string>();
     const mp = new Map<string, { item: string; um: string; nec: number; usados: Set<string> }>();
     for (const r of res) {
-      for (const c of r.contribs) comBom.add(c.id_produto);
+      for (const c of r.contribs) comBom.add(String(c.id_produto ?? "").trim().replace(/^0+/, ""));
       if (r.tipo === "Subconjunto") { const disp = Math.max(0, saldo[r.id_item] ?? 0); saldo[r.id_item] = disp - Math.min(disp, r.necessidade); continue; }
       const a = mp.get(r.id_item) ?? { item: r.item ?? r.id_item, um: r.um ?? "", nec: 0, usados: new Set<string>() };
       a.nec += r.necessidade; for (const c of r.contribs) a.usados.add(c.id_produto); mp.set(r.id_item, a);
     }
-    for (const l of linhas) if (!comBom.has(l.id_produto)) semBom.add(l.id_produto);
+    // compara sem zeros à esquerda: 05004010 e 5004010 são o mesmo SKU
+    for (const l of linhas) if (!comBom.has(String(l.id_produto ?? "").trim().replace(/^0+/, ""))) semBom.add(l.id_produto);
     for (const [id, a] of mp) {
       const it = itens.get(id) ?? { id, item: a.item, um: a.um, custo: custos[id] ?? 0, saldoInicial: saldos[id] ?? 0, necessidade: 0, falta: 0, valorFalta: 0, porSemana: {}, primeiraFalta: null, comprarAte: null, atrasado: false, usadoEm: [] };
       const disp = saldo[id] ?? 0;
