@@ -87,6 +87,7 @@ import { Route as AuthenticatedObsoletosRiscoRouteImport } from './routes/_authe
 import { Route as AuthenticatedProducaoAuditoriaFtRouteImport } from './routes/_authenticated/producao.auditoria-ft'
 import { Route as AuthenticatedProducaoConfirmacaoRecebimentoRouteImport } from './routes/_authenticated/producao.confirmacao-recebimento'
 import { Route as AuthenticatedProducaoDispersaoRouteImport } from './routes/_authenticated/producao.dispersao'
+import { Route as AuthenticatedProducaoIndicadorRouteImport } from './routes/_authenticated/producao.indicador'
 import { Route as AuthenticatedProducaoPcpRouteImport } from './routes/_authenticated/producao.pcp'
 import { Route as AuthenticatedProducaoSolicitacaoMateriaisRouteImport } from './routes/_authenticated/producao.solicitacao-materiais'
 import { Route as AuthenticatedProducaoTestesIndustriaisRouteImport } from './routes/_authenticated/producao.testes-industriais'
@@ -569,6 +570,12 @@ const AuthenticatedProducaoDispersaoRoute =
     path: '/producao/dispersao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedProducaoIndicadorRoute =
+  AuthenticatedProducaoIndicadorRouteImport.update({
+    id: '/producao/indicador',
+    path: '/producao/indicador',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProducaoPcpRoute =
   AuthenticatedProducaoPcpRouteImport.update({
     id: '/producao/pcp',
@@ -849,6 +856,7 @@ export interface FileRoutesByFullPath {
   '/producao/auditoria-ft': typeof AuthenticatedProducaoAuditoriaFtRoute
   '/producao/confirmacao-recebimento': typeof AuthenticatedProducaoConfirmacaoRecebimentoRoute
   '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
+  '/producao/indicador': typeof AuthenticatedProducaoIndicadorRoute
   '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   '/producao/testes-industriais': typeof AuthenticatedProducaoTestesIndustriaisRoute
@@ -962,6 +970,7 @@ export interface FileRoutesByTo {
   '/producao/auditoria-ft': typeof AuthenticatedProducaoAuditoriaFtRoute
   '/producao/confirmacao-recebimento': typeof AuthenticatedProducaoConfirmacaoRecebimentoRoute
   '/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
+  '/producao/indicador': typeof AuthenticatedProducaoIndicadorRoute
   '/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   '/producao/testes-industriais': typeof AuthenticatedProducaoTestesIndustriaisRoute
@@ -1077,6 +1086,7 @@ export interface FileRoutesById {
   '/_authenticated/producao/auditoria-ft': typeof AuthenticatedProducaoAuditoriaFtRoute
   '/_authenticated/producao/confirmacao-recebimento': typeof AuthenticatedProducaoConfirmacaoRecebimentoRoute
   '/_authenticated/producao/dispersao': typeof AuthenticatedProducaoDispersaoRoute
+  '/_authenticated/producao/indicador': typeof AuthenticatedProducaoIndicadorRoute
   '/_authenticated/producao/pcp': typeof AuthenticatedProducaoPcpRoute
   '/_authenticated/producao/solicitacao-materiais': typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   '/_authenticated/producao/testes-industriais': typeof AuthenticatedProducaoTestesIndustriaisRoute
@@ -1192,6 +1202,7 @@ export interface FileRouteTypes {
     | '/producao/auditoria-ft'
     | '/producao/confirmacao-recebimento'
     | '/producao/dispersao'
+    | '/producao/indicador'
     | '/producao/pcp'
     | '/producao/solicitacao-materiais'
     | '/producao/testes-industriais'
@@ -1305,6 +1316,7 @@ export interface FileRouteTypes {
     | '/producao/auditoria-ft'
     | '/producao/confirmacao-recebimento'
     | '/producao/dispersao'
+    | '/producao/indicador'
     | '/producao/pcp'
     | '/producao/solicitacao-materiais'
     | '/producao/testes-industriais'
@@ -1419,6 +1431,7 @@ export interface FileRouteTypes {
     | '/_authenticated/producao/auditoria-ft'
     | '/_authenticated/producao/confirmacao-recebimento'
     | '/_authenticated/producao/dispersao'
+    | '/_authenticated/producao/indicador'
     | '/_authenticated/producao/pcp'
     | '/_authenticated/producao/solicitacao-materiais'
     | '/_authenticated/producao/testes-industriais'
@@ -2023,6 +2036,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProducaoDispersaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/producao/indicador': {
+      id: '/_authenticated/producao/indicador'
+      path: '/producao/indicador'
+      fullPath: '/producao/indicador'
+      preLoaderRoute: typeof AuthenticatedProducaoIndicadorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/producao/pcp': {
       id: '/_authenticated/producao/pcp'
       path: '/producao/pcp'
@@ -2351,6 +2371,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProducaoAuditoriaFtRoute: typeof AuthenticatedProducaoAuditoriaFtRoute
   AuthenticatedProducaoConfirmacaoRecebimentoRoute: typeof AuthenticatedProducaoConfirmacaoRecebimentoRoute
   AuthenticatedProducaoDispersaoRoute: typeof AuthenticatedProducaoDispersaoRoute
+  AuthenticatedProducaoIndicadorRoute: typeof AuthenticatedProducaoIndicadorRoute
   AuthenticatedProducaoPcpRoute: typeof AuthenticatedProducaoPcpRoute
   AuthenticatedProducaoSolicitacaoMateriaisRoute: typeof AuthenticatedProducaoSolicitacaoMateriaisRoute
   AuthenticatedProducaoTestesIndustriaisRoute: typeof AuthenticatedProducaoTestesIndustriaisRoute
@@ -2477,6 +2498,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProducaoConfirmacaoRecebimentoRoute:
     AuthenticatedProducaoConfirmacaoRecebimentoRoute,
   AuthenticatedProducaoDispersaoRoute: AuthenticatedProducaoDispersaoRoute,
+  AuthenticatedProducaoIndicadorRoute: AuthenticatedProducaoIndicadorRoute,
   AuthenticatedProducaoPcpRoute: AuthenticatedProducaoPcpRoute,
   AuthenticatedProducaoSolicitacaoMateriaisRoute:
     AuthenticatedProducaoSolicitacaoMateriaisRoute,
