@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { Upload, Download, Factory, ShoppingCart, Gauge, AlertTriangle, CheckCircle2, ChevronDown } from "lucide-react";
@@ -311,10 +311,16 @@ function ProjecaoCdPage() {
     });
   }, [calc, kpi, carga, cap, comprasFalta, mrp, ordensSel]);
   // Abre a ficha completa de um SKU (vendas, lotes, materiais e capacidade) ou de uma matéria-prima (consumo em OP, lotes e compra).
-  const abrirSku = (sku: string, descricao?: string) => {
-    if (!calc || calc.vazio) return;
+  // Ficha do SKU montada a partir dos dados atuais; é refeita quando a ficha técnica (BOM) e o plano de compras terminam
+  // de carregar — antes, quem abria a ficha logo após entrar na tela via "sem ficha técnica" por engano.
+  const [skuAberto, setSkuAberto] = useState<{ sku: string; descricao?: string } | null>(null);
+  const abrirSku = (sku: string, descricao?: string) => { const c = ctxSku(sku, descricao); if (!c) return; setSkuAberto({ sku, descricao }); setFicha(c); };
+  useEffect(() => { if (skuAberto && ficha?.tipo === "sku") { const c = ctxSku(skuAberto.sku, skuAberto.descricao); if (c) setFicha(c); } // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bomQ.data, mrp]);
+  const ctxSku = (sku: string, descricao?: string): ContextoFicha | null => {
+    if (!calc || calc.vazio) return null;
     const k = nk(sku), m = calc.motor.get(k), p = calc.projs.find((x) => nk(x.sku) === k), l = mps.linhas.find((x) => nk(x.sku) === k);
-    setFicha({ tipo: "sku", id: m?.sku ?? p?.sku ?? sku, descricao: descricao || m?.descricao || p?.descricao || "", hoje: calc.inicio, cdAlmox: dados.data?.cd ?? "Alm_SP_Fabrica",
+    return ({ tipo: "sku", id: m?.sku ?? p?.sku ?? sku, descricao: descricao || m?.descricao || p?.descricao || "", hoje: calc.inicio, cdAlmox: dados.data?.cd ?? "Alm_SP_Fabrica",
       motor: m ? { adu: m.adu, usavelHoje: m.usavelHoje, zona: m.zona, dataRupturaCD: m.dataRupturaCD, ordens: m.ordens, wip: m.wip, qualidade: m.qualidade, notas: m.notas, perdaVencimentoUn: m.perdaVencimentoUn } : null,
       proj: p ? { estoqueCD: p.estoqueCD, estoqueLojas: p.estoqueLojas, trLojas: p.trLojas, deficit: p.deficit, dataRupturaCD: p.dataRupturaCD, demandaTotal: p.demandaTotal, severidade: p.severidade } : null,
       realizacao: m?.realizacao ?? null,
@@ -596,7 +602,7 @@ function ProjecaoCdPage() {
           </div>
         </details>
       </>)}
-      {ficha && <FichaItem ctx={ficha} onClose={() => setFicha(null)} />}
+      {ficha && <FichaItem ctx={ficha} onClose={() => { setFicha(null); setSkuAberto(null); }} />}
     </div>
   );
 }
