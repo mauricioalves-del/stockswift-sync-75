@@ -52,10 +52,13 @@ export type ItemCompra = {
  * falta − lead time de compra.
  */
 export function mrpPorSemana(ordens: OrdemMps[], bom: BomLinha[], saldos: Record<string, number>, custos: Record<string, number>, opts: { leadCompraDias: number; hoje: string }) {
+  // o SKU do plano pode vir sem o zero à esquerda (5104028) e a ficha com ele (05104028): usa o código da ficha
+  const k0 = (x: unknown) => String(x ?? "").trim().replace(/^0+/, "");
+  const codFicha = new Map<string, string>(); for (const b of bom) if (!codFicha.has(k0(b.id_produto))) codFicha.set(k0(b.id_produto), String(b.id_produto));
   const porSemana = new Map<string, Map<string, { nome: string; q: number }>>();
   for (const o of ordens) {
-    const s = semanaDeProducao(o.liberar);
-    const m = porSemana.get(s) ?? new Map(); const a = m.get(o.sku) ?? { nome: o.descricao || o.sku, q: 0 }; a.q += o.quantidade; m.set(o.sku, a); porSemana.set(s, m);
+    const s = semanaDeProducao(o.liberar), cod = codFicha.get(k0(o.sku)) ?? o.sku;
+    const m = porSemana.get(s) ?? new Map(); const a = m.get(cod) ?? { nome: o.descricao || o.sku, q: 0 }; a.q += o.quantidade; m.set(cod, a); porSemana.set(s, m);
   }
   const semanas = [...porSemana.keys()].sort();
   const saldo: Record<string, number> = { ...saldos };
