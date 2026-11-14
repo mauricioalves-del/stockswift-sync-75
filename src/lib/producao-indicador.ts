@@ -1,8 +1,8 @@
 // Indicador de Produção: volume produzido por mês e por dia, mix Produto Acabado (un) × Produto em Processo e
 // subconjuntos (kg), top 10, MoM, capacidade demonstrada, aderência de consumo à ficha (base da Dispersão de Lote)
 // e DOI — dias de suficiência do estoque produzido.
-export type ConsumoLinha = { id_op: string | number; data_producao: string; produto: string; desc_produto?: string | null; qtd_produzida?: number | null; material?: string | null; qtd_consumo?: number | null; qtd_previsto?: number | null; impacto_rs_congelado?: number | null; um?: string | null };
-export type Op = { op: string; data: string; mes: string; produto: string; descricao: string; qtd: number; tipo: "PA" | "PP" };
+export type ConsumoLinha = { id_op: string | number; data_producao: string; produto: string; desc_produto?: string | null; qtd_produzida?: number | null; material?: string | null; qtd_consumo?: number | null; qtd_previsto?: number | null; impacto_rs_congelado?: number | null; um?: string | null; custo_unit_medio_congelado?: number | null };
+export type Op = { op: string; data: string; mes: string; produto: string; descricao: string; qtd: number; tipo: "PA" | "PP"; custo: number };
 const k0 = (s: unknown) => String(s ?? "").trim().replace(/^0+/, "");
 const mesesAte = (mes: string, n: number) => { const out: string[] = []; let [a, m] = mes.split("-").map(Number); for (let i = 0; i < n; i++) { out.unshift(`${a}-${String(m).padStart(2, "0")}`); m--; if (!m) { m = 12; a--; } } return out; };
 const diasNoMes = (mes: string) => new Date(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0).getDate();
@@ -20,7 +20,9 @@ export function opsDeConsumo(linhas: ConsumoLinha[], grupoDe: (sku: string) => s
     // o mesmo número de OP pode existir em empresas diferentes: a chave é OP + produto
     const k = `${l.id_op}|${k0(l.produto)}`; if (!l.data_producao) continue;
     let e = m.get(k);
-    if (!e) { const g = (grupoDe(l.produto) ?? "").toLowerCase(); e = { op: String(l.id_op), data: String(l.data_producao).slice(0, 10), mes: String(l.data_producao).slice(0, 7), produto: l.produto, descricao: l.desc_produto || l.produto, qtd: Number(l.qtd_produzida) || 0, tipo: g.includes("acabado") ? "PA" : "PP", est: [], kg: 0 }; m.set(k, e); }
+    if (!e) { const g = (grupoDe(l.produto) ?? "").toLowerCase(); e = { op: String(l.id_op), data: String(l.data_producao).slice(0, 10), mes: String(l.data_producao).slice(0, 7), produto: l.produto, descricao: l.desc_produto || l.produto, qtd: Number(l.qtd_produzida) || 0, tipo: g.includes("acabado") ? "PA" : "PP", custo: 0, est: [], kg: 0 }; m.set(k, e); }
+    // custo da produção = consumo real × custo médio congelado do material
+    e.custo += (Number(l.qtd_consumo) || 0) * (Number(l.custo_unit_medio_congelado) || 0);
     // balanço de massa: produto em processo (kg) ≈ soma do consumo dos materiais em kg (g convertido)
     const um = String(l.um ?? "").trim().toUpperCase(), cons = Number(l.qtd_consumo) || 0;
     if (um === "KG") e.kg += cons; else if (um === "G" || um === "GR") e.kg += cons / 1000;
@@ -49,7 +51,9 @@ export function indicadorProducao(ops: Op[], consumo: ConsumoLinha[], mes: strin
   const capSemana = Math.max(0, ...porSemana.values());
   const aderencia = (m: string) => { const l = consumo.filter((c) => String(c.data_producao ?? "").slice(0, 7) === m && Number(c.qtd_previsto) > 0); return l.length ? l.filter((c) => Math.abs((Number(c.qtd_consumo) - Number(c.qtd_previsto)) / Number(c.qtd_previsto)) <= 0.05).length / l.length : null; };
   const perda = (m: string) => consumo.filter((c) => String(c.data_producao ?? "").slice(0, 7) === m && Number(c.qtd_previsto) > 0 && Number(c.impacto_rs_congelado) > 0).reduce((a, c) => a + Number(c.impacto_rs_congelado), 0);
-  const serie = meses.map((m) => { const l = doMes(m); return { mes: m, paUn: soma(l, "PA"), ppKg: soma(l, "PP"), ops: l.length, skus: new Set(l.map((x) => k0(x.produto))).size, dias: new Set(l.map((x) => x.data)).size, aderencia: aderencia(m), perda: perda(m) }; });
+  const serie0 = meses.map((m) => { const l = doMes(m); return { mes: m, paUn: soma(l, "PA"), ppKg: soma(l, "PP"), ops: l.length, skus: new Set(l.map((x) => k0(x.produto))).size, dias: new Set(l.map((x) => x.data)).size, aderencia: aderencia(m), perda: perda(m) }; });
+  // só produção ativa: a série começa no primeiro mês com OP apontada
+  const ini = serie0.findIndex((x) => x.ops > 0), serie = ini > 0 ? serie0.slice(ini) : serie0;
   const at = serie.at(-1)!, ant = serie.at(-2);
   const l = doMes(mes);
   const diario = Array.from({ length: diasNoMes(mes) }, (_, i) => { const d = `${mes}-${String(i + 1).padStart(2, "0")}`, x = l.filter((y) => y.data === d); return { dia: i + 1, data: d, paUn: soma(x, "PA"), ppKg: soma(x, "PP"), ops: x.length }; });
@@ -81,3 +85,36 @@ export function indicadorProducao(ops: Op[], consumo: ConsumoLinha[], mes: strin
   };
 }
 export type DadosIndicadorProducao = ReturnType<typeof indicadorProducao>;
+
+/** Pareto das produções mais caras (custo de material consumido) por produto, no mês ou no período ativo. */
+export function paretoCusto(ops: Op[], tipo: "PA" | "PP", filtro: (o: Op) => boolean, n: number) {
+  const m = new Map<string, { produto: string; descricao: string; custo: number; qtd: number; ops: number }>();
+  for (const o of ops) { if (o.tipo !== tipo || !filtro(o)) continue; const k = k0(o.produto), e = m.get(k) ?? { produto: o.produto, descricao: o.descricao, custo: 0, qtd: 0, ops: 0 }; e.custo += o.custo; e.qtd += o.qtd; e.ops++; m.set(k, e); }
+  const l = [...m.values()].sort((a, b) => b.custo - a.custo), tot = l.reduce((a, x) => a + x.custo, 0);
+  let ac = 0;
+  return { total: tot, itens: l.slice(0, n).map((x) => { ac += x.custo; return { ...x, custoUn: x.qtd ? x.custo / x.qtd : null, part: tot ? x.custo / tot : 0, acum: tot ? ac / tot : 0 }; }) };
+}
+
+export type Disponibilidade = { id_produto: string; familia: string | null; data: string; loja: string; em_ruptura: boolean | null; venda_perdida_rs: number | null };
+/**
+ * Mais vendidos × produção: top N por venda das lojas (90 dias) na família escolhida, com produção do mesmo período,
+ * cobertura (produção ÷ venda), estoque, DOI e rupturas nas lojas (dias-loja, dias distintos, venda perdida).
+ */
+export function maisVendidos(ops: Op[], vendas: Venda[], disp: Disponibilidade[], estoque: Estoque[], hoje: string, familia: string, n = 10) {
+  const desde = new Date(Date.parse(`${hoje}T12:00:00Z`) - 90 * 86400000).toISOString().slice(0, 10);
+  const fam = new Map<string, string>(); for (const d of [...disp].sort((a, b) => a.data.localeCompare(b.data))) if (d.familia) fam.set(k0(d.id_produto), d.familia);
+  const famDe = (sku: string) => fam.get(k0(sku)) ?? "Sem família";
+  const venda = new Map<string, number>(); for (const v of vendas) if (String(v.data_movimento).slice(0, 10) >= desde) venda.set(k0(v.sku), (venda.get(k0(v.sku)) ?? 0) + Math.abs(Number(v.quantidade) || 0));
+  const prod = new Map<string, { qtd: number; ops: number; desc: string }>(); for (const o of ops) if (o.tipo === "PA" && o.data >= desde) { const e = prod.get(k0(o.produto)) ?? { qtd: 0, ops: 0, desc: o.descricao }; e.qtd += o.qtd; e.ops++; prod.set(k0(o.produto), e); }
+  const est = new Map<string, number>(); for (const e of estoque) est.set(k0(e.id_produto), (est.get(k0(e.id_produto)) ?? 0) + (Number(e.quantidade) || 0));
+  const rup = new Map<string, { diasLoja: number; dias: Set<string>; perda: number; ultimo: string }>();
+  for (const d of disp) if (d.em_ruptura) { const k = k0(d.id_produto), e = rup.get(k) ?? { diasLoja: 0, dias: new Set<string>(), perda: 0, ultimo: "" }; e.diasLoja++; e.dias.add(d.data); e.perda += Number(d.venda_perdida_rs) || 0; if (d.data > e.ultimo) e.ultimo = d.data; rup.set(k, e); }
+  const desc = new Map<string, string>(); for (const d of disp) if (!desc.has(k0(d.id_produto))) desc.set(k0(d.id_produto), (d as any).descricao ?? "");
+  const familias = [...new Set([...fam.values()])].sort((a, b) => (a === "Granéis" ? -1 : b === "Granéis" ? 1 : a.localeCompare(b)));
+  const linha = (k: string) => { const v = venda.get(k) ?? 0, p = prod.get(k), r = rup.get(k), s = est.get(k) ?? 0, dia = v / 90; return { sku: k, descricao: p?.desc || desc.get(k) || k, familia: famDe(k), venda: v, vendaDia: dia, producao: p?.qtd ?? 0, ops: p?.ops ?? 0, cobertura: v ? (p?.qtd ?? 0) / v : null, estoque: s, doi: dia ? s / dia : null, diasLoja: r?.diasLoja ?? 0, diasRuptura: r?.dias.size ?? 0, perda: r?.perda ?? 0, ultimaRuptura: r?.ultimo || null }; };
+  const candidatos = [...venda.keys()].filter((k) => fam.has(k) && (familia === "Todas" || famDe(k) === familia));
+  const top = candidatos.map(linha).sort((a, b) => b.venda - a.venda).slice(0, n);
+  const porFamilia = familias.map((f) => { const ks = [...venda.keys()].filter((k) => famDe(k) === f), l = ks.map(linha); const v = l.reduce((a, x) => a + x.venda, 0), pr = l.reduce((a, x) => a + x.producao, 0); return { familia: f, skus: ks.length, venda: v, producao: pr, cobertura: v ? pr / v : null, diasLoja: l.reduce((a, x) => a + x.diasLoja, 0), comRuptura: l.filter((x) => x.diasRuptura > 0).length, perda: l.reduce((a, x) => a + x.perda, 0) }; });
+  const inicioRupturas = disp.length ? disp.reduce((a, d) => (d.data < a ? d.data : a), disp[0].data) : null;
+  return { top, porFamilia, familias, inicioRupturas, desde };
+}
