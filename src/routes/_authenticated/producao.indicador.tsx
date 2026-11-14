@@ -29,16 +29,27 @@ function IndicadorProducaoPage() {
     queryKey: ["indicador-producao"], staleTime: 10 * 60_000,
     queryFn: async () => {
       const desde = new Date(Date.now() - 400 * 86400000).toISOString().slice(0, 10), d90 = new Date(Date.now() - 95 * 86400000).toISOString().slice(0, 10);
-      const [consumo, grupos, estoque, vendas] = await Promise.all([
+      const [consumo, grupos, estoque, vendas, bom, apont] = await Promise.all([
         fetchAll<ConsumoLinha>((f, t) => sb.from("producao_consumo").select("id_op, data_producao, produto, desc_produto, qtd_produzida, material, qtd_consumo, qtd_previsto, impacto_rs_congelado").gte("data_producao", desde).order("data_producao").range(f, t)),
         fetchAll<any>((f, t) => sb.from("grupo_produtos").select("codigo_produto, grupo").range(f, t)),
         fetchAll<any>((f, t) => sb.from("estoque_sistemico").select("id_produto, quantidade").gt("quantidade", 0).range(f, t)).catch(() => []),
         fetchAll<any>((f, t) => sb.from("historico_consumo").select("sku, data_movimento, quantidade").gte("data_movimento", d90).range(f, t)).catch(() => []),
+        fetchAll<any>((f, t) => sb.from("ficha_tecnica_bom").select("id_produto, id_subconjunto, id_item, qtd").range(f, t)).catch(() => []),
+        fetchAll<any>((f, t) => sb.from("atlas_ordens_producao").select("numero_op, qtd_produzida").gt("qtd_produzida", 0).range(f, t)).catch(() => []),
       ]);
-      return { consumo, grupos, estoque, vendas };
+      return { consumo, grupos, estoque, vendas, bom, apont };
     },
   });
-  const ops = useMemo(() => { if (!q.data) return []; const g = new Map<string, string>(q.data.grupos.map((x: any) => [k0(x.codigo_produto), String(x.grupo ?? "")])); return opsDeConsumo(q.data.consumo, (s) => g.get(k0(s)) ?? null); }, [q.data]);
+  const ops = useMemo(() => {
+    if (!q.data) return [];
+    const g = new Map<string, string>(q.data.grupos.map((x: any) => [k0(x.codigo_produto), String(x.grupo ?? "")]));
+    // quantidade por unidade do 1º nível da ficha (componente direto do produto da OP)
+    // produto acabado: ficha própria (1º nível); produto em processo: a quebra do subconjunto dentro de qualquer ficha
+    const pu = new Map<string, number>(), puSub = new Map<string, number>();
+    for (const b of q.data.bom) { const qt = Number(b.qtd); if (!(qt > 0)) continue; const kk = `${k0(b.id_subconjunto)}|${k0(b.id_item)}`; if (k0(b.id_subconjunto) === k0(b.id_produto)) pu.set(kk, qt); else if (!puSub.has(kk)) puSub.set(kk, qt); }
+    const ap = new Map<string, number>(q.data.apont.map((a: any) => [String(a.numero_op), Number(a.qtd_produzida)]));
+    return opsDeConsumo(q.data.consumo, (s) => g.get(k0(s)) ?? null, (p, m) => pu.get(`${k0(p)}|${k0(m)}`) ?? puSub.get(`${k0(p)}|${k0(m)}`) ?? null, ap);
+  }, [q.data]);
   const meses = useMemo(() => [...new Set(ops.map((o) => o.mes))].sort().reverse(), [ops]);
   const [mesSel, setMesSel] = useState<string>("");
   const mes = mesSel || meses[0] || hoje.slice(0, 7);
@@ -49,7 +60,7 @@ function IndicadorProducaoPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><h1 className="text-3xl font-bold tracking-tight">Indicador de Produção</h1><p className="text-sm text-muted-foreground">Volume produzido, mix Produto Acabado × Produto em Processo, capacidade, aderência à ficha e dias de suficiência do estoque produzido. Base: OPs apontadas (Dispersão de Lote).</p></div>
+        <div><h1 className="text-3xl font-bold tracking-tight">Indicador de Produção</h1><p className="text-sm text-muted-foreground">Volume produzido, mix Produto Acabado × Produto em Processo, capacidade, aderência à ficha e dias de suficiência do estoque produzido. Base: OPs apontadas (Dispersão de Lote); quantidade produzida deduzida da ficha técnica (previsto ÷ quantidade por unidade).</p></div>
         <div className="w-44"><div className="mb-1 text-xs text-muted-foreground">Mês analisado</div>
           <Select value={mes} onValueChange={setMesSel}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{meses.map((m) => <SelectItem key={m} value={m}>{mesRot(m)}</SelectItem>)}</SelectContent></Select></div>
       </div>
