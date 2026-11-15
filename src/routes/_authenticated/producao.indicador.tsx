@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
 import { Secao } from "@/components/abast-dash/comum";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { indicadorProducao, maisVendidos, opsDeConsumo, paretoCusto, type ConsumoLinha } from "@/lib/producao-indicador";
+import { aderenciaOps, indicadorProducao, maisVendidos, opsDeConsumo, paretoCusto, type ConsumoLinha, type OpErp } from "@/lib/producao-indicador";
+import { ImportarErp } from "@/components/producao/ImportarErp";
 
 export const Route = createFileRoute("/_authenticated/producao/indicador")({ component: IndicadorProducaoPage });
 
@@ -29,10 +30,10 @@ function IndicadorProducaoPage() {
   const [noCliente, setNoCliente] = useState(false);
   useEffect(() => setNoCliente(true), []);
   const q = useQuery({
-    enabled: noCliente, queryKey: ["indicador-producao", "v4"], staleTime: 10 * 60_000,
+    enabled: noCliente, queryKey: ["indicador-producao", "v5"], staleTime: 10 * 60_000,
     queryFn: async () => {
       const desde = new Date(Date.now() - 400 * 86400000).toISOString().slice(0, 10), d90 = new Date(Date.now() - 95 * 86400000).toISOString().slice(0, 10);
-      const [consumo, grupos, estoque, vendas, bom, apont, disp] = await Promise.all([
+      const [consumo, grupos, estoque, vendas, bom, apont, disp, erpOps] = await Promise.all([
         fetchAll<ConsumoLinha>((f, t) => sb.from("producao_consumo").select("id_op, data_producao, produto, desc_produto, qtd_produzida, material, qtd_consumo, qtd_previsto, impacto_rs_congelado, um, custo_unit_medio_congelado").gte("data_producao", desde).order("data_producao").range(f, t)),
         fetchAll<any>((f, t) => sb.from("grupo_produtos").select("codigo_produto, grupo").range(f, t)),
         fetchAll<any>((f, t) => sb.from("estoque_sistemico").select("id_produto, quantidade").gt("quantidade", 0).range(f, t)).catch(() => []),
@@ -40,8 +41,10 @@ function IndicadorProducaoPage() {
         fetchAll<any>((f, t) => sb.from("ficha_tecnica_bom").select("id_produto, id_subconjunto, id_item, qtd").range(f, t)).catch(() => []),
         fetchAll<any>((f, t) => sb.from("atlas_ordens_producao").select("numero_op, qtd_produzida").gt("qtd_produzida", 0).range(f, t)).catch(() => []),
         fetchAll<any>((f, t) => sb.from("abast_disponibilidade_diaria").select("id_produto, descricao, familia, data, loja, em_ruptura, venda_perdida_rs").gte("data", d90).range(f, t)).catch(() => []),
+        // quantidade produzida apontada no ERP (base importada pela planilha de conexões)
+        fetchAll<OpErp>((f, t) => sb.from("erp_producao_op").select("id_op, id_produto, um, status, qtd_prevista, qtd_prod, dt_prevista, dt_producao, dt_registro").gte("dt_prevista", desde).range(f, t)).catch(() => [] as OpErp[]),
       ]);
-      return { consumo, grupos, estoque, vendas, bom, apont, disp };
+      return { consumo, grupos, estoque, vendas, bom, apont, disp, erpOps };
     },
   });
   const ops = useMemo(() => {
@@ -52,13 +55,17 @@ function IndicadorProducaoPage() {
     const pu = new Map<string, number>(), puSub = new Map<string, number>();
     for (const b of q.data.bom) { const qt = Number(b.qtd); if (!(qt > 0)) continue; const kk = `${k0(b.id_subconjunto)}|${k0(b.id_item)}`; if (k0(b.id_subconjunto) === k0(b.id_produto)) pu.set(kk, qt); else if (!puSub.has(kk)) puSub.set(kk, qt); }
     const ap = new Map<string, number>(q.data.apont.map((a: any) => [String(a.numero_op), Number(a.qtd_produzida)]));
-    return opsDeConsumo(q.data.consumo, (s) => g.get(k0(s)) ?? null, (p, m) => pu.get(`${k0(p)}|${k0(m)}`) ?? puSub.get(`${k0(p)}|${k0(m)}`) ?? null, ap);
+    const erp = new Map<string, { qtd: number; um: string | null }>();
+    for (const r of q.data.erpOps) if (Number(r.qtd_prod) > 0) erp.set(`${r.id_op}|${k0(r.id_produto)}`, { qtd: Number(r.qtd_prod), um: r.um });
+    return opsDeConsumo(q.data.consumo, (s) => g.get(k0(s)) ?? null, (p, m) => pu.get(`${k0(p)}|${k0(m)}`) ?? puSub.get(`${k0(p)}|${k0(m)}`) ?? null, ap, (op, p) => erp.get(`${op}|${k0(p)}`) ?? null);
   }, [q.data]);
   const meses = useMemo(() => [...new Set(ops.map((o) => o.mes))].sort().reverse(), [ops]);
   const [mesSel, setMesSel] = useState<string>("");
   const mes = mesSel || meses[0] || hoje.slice(0, 7);
   const r = useMemo(() => (q.data && ops.length ? indicadorProducao(ops, q.data.consumo, mes, { estoque: q.data.estoque, vendas: q.data.vendas, hoje }) : null), [q.data, ops, mes, hoje]);
   const [tipoTop, setTipoTop] = useState<"PA" | "PP">("PA");
+  const ader = useMemo(() => (q.data?.erpOps.length ? aderenciaOps(q.data.erpOps, mes) : null), [q.data, mes]);
+  const fonteErp = useMemo(() => { const l = ops.filter((o) => o.mes === mes); return l.length ? l.filter((o) => o.fonte === "ERP").length / l.length : null; }, [ops, mes]);
   const [tipoPar, setTipoPar] = useState<"PA" | "PP">("PA");
   const [nPar, setNPar] = useState(10);
   const [escopoPar, setEscopoPar] = useState<"mes" | "periodo">("mes");
@@ -71,9 +78,10 @@ function IndicadorProducaoPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><h1 className="text-3xl font-bold tracking-tight">Indicador de Produção</h1><p className="text-sm text-muted-foreground">Volume produzido, mix Produto Acabado × Produto em Processo, capacidade, aderência à ficha e dias de suficiência do estoque produzido. Base: OPs apontadas (Dispersão de Lote); acabado: quantidade deduzida da ficha técnica (previsto ÷ quantidade por unidade); em processo: massa consumida em kg.</p></div>
+        <div><h1 className="text-3xl font-bold tracking-tight">Indicador de Produção</h1><p className="text-sm text-muted-foreground">Volume produzido, mix Produto Acabado × Produto em Processo, capacidade, aderência à ficha e dias de suficiência do estoque produzido. Base: OPs apontadas (Dispersão de Lote). Quantidade produzida: apontamento do ERP quando importado; senão, ficha técnica (acabado) ou massa consumida em kg (em processo).</p></div>
+        <div className="flex items-end gap-2"><ImportarErp />
         <div className="w-44"><div className="mb-1 text-xs text-muted-foreground">Mês analisado</div>
-          <Select value={mes} onValueChange={setMesSel}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{meses.map((m) => <SelectItem key={m} value={m}>{mesRot(m)}</SelectItem>)}</SelectContent></Select></div>
+          <Select value={mes} onValueChange={setMesSel}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{meses.map((m) => <SelectItem key={m} value={m}>{mesRot(m)}</SelectItem>)}</SelectContent></Select></div></div>
       </div>
       {q.isLoading || !noCliente || q.fetchStatus === "fetching" && !q.data ? <p className="py-10 text-center text-sm text-muted-foreground">Carregando as OPs apontadas…</p> : q.isError ? <p className="py-10 text-center text-sm text-red-600">Não foi possível ler as OPs: {String((q.error as any)?.message ?? q.error)}</p> : !r ? <p className="py-10 text-center text-sm text-muted-foreground">Nenhuma OP apontada no período.</p> : <>
         <Secao letra="A" titulo={`Indicadores de ${mesRot(mes)}`}>
@@ -91,6 +99,13 @@ function IndicadorProducaoPage() {
             <Kpi t="Itens críticos (< 7 dias)" v={nf(r.kpis.criticos)} d={`${nf(r.kpis.excesso)} com excesso (> 60 dias)`} tom={r.kpis.criticos ? "text-red-600" : "text-emerald-700"} />
             <Kpi t="Concentração do top 10" v={pc(r.kpis.top10PA)} d="do volume de produto acabado no mês" />
           </div>
+          {ader ? <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <Kpi t="Aderência às OPs (ERP)" v={pc(ader.aderencia)} d={`${nf(ader.dentro)} de ${nf(ader.ops)} OPs entre 80% e 120% do previsto`} tom={(ader.aderencia ?? 0) >= 0.85 ? "text-emerald-700" : "text-amber-600"} />
+            <Kpi t="Volume produzido ÷ previsto" v={pc(ader.volume)} d={`${nf(ader.abaixo)} abaixo · ${nf(ader.acima)} acima da tolerância`} />
+            <Kpi t="OPs no prazo" v={pc(ader.noPrazo)} d="produção até a data prevista" tom={(ader.noPrazo ?? 1) < 0.8 ? "text-red-600" : ""} />
+            <Kpi t="Atraso do apontamento" v={ader.atrasoMedio == null ? "—" : `${nf(ader.atrasoMedio, 1)} dia(s)`} d="da produção ao registro no ERP" tom={(ader.atrasoMedio ?? 0) > 1 ? "text-amber-600" : "text-emerald-700"} />
+            <Kpi t="OPs em aberto" v={nf(ader.abertas)} d={`quantidade do ERP em ${pc(fonteErp)} das OPs do mês`} />
+          </div> : <p className="mt-3 text-xs text-muted-foreground">Importe as bases do ERP (botão “Bases do ERP”) para usar a quantidade produzida apontada e ver a aderência às OPs.</p>}
         </Secao>
 
         <Secao letra="B" titulo="Evolução mensal da produção (MoM)">
