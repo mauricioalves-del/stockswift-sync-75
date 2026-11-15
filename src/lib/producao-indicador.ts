@@ -2,7 +2,7 @@
 // subconjuntos (kg), top 10, MoM, capacidade demonstrada, aderência de consumo à ficha (base da Dispersão de Lote)
 // e DOI — dias de suficiência do estoque produzido.
 export type ConsumoLinha = { id_op: string | number; data_producao: string; produto: string; desc_produto?: string | null; qtd_produzida?: number | null; material?: string | null; qtd_consumo?: number | null; qtd_previsto?: number | null; impacto_rs_congelado?: number | null; um?: string | null; custo_unit_medio_congelado?: number | null };
-export type Op = { op: string; data: string; mes: string; produto: string; descricao: string; qtd: number; tipo: "PA" | "PP"; custo: number };
+export type Op = { op: string; data: string; mes: string; produto: string; descricao: string; qtd: number; tipo: "PA" | "PP"; custo: number; fonte?: "ERP" | "ficha" | "massa" | "apontada" };
 const k0 = (s: unknown) => String(s ?? "").trim().replace(/^0+/, "");
 const mesesAte = (mes: string, n: number) => { const out: string[] = []; let [a, m] = mes.split("-").map(Number); for (let i = 0; i < n; i++) { out.unshift(`${a}-${String(m).padStart(2, "0")}`); m--; if (!m) { m = 12; a--; } } return out; };
 const diasNoMes = (mes: string) => new Date(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0).getDate();
@@ -14,7 +14,9 @@ const var_ = (a: number, b: number) => (b ? (a - b) / b : null);
  * a OP recebe a mediana dessas estimativas (robusta a um material com ficha errada). Se não houver ficha, usa a
  * quantidade produzida apontada (quando existir). PA = grupo "Produto Acabado" (un); demais = processo (kg).
  */
-export function opsDeConsumo(linhas: ConsumoLinha[], grupoDe: (sku: string) => string | null, porUn: (produto: string, material: string) => number | null = () => null, apontada: Map<string, number> = new Map()): Op[] {
+/** Quantidade produzida apontada no ERP (BASE PRODUÇÃO DIA), por OP + produto. */
+export type QtdErp = (op: string, produto: string) => { qtd: number; um: string | null } | null;
+export function opsDeConsumo(linhas: ConsumoLinha[], grupoDe: (sku: string) => string | null, porUn: (produto: string, material: string) => number | null = () => null, apontada: Map<string, number> = new Map(), erp: QtdErp = () => null): Op[] {
   const m = new Map<string, Op & { est: number[]; kg: number }>();
   for (const l of linhas) {
     // o mesmo número de OP pode existir em empresas diferentes: a chave é OP + produto
@@ -31,10 +33,13 @@ export function opsDeConsumo(linhas: ConsumoLinha[], grupoDe: (sku: string) => s
   }
   return [...m.values()].map(({ est, kg, ...o }) => {
     if (o.qtd > 0) return o;
+    // 1º: quantidade apontada no ERP (acabado em un; processo só quando apontado em kg)
+    const r = erp(o.op, o.produto);
+    if (r && r.qtd > 0 && (o.tipo === "PA" || String(r.um ?? "").toUpperCase() === "KG")) return { ...o, qtd: r.qtd, fonte: "ERP" as const };
     // processo em kg: a massa que entrou na OP é a medida mais fiel (a ficha do subconjunto mistura bases diferentes)
-    if (o.tipo === "PP" && kg > 0) return { ...o, qtd: Math.round(kg * 1000) / 1000 };
-    if (est.length) { const s = [...est].sort((a, b) => a - b), md = s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2; return { ...o, qtd: Math.round(md * 1000) / 1000 }; }
-    return { ...o, qtd: apontada.get(o.op) ?? 0 };
+    if (o.tipo === "PP" && kg > 0) return { ...o, qtd: Math.round(kg * 1000) / 1000, fonte: "massa" as const };
+    if (est.length) { const s = [...est].sort((a, b) => a - b), md = s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2; return { ...o, qtd: Math.round(md * 1000) / 1000, fonte: "ficha" as const }; }
+    return { ...o, qtd: apontada.get(o.op) ?? 0, fonte: "apontada" as const };
   }).filter((o) => o.qtd > 0);
 }
 
@@ -117,4 +122,20 @@ export function maisVendidos(ops: Op[], vendas: Venda[], disp: Disponibilidade[]
   const porFamilia = familias.map((f) => { const ks = [...venda.keys()].filter((k) => famDe(k) === f), l = ks.map(linha); const v = l.reduce((a, x) => a + x.venda, 0), pr = l.reduce((a, x) => a + x.producao, 0); return { familia: f, skus: ks.length, venda: v, producao: pr, cobertura: v ? pr / v : null, diasLoja: l.reduce((a, x) => a + x.diasLoja, 0), comRuptura: l.filter((x) => x.diasRuptura > 0).length, perda: l.reduce((a, x) => a + x.perda, 0) }; });
   const inicioRupturas = disp.length ? disp.reduce((a, d) => (d.data < a ? d.data : a), disp[0].data) : null;
   return { top, porFamilia, familias, inicioRupturas, desde };
+}
+
+export type OpErp = { id_op: string; id_produto: string; um: string | null; status: string | null; qtd_prevista: number | null; qtd_prod: number | null; dt_prevista: string | null; dt_producao: string | null; dt_registro: string | null };
+/**
+ * Aderência às OPs do mês (base do ERP): % de OPs produzidas entre 80% e 120% do previsto, abaixo/acima,
+ * no prazo (produção até a data prevista), atraso médio entre produção e registro do apontamento e OPs em aberto.
+ */
+export function aderenciaOps(rows: OpErp[], mes: string, tol: [number, number] = [0.8, 1.2]) {
+  const dias = (a: string, b: string) => Math.round((Date.parse(`${a}T12:00:00Z`) - Date.parse(`${b}T12:00:00Z`)) / 86400000);
+  const prod = rows.filter((r) => String(r.dt_producao ?? "").slice(0, 7) === mes && Number(r.qtd_prod) > 0 && Number(r.qtd_prevista) > 0);
+  const ad = prod.map((r) => Number(r.qtd_prod) / Number(r.qtd_prevista));
+  const dentro = ad.filter((x) => x >= tol[0] && x <= tol[1]).length, abaixo = ad.filter((x) => x < tol[0]).length, acima = ad.filter((x) => x > tol[1]).length;
+  const comPrazo = prod.filter((r) => r.dt_prevista), noPrazo = comPrazo.filter((r) => r.dt_producao! <= r.dt_prevista!).length;
+  const atrasos = prod.filter((r) => r.dt_registro).map((r) => Math.max(0, dias(r.dt_registro!, r.dt_producao!)));
+  const abertas = rows.filter((r) => String(r.dt_prevista ?? "").slice(0, 7) <= mes && !/produzida/i.test(String(r.status ?? ""))).length;
+  return { ops: prod.length, aderencia: prod.length ? dentro / prod.length : null, dentro, abaixo, acima, noPrazo: comPrazo.length ? noPrazo / comPrazo.length : null, atrasoMedio: atrasos.length ? atrasos.reduce((a, b) => a + b, 0) / atrasos.length : null, abertas, volume: prod.reduce((a, r) => a + Number(r.qtd_prod), 0) / Math.max(1e-9, prod.reduce((a, r) => a + Number(r.qtd_prevista), 0)) };
 }
