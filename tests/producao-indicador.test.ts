@@ -49,3 +49,16 @@ test("Série começa na produção ativa, pareto de custo e mais vendidos com ru
   const mv = maisVendidos(ops, [{ sku: "5004010", data_movimento: "2026-10-10", quantidade: 90 }], [{ id_produto: "05004010", familia: "Povos da Floresta", data: "2026-10-20", loja: "A", em_ruptura: true, venda_perdida_rs: 30 }, { id_produto: "05004010", familia: "Povos da Floresta", data: "2026-10-21", loja: "B", em_ruptura: true, venda_perdida_rs: 20 }], [{ id_produto: "5004010", quantidade: 30 }], "2026-10-31", "Todas");
   expect(mv.top[0]).toMatchObject({ venda: 90, producao: 100, diasLoja: 2, diasRuptura: 2, perda: 50, doi: 30 });
 });
+
+test("Quantidade do ERP tem prioridade e aderência às OPs", async () => {
+  const { aderenciaOps } = await import("../src/lib/producao-indicador");
+  const c = [{ id_op: "4837", data_producao: "2026-08-13", produto: "05004010", material: "019021424", qtd_previsto: 200, qtd_consumo: 151, um: "PC" }];
+  const ops = opsDeConsumo(c as any, () => "Produto Acabado", () => 1, new Map(), (op, p) => (op === "4837" && p === "05004010" ? { qtd: 151, um: "PC" } : null));
+  expect([ops[0].qtd, ops[0].fonte]).toEqual([151, "ERP"]);
+  const a = aderenciaOps([
+    { id_op: "1", id_produto: "A", um: "PC", status: "Produzida", qtd_prevista: 100, qtd_prod: 95, dt_prevista: "2026-08-10", dt_producao: "2026-08-10", dt_registro: "2026-08-12" },
+    { id_op: "2", id_produto: "B", um: "PC", status: "Produzida", qtd_prevista: 200, qtd_prod: 151, dt_prevista: "2026-08-12", dt_producao: "2026-08-13", dt_registro: "2026-08-13" },
+    { id_op: "3", id_produto: "C", um: "KG", status: "Digitada", qtd_prevista: 5, qtd_prod: null, dt_prevista: "2026-08-20", dt_producao: null, dt_registro: null },
+  ], "2026-08");
+  expect(a).toMatchObject({ ops: 2, aderencia: 0.5, abaixo: 1, noPrazo: 0.5, atrasoMedio: 1, abertas: 1 });
+});
