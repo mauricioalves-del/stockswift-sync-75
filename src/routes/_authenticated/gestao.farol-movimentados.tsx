@@ -304,39 +304,73 @@ function ConferenciaDialog({ almox, dia, itens, conf, conc, situacao, hoje, onCl
           {estoqueQ.isError && <span className="ml-2 text-xs text-destructive">Saldo sistêmico indisponível</span>}</span>
         <Button size="sm" variant="outline" onClick={() => setLinhas((ls) => ls.map((l) => { const s = sistemaDe(l); return !l.ja_conciliado && l.qtd_contada === null && s !== null ? { ...l, qtd_contada: s } : l; }))}>Marcar pendentes como OK</Button>
       </div>
-      <div className="max-h-[45vh] overflow-auto rounded border">
-        <Table>
-          <TableHeader className="sticky top-0 z-10 bg-muted"><TableRow>
-            <TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead className="text-right">Qtd mov.</TableHead>
-            <TableHead className="text-right">Saldo sistêmico</TableHead><TableHead className="w-28 text-right">Contagem</TableHead>
-            <TableHead className="text-right">Dif. qtd</TableHead><TableHead className="text-right">Custo contábil total</TableHead><TableHead className="text-center">Status</TableHead>
-          </TableRow></TableHeader>
-          <TableBody>{calc.map(({ l, sistema, status, dif }) => <TableRow key={l.sku} className={l.ja_conciliado ? "bg-muted/40" : ""}>
-            <TableCell className="font-mono text-xs">{l.sku}</TableCell>
-            <TableCell className="text-xs">{l.descricao}{l.lotes?.length ? <span className="block text-[10px] text-muted-foreground">Lotes: {l.lotes.join(", ")}</span> : null}</TableCell>
-            <TableCell className="text-right text-xs tabular-nums">{l.qtd.toLocaleString("pt-BR")}</TableCell>
-            <TableCell className="text-right text-xs tabular-nums">{l.ja_conciliado ? <span className="text-muted-foreground">—</span>
-              : sistema !== null ? <span className="font-semibold">{sistema.toLocaleString("pt-BR")}</span>
-              : estoqueQ.isLoading ? <span className="text-muted-foreground">…</span>
-              : <Input type="number" className="ml-auto h-7 w-24 text-right text-xs" value={l.saldo_sistema ?? ""} placeholder="saldo" onChange={(e) => set(l.sku, { saldo_sistema: e.target.value === "" ? null : Number(e.target.value) })} />}</TableCell>
-            <TableCell className="text-right">{l.ja_conciliado ? <span className="text-xs text-muted-foreground">—</span>
-              : <Input type="number" min={0} className="ml-auto h-7 w-24 text-right text-xs" value={l.qtd_contada ?? ""} placeholder="qtd" aria-label={`Contagem ${l.sku}`} onChange={(e) => set(l.sku, { qtd_contada: e.target.value === "" ? null : Number(e.target.value) })} />}</TableCell>
-            <TableCell className={`text-right text-xs font-semibold tabular-nums ${corDif(dif.qtd)}`}>{dif.qtd === null ? "—" : fmtDif(dif.qtd)}</TableCell>
-            <TableCell className={`text-right text-xs font-semibold tabular-nums ${corDif(dif.custo)}`} title={custoDe(l) == null ? "SKU sem custo contábil no estoque sistêmico" : `Custo contábil unitário: ${brl(custoDe(l)!)}`}>
-              {dif.qtd === null ? "—" : dif.custo === null ? "sem custo" : brl(dif.custo)}</TableCell>
-            <TableCell className="text-center">{l.ja_conciliado
-              ? <span className={`text-[11px] font-semibold ${status === "DIVERGENTE" ? "text-destructive" : "text-emerald-600"}`}>Atlas · {status === "DIVERGENTE" ? "divergente" : "OK"}</span>
-              : <span className={`rounded px-2 py-0.5 text-[11px] font-semibold ${STATUS[status].c}`}>{STATUS[status].t}</span>}</TableCell>
-          </TableRow>)}
-          {!linhas.length && <TableRow><TableCell colSpan={8} className="py-6 text-center text-sm text-muted-foreground">Nenhum item movimentado nas bases neste dia{conc?.size ? ` (${conc.size} item(ns) conciliado(s) no Atlas sem movimento registrado nas bases)` : ""}.</TableCell></TableRow>}
-          {linhas.length > 0 && <TableRow className="sticky bottom-0 bg-muted font-semibold">
-            <TableCell colSpan={5} className="text-right text-xs">Total</TableCell>
-            <TableCell className={`text-right text-xs tabular-nums ${corDif(totalDifQtd)}`}>{fmtDif(Math.round(totalDifQtd * 10000) / 10000)}</TableCell>
-            <TableCell className={`text-right text-xs tabular-nums ${corDif(totalDifCusto)}`}>{brl(totalDifCusto)}</TableCell>
-            <TableCell />
-          </TableRow>}</TableBody>
-        </Table>
-      </div>
+      {(() => {
+        type C = (typeof calc)[number];
+        const cSistema = ({ l, sistema }: C) => l.ja_conciliado ? <span className="text-muted-foreground">—</span>
+          : sistema !== null ? <span className="font-semibold">{sistema.toLocaleString("pt-BR")}</span>
+          : estoqueQ.isLoading ? <span className="text-muted-foreground">…</span>
+          : <Input type="number" className="ml-auto h-7 w-24 text-right text-xs" value={l.saldo_sistema ?? ""} placeholder="saldo" aria-label={`Saldo sistêmico ${l.sku}`} onChange={(e) => set(l.sku, { saldo_sistema: e.target.value === "" ? null : Number(e.target.value) })} />;
+        const cContagem = ({ l }: C) => l.ja_conciliado ? <span className="text-xs text-muted-foreground">—</span>
+          : <Input type="number" min={0} inputMode="decimal" className="ml-auto h-7 w-24 text-right text-xs" value={l.qtd_contada ?? ""} placeholder="qtd" aria-label={`Contagem ${l.sku}`} onChange={(e) => set(l.sku, { qtd_contada: e.target.value === "" ? null : Number(e.target.value) })} />;
+        const cDif = ({ dif }: C) => <span className={`font-semibold tabular-nums ${corDif(dif.qtd)}`}>{dif.qtd === null ? "—" : fmtDif(dif.qtd)}</span>;
+        const cCusto = ({ l, dif }: C) => <span className={`font-semibold tabular-nums ${corDif(dif.custo)}`} title={custoDe(l) == null ? "SKU sem custo contábil no estoque sistêmico" : `Custo contábil unitário: ${brl(custoDe(l)!)}`}>
+          {dif.qtd === null ? "—" : dif.custo === null ? "sem custo" : brl(dif.custo)}</span>;
+        const cStatus = ({ l, status }: C) => l.ja_conciliado
+          ? <span className={`text-[11px] font-semibold ${status === "DIVERGENTE" ? "text-destructive" : "text-emerald-600"}`}>Atlas · {status === "DIVERGENTE" ? "divergente" : "OK"}</span>
+          : <span className={`whitespace-nowrap rounded px-2 py-0.5 text-[11px] font-semibold ${STATUS[status].c}`}>{STATUS[status].t}</span>;
+        const vazio = <p className="py-6 text-center text-sm text-muted-foreground">Nenhum item movimentado nas bases neste dia{conc?.size ? ` (${conc.size} item(ns) conciliado(s) no Atlas sem movimento registrado nas bases)` : ""}.</p>;
+        const total = linhas.length > 0 && <>
+          <span className={`tabular-nums ${corDif(totalDifQtd)}`}>{fmtDif(Math.round(totalDifQtd * 10000) / 10000)}</span>
+          <span className={`tabular-nums ${corDif(totalDifCusto)}`}>{brl(totalDifCusto)}</span></>;
+        return <>
+          {/* Desktop: tabela com cabeçalho e total fixos (tabela nativa para o sticky funcionar dentro da rolagem). */}
+          <div className="hidden overflow-hidden rounded border sm:block"><div className="max-h-[45vh] overflow-auto">
+            <table className="w-full border-separate border-spacing-0 caption-bottom text-sm">
+              <TableHeader className="sticky top-0 z-10 bg-muted [&_th]:bg-muted"><TableRow>
+                <TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead className="text-right">Qtd mov.</TableHead>
+                <TableHead className="text-right">Saldo sistêmico</TableHead><TableHead className="w-28 text-right">Contagem</TableHead>
+                <TableHead className="text-right">Dif. qtd</TableHead><TableHead className="text-right">Custo contábil total</TableHead><TableHead className="text-center">Status</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>{calc.map((c) => <TableRow key={c.l.sku} className={c.l.ja_conciliado ? "bg-muted/40" : ""}>
+                <TableCell className="font-mono text-xs">{c.l.sku}</TableCell>
+                <TableCell className="text-xs">{c.l.descricao}{c.l.lotes?.length ? <span className="block text-[10px] text-muted-foreground">Lotes: {c.l.lotes.join(", ")}</span> : null}</TableCell>
+                <TableCell className="text-right text-xs tabular-nums">{c.l.qtd.toLocaleString("pt-BR")}</TableCell>
+                <TableCell className="text-right text-xs tabular-nums">{cSistema(c)}</TableCell>
+                <TableCell className="text-right">{cContagem(c)}</TableCell>
+                <TableCell className="text-right text-xs">{cDif(c)}</TableCell>
+                <TableCell className="text-right text-xs">{cCusto(c)}</TableCell>
+                <TableCell className="text-center">{cStatus(c)}</TableCell>
+              </TableRow>)}
+              {!linhas.length && <TableRow><TableCell colSpan={8}>{vazio}</TableCell></TableRow>}</TableBody>
+              {linhas.length > 0 && <tfoot className="sticky bottom-0 z-10 bg-muted text-xs font-semibold"><tr>
+                <td colSpan={5} className="p-2 text-right">Total</td>
+                <td className="p-2 text-right"><span className={`tabular-nums ${corDif(totalDifQtd)}`}>{fmtDif(Math.round(totalDifQtd * 10000) / 10000)}</span></td>
+                <td className="p-2 text-right"><span className={`tabular-nums ${corDif(totalDifCusto)}`}>{brl(totalDifCusto)}</span></td>
+                <td />
+              </tr></tfoot>}
+            </table>
+          </div></div>
+          {/* Celular: um cartão por item, no mesmo formato da ficha de contagem. */}
+          <div className="max-h-[50vh] space-y-2 overflow-auto sm:hidden">
+            {calc.map((c) => <div key={c.l.sku} className={`rounded border p-2 text-xs ${c.l.ja_conciliado ? "bg-muted/40" : "bg-card"}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0"><span className="font-mono text-[11px] text-muted-foreground">{c.l.sku}</span><p className="font-medium">{c.l.descricao}</p>
+                  {c.l.lotes?.length ? <p className="break-all text-[10px] text-muted-foreground">Lotes: {c.l.lotes.join(", ")}</p> : null}</div>
+                {cStatus(c)}
+              </div>
+              <div className="mt-2 grid grid-cols-3 items-center gap-2">
+                <div><p className="text-[10px] text-muted-foreground">Qtd mov.</p><p className="tabular-nums">{c.l.qtd.toLocaleString("pt-BR")}</p></div>
+                <div><p className="text-[10px] text-muted-foreground">Saldo sistêmico</p><div className="tabular-nums [&_input]:ml-0">{cSistema(c)}</div></div>
+                <div><p className="text-[10px] text-muted-foreground">Contagem</p><div className="[&_input]:ml-0 [&_input]:w-full">{cContagem(c)}</div></div>
+                <div><p className="text-[10px] text-muted-foreground">Dif. qtd</p>{cDif(c)}</div>
+                <div className="col-span-2"><p className="text-[10px] text-muted-foreground">Custo contábil total</p>{cCusto(c)}</div>
+              </div>
+            </div>)}
+            {!linhas.length && vazio}
+            {linhas.length > 0 && <div className="sticky bottom-0 flex justify-between gap-3 rounded border bg-muted p-2 text-xs font-semibold"><span>Total</span><span className="flex gap-4">{total}</span></div>}
+          </div>
+        </>;
+      })()}
       {semSaldo && <p className="text-xs text-amber-700">Há itens contados sem saldo sistêmico: informe o saldo para comparar com a contagem.</p>}
       <Textarea placeholder="Observação (opcional): o que foi encontrado, tratativa das divergências…" value={obs} maxLength={1000} onChange={(e) => setObs(e.target.value)} className="min-h-16" />
       <DialogFooter>
