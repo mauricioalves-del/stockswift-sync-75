@@ -3871,6 +3871,369 @@ export type Database = {
           },
         ]
       }
+      erp_faturamento: {
+        Row: {
+          ano: number | null
+          anomes: string | null
+          canal_venda: string | null
+          cidade: string | null
+          cod_prod: string | null
+          cond_pgto: string | null
+          cont_ped: number | null
+          custo_unitario_estoque: number | null
+          desc_produto: string | null
+          dias_para_faturar: number | null
+          dt_cancelamento_nota: string | null
+          dt_emissao: string | null
+          dt_faturado: string | null
+          dt_inclusao: string | null
+          empresa: string | null
+          estado: string | null
+          grupo: string | null
+          grupo1: string | null
+          grupo2: string | null
+          id: number
+          id_cfo: string | null
+          importado_em: string
+          linha: string | null
+          lote: string | null
+          meio_pgto: string | null
+          mes: string | null
+          natureza: string | null
+          nota_cancelada: string | null
+          nr_nf: string | null
+          operacao: string | null
+          orig_ped: string | null
+          pedido_cancelado: string | null
+          qtd: number | null
+          semana: string | null
+          serie: string | null
+          tipo_documento: string | null
+          tipo_produto: string | null
+          vendedor: string | null
+          vt_desc: number | null
+          vt_fat_liquido: number | null
+          vt_frete: number | null
+          vt_total_item: number | null
+        }
+        Insert: {
+          ano?: number | null
+          anomes?: string | null
+          canal_venda?: string | null
+          cidade?: string | null
+          cod_prod?: string | null
+          cond_pgto?: string | null
+          cont_ped?: number | null
+          custo_unitario_estoque?: number | null
+          desc_produto?: string | null
+          dias_para_faturar?: number | null
+          dt_cancelamento_nota?: string | null
+          dt_emissao?: string | null
+          dt_faturado?: string | null
+          dt_inclusao?: string | null
+          empresa?: string | null
+          estado?: string | null
+          grupo?: string | null
+          grupo1?: string | null
+          grupo2?: string | null
+          id?: number
+          id_cfo?: string | null
+          importado_em?: string
+          linha?: string | null
+          lote?: string | null
+          meio_pgto?: string | null
+          mes?: string | null
+          natureza?: string | null
+          nota_cancelada?: string | null
+          nr_nf?: string | null
+          operacao?: string | null
+          orig_ped?: string | null
+          pedido_cancelado?: string | null
+          qtd?: number | null
+          semana?: string | null
+          serie?: string | null
+          tipo_documento?: string | null
+          tipo_produto?: string | null
+          vendedor?: string | null
+          vt_desc?: number | null
+          vt_fat_liquido?: number | null
+          vt_frete?: number | null
+          vt_total_item?: number | null
+        }
+        Update: {
+          ano?: number | null
+          anomes?: string | null
+          canal_venda?: string | null
+          cidade?: string | null
+          cod_prod?: string | null
+          cond_pgto?: string | null
+          cont_ped?: number | null
+          custo_unitario_estoque?: number | null
+          desc_produto?: string | null
+          dias_para_faturar?: number | null
+          dt_cancelamento_nota?: string | null
+          dt_emissao?: string | null
+          dt_faturado?: string | null
+          dt_inclusao?: string | null
+          empresa?: string | null
+          estado?: string | null
+          grupo?: string | null
+          grupo1?: string | null
+          grupo2?: string | null
+          id?: number
+          id_cfo?: string | null
+          importado_em?: string
+          linha?: string | null
+          lote?: string | null
+          meio_pgto?: string | null
+          mes?: string | null
+          natureza?: string | null
+          nota_cancelada?: string | null
+          nr_nf?: string | null
+          operacao?: string | null
+          orig_ped?: string | null
+          pedido_cancelado?: string | null
+          qtd?: number | null
+          semana?: string | null
+          serie?: string | null
+          tipo_documento?: string | null
+          tipo_produto?: string | null
+          vendedor?: string | null
+          vt_desc?: number | null
+          vt_fat_liquido?: number | null
+          vt_frete?: number | null
+          vt_total_item?: number | null
+        }
+        Relationships: []
+      }
+      erp_faturamento_pendente: {
+        Row: {
+          cliente: string | null
+          comentario: string | null
+          descricao: string | null
+          id: number
+          id_pedido: string | null
+          importado_em: string
+          produto: string | null
+          qtd: number | null
+        }
+        Insert: {
+          cliente?: string | null
+          comentario?: string | null
+          descricao?: string | null
+          id?: number
+          id_pedido?: string | null
+          importado_em?: string
+          produto?: string | null
+          qtd?: number | null
+        }
+        Update: {
+          cliente?: string | null
+          comentario?: string | null
+          descricao?: string | null
+          id?: number
+          id_pedido?: string | null
+          importado_em?: string
+          produto?: string | null
+          qtd?: number | null
+        }
+        Relationships: []
+      }
+      erp_importacoes: {
+        Row: {
+          arquivo: string | null
+          base: string
+          id: number
+          importado_em: string
+          importado_por: string | null
+          linhas: number
+        }
+        Insert: {
+          arquivo?: string | null
+          base: string
+          id?: number
+          importado_em?: string
+          importado_por?: string | null
+          linhas: number
+        }
+        Update: {
+          arquivo?: string | null
+          base?: string
+          id?: number
+          importado_em?: string
+          importado_por?: string | null
+          linhas?: number
+        }
+        Relationships: []
+      }
+      erp_producao_mes: {
+        Row: {
+          anomes: string | null
+          descricao: string | null
+          empresa: string | null
+          id: number
+          id_produto: string
+          importado_em: string
+          qtd_ja_produzida: number | null
+          qtd_produzir: number | null
+          status: string | null
+          tipo_material: string | null
+          um: string | null
+        }
+        Insert: {
+          anomes?: string | null
+          descricao?: string | null
+          empresa?: string | null
+          id?: number
+          id_produto: string
+          importado_em?: string
+          qtd_ja_produzida?: number | null
+          qtd_produzir?: number | null
+          status?: string | null
+          tipo_material?: string | null
+          um?: string | null
+        }
+        Update: {
+          anomes?: string | null
+          descricao?: string | null
+          empresa?: string | null
+          id?: number
+          id_produto?: string
+          importado_em?: string
+          qtd_ja_produzida?: number | null
+          qtd_produzir?: number | null
+          status?: string | null
+          tipo_material?: string | null
+          um?: string | null
+        }
+        Relationships: []
+      }
+      erp_producao_op: {
+        Row: {
+          custo_contabil: number | null
+          descricao: string | null
+          dt_prevista: string | null
+          dt_producao: string | null
+          dt_registro: string | null
+          empresa: string | null
+          id: number
+          id_op: string
+          id_produto: string
+          id_seq: number | null
+          importado_em: string
+          qtd_prevista: number | null
+          qtd_prod: number | null
+          qtd_saldo: number | null
+          status: string | null
+          tipo_material: string | null
+          um: string | null
+        }
+        Insert: {
+          custo_contabil?: number | null
+          descricao?: string | null
+          dt_prevista?: string | null
+          dt_producao?: string | null
+          dt_registro?: string | null
+          empresa?: string | null
+          id?: number
+          id_op: string
+          id_produto: string
+          id_seq?: number | null
+          importado_em?: string
+          qtd_prevista?: number | null
+          qtd_prod?: number | null
+          qtd_saldo?: number | null
+          status?: string | null
+          tipo_material?: string | null
+          um?: string | null
+        }
+        Update: {
+          custo_contabil?: number | null
+          descricao?: string | null
+          dt_prevista?: string | null
+          dt_producao?: string | null
+          dt_registro?: string | null
+          empresa?: string | null
+          id?: number
+          id_op?: string
+          id_produto?: string
+          id_seq?: number | null
+          importado_em?: string
+          qtd_prevista?: number | null
+          qtd_prod?: number | null
+          qtd_saldo?: number | null
+          status?: string | null
+          tipo_material?: string | null
+          um?: string | null
+        }
+        Relationships: []
+      }
+      erp_saldo_estoque: {
+        Row: {
+          ativo: string | null
+          cod_barras: string | null
+          custo_contabil: number | null
+          custo_vlr: number | null
+          descricao: string | null
+          estoque_maximo: number | null
+          estoque_minimo: number | null
+          grupo: string | null
+          id: number
+          id_produto: string
+          importado_em: string
+          linha: string | null
+          prod_ref1: string | null
+          saldos: Json
+          saldos_kg: Json
+          tipo_material: string | null
+          tipo_produto: string | null
+          um: string | null
+          validade_meses: number | null
+        }
+        Insert: {
+          ativo?: string | null
+          cod_barras?: string | null
+          custo_contabil?: number | null
+          custo_vlr?: number | null
+          descricao?: string | null
+          estoque_maximo?: number | null
+          estoque_minimo?: number | null
+          grupo?: string | null
+          id?: number
+          id_produto: string
+          importado_em?: string
+          linha?: string | null
+          prod_ref1?: string | null
+          saldos?: Json
+          saldos_kg?: Json
+          tipo_material?: string | null
+          tipo_produto?: string | null
+          um?: string | null
+          validade_meses?: number | null
+        }
+        Update: {
+          ativo?: string | null
+          cod_barras?: string | null
+          custo_contabil?: number | null
+          custo_vlr?: number | null
+          descricao?: string | null
+          estoque_maximo?: number | null
+          estoque_minimo?: number | null
+          grupo?: string | null
+          id?: number
+          id_produto?: string
+          importado_em?: string
+          linha?: string | null
+          prod_ref1?: string | null
+          saldos?: Json
+          saldos_kg?: Json
+          tipo_material?: string | null
+          tipo_produto?: string | null
+          um?: string | null
+          validade_meses?: number | null
+        }
+        Relationships: []
+      }
       estoque_sistemico: {
         Row: {
           cliente: string
