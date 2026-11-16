@@ -5126,12 +5126,15 @@ export type Database = {
           criado_por: string | null
           data_execucao: string | null
           descricao: string | null
+          encerrada_sem_contagem_em: string | null
+          encerrada_sem_contagem_por: string | null
           familia: string | null
           familias_alvo: string[] | null
           grupo: string | null
           grupos_alvo: string[] | null
           id: string
           id_local: string | null
+          motivo_encerramento: string | null
           origem: string | null
           plano_origem_id: string | null
           responsavel_id: string | null
@@ -5146,12 +5149,15 @@ export type Database = {
           criado_por?: string | null
           data_execucao?: string | null
           descricao?: string | null
+          encerrada_sem_contagem_em?: string | null
+          encerrada_sem_contagem_por?: string | null
           familia?: string | null
           familias_alvo?: string[] | null
           grupo?: string | null
           grupos_alvo?: string[] | null
           id?: string
           id_local?: string | null
+          motivo_encerramento?: string | null
           origem?: string | null
           plano_origem_id?: string | null
           responsavel_id?: string | null
@@ -5166,12 +5172,15 @@ export type Database = {
           criado_por?: string | null
           data_execucao?: string | null
           descricao?: string | null
+          encerrada_sem_contagem_em?: string | null
+          encerrada_sem_contagem_por?: string | null
           familia?: string | null
           familias_alvo?: string[] | null
           grupo?: string | null
           grupos_alvo?: string[] | null
           id?: string
           id_local?: string | null
+          motivo_encerramento?: string | null
           origem?: string | null
           plano_origem_id?: string | null
           responsavel_id?: string | null
@@ -7788,6 +7797,10 @@ export type Database = {
         Returns: number
       }
       congelar_producao_consumo: { Args: never; Returns: number }
+      encerrar_missao_sem_contagem: {
+        Args: { _missao_id: string; _motivo: string }
+        Returns: undefined
+      }
       equipe_aprovada_para_leitura: { Args: { _uid: string }; Returns: boolean }
       executar_plano_contagem_ciclica: {
         Args: { _plano_id: string }

@@ -88,3 +88,14 @@ test("Período ano e todo o período: série e tabela por mês", () => {
   expect(ehMes("2026")).toBe(false);
   expect(resumir(ms, itens, "2026-11", "2026-11-04").serie.length).toBe(4);
 });
+
+test("missão encerrada sem contagem conta como não realizada; cancelada comum continua fora", () => {
+  const r = resumir([
+    M("a", "2026-11-10", "CONCLUIDA", "2026-11-10T12:00:00Z"),
+    { ...M("b", "2026-11-11", "CANCELADA", null), encerrada_sem_contagem_em: "2026-11-13T12:00:00Z" },
+    M("c", "2026-11-12", "CANCELADA", null),
+  ], [], "2026-11", "2026-11-16");
+  expect(r.universo).toBe(2);
+  expect(r.naoRealizadas.map((m) => m.id)).toEqual(["b"]);
+  expect(r.aderencia).toBe(0.5);
+});

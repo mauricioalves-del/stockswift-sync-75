@@ -16,7 +16,8 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Sparkles, Loader2, Trash2 } from "lucide-react";
+import { Plus, Sparkles, Loader2, Trash2, CircleSlash } from "lucide-react";
+import { podeConfirmarPendencia, hojeBR } from "@/lib/missao-pendencia";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -71,6 +72,10 @@ function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
   const { almoxes } = useMeusAlmoxarifados();
   const [toDelete, setToDelete] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [toClose, setToClose] = useState<any | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [closing, setClosing] = useState(false);
+  const hoje = hojeBR();
   const [quick, setQuick] = useState<QuickFilter>(quickFilterMemory);
   const [filtroStatus, setFiltroStatus] = useState<string>(statusFilterMemory);
 
@@ -133,6 +138,27 @@ function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
     }
   }
 
+  async function encerrarSemContagem() {
+    if (!toClose) return;
+    if (!motivo.trim()) { toast.error("Informe o motivo"); return; }
+    setClosing(true);
+    try {
+      const { error } = await (supabase as any).rpc("encerrar_missao_sem_contagem", {
+        _missao_id: toClose.id, _motivo: motivo.trim(),
+      });
+      if (error) throw error;
+      toast.success("Pendência confirmada: missão encerrada sem contagem");
+      setToClose(null);
+      setMotivo("");
+      qc.invalidateQueries({ queryKey: ["missoes"] });
+      qc.invalidateQueries({ queryKey: ["indicador-inventario"] });
+    } catch (err: any) {
+      toast.error(err.message ?? "Falha ao confirmar pendência");
+    } finally {
+      setClosing(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center gap-3 flex-wrap">
@@ -167,7 +193,7 @@ function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
               <TableHead>Almox</TableHead>
               <TableHead>Execução</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-32 text-right">Ações</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -181,12 +207,27 @@ function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
                 <TableCell className="text-xs">{[m.grupo, m.familia].filter(Boolean).join(" / ") || "—"}</TableCell>
                 <TableCell className="text-xs">{m.origem || "—"}</TableCell>
                 <TableCell className="text-xs">{m.data_execucao ? m.data_execucao.slice(0, 10).split("-").reverse().join("/") : "—"}</TableCell>
-                <TableCell><Badge className="text-[10px]">{m.status}</Badge></TableCell>
+                <TableCell>
+                  <Badge className="text-[10px]">{m.encerrada_sem_contagem_em ? "ENCERRADA SEM CONTAGEM" : m.status}</Badge>
+                  {m.motivo_encerramento && (
+                    <div className="text-[10px] text-muted-foreground mt-0.5 max-w-48 truncate" title={m.motivo_encerramento}>{m.motivo_encerramento}</div>
+                  )}
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
                     <Button asChild size="sm" variant="outline">
                       <Link to="/missoes/$id" params={{ id: m.id }}>Executar</Link>
                     </Button>
+                    {podeGerir && podeConfirmarPendencia(m, hoje) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { setToClose(m); setMotivo(""); }}
+                        title="Encerrar a missão sem contagem (passou 1 dia da execução)"
+                      >
+                        <CircleSlash className="size-4" /> Confirmar pendência
+                      </Button>
+                    )}
                     {podeGerir && (
                       <Button
                         size="sm"
@@ -205,6 +246,30 @@ function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
           </TableBody>
         </Table>
       </CardContent>
+
+      <AlertDialog open={!!toClose} onOpenChange={(o) => !o && !closing && setToClose(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar pendência de contagem?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A missão «{toClose?.titulo}», prevista para {toClose?.data_execucao ? toClose.data_execucao.slice(0, 10).split("-").reverse().join("/") : "—"}, será encerrada sem contagem e sairá da lista de pendentes. Ela continua contando como não realizada no Indicador de Inventário.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1">
+            <Label className="text-xs">Motivo *</Label>
+            <Textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: loja fechada, equipe indisponível..." rows={3} />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={closing}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); encerrarSemContagem(); }}
+              disabled={closing || !motivo.trim()}
+            >
+              {closing ? <Loader2 className="size-4 animate-spin" /> : "Encerrar sem contagem"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
         <AlertDialogContent>

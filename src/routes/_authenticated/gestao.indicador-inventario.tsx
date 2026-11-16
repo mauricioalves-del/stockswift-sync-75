@@ -76,7 +76,7 @@ export function IndicadorInventarioPage() {
       };
       // Sem a migration 0042, a coluna concluida_em ainda não existe: segue sem ela (conclusão conta como no prazo).
       let semMigration = false;
-      let { data: missoes, error } = await buscar("id, titulo, tipo, origem, data_execucao, status, concluida_em");
+      let { data: missoes, error } = await buscar("id, titulo, tipo, origem, data_execucao, status, concluida_em, encerrada_sem_contagem_em");
       if (error?.code === "42703") {
         semMigration = true;
         ({ data: missoes, error } = await buscar("id, titulo, tipo, origem, data_execucao, status"));
@@ -113,6 +113,7 @@ export function IndicadorInventarioPage() {
   const acoesVencidas = acoes.filter((a) => acaoVencida(a, hoje));
   const pendencias = [
     ...r.atrasadasAbertas.map((m) => ({ m, motivo: "Atrasada em aberto", etapa: "EXECUCAO" as EtapaId })),
+    ...r.naoRealizadas.map((m) => ({ m, motivo: "Encerrada sem contagem", etapa: "EXECUCAO" as EtapaId })),
     ...r.encerradasIncompletas.map((m) => ({ m, motivo: "Concluída com itens pendentes", etapa: "ENCERRAMENTO" as EtapaId })),
   ];
   const listaAcoes = acoes.filter((a) => (filtroEtapa === "TODAS" || a.etapa === filtroEtapa) && (mostrarFechadas || acaoAberta(a)));
@@ -126,6 +127,7 @@ export function IndicadorInventarioPage() {
       { label: "No prazo", valor: `${r.noPrazo} de ${r.universo}` },
       { label: "Atrasadas em aberto", valor: String(r.atrasadasAbertas.length), alerta: r.atrasadasAbertas.length > 0 },
       { label: "Concluídas com atraso", valor: String(r.comAtraso), alerta: r.comAtraso > 0 },
+      { label: "Encerradas sem contagem", valor: String(r.naoRealizadas.length), alerta: r.naoRealizadas.length > 0 },
     ],
     DIVERGENCIA: [
       { label: "Acuracidade", valor: pct(r.acuracidade), alerta: r.acuracidade !== null && r.acuracidade < META_ACURACIDADE },

@@ -18,6 +18,8 @@ export type EtapaId = (typeof ETAPAS)[number]["id"];
 export type MissaoLinha = {
   id: string; titulo: string; tipo: string; origem: string | null;
   data_execucao: string | null; status: string; concluida_em: string | null;
+  /** Pendência confirmada: missão encerrada sem contagem (conta como não realizada). */
+  encerrada_sem_contagem_em?: string | null;
 };
 export type ItemLinha = {
   missao_id: string; status_item: string; observacao: string | null;
@@ -48,16 +50,17 @@ export const diaBR = (d: Date | string): string =>
 export type Grupo = { chave: string; programadas: number; falhas: number; aderencia: number | null };
 export type DiaSerie = { data: string; acumulada: number | null; acuracidade: number | null };
 export type Resumo = {
-  universo: number; noPrazo: number; comAtraso: number; atrasadasAbertas: MissaoLinha[]; futuras: number;
+  universo: number; noPrazo: number; comAtraso: number; atrasadasAbertas: MissaoLinha[]; naoRealizadas: MissaoLinha[]; futuras: number;
   aderencia: number | null; dentroDaMeta: boolean | null;
   itensOk: number; itensDiv: number; itensFefo: number; itensPendentes: number; itensSemAvaliacao: number;
   acuracidade: number | null; divSemJustificativa: number; encerradasIncompletas: MissaoLinha[];
   concluidasComAtraso: MissaoLinha[]; serie: DiaSerie[]; porTipo: Grupo[]; porOrigem: Grupo[];
 };
 
-type Classe = "NO_PRAZO" | "COM_ATRASO" | "ATRASADA_ABERTA" | "FUTURA";
+type Classe = "NO_PRAZO" | "COM_ATRASO" | "ATRASADA_ABERTA" | "NAO_REALIZADA" | "FUTURA";
 function classificar(m: MissaoLinha, hoje: string): Classe {
   const data = m.data_execucao!;
+  if (m.encerrada_sem_contagem_em) return "NAO_REALIZADA";
   if (m.status === "CONCLUIDA") {
     const fim = m.concluida_em ? diaBR(m.concluida_em) : data;
     return fim <= data ? "NO_PRAZO" : "COM_ATRASO";
@@ -103,11 +106,13 @@ function pontosDaSerie(periodo: string, missoes: MissaoLinha[], hoje: string): s
 }
 
 export function resumir(missoes: MissaoLinha[], itens: ItemLinha[], mes: string, hoje = diaBR(new Date())): Resumo {
-  const doMes = missoes.filter((m) => m.status !== "CANCELADA" && m.data_execucao?.startsWith(mes));
+  // Canceladas ficam fora, exceto as encerradas sem contagem (pendência confirmada), que contam como falha.
+  const doMes = missoes.filter((m) => (m.status !== "CANCELADA" || !!m.encerrada_sem_contagem_em) && m.data_execucao?.startsWith(mes));
   const cls = doMes.map((m) => ({ m, c: classificar(m, hoje) }));
   const de = (c: Classe) => cls.filter((x) => x.c === c).map((x) => x.m);
   const noPrazo = de("NO_PRAZO").length, comAtraso = de("COM_ATRASO"), atrasadasAbertas = de("ATRASADA_ABERTA");
-  const universo = noPrazo + comAtraso.length + atrasadasAbertas.length;
+  const naoRealizadas = de("NAO_REALIZADA");
+  const universo = noPrazo + comAtraso.length + atrasadasAbertas.length + naoRealizadas.length;
   const aderencia = universo ? noPrazo / universo : null;
 
   const idsMes = new Set(doMes.map((m) => m.id));
@@ -140,7 +145,7 @@ export function resumir(missoes: MissaoLinha[], itens: ItemLinha[], mes: string,
   for (const i of its) if (i.status_item === "PENDENTE") pendentesPorMissao.set(i.missao_id, (pendentesPorMissao.get(i.missao_id) ?? 0) + 1);
 
   return {
-    universo, noPrazo, comAtraso: comAtraso.length, atrasadasAbertas, futuras: de("FUTURA").length,
+    universo, noPrazo, comAtraso: comAtraso.length, atrasadasAbertas, naoRealizadas, futuras: de("FUTURA").length,
     aderencia, dentroDaMeta: aderencia === null ? null : aderencia >= META_ADERENCIA,
     itensOk, itensDiv: div.length,
     itensFefo: its.filter((i) => i.status_item === "QUEBRA_FEFO").length,
