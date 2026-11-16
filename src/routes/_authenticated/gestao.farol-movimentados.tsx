@@ -331,7 +331,7 @@ function ConferenciaDialog({ almox, dia, itens, conf, conc, situacao, hoje, onCl
                 <TableHead className="text-right">Saldo sistêmico</TableHead><TableHead className="w-28 text-right">Contagem</TableHead>
                 <TableHead className="text-right">Dif. qtd</TableHead><TableHead className="text-right">Custo contábil total</TableHead><TableHead className="text-center">Status</TableHead>
               </TableRow></TableHeader>
-              <TableBody>{calc.map((c) => <TableRow key={c.l.sku} className={c.l.ja_conciliado ? "bg-muted/40" : ""}>
+              <TableBody className="[&_td]:border-b">{calc.map((c) => <TableRow key={c.l.sku} className={c.l.ja_conciliado ? "bg-muted/40" : ""}>
                 <TableCell className="font-mono text-xs">{c.l.sku}</TableCell>
                 <TableCell className="text-xs">{c.l.descricao}{c.l.lotes?.length ? <span className="block text-[10px] text-muted-foreground">Lotes: {c.l.lotes.join(", ")}</span> : null}</TableCell>
                 <TableCell className="text-right text-xs tabular-nums">{c.l.qtd.toLocaleString("pt-BR")}</TableCell>
