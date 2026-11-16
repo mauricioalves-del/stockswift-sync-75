@@ -872,6 +872,9 @@ const LinhaItem = memo(function LinhaItem({
   }
 
   async function salvar() {
+    if (missao.status === "CANCELADA") {
+      toast.error("Missão encerrada — não aceita novas contagens"); return;
+    }
     // Validações mínimas
     if (linhas.length === 0) { toast.error("Adicione ao menos uma linha de lote"); return; }
     for (const l of linhas) {

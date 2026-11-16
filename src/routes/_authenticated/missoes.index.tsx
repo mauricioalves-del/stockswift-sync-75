@@ -105,7 +105,7 @@ function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
       if (filtroStatus !== "__all__") {
         q = q.eq("status", filtroStatus);
       } else if (quick === "pendentes") {
-        q = q.neq("status", "CONCLUIDA");
+        q = q.not("status", "in", "(CONCLUIDA,CANCELADA)");
       } else if (quick === "concluidas") {
         q = q.eq("status", "CONCLUIDA");
       }
@@ -216,7 +216,7 @@ function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
                     <Button asChild size="sm" variant="outline">
-                      <Link to="/missoes/$id" params={{ id: m.id }}>Executar</Link>
+                      <Link to="/missoes/$id" params={{ id: m.id }}>{m.status === "CANCELADA" ? "Ver" : "Executar"}</Link>
                     </Button>
                     {podeGerir && podeConfirmarPendencia(m, hoje) && (
                       <Button
