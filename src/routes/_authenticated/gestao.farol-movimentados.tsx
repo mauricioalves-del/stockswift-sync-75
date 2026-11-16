@@ -8,8 +8,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
 import {
-  ALMOX_FAROL, chaveSku, coberturaItens, linhasPlanilhaErp, type LinhaErp, conciliacaoPorDia, diaSP, diasDaSemana, movimentoPelaConciliacao, movimentosPorDia, nivelServico, proximaSemana, semanaAnterior, situacaoDia,
-  type AlmoxFarol, type ConcDia, type ConcLinha, type Conferencia, type ItemMov, type MovLinha, type SituacaoDia,
+  ALMOX_FAROL, ORIGEM_SALDO, chaveSku, coberturaItens, diferencaConciliacao, saldoECustoPorSku, statusConciliacao, linhasPlanilhaErp, type LinhaErp, conciliacaoPorDia, diaSP, diasDaSemana, movimentoPelaConciliacao, movimentosPorDia, nivelServico, proximaSemana, semanaAnterior, situacaoDia,
+  type AlmoxFarol, type StatusConc, type ConcDia, type ConcLinha, type Conferencia, type ItemMov, type MovLinha, type SituacaoDia,
 } from "@/lib/farol-movimentados";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -226,7 +226,11 @@ function Celula({ s, futuro, onClick }: { s: SituacaoDia; futuro: boolean; onCli
   return <button type="button" disabled={!clicavel} onClick={onClick} className={`w-full rounded px-1 py-1 text-xs font-semibold ${x.c} ${clicavel ? "hover:ring-1 hover:ring-primary" : "cursor-default"}`}>{x.t}{sub && <span className="block text-[10px] font-normal">{sub}</span>}</button>;
 }
 
-type LinhaConf = ItemMov & { status: "OK" | "DIVERGENTE" | "NAO_CONFERIDO"; ja_conciliado: boolean; saldo_sistema: number | null; qtd_contada: number | null; obs: string | null };
+type LinhaConf = ItemMov & { status: StatusConc; ja_conciliado: boolean; saldo_sistema: number | null; qtd_contada: number | null; obs: string | null };
+
+const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const corDif = (v: number | null) => (v === null || v === 0 ? "text-muted-foreground" : v < 0 ? "text-destructive" : "text-emerald-600");
+const fmtDif = (v: number) => `${v > 0 ? "+" : ""}${v.toLocaleString("pt-BR")}`;
 
 function ConferenciaDialog({ almox, dia, itens, conf, conc, situacao, hoje, onClose }: {
   almox: AlmoxFarol; dia: string; itens: ItemMov[]; conf: Conferencia | null; conc: ConcDia | undefined; situacao: SituacaoDia; hoje: string; onClose: () => void;
@@ -234,65 +238,106 @@ function ConferenciaDialog({ almox, dia, itens, conf, conc, situacao, hoje, onCl
   const qc = useQueryClient();
   const nome = ALMOX_FAROL.find((a) => a.id === almox)!.nome;
   const anterior = new Map(((conf?.itens ?? []) as any[]).map((i) => [chaveSku(i.sku), i]));
+  // Saldo sistêmico e custo contábil do almoxarifado (mesma base da ficha de contagem e das listas de movimentados).
+  const estoqueQ = useQuery({
+    queryKey: ["farol-movimentados", "saldo-custo", almox],
+    queryFn: async () => saldoECustoPorSku(await fetchAll<any>((f, t) => sb.from("estoque_sistemico")
+      .select("id_produto, quantidade, custo_contabil, custo_unitario").eq("origem", ORIGEM_SALDO[almox]).order("id").range(f, t))),
+  });
   // Itens já conciliados por outra fonte (importação do Atlas) aparecem travados; o restante é conferido aqui.
   const base: LinhaConf[] = itens.map((i) => {
     const c = conc?.get(chaveSku(i.sku)); const a = anterior.get(chaveSku(i.sku));
     const daqui = a && !a.ja_conciliado;
     const externo = !!c && !daqui;
-    return { ...i, ja_conciliado: externo, status: externo ? (c!.divergente ? "DIVERGENTE" : "OK") : (a?.status ?? "NAO_CONFERIDO"),
-      saldo_sistema: a?.saldo_sistema ?? i.saldo ?? null, qtd_contada: a?.qtd_contada ?? null, obs: a?.obs ?? null };
+    const saldo = a?.saldo_sistema ?? i.saldo ?? null;
+    const contada = a?.qtd_contada ?? (a?.status === "OK" ? saldo : null);
+    return { ...i, ja_conciliado: externo, status: externo ? (c!.divergente ? "DIVERGENTE" : "OK") : statusConciliacao(saldo, contada),
+      saldo_sistema: saldo, qtd_contada: externo ? null : contada, obs: a?.obs ?? null };
   });
   const [linhas, setLinhas] = useState<LinhaConf[]>(base);
   const [obs, setObs] = useState(conf?.observacao ?? "");
   const [salvando, setSalvando] = useState(false);
   const set = (sku: string, p: Partial<LinhaConf>) => setLinhas((ls) => ls.map((l) => (l.sku === sku ? { ...l, ...p } : l)));
-  const conferidos = linhas.filter((l) => l.status !== "NAO_CONFERIDO").length;
-  const novos = linhas.filter((l) => !l.ja_conciliado && l.status !== "NAO_CONFERIDO").length;
+  const sistemaDe = (l: LinhaConf) => l.saldo_sistema ?? estoqueQ.data?.get(chaveSku(l.sku))?.saldo ?? null;
+  const custoDe = (l: LinhaConf) => estoqueQ.data?.get(chaveSku(l.sku))?.custo ?? null;
+  const calc = linhas.map((l) => {
+    const sistema = sistemaDe(l);
+    const status: StatusConc = l.ja_conciliado ? l.status : statusConciliacao(sistema, l.qtd_contada);
+    const dif = l.ja_conciliado ? { qtd: null, custo: null } : diferencaConciliacao(sistema, l.qtd_contada, custoDe(l));
+    return { l, sistema, status, dif };
+  });
+  const conferidos = calc.filter((c) => c.status !== "NAO_CONFERIDO").length;
+  const divergentes = calc.filter((c) => c.status === "DIVERGENTE").length;
+  const novos = calc.filter((c) => !c.l.ja_conciliado && c.status !== "NAO_CONFERIDO").length;
+  const totalDifQtd = calc.reduce((s, c) => s + (c.dif.qtd ?? 0), 0);
+  const totalDifCusto = calc.reduce((s, c) => s + (c.dif.custo ?? 0), 0);
   const prazo = "prazo" in situacao ? situacao.prazo : null;
-  const semSaldo = linhas.some((l) => !l.ja_conciliado && l.status === "DIVERGENTE" && (l.saldo_sistema === null || l.qtd_contada === null));
+  const semSaldo = calc.some((c) => !c.l.ja_conciliado && c.l.qtd_contada !== null && c.sistema === null);
   async function salvar() {
     setSalvando(true);
     try {
-      const { data, error } = await sb.rpc("registrar_conferencia_movimentados", { p_almox: almox, p_data: dia, p_itens: linhas, p_observacao: obs });
+      const p_itens = calc.map(({ l, sistema, status }) => ({ ...l, status, saldo_sistema: sistema }));
+      const { data, error } = await sb.rpc("registrar_conferencia_movimentados", { p_almox: almox, p_data: dia, p_itens, p_observacao: obs });
       if (error) throw error;
       toast.success(`Conciliação de ${nome} · ${dm(dia)} registrada no Atlas`, { description: `${data?.atlas_historico ?? 0} item(ns) sem divergência e ${data?.atlas_divergencias ?? 0} divergência(s) para investigar em Atlas › Divergências.` });
       await qc.invalidateQueries({ queryKey: ["farol-movimentados"] }); onClose();
     } catch (e: any) { toast.error(e?.message ?? "Não foi possível registrar a conferência"); } finally { setSalvando(false); }
   }
+  const STATUS: Record<StatusConc, { t: string; c: string }> = {
+    OK: { t: "OK", c: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200" },
+    DIVERGENTE: { t: "Divergente", c: "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-200" },
+    NAO_CONFERIDO: { t: "Pendente", c: "bg-muted text-muted-foreground" },
+  };
   return <Dialog open onOpenChange={(o) => !o && !salvando && onClose()}>
-    <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+    <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
       <DialogHeader>
         <DialogTitle>Conciliação de movimentados · {nome} · {dm(dia)}</DialogTitle>
         <DialogDescription>
           {itens.length} item(ns) movimentado(s) nas bases{prazo ? ` · prazo: ${dm(prazo)}${hoje > prazo ? " (vencido)" : ""}` : ""}.
-          {" "}Itens já conciliados no Atlas ficam travados; os demais, ao registrar, entram no indicador de Movimentados do Atlas (sem divergência no histórico, divergentes em Divergências).
+          {" "}Como na ficha de contagem: informe a contagem e o sistema compara com o saldo sistêmico (Dif. = Contagem − Sistema, custo contábil total = Dif. × custo contábil). Itens já conciliados no Atlas ficam travados.
           {conf && ` Última conferência no farol: ${conf.conferente_nome ?? "—"} em ${new Date(conf.conferido_em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`}
         </DialogDescription>
       </DialogHeader>
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <span>{conferidos} de {linhas.length} conciliado(s) · {linhas.filter((l) => l.status === "DIVERGENTE").length} divergente(s)</span>
-        <Button size="sm" variant="outline" onClick={() => setLinhas((ls) => ls.map((l) => (l.status === "NAO_CONFERIDO" ? { ...l, status: "OK" } : l)))}>Marcar pendentes como OK</Button>
+        <span>{conferidos} de {linhas.length} conciliado(s) · {divergentes} divergente(s)
+          {estoqueQ.isLoading && <span className="ml-2 inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="size-3 animate-spin" />lendo saldo sistêmico…</span>}
+          {estoqueQ.isError && <span className="ml-2 text-xs text-destructive">Saldo sistêmico indisponível</span>}</span>
+        <Button size="sm" variant="outline" onClick={() => setLinhas((ls) => ls.map((l) => { const s = sistemaDe(l); return !l.ja_conciliado && l.qtd_contada === null && s !== null ? { ...l, qtd_contada: s } : l; }))}>Marcar pendentes como OK</Button>
       </div>
       <div className="max-h-[45vh] overflow-auto rounded border">
         <Table>
-          <TableHeader className="sticky top-0 bg-muted"><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead className="text-right">Qtd mov.</TableHead><TableHead className="w-24 text-right">Sistema</TableHead><TableHead>Resultado</TableHead><TableHead className="w-24">Contado</TableHead></TableRow></TableHeader>
-          <TableBody>{linhas.map((l) => <TableRow key={l.sku} className={l.ja_conciliado ? "bg-muted/40" : ""}>
+          <TableHeader className="sticky top-0 z-10 bg-muted"><TableRow>
+            <TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead className="text-right">Qtd mov.</TableHead>
+            <TableHead className="text-right">Saldo sistêmico</TableHead><TableHead className="w-28 text-right">Contagem</TableHead>
+            <TableHead className="text-right">Dif. qtd</TableHead><TableHead className="text-right">Custo contábil total</TableHead><TableHead className="text-center">Status</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>{calc.map(({ l, sistema, status, dif }) => <TableRow key={l.sku} className={l.ja_conciliado ? "bg-muted/40" : ""}>
             <TableCell className="font-mono text-xs">{l.sku}</TableCell>
             <TableCell className="text-xs">{l.descricao}{l.lotes?.length ? <span className="block text-[10px] text-muted-foreground">Lotes: {l.lotes.join(", ")}</span> : null}</TableCell>
             <TableCell className="text-right text-xs tabular-nums">{l.qtd.toLocaleString("pt-BR")}</TableCell>
+            <TableCell className="text-right text-xs tabular-nums">{l.ja_conciliado ? <span className="text-muted-foreground">—</span>
+              : sistema !== null ? <span className="font-semibold">{sistema.toLocaleString("pt-BR")}</span>
+              : estoqueQ.isLoading ? <span className="text-muted-foreground">…</span>
+              : <Input type="number" className="ml-auto h-7 w-24 text-right text-xs" value={l.saldo_sistema ?? ""} placeholder="saldo" onChange={(e) => set(l.sku, { saldo_sistema: e.target.value === "" ? null : Number(e.target.value) })} />}</TableCell>
             <TableCell className="text-right">{l.ja_conciliado ? <span className="text-xs text-muted-foreground">—</span>
-              : <Input type="number" className="h-7 text-right text-xs" value={l.saldo_sistema ?? ""} placeholder="saldo" onChange={(e) => set(l.sku, { saldo_sistema: e.target.value === "" ? null : Number(e.target.value) })} />}</TableCell>
-            <TableCell>{l.ja_conciliado
-              ? <span className={`text-[11px] font-semibold ${l.status === "DIVERGENTE" ? "text-destructive" : "text-emerald-600"}`}>Conciliado no Atlas · {l.status === "DIVERGENTE" ? "divergente" : "OK"}</span>
-              : <div className="flex gap-1">{(["OK", "DIVERGENTE", "NAO_CONFERIDO"] as const).map((st) => <button key={st} type="button" onClick={() => set(l.sku, { status: st })}
-                className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold ${l.status === st ? (st === "OK" ? "border-emerald-600 bg-emerald-600 text-white" : st === "DIVERGENTE" ? "border-destructive bg-destructive text-white" : "border-slate-500 bg-slate-500 text-white") : "text-muted-foreground"}`}>
-                {st === "OK" ? "OK" : st === "DIVERGENTE" ? "Divergente" : "Não conferido"}</button>)}</div>}</TableCell>
-            <TableCell>{!l.ja_conciliado && l.status === "DIVERGENTE" && <Input type="number" className="h-7 text-xs" value={l.qtd_contada ?? ""} placeholder="físico" onChange={(e) => set(l.sku, { qtd_contada: e.target.value === "" ? null : Number(e.target.value) })} />}</TableCell>
+              : <Input type="number" min={0} className="ml-auto h-7 w-24 text-right text-xs" value={l.qtd_contada ?? ""} placeholder="qtd" aria-label={`Contagem ${l.sku}`} onChange={(e) => set(l.sku, { qtd_contada: e.target.value === "" ? null : Number(e.target.value) })} />}</TableCell>
+            <TableCell className={`text-right text-xs font-semibold tabular-nums ${corDif(dif.qtd)}`}>{dif.qtd === null ? "—" : fmtDif(dif.qtd)}</TableCell>
+            <TableCell className={`text-right text-xs font-semibold tabular-nums ${corDif(dif.custo)}`} title={custoDe(l) == null ? "SKU sem custo contábil no estoque sistêmico" : `Custo contábil unitário: ${brl(custoDe(l)!)}`}>
+              {dif.qtd === null ? "—" : dif.custo === null ? "sem custo" : brl(dif.custo)}</TableCell>
+            <TableCell className="text-center">{l.ja_conciliado
+              ? <span className={`text-[11px] font-semibold ${status === "DIVERGENTE" ? "text-destructive" : "text-emerald-600"}`}>Atlas · {status === "DIVERGENTE" ? "divergente" : "OK"}</span>
+              : <span className={`rounded px-2 py-0.5 text-[11px] font-semibold ${STATUS[status].c}`}>{STATUS[status].t}</span>}</TableCell>
           </TableRow>)}
-          {!linhas.length && <TableRow><TableCell colSpan={6} className="py-6 text-center text-sm text-muted-foreground">Nenhum item movimentado nas bases neste dia{conc?.size ? ` (${conc.size} item(ns) conciliado(s) no Atlas sem movimento registrado nas bases)` : ""}.</TableCell></TableRow>}</TableBody>
+          {!linhas.length && <TableRow><TableCell colSpan={8} className="py-6 text-center text-sm text-muted-foreground">Nenhum item movimentado nas bases neste dia{conc?.size ? ` (${conc.size} item(ns) conciliado(s) no Atlas sem movimento registrado nas bases)` : ""}.</TableCell></TableRow>}
+          {linhas.length > 0 && <TableRow className="sticky bottom-0 bg-muted font-semibold">
+            <TableCell colSpan={5} className="text-right text-xs">Total</TableCell>
+            <TableCell className={`text-right text-xs tabular-nums ${corDif(totalDifQtd)}`}>{fmtDif(Math.round(totalDifQtd * 10000) / 10000)}</TableCell>
+            <TableCell className={`text-right text-xs tabular-nums ${corDif(totalDifCusto)}`}>{brl(totalDifCusto)}</TableCell>
+            <TableCell />
+          </TableRow>}</TableBody>
         </Table>
       </div>
-      {semSaldo && <p className="text-xs text-amber-700">Informe o saldo do sistema e a quantidade contada dos itens divergentes: é o que vira a divergência no Atlas.</p>}
+      {semSaldo && <p className="text-xs text-amber-700">Há itens contados sem saldo sistêmico: informe o saldo para comparar com a contagem.</p>}
       <Textarea placeholder="Observação (opcional): o que foi encontrado, tratativa das divergências…" value={obs} maxLength={1000} onChange={(e) => setObs(e.target.value)} className="min-h-16" />
       <DialogFooter>
         <Button variant="ghost" onClick={onClose} disabled={salvando}>Cancelar</Button>

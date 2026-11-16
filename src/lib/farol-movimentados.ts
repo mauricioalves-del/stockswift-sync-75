@@ -197,3 +197,37 @@ export function linhasPlanilhaErp(rows: Record<string, unknown>[]): { linhas: Li
   });
   return { linhas, erros };
 }
+
+/** Origem do saldo sistêmico (estoque_sistemico.origem) de cada almox do farol — mesma usada nas listas de movimentados. */
+export const ORIGEM_SALDO: Record<AlmoxFarol, string> = { FABRICA: "Alm_SP_Fabrica", PROCESSO: "Alm_SP_Processo", QUALIDADE: "Alm_SP_Qualidade", PARA: "Alm_Para" };
+
+export type StatusConc = "OK" | "DIVERGENTE" | "NAO_CONFERIDO";
+/** Como na ficha de contagem: sem contagem = pendente; contagem igual ao saldo sistêmico = OK; diferente = divergente. */
+export function statusConciliacao(sistema: number | null, contada: number | null): StatusConc {
+  if (contada === null || sistema === null || Number.isNaN(contada)) return "NAO_CONFERIDO";
+  return Math.abs(contada - sistema) < 1e-9 ? "OK" : "DIVERGENTE";
+}
+
+/** Dif. em quantidade (Contagem − Sistema) e em custo contábil total (Dif × custo unitário); null enquanto não contado. */
+export function diferencaConciliacao(sistema: number | null, contada: number | null, custoUnit: number | null): { qtd: number | null; custo: number | null } {
+  if (contada === null || sistema === null) return { qtd: null, custo: null };
+  const qtd = Math.round((contada - sistema) * 10000) / 10000;
+  return { qtd, custo: custoUnit == null ? null : Math.round(qtd * custoUnit * 100) / 100 };
+}
+
+/** Saldo sistêmico e custo contábil unitário por SKU (custo contábil quando > 0, senão o custo do lote; média ponderada pelo saldo). */
+export function saldoECustoPorSku(linhas: { id_produto: string; quantidade: number | null; custo_contabil: number | null; custo_unitario: number | null }[]) {
+  const acc = new Map<string, { q: number; v: number; qv: number; primeiro: number | null }>();
+  for (const l of linhas) {
+    const k = chaveSku(l.id_produto); if (!k) continue;
+    const q = Number(l.quantidade) || 0;
+    const c = Number(l.custo_contabil) > 0 ? Number(l.custo_contabil) : Number(l.custo_unitario) > 0 ? Number(l.custo_unitario) : null;
+    const o = acc.get(k) ?? { q: 0, v: 0, qv: 0, primeiro: null };
+    o.q += q;
+    if (c !== null) { if (o.primeiro === null) o.primeiro = c; if (q > 0) { o.v += q * c; o.qv += q; } }
+    acc.set(k, o);
+  }
+  const out = new Map<string, { saldo: number; custo: number | null }>();
+  for (const [k, o] of acc) out.set(k, { saldo: Math.round(o.q * 10000) / 10000, custo: o.qv > 0 ? o.v / o.qv : o.primeiro });
+  return out;
+}
