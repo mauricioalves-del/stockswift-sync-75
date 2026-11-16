@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useRole } from "@/hooks/useRole";
 import { BASES_ERP, gravarBaseErp, lerPlanilhaErp, type BaseErp, type LeituraBase } from "@/lib/erp-importador";
 
 const sb = supabase as any;
@@ -13,6 +14,8 @@ const nf = (v: number) => v.toLocaleString("pt-BR");
 const quando = (iso: string) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
 export function ImportarErp() {
+  const { role } = useRole();
+  const gestor = role === "ADMINISTRADOR" || role === "GERENTE";
   const [aberto, setAberto] = useState(false);
   const [arquivo, setArquivo] = useState<string>("");
   const [lidas, setLidas] = useState<LeituraBase[]>([]);
@@ -43,6 +46,8 @@ export function ImportarErp() {
     finally { setGravando(null); }
   }
 
+  // carga das bases do ERP é restrita a gestores (regra também aplicada no banco)
+  if (!gestor) return null;
   return <>
     <Button variant="outline" onClick={() => setAberto(true)}><Database className="mr-2 size-4" />Bases do ERP</Button>
     <Dialog open={aberto} onOpenChange={(v) => !gravando && setAberto(v)}>
