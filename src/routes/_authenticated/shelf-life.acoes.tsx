@@ -99,7 +99,7 @@ function AcoesLote() {
     return (campanhas.data ?? []).filter((c) => {
       if (status !== TODAS && c.status !== status) return false;
       if (tipo !== TODAS && c.tipo_acao_id !== tipo) return false;
-      if (q && !`${c.sku} ${c.descricao ?? ""} ${c.lote}`.toUpperCase().includes(q)) return false;
+      if (q && !`${c.sku} ${c.descricao ?? ""} ${c.lote} ${c.almoxarifado ?? ""}`.toUpperCase().includes(q)) return false;
       return true;
     });
   }, [campanhas.data, status, tipo, busca]);
@@ -166,7 +166,7 @@ function AcoesLote() {
         <CardContent className="pt-4 grid gap-3 sm:grid-cols-3">
           <div>
             <Label className="text-xs">Buscar</Label>
-            <Input placeholder="SKU, produto ou lote" value={busca} onChange={(e) => setBusca(e.target.value)} />
+            <Input placeholder="SKU, produto, lote ou estoque" value={busca} onChange={(e) => setBusca(e.target.value)} />
           </div>
           <div>
             <Label className="text-xs">Status</Label>
@@ -206,6 +206,7 @@ function AcoesLote() {
                 <TableHead>SKU</TableHead>
                 <TableHead>Produto</TableHead>
                 <TableHead>Lote</TableHead>
+                <TableHead>Estoque</TableHead>
                 <TableHead>Tipo de Ação</TableHead>
                 <TableHead className="text-right">Qtd</TableHead>
                 <TableHead className="text-right">Estoque Atual</TableHead>
@@ -239,7 +240,7 @@ function AcoesLote() {
                       </Badge>
                     )}
                   </TableCell>
-
+                  <TableCell className="text-xs whitespace-nowrap">{c.almoxarifado || "—"}</TableCell>
                   <TableCell className="text-xs">
                     {c.tipo_nome ?? "—"}
                     <Badge variant="outline" className="ml-1 text-[10px]">{categoriaDaCampanha(c)}</Badge>
@@ -268,7 +269,7 @@ function AcoesLote() {
                 </TableRow>
               ))}
               {!rows.length && (
-                <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground py-6">Nenhuma ação cadastrada.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={14} className="text-center text-muted-foreground py-6">Nenhuma ação cadastrada.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
