@@ -49,3 +49,8 @@ test("Lista do dia por almox, como a planilha", () => {
   expect(p.cabecalho.slice(0, 13)).toEqual(["Grupo", "Data", "Id_Produto", "descricao", "Unid.", "Sistema", "Entrada", "Saídas", "Contagem", "Teste", "Dif", "Obs", "Prejuízo"]);
   expect(p.linhas[0][9]).toEqual({ f: 'IF(I2="","",I2=F2)' });
 });
+
+test("Baixar estoque (Qualidade) entra como saída na lista da Qualidade", () => {
+  const movs = [L("Baixar estoque (Qualidade)", "Almox Qualidade", "05104007", 1, "2062"), L("Baixar estoque (Qualidade)", "Almox Qualidade", "05104008", 1, "2062")];
+  expect(montarLista("QUALIDADE", "2026-11-05", movs, [], new Map()).length).toBe(2);
+});

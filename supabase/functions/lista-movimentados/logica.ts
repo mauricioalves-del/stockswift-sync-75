@@ -72,7 +72,7 @@ export function classificar(linhas: MovErp[], dia: string): Mov[] {
       continue;
     }
     const a = almoxDaLista(l.desc_almox); if (!a) continue;
-    if (SAIDAS.includes(desc)) out.push({ ...base, almox: a, tipo: "S", qtd });
+    if (SAIDAS.includes(desc) || /^BAIXAR? ESTOQUE\b/.test(desc)) out.push({ ...base, almox: a, tipo: "S", qtd });
     else if (ENTRADAS.includes(desc)) {
       out.push({ ...base, almox: a, tipo: "E", qtd });
     }
