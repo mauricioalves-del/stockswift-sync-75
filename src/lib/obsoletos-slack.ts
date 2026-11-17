@@ -42,7 +42,7 @@ export function tabelaItensObs(itens: ItemSlackObs[]): string {
   return "```\n" + [cab, "-".repeat(cab.length), ...linhas].join("\n") + "\n```";
 }
 
-export type Equipe = "Comercial" | "Produtos";
+export type Equipe = string;
 /** Padrão de resposta no fio: cada equipe responde numa linha, no formato abaixo, até o prazo. */
 export function padraoPosicionamento(equipes: Equipe[], prazo: { dias: number; data: Date; faixa: string }): string {
   const linhas = [`:memo: *Padrão de posicionamento* — responder neste fio até *${dataBR(prazo.data)}* (${prazo.dias} dias úteis · faixa mais crítica: ${FAIXA_ROTULO[prazo.faixa] ?? prazo.faixa}).`];
@@ -54,6 +54,10 @@ export function padraoPosicionamento(equipes: Equipe[], prazo: { dias: number; d
     "*Produtos* — decisão de portfólio e uso do material:",
     "`PRODUTOS | SKU: <código ou TODOS> | Decisão: <Manter no portfólio · Reaproveitar em produção · Reformular · Descontinuar · Baixar> | Uso alternativo: <SKU/receita> | Justificativa: <texto> | Prazo: <dd/mm>`",
   );
+  for (const e of equipes.filter((x) => x !== "Comercial" && x !== "Produtos")) linhas.push(
+    `*${e}* — posicionamento da equipe:`,
+    `\`${e.toUpperCase()} | SKU: <código ou TODOS> | Posicionamento: <texto> | Prazo: <dd/mm>\``,
+  );
   linhas.push("_Uma linha por SKU (ou TODOS). Sem posicionamento no prazo, o item segue para baixa no próximo pacote. O posicionamento é registrado como Ação vinculada no Mapeamento de Risco — Obsoletos._");
   return linhas.join("\n");
 }
@@ -61,7 +65,7 @@ export function padraoPosicionamento(equipes: Equipe[], prazo: { dias: number; d
 /** Mensagem única (webhook, sem fio): título, responsáveis, tabela e padrão de posicionamento. */
 export function mensagemWebhookObs(p: { titulo: string; mencoes: string[]; departamentos: string[]; itens: ItemSlackObs[]; equipes: Equipe[]; prazo: { dias: number; data: Date; faixa: string } }): string {
   const cab = `*Para posicionamento:* ${p.mencoes.length ? p.mencoes.join(" ") : "_sem responsáveis selecionados_"}\n` +
-    (p.departamentos.length ? `Departamentos: ${p.departamentos.join(", ")}\n` : "") +
+    (p.departamentos.length ? `Equipes: ${p.departamentos.join(", ")}\n` : "") +
     `*${p.itens.length} item(ns) sem giro · Valor parado: ${brl(totalValor(p.itens))}*`;
   return [p.titulo, cab, tabelaItensObs(p.itens.slice(0, 40)), p.itens.length > 40 ? `_+${p.itens.length - 40} item(ns) no sistema (Mapeamento de Risco — Obsoletos)._` : "", padraoPosicionamento(p.equipes, p.prazo)].filter(Boolean).join("\n");
 }
