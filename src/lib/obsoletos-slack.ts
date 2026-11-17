@@ -28,7 +28,7 @@ export function totalValor(itens: ItemSlackObs[]): number {
 }
 export function tituloTrendObs(observacao: string, almox: string, data: Date, numero?: number | null): string {
   const n = numero ? ` #${numero}` : "";
-  return `:package: *Risco sem Giro${n}* - ${observacao.trim()} - Almox - ${almox} - ${dataBR(data)}`;
+  return `:warning: *Risco sem Giro${n}* - ${observacao.trim()} - Almox - ${almox} - ${dataBR(data)}`;
 }
 
 function pad(s: string, n: number, dir: "l" | "r" = "r") {
