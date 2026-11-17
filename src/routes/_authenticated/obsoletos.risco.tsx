@@ -14,7 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { EnviarObsoletosSlackDialog } from "@/components/obsoletos/EnviarObsoletosSlackDialog";
 import { chaveEnvio, indexarEnviosPorLote, type EnvioSlack, type ItemSlackObs } from "@/lib/obsoletos-slack";
 import { AcaoObsoletoDialog, type AcaoObsDraft } from "@/components/obsoletos/AcaoObsoletoDialog";
-import { FAIXA_OBS_LABEL, chaveObs, fmtBRL, useAcoesObsoleto, useItensObsoletos, useTiposAcaoObsoleto } from "@/lib/obsoletos";
+import { FAIXA_OBS_LABEL, chaveObs, fmtBRL, useAcoesObsoleto, useGruposPorProduto, useItensObsoletos, useTiposAcaoObsoleto } from "@/lib/obsoletos";
+import { chaveSku } from "@/lib/abastecimento-ressalva";
 
 export const Route = createFileRoute("/_authenticated/obsoletos/risco")({
   component: MapeamentoObsoletos,
@@ -36,6 +37,7 @@ function MapeamentoObsoletos() {
   const [almox, setAlmox] = useState<string[]>([]);
   const [faixas, setFaixas] = useState<string[]>([]);
   const [statusAcao, setStatusAcao] = useState<string[]>([]);
+  const [grupo, setGrupo] = useState<string[]>([]);
   const [draft, setDraft] = useState<AcaoObsDraft | null>(null);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [slackOpen, setSlackOpen] = useState(false);
@@ -59,12 +61,17 @@ function MapeamentoObsoletos() {
 
   const rows = itens.data ?? [];
   const almoxOpts = useMemo(() => [...new Set(rows.map((r) => r.almoxarifado ?? "").filter(Boolean))].sort(), [rows]);
+  // Grupo do cadastro (grupo_produtos), comparado sem zeros à esquerda.
+  const gruposQ = useGruposPorProduto();
+  const grupoDe = (sku: string) => (gruposQ.data ?? new Map<string, string>()).get(chaveSku(sku)) ?? "Sem grupo";
+  const grupoOpts = useMemo(() => [...new Set(rows.map((r) => grupoDe(r.id_produto)))].sort(), [rows, gruposQ.data]);
 
   const filtradas = useMemo(() => {
     const q = busca.trim().toUpperCase();
     return rows
       .filter((r) => (almox.length ? almox.includes(r.almoxarifado ?? "") : true))
       .filter((r) => (faixas.length ? faixas.includes(r.faixa) : true))
+      .filter((r) => (grupo.length ? grupo.includes(grupoDe(r.id_produto)) : true))
       .filter((r) => {
         if (statusAcao.length !== 1) return true;
         const tem = idx.has(chaveObs(r.id_produto, r.almoxarifado, r.lote));
@@ -72,7 +79,7 @@ function MapeamentoObsoletos() {
       })
       .filter((r) => !q || `${r.id_produto} ${r.descricao} ${r.lote}`.toUpperCase().includes(q))
       .sort((a, b) => Number(b.valor) - Number(a.valor));
-  }, [rows, almox, faixas, statusAcao, busca, idx]);
+  }, [rows, almox, faixas, grupo, gruposQ.data, statusAcao, busca, idx]);
 
   const selecionados: ItemSlackObs[] = useMemo(() => rows.filter((r) => sel.has(chaveItem(r))).map((r) => ({ sku: r.id_produto, descricao: r.descricao ?? r.id_produto, lote: r.lote ?? "", almoxarifado: r.almoxarifado ?? "", dias_sem_mov: r.dias_sem_mov, faixa: r.faixa, quantidade: Number(r.saldo) || 0, valor: Number(r.valor) || 0 })), [rows, sel]);
   const visiveis = filtradas.slice(0, 500);
@@ -99,9 +106,10 @@ function MapeamentoObsoletos() {
 
       <Card>
         <CardHeader className="pb-3"><CardTitle className="text-base">Filtros</CardTitle></CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <div><Label className="text-xs">Buscar</Label><Input placeholder="SKU, produto ou lote" value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
           <div><Label className="text-xs">Almoxarifado</Label><MultiSelect options={almoxOpts.map((o) => ({ value: o, label: o }))} value={almox} onChange={setAlmox} /></div>
+          <div><Label className="text-xs">Grupo</Label><MultiSelect options={grupoOpts.map((o) => ({ value: o, label: o }))} value={grupo} onChange={setGrupo} allLabel="Todos" /></div>
           <div><Label className="text-xs">Faixa</Label><MultiSelect options={Object.entries(FAIXA_OBS_LABEL).map(([value, label]) => ({ value, label }))} value={faixas} onChange={setFaixas} allLabel="Todas" /></div>
           <div><Label className="text-xs">Status de Ação</Label><MultiSelect options={[{ value: "SEM", label: "Sem Ação" }, { value: "COM", label: "Com Ação" }]} value={statusAcao} onChange={setStatusAcao} /></div>
         </CardContent>

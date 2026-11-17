@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
+import { chaveSku } from "@/lib/abastecimento-ressalva";
 
 export type ItemObsoleto = {
   id_produto: string;
@@ -70,6 +71,30 @@ export function useItensObsoletos() {
           .neq("faixa", "movimentado")
           .range(from, to),
       ),
+  });
+}
+
+/** Grupo de cada SKU (grupo_produtos), por código sem zeros à esquerda. */
+export function mapaGrupos(linhas: { codigo_produto: string; grupo: string | null }[]): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const r of linhas) {
+    const k = chaveSku(String(r.codigo_produto ?? ""));
+    const g = String(r.grupo ?? "").trim();
+    if (k && g && !m.has(k)) m.set(k, g);
+  }
+  return m;
+}
+
+export function useGruposPorProduto() {
+  return useQuery({
+    queryKey: ["obsoletos-grupos-produto"],
+    staleTime: 300_000,
+    queryFn: async (): Promise<Map<string, string>> => {
+      const rows = await fetchAll<{ codigo_produto: string; grupo: string | null }>((from, to) =>
+        (supabase as any).from("grupo_produtos").select("codigo_produto, grupo").range(from, to),
+      );
+      return mapaGrupos(rows);
+    },
   });
 }
 
