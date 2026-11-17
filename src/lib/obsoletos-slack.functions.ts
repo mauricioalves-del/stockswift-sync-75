@@ -6,8 +6,7 @@ import { almoxDosItens, brl, chaveEnvio, dividir, indexarEnviosPorLote, mensagem
 const GATEWAY = "https://connector-gateway.lovable.dev/slack/api";
 const schema = z.object({
   observacao: z.string().trim().min(1).max(300),
-  departamentoIds: z.array(z.string().uuid()).max(50),
-  equipes: z.array(z.enum(["Comercial", "Produtos"])).min(1),
+  equipeIds: z.array(z.string().uuid()).min(1).max(20),
   // pessoas específicas marcadas na Trend, além dos responsáveis dos departamentos
   usuarioIds: z.array(z.string().uuid()).max(50).optional(),
   itens: z.array(z.object({ sku: z.string().max(40), lote: z.string().max(80), almoxarifado: z.string().max(120) })).min(1).max(1000),
@@ -33,7 +32,8 @@ export const enviarObsoletosSlack = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     // Mesmo modelo do Risco de Shelf: mensagem principal + detalhes como resposta no fio. Sem canal próprio, usa o canal do Shelf.
-    const canal = (await cfg(supabase, "slack_canal_obsoletos")) || (await cfg(supabase, "slack_canal_shelf")), webhook = await cfg(supabase, "slack_webhook_obsoletos");
+    const proprio = await cfg(supabase, "slack_canal_obsoletos");
+    const canal = (proprio && !/^https?:/i.test(proprio) ? proprio : "") || (await cfg(supabase, "slack_canal_shelf")), webhook = await cfg(supabase, "slack_webhook_obsoletos");
     const viaApi = !!canal && temApi();
     if (!viaApi && !webhook) throw new Error("Configure o canal ou o webhook do Slack para Obsoletos em Configurações.");
 
@@ -62,28 +62,27 @@ export const enviarObsoletosSlack = createServerFn({ method: "POST" })
     }
     itens.sort((a, b) => b.valor - a.valor);
 
-    // Responsáveis (mesmo cadastro de departamentos do Risco de Shelf)
-    let deptNomes: string[] = [], emails: string[] = [];
-    if (data.usuarioIds?.length) { const { supabaseAdmin } = await import("@/integrations/supabase/client.server"); const { data: profs } = await supabaseAdmin.from("profiles").select("email").in("id", data.usuarioIds); emails.push(...((profs ?? []).map((p) => p.email).filter(Boolean) as string[])); }
-    if (data.departamentoIds.length) {
-      const { data: deps } = await supabase.from("shelf_slack_departamentos").select("id, nome").in("id", data.departamentoIds);
-      deptNomes = (deps ?? []).map((d) => d.nome);
-      const { data: resp } = await supabase.from("shelf_slack_responsaveis").select("user_id").in("departamento_id", data.departamentoIds);
-      const ids = Array.from(new Set((resp ?? []).map((r) => r.user_id)));
-      if (ids.length) { const { supabaseAdmin } = await import("@/integrations/supabase/client.server"); const { data: profs } = await supabaseAdmin.from("profiles").select("email").in("id", ids); emails = Array.from(new Set([...emails, ...((profs ?? []).map((p) => p.email).filter(Boolean) as string[])])); }
-    }
+    // Equipes que se posicionam (parâmetros próprios de Obsoletos) + pessoas específicas
+    const { data: eqs } = await (supabase as any).from("obsoletos_slack_equipes").select("id, nome, ordem").in("id", data.equipeIds).order("ordem");
+    const equipesNomes: string[] = (eqs ?? []).map((e: any) => e.nome);
+    if (!equipesNomes.length) throw new Error("Nenhuma equipe válida selecionada.");
+    const { data: resp } = await (supabase as any).from("obsoletos_slack_responsaveis").select("user_id").in("equipe_id", data.equipeIds);
+    const ids = Array.from(new Set([...(resp ?? []).map((r: any) => r.user_id as string), ...(data.usuarioIds ?? [])]));
+    let emails: string[] = [];
+    if (ids.length) { const { supabaseAdmin } = await import("@/integrations/supabase/client.server"); const { data: profs } = await supabaseAdmin.from("profiles").select("email").in("id", ids); emails = Array.from(new Set((profs ?? []).map((p) => p.email).filter(Boolean))) as string[]; }
+    const deptNomes = equipesNomes;
     const mencoes: string[] = [];
     for (const e of emails) { try { if (!temApi()) throw new Error(); const u = await slack(`users.lookupByEmail?email=${encodeURIComponent(e)}`, {}); mencoes.push(`<@${u.user.id}>`); } catch { mencoes.push(`*${e}*`); } }
 
-    const almox = almoxDosItens(itens), total = totalValor(itens), prazo = prazoPosicionamento(itens), equipes = data.equipes as Equipe[];
-    const { data: log } = await (supabase as any).from("obsoletos_slack_envios").insert({ enviado_por: userId, observacao: data.observacao, almox, departamentos: deptNomes, equipes, lotes: itens, valor_total: total, canal: viaApi ? canal : "webhook", prazo_posicionamento: prazo.data.toISOString().slice(0, 10) }).select("id, numero").single();
+    const almox = almoxDosItens(itens), total = totalValor(itens), prazo = prazoPosicionamento(itens), equipes = equipesNomes as Equipe[];
+    const { data: log } = await (supabase as any).from("obsoletos_slack_envios").insert({ enviado_por: userId, observacao: data.observacao, almox, departamentos: deptNomes, equipes, pessoas: emails, lotes: itens, valor_total: total, canal: viaApi ? canal : "webhook", prazo_posicionamento: prazo.data.toISOString().slice(0, 10) }).select("id, numero").single();
     try {
       const titulo = tituloTrendObs(data.observacao, almox, new Date(), log?.numero);
       let link: string | null = null, ts: string | null = null;
       if (viaApi) {
         const raiz = await slack("chat.postMessage", { channel: canal, text: titulo, unfurl_links: false });
         ts = raiz.ts; const ch = raiz.channel as string;
-        const cab = `*Para posicionamento:* ${mencoes.length ? mencoes.join(" ") : "_sem responsáveis selecionados_"}\n` + (deptNomes.length ? `Departamentos: ${deptNomes.join(", ")}\n` : "") + `*${itens.length} item(ns) sem giro · Valor parado: ${brl(total)}*`;
+        const cab = `*Para posicionamento:* ${mencoes.length ? mencoes.join(" ") : "_sem responsáveis selecionados_"}\n` + (deptNomes.length ? `Equipes: ${deptNomes.join(", ")}\n` : "") + `*${itens.length} item(ns) sem giro · Valor parado: ${brl(total)}*`;
         const partes = dividir(itens, 40);
         for (let i = 0; i < partes.length; i++) await slack("chat.postMessage", { channel: ch, thread_ts: ts, text: (i === 0 ? cab + "\n" : `_Continuação ${i + 1}/${partes.length}_\n`) + tabelaItensObs(partes[i]) });
         await slack("chat.postMessage", { channel: ch, thread_ts: ts, text: padraoPosicionamento(equipes, prazo) });
