@@ -21,31 +21,30 @@ export function EnviarObsoletosSlackDialog({ open, onOpenChange, itens: escolhid
   const trends = useMemo(() => { const m = new Map<string, { envio: EnvioSlack; qtd: number }>(); for (const e of enviados) { const x = m.get(e.envio.id) ?? { envio: e.envio, qtd: 0 }; x.qtd++; m.set(e.envio.id, x); } return [...m.values()].sort((a, b) => b.envio.numero - a.envio.numero); }, [enviados]);
   const enviar = useServerFn(enviarObsoletosSlack);
   const [obs, setObs] = useState("");
-  const [deps, setDeps] = useState<string[]>([]);
-  const [equipes, setEquipes] = useState<Equipe[]>(["Comercial", "Produtos"]);
+  const [equipeIds, setEquipeIds] = useState<string[]>([]);
   const [pessoas, setPessoas] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
-  useEffect(() => { if (open) { setReenviar(false); setEquipes(["Comercial", "Produtos"]); setPessoas([]); } }, [open]);
+  useEffect(() => { if (open) { setReenviar(false); setPessoas([]); } }, [open]);
 
   const cad = useQuery({
-    queryKey: ["obsoletos-slack-cadastro"], enabled: open,
+    queryKey: ["obsoletos-slack-parametros"], enabled: open,
     queryFn: async () => {
-      const [d, r, u] = await Promise.all([supabase.from("shelf_slack_departamentos").select("id, nome, ativo, almoxarifados").eq("ativo", true).order("nome"), supabase.from("shelf_slack_responsaveis").select("departamento_id, user_id"), supabase.from("profiles").select("id, nome, email").eq("aprovado", true).order("nome")]);
-      if (d.error) throw d.error; return { deps: d.data ?? [], resp: r.data ?? [], users: u.data ?? [] };
+      const [e, r, u] = await Promise.all([(supabase as any).from("obsoletos_slack_equipes").select("id, nome, ativo, ordem").eq("ativo", true).order("ordem"), (supabase as any).from("obsoletos_slack_responsaveis").select("equipe_id, user_id"), supabase.from("profiles").select("id, nome, email").eq("aprovado", true).order("nome")]);
+      if (e.error) throw e.error; return { equipes: (e.data ?? []) as { id: string; nome: string }[], resp: (r.data ?? []) as { equipe_id: string; user_id: string }[], users: u.data ?? [] };
     },
   });
-  // Por padrão marca os departamentos de Comercial e Produtos
-  useEffect(() => { if (open && cad.data) setDeps(cad.data.deps.filter((d) => /comercial|produto/i.test(d.nome)).map((d) => d.id)); }, [open, cad.data]);
-
+  // Por padrão, todas as equipes ativas (Comercial e Produtos) são chamadas a se posicionar
+  useEffect(() => { if (open && cad.data) setEquipeIds(cad.data.equipes.map((e) => e.id)); }, [open, cad.data]);
+  const equipes: Equipe[] = (cad.data?.equipes ?? []).filter((e) => equipeIds.includes(e.id)).map((e) => e.nome);
   const almox = almoxDosItens(itens), total = totalValor(itens), prazo = useMemo(() => prazoPosicionamento(itens), [itens]);
-  const qtdResp = (id: string) => cad.data?.resp.filter((r) => r.departamento_id === id).length ?? 0;
+  const qtdResp = (id: string) => cad.data?.resp.filter((r) => r.equipe_id === id).length ?? 0;
 
   async function confirmar() {
     if (!obs.trim()) return toast.error("Preencha a observação.");
-    if (!equipes.length) return toast.error("Escolha ao menos uma equipe para se posicionar.");
+    if (!equipeIds.length) return toast.error("Escolha ao menos uma equipe para se posicionar.");
     setEnviando(true);
     try {
-      const r = await enviar({ data: { observacao: obs.trim(), departamentoIds: deps, equipes, itens: itens.map((l) => ({ sku: l.sku, lote: l.lote, almoxarifado: l.almoxarifado })), usuarioIds: pessoas, reenviar } });
+      const r = await enviar({ data: { observacao: obs.trim(), equipeIds, itens: itens.map((l) => ({ sku: l.sku, lote: l.lote, almoxarifado: l.almoxarifado })), usuarioIds: pessoas, reenviar } });
       toast.success(`Trend ${r.numero ? `#${r.numero} ` : ""}criada no Slack com ${r.itens} item(ns) · posicionamento até ${r.prazo.split("-").reverse().join("/")}${r.jaEnviados ? ` · ${r.jaEnviados} já enviado(s) ficaram de fora` : ""}`, r.link ? { action: { label: "Abrir", onClick: () => window.open(r.link!, "_blank") } } : undefined);
       setObs(""); onSent(); onOpenChange(false);
     } catch (e) { toast.error(e instanceof Error ? e.message : "Falha ao enviar"); } finally { setEnviando(false); }
@@ -68,13 +67,11 @@ export function EnviarObsoletosSlackDialog({ open, onOpenChange, itens: escolhid
           )}
           <div><Label>Observação</Label><Textarea value={obs} onChange={(e) => setObs(e.target.value)} maxLength={300} placeholder="Ex.: Amêndoa do Pará parada há 77 dias — definir destino antes do próximo pacote de baixa" /></div>
           <div><Label>Equipes que precisam se posicionar</Label>
-            <div className="mt-1 flex gap-4">{(["Comercial", "Produtos"] as Equipe[]).map((e) => <label key={e} className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={equipes.includes(e)} onCheckedChange={(v) => setEquipes((p) => (v ? [...p, e] : p.filter((x) => x !== e)))} />{e}</label>)}</div></div>
+            {cad.isLoading ? <p className="text-sm text-muted-foreground">Carregando…</p> : !cad.data?.equipes.length ? <p className="text-sm text-muted-foreground">Nenhuma equipe cadastrada em Configurações › Slack — Risco sem Giro.</p> :
+              <div className="mt-1 grid grid-cols-2 gap-2">{cad.data.equipes.map((e) => <label key={e.id} className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={equipeIds.includes(e.id)} onCheckedChange={(v) => setEquipeIds((p) => (v ? [...p, e.id] : p.filter((x) => x !== e.id)))} />{e.nome} <span className="text-xs text-muted-foreground">({qtdResp(e.id)} responsável(is))</span></label>)}</div>}</div>
           <div><Label>Pessoas específicas</Label>
             <MultiSelect options={(cad.data?.users ?? []).map((u) => ({ value: u.id, label: `${u.nome || u.email} (${u.email})` }))} value={pessoas} onChange={setPessoas} allLabel="Nenhuma" />
-            <p className="mt-1 text-xs text-muted-foreground">Marcadas na resposta da Trend junto com os responsáveis dos departamentos.</p></div>
-          <div><Label>Departamentos marcados</Label>
-            {cad.isLoading ? <p className="text-sm text-muted-foreground">Carregando…</p> : !cad.data?.deps.length ? <p className="text-sm text-muted-foreground">Nenhum departamento cadastrado em Configurações.</p> :
-              <div className="mt-1 grid grid-cols-2 gap-2">{cad.data.deps.map((d) => <label key={d.id} className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={deps.includes(d.id)} onCheckedChange={(v) => setDeps((p) => (v ? [...p, d.id] : p.filter((x) => x !== d.id)))} />{d.nome} <span className="text-xs text-muted-foreground">({qtdResp(d.id)})</span></label>)}</div>}</div>
+            <p className="mt-1 text-xs text-muted-foreground">Marcadas na resposta da Trend junto com os responsáveis das equipes escolhidas.</p></div>
           <div className="space-y-1 rounded-md border bg-muted/40 p-3 text-xs">
             <p className="font-medium">Prévia da Trend</p>
             <p className="break-words font-mono">{tituloTrendObs(obs || "(observação)", almox, new Date(), 0).replace("*Risco sem Giro*", "*Risco sem Giro #(nº)*")}</p>
