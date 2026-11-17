@@ -12,23 +12,34 @@ import { MultiSelect } from "@/components/ui/multi-select";
 export function SlackShelfConfigCard() {
   const qc = useQueryClient();
   const [canal, setCanal] = useState("");
+  const [canalObs, setCanalObs] = useState("");
+  const [webhookObs, setWebhookObs] = useState("");
   const [novo, setNovo] = useState("");
 
   const q = useQuery({
     queryKey: ["shelf-slack-config"],
     queryFn: async () => {
-      const [c, d, r, p, a] = await Promise.all([
+      const [c, d, r, p, a, co, wo] = await Promise.all([
         supabase.from("app_config").select("valor").eq("chave", "slack_canal_shelf").maybeSingle(),
         supabase.from("shelf_slack_departamentos").select("id, nome, almoxarifados").order("nome"),
         supabase.from("shelf_slack_responsaveis").select("departamento_id, user_id"),
         supabase.from("profiles").select("id, nome, email").eq("aprovado", true).order("nome"),
         supabase.from("estoque_sistemico").select("origem").gt("quantidade", 0).limit(10000),
+        supabase.from("app_config").select("valor").eq("chave", "slack_canal_obsoletos").maybeSingle(),
+        supabase.from("app_config").select("valor").eq("chave", "slack_webhook_obsoletos").maybeSingle(),
       ]);
       const almoxs = [...new Set((a.data ?? []).map((x) => x.origem).filter(Boolean) as string[])].sort();
-      return { almoxs, canal: typeof c.data?.valor === "string" ? c.data.valor : "", deps: d.data ?? [], resp: r.data ?? [], users: p.data ?? [] };
+      return { almoxs, canalObs: typeof co.data?.valor === "string" ? co.data.valor : "", webhookObs: typeof wo.data?.valor === "string" ? wo.data.valor : "", canal: typeof c.data?.valor === "string" ? c.data.valor : "", deps: d.data ?? [], resp: r.data ?? [], users: p.data ?? [] };
     },
   });
-  useEffect(() => { if (q.data) setCanal(q.data.canal); }, [q.data]);
+  useEffect(() => { if (q.data) { setCanal(q.data.canal); setCanalObs(q.data.canalObs); setWebhookObs(q.data.webhookObs); } }, [q.data]);
+  async function salvarObs() {
+    const me = (await supabase.auth.getUser()).data.user?.id, agora = new Date().toISOString();
+    if (webhookObs.trim() && !/^https:\/\/hooks\.slack\.com\/services\//.test(webhookObs.trim())) return toast.error("Webhook inválido: deve começar com https://hooks.slack.com/services/");
+    const { error } = await supabase.from("app_config").upsert([{ chave: "slack_canal_obsoletos", valor: canalObs.trim(), updated_by: me, updated_at: agora }, { chave: "slack_webhook_obsoletos", valor: webhookObs.trim(), updated_by: me, updated_at: agora }]);
+    if (error) return toast.error(error.message);
+    toast.success("Slack de Obsoletos salvo"); refresh();
+  }
   const refresh = () => { qc.invalidateQueries({ queryKey: ["shelf-slack-config"] }); qc.invalidateQueries({ queryKey: ["shelf-slack-cadastro"] }); };
 
   async function salvarCanal() {
@@ -69,7 +80,7 @@ export function SlackShelfConfigCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="size-4" /> Slack — Risco de Shelf</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="size-4" /> Slack — Risco de Shelf e Risco sem Giro</CardTitle>
         <CardDescription>Canal que recebe as Trends do Mapeamento de Risco e responsáveis marcados por departamento.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -78,6 +89,15 @@ export function SlackShelfConfigCard() {
           <div className="flex gap-2">
             <Input id="canal-shelf" value={canal} placeholder="#shelf-life" onChange={(e) => setCanal(e.target.value)} />
             <Button onClick={salvarCanal}>Salvar</Button>
+          </div>
+        </div>
+        <div className="space-y-2 rounded-md border p-3">
+          <Label>Risco sem Giro (Obsoletos)</Label>
+          <p className="text-xs text-muted-foreground">Com canal, a Trend sai pela API como no Risco de Shelf (mensagem + fio). Sem canal, usa o webhook numa mensagem única. Os departamentos e responsáveis abaixo valem para os dois.</p>
+          <Input value={canalObs} placeholder="Canal: #risco-sem-giro (opcional)" onChange={(e) => setCanalObs(e.target.value)} />
+          <div className="flex gap-2">
+            <Input type="password" value={webhookObs} placeholder="https://hooks.slack.com/services/…" onChange={(e) => setWebhookObs(e.target.value)} />
+            <Button onClick={salvarObs}>Salvar</Button>
           </div>
         </div>
         <div className="space-y-2">
