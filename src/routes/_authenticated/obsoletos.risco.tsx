@@ -38,6 +38,7 @@ function MapeamentoObsoletos() {
   const [faixas, setFaixas] = useState<string[]>([]);
   const [statusAcao, setStatusAcao] = useState<string[]>([]);
   const [grupo, setGrupo] = useState<string[]>([]);
+  const [trend, setTrend] = useState<string[]>([]);
   const [draft, setDraft] = useState<AcaoObsDraft | null>(null);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [slackOpen, setSlackOpen] = useState(false);
@@ -77,9 +78,14 @@ function MapeamentoObsoletos() {
         const tem = idx.has(chaveObs(r.id_produto, r.almoxarifado, r.lote));
         return statusAcao[0] === "COM" ? tem : !tem;
       })
+      .filter((r) => {
+        if (trend.length !== 1) return true;
+        const tem = enviosPorItem.has(chaveItem(r));
+        return trend[0] === "COM" ? tem : !tem;
+      })
       .filter((r) => !q || `${r.id_produto} ${r.descricao} ${r.lote}`.toUpperCase().includes(q))
       .sort((a, b) => Number(b.valor) - Number(a.valor));
-  }, [rows, almox, faixas, grupo, gruposQ.data, statusAcao, busca, idx]);
+  }, [rows, almox, faixas, grupo, gruposQ.data, statusAcao, trend, busca, idx, enviosPorItem]);
 
   const selecionados: ItemSlackObs[] = useMemo(() => rows.filter((r) => sel.has(chaveItem(r))).map((r) => ({ sku: r.id_produto, descricao: r.descricao ?? r.id_produto, lote: r.lote ?? "", almoxarifado: r.almoxarifado ?? "", dias_sem_mov: r.dias_sem_mov, faixa: r.faixa, quantidade: Number(r.saldo) || 0, valor: Number(r.valor) || 0 })), [rows, sel]);
   const visiveis = filtradas.slice(0, 500);
@@ -106,12 +112,13 @@ function MapeamentoObsoletos() {
 
       <Card>
         <CardHeader className="pb-3"><CardTitle className="text-base">Filtros</CardTitle></CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
           <div><Label className="text-xs">Buscar</Label><Input placeholder="SKU, produto ou lote" value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
           <div><Label className="text-xs">Almoxarifado</Label><MultiSelect options={almoxOpts.map((o) => ({ value: o, label: o }))} value={almox} onChange={setAlmox} /></div>
           <div><Label className="text-xs">Grupo</Label><MultiSelect options={grupoOpts.map((o) => ({ value: o, label: o }))} value={grupo} onChange={setGrupo} allLabel="Todos" /></div>
           <div><Label className="text-xs">Faixa</Label><MultiSelect options={Object.entries(FAIXA_OBS_LABEL).map(([value, label]) => ({ value, label }))} value={faixas} onChange={setFaixas} allLabel="Todas" /></div>
           <div><Label className="text-xs">Status de Ação</Label><MultiSelect options={[{ value: "SEM", label: "Sem Ação" }, { value: "COM", label: "Com Ação" }]} value={statusAcao} onChange={setStatusAcao} /></div>
+          <div><Label className="text-xs">Trend</Label><MultiSelect options={[{ value: "SEM", label: "Sem Trend" }, { value: "COM", label: "Com Trend" }]} value={trend} onChange={setTrend} /></div>
         </CardContent>
       </Card>
 
