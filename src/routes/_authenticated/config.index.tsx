@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useRole } from "@/hooks/useRole";
 import { toast } from "sonner";
 import { SlackShelfConfigCard } from "@/components/shelf-life/SlackShelfConfigCard";
+import { SlackObsoletosConfigCard } from "@/components/obsoletos/SlackObsoletosConfigCard";
 import { EyeOff, Shield, ChevronRight, Warehouse, MessageSquare, Mail, Percent, Palette } from "lucide-react";
 
 
@@ -183,6 +184,7 @@ function ConfigPage() {
 
 
       {podeGerirWebhook && <SlackShelfConfigCard />}
+      {podeGerirWebhook && <SlackObsoletosConfigCard />}
 
       {podeGerirWebhook && (
         <Card>
