@@ -470,6 +470,20 @@
       "when": 1794930000000,
       "tag": "0066_obsoletos_slack_trends",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1794935000000,
+      "tag": "0067_obsoletos_slack_pessoas",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1794940000000,
+      "tag": "0068_obsoletos_slack_equipes",
+      "breakpoints": true
     }
   ]
 }
