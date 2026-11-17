@@ -7,7 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus } from "lucide-react";
+import { Plus, Send } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Checkbox } from "@/components/ui/checkbox";
+import { supabase } from "@/integrations/supabase/client";
+import { EnviarObsoletosSlackDialog } from "@/components/obsoletos/EnviarObsoletosSlackDialog";
+import { chaveEnvio, indexarEnviosPorLote, type EnvioSlack, type ItemSlackObs } from "@/lib/obsoletos-slack";
 import { AcaoObsoletoDialog, type AcaoObsDraft } from "@/components/obsoletos/AcaoObsoletoDialog";
 import { FAIXA_OBS_LABEL, chaveObs, fmtBRL, useAcoesObsoleto, useItensObsoletos, useTiposAcaoObsoleto } from "@/lib/obsoletos";
 
@@ -32,6 +37,15 @@ function MapeamentoObsoletos() {
   const [faixas, setFaixas] = useState<string[]>([]);
   const [statusAcao, setStatusAcao] = useState<string[]>([]);
   const [draft, setDraft] = useState<AcaoObsDraft | null>(null);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [slackOpen, setSlackOpen] = useState(false);
+  // Trends já abertas no Slack (Risco sem Giro), para marcar os itens e evitar envio repetido
+  const envios = useQuery({
+    queryKey: ["obsoletos-slack-envios"], staleTime: 60_000,
+    queryFn: async () => { const { data, error } = await (supabase as any).from("obsoletos_slack_envios").select("id, numero, link, created_at, observacao, lotes").is("erro", null).order("numero", { ascending: false }); if (error) throw error; return (data ?? []) as EnvioSlack[]; },
+  });
+  const enviosPorItem = useMemo(() => indexarEnviosPorLote(envios.data), [envios.data]);
+  const chaveItem = (r: { id_produto: string; lote: string | null; almoxarifado: string | null }) => chaveEnvio({ sku: r.id_produto, lote: r.lote ?? "", almoxarifado: r.almoxarifado ?? "" });
 
   const tipoNome = useMemo(() => new Map((tipos.data ?? []).map((t) => [t.id, t.nome])), [tipos.data]);
   const idx = useMemo(() => {
@@ -60,6 +74,10 @@ function MapeamentoObsoletos() {
       .sort((a, b) => Number(b.valor) - Number(a.valor));
   }, [rows, almox, faixas, statusAcao, busca, idx]);
 
+  const selecionados: ItemSlackObs[] = useMemo(() => rows.filter((r) => sel.has(chaveItem(r))).map((r) => ({ sku: r.id_produto, descricao: r.descricao ?? r.id_produto, lote: r.lote ?? "", almoxarifado: r.almoxarifado ?? "", dias_sem_mov: r.dias_sem_mov, faixa: r.faixa, quantidade: Number(r.saldo) || 0, valor: Number(r.valor) || 0 })), [rows, sel]);
+  const visiveis = filtradas.slice(0, 500);
+  const todosMarcados = visiveis.length > 0 && visiveis.every((r) => sel.has(chaveItem(r)));
+  const alternarTodos = () => setSel((p) => { const n = new Set(p); visiveis.forEach((r) => (todosMarcados ? n.delete(chaveItem(r)) : n.add(chaveItem(r)))); return n; });
   const soma = (f: string) => filtradas.filter((r) => r.faixa === f).reduce((s, r) => s + Number(r.valor || 0), 0);
   const total = filtradas.reduce((s, r) => s + Number(r.valor || 0), 0);
   const comAcao = filtradas.filter((r) => idx.has(chaveObs(r.id_produto, r.almoxarifado, r.lote))).reduce((s, r) => s + Number(r.valor || 0), 0);
@@ -90,22 +108,26 @@ function MapeamentoObsoletos() {
       </Card>
 
       <Card>
-        <CardHeader className="pb-3"><CardTitle className="text-base">{filtradas.length} item(ns) · {fmtBRL(total)} em risco</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3"><CardTitle className="text-base">{filtradas.length} item(ns) · {fmtBRL(total)} em risco</CardTitle>
+          <Button size="sm" disabled={!sel.size} onClick={() => setSlackOpen(true)}><Send className="mr-1 size-3.5" />Enviar ao Slack{sel.size ? ` (${sel.size})` : ""}</Button></CardHeader>
         <CardContent className="overflow-x-auto">
           {itens.isLoading ? <p className="text-sm text-muted-foreground py-6 text-center">Carregando...</p> : (
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8"><Checkbox checked={todosMarcados} onCheckedChange={alternarTodos} /></TableHead>
                   <TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Lote</TableHead><TableHead>Almox</TableHead>
                   <TableHead className="text-right">Dias s/ mov.</TableHead><TableHead className="text-right">Saldo</TableHead>
-                  <TableHead className="text-right">Valor</TableHead><TableHead>Faixa</TableHead><TableHead>Ação Vinculada</TableHead><TableHead />
+                  <TableHead className="text-right">Valor</TableHead><TableHead>Faixa</TableHead><TableHead>Ação Vinculada</TableHead><TableHead>Trend</TableHead><TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtradas.slice(0, 500).map((r, i) => {
+                {visiveis.map((r, i) => {
                   const ac = idx.get(chaveObs(r.id_produto, r.almoxarifado, r.lote)) ?? [];
+                  const k = chaveItem(r), tr = enviosPorItem.get(k)?.[0];
                   return (
                     <TableRow key={`${r.id_produto}-${r.almoxarifado}-${r.lote}-${i}`}>
+                      <TableCell><Checkbox checked={sel.has(k)} onCheckedChange={(v) => setSel((p) => { const n = new Set(p); v ? n.add(k) : n.delete(k); return n; })} /></TableCell>
                       <TableCell className="font-mono text-xs">{r.id_produto}</TableCell>
                       <TableCell className="max-w-[240px] truncate">{r.descricao}</TableCell>
                       <TableCell className="font-mono text-xs">{r.lote || "—"}</TableCell>
@@ -115,6 +137,7 @@ function MapeamentoObsoletos() {
                       <TableCell className="text-right font-medium">{fmtBRL(Number(r.valor))}</TableCell>
                       <TableCell><Badge variant="secondary">{FAIXA_OBS_LABEL[r.faixa] ?? r.faixa}</Badge></TableCell>
                       <TableCell className="text-xs">{ac.length ? ac.join(", ") : <span className="text-muted-foreground">—</span>}</TableCell>
+                      <TableCell className="text-xs">{tr ? (tr.link ? <a href={tr.link} target="_blank" rel="noreferrer" className="font-semibold underline">#{tr.numero}</a> : <span className="font-semibold">#{tr.numero}</span>) : <span className="text-muted-foreground">—</span>}</TableCell>
                       <TableCell>
                         <Button size="sm" variant="outline" onClick={() => setDraft({
                           id_produto: r.id_produto, descricao: r.descricao, lote: r.lote, almoxarifado: r.almoxarifado,
@@ -127,7 +150,7 @@ function MapeamentoObsoletos() {
                     </TableRow>
                   );
                 })}
-                {!filtradas.length && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhum item com os filtros atuais.</TableCell></TableRow>}
+                {!filtradas.length && <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">Nenhum item com os filtros atuais.</TableCell></TableRow>}
               </TableBody>
             </Table>
           )}
@@ -136,6 +159,7 @@ function MapeamentoObsoletos() {
       </Card>
 
       <AcaoObsoletoDialog draft={draft} onOpenChange={(v) => !v && setDraft(null)} />
+      <EnviarObsoletosSlackDialog open={slackOpen} onOpenChange={setSlackOpen} itens={selecionados} enviosPorItem={enviosPorItem} onSent={() => { setSel(new Set()); envios.refetch(); }} />
     </div>
   );
 }
