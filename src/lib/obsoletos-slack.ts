@@ -54,7 +54,7 @@ export function padraoPosicionamento(equipes: Equipe[], prazo: { dias: number; d
     "*Produtos* — decisão de portfólio e uso do material:",
     "`PRODUTOS | SKU: <código ou TODOS> | Decisão: <Manter no portfólio · Reaproveitar em produção · Reformular · Descontinuar · Baixar> | Uso alternativo: <SKU/receita> | Justificativa: <texto> | Prazo: <dd/mm>`",
   );
-  linhas.push("_Uma linha por SKU (ou TODOS). Sem posicionamento no prazo, o item segue para baixa no próximo pacote. Cada posicionamento vira uma Ação vinculada no Mapeamento de Risco — Obsoletos._");
+  linhas.push("_Uma linha por SKU (ou TODOS). Sem posicionamento no prazo, o item segue para baixa no próximo pacote. O posicionamento é registrado como Ação vinculada no Mapeamento de Risco — Obsoletos._");
   return linhas.join("\n");
 }
 
