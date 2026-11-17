@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Plus, Send } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,6 +16,8 @@ import { chaveEnvio, indexarEnviosPorLote, type EnvioSlack, type ItemSlackObs } 
 import { AcaoObsoletoDialog, type AcaoObsDraft } from "@/components/obsoletos/AcaoObsoletoDialog";
 import { FAIXA_OBS_LABEL, chaveObs, fmtBRL, useAcoesObsoleto, useGruposPorProduto, useItensObsoletos, useTiposAcaoObsoleto } from "@/lib/obsoletos";
 import { chaveSku } from "@/lib/abastecimento-ressalva";
+import { CabCol } from "@/components/abast-dash/CabecalhoFiltro";
+import { comparar, opcoesCategoria, passaFiltros, proximaOrdem, type ColDef, type Filtro, type Ordem } from "@/lib/tabela-filtro";
 
 export const Route = createFileRoute("/_authenticated/obsoletos/risco")({
   component: MapeamentoObsoletos,
@@ -39,6 +41,8 @@ function MapeamentoObsoletos() {
   const [statusAcao, setStatusAcao] = useState<string[]>([]);
   const [grupo, setGrupo] = useState<string[]>([]);
   const [trend, setTrend] = useState<string[]>([]);
+  const [filtrosCol, setFiltrosCol] = useState<Record<string, Filtro>>({});
+  const [ordem, setOrdem] = useState<Ordem>(null);
   const [draft, setDraft] = useState<AcaoObsDraft | null>(null);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [slackOpen, setSlackOpen] = useState(false);
@@ -67,6 +71,20 @@ function MapeamentoObsoletos() {
   const grupoDe = (sku: string) => (gruposQ.data ?? new Map<string, string>()).get(chaveSku(sku)) ?? "Sem grupo";
   const grupoOpts = useMemo(() => [...new Set(rows.map((r) => grupoDe(r.id_produto)))].sort(), [rows, gruposQ.data]);
 
+  type Row = (typeof rows)[number];
+  const cols: ColDef<Row>[] = useMemo(() => [
+    { k: "sku", r: "SKU", t: "txt", v: (r) => r.id_produto },
+    { k: "produto", r: "Produto", t: "txt", v: (r) => r.descricao },
+    { k: "lote", r: "Lote", t: "txt", v: (r) => r.lote },
+    { k: "almox", r: "Almox", t: "cat", v: (r) => r.almoxarifado ?? "" },
+    { k: "dias", r: "Dias s/ mov.", t: "num", al: "right", v: (r) => r.dias_sem_mov },
+    { k: "saldo", r: "Saldo", t: "num", al: "right", v: (r) => Number(r.saldo) },
+    { k: "valor", r: "Valor", t: "num", al: "right", v: (r) => Number(r.valor) },
+    { k: "faixa", r: "Faixa", t: "cat", v: (r) => FAIXA_OBS_LABEL[r.faixa] ?? r.faixa },
+    { k: "acao", r: "Ação Vinculada", t: "cat", v: (r) => (idx.get(chaveObs(r.id_produto, r.almoxarifado, r.lote)) ?? []).join(", ") || "—" },
+    { k: "trend", r: "Trend", t: "cat", v: (r) => { const t = enviosPorItem.get(chaveItem(r))?.[0]; return t ? `#${t.numero}` : "—"; } },
+  ], [idx, enviosPorItem]);
+
   const filtradas = useMemo(() => {
     const q = busca.trim().toUpperCase();
     return rows
@@ -84,8 +102,9 @@ function MapeamentoObsoletos() {
         return trend[0] === "COM" ? tem : !tem;
       })
       .filter((r) => !q || `${r.id_produto} ${r.descricao} ${r.lote}`.toUpperCase().includes(q))
-      .sort((a, b) => Number(b.valor) - Number(a.valor));
-  }, [rows, almox, faixas, grupo, gruposQ.data, statusAcao, trend, busca, idx, enviosPorItem]);
+      .filter((r) => passaFiltros(r, cols, filtrosCol))
+      .sort((a, b) => { const c = ordem && cols.find((x) => x.k === ordem.k); return c ? comparar(a, b, c, ordem!.dir) : Number(b.valor) - Number(a.valor); });
+  }, [cols, filtrosCol, ordem, rows, almox, faixas, grupo, gruposQ.data, statusAcao, trend, busca, idx, enviosPorItem]);
 
   const selecionados: ItemSlackObs[] = useMemo(() => rows.filter((r) => sel.has(chaveItem(r))).map((r) => ({ sku: r.id_produto, descricao: r.descricao ?? r.id_produto, lote: r.lote ?? "", almoxarifado: r.almoxarifado ?? "", dias_sem_mov: r.dias_sem_mov, faixa: r.faixa, quantidade: Number(r.saldo) || 0, valor: Number(r.valor) || 0 })), [rows, sel]);
   const visiveis = filtradas.slice(0, 500);
@@ -125,17 +144,16 @@ function MapeamentoObsoletos() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3"><CardTitle className="text-base">{filtradas.length} item(ns) · {fmtBRL(total)} em risco</CardTitle>
           <Button size="sm" disabled={!sel.size} onClick={() => setSlackOpen(true)}><Send className="mr-1 size-3.5" />Enviar ao Slack{sel.size ? ` (${sel.size})` : ""}</Button></CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className="max-h-[68vh] overflow-auto p-0 px-6 pb-4">
           {itens.isLoading ? <p className="text-sm text-muted-foreground py-6 text-center">Carregando...</p> : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8"><Checkbox checked={todosMarcados} onCheckedChange={alternarTodos} /></TableHead>
-                  <TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead>Lote</TableHead><TableHead>Almox</TableHead>
-                  <TableHead className="text-right">Dias s/ mov.</TableHead><TableHead className="text-right">Saldo</TableHead>
-                  <TableHead className="text-right">Valor</TableHead><TableHead>Faixa</TableHead><TableHead>Ação Vinculada</TableHead><TableHead>Trend</TableHead><TableHead />
-                </TableRow>
-              </TableHeader>
+            <table className="w-full caption-bottom text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="sticky top-0 z-20 w-8 bg-muted px-2"><Checkbox checked={todosMarcados} onCheckedChange={alternarTodos} /></th>
+                  {cols.map((c) => <CabCol key={c.k} col={c} ordem={ordem} onOrdem={() => setOrdem(proximaOrdem(ordem, c))} filtro={filtrosCol[c.k]} onFiltro={(f) => setFiltrosCol({ ...filtrosCol, [c.k]: f })} opcoes={c.t === "cat" ? opcoesCategoria(rows, c) : []} />)}
+                  <th className="sticky top-0 z-20 bg-muted" />
+                </tr>
+              </thead>
               <TableBody>
                 {visiveis.map((r, i) => {
                   const ac = idx.get(chaveObs(r.id_produto, r.almoxarifado, r.lote)) ?? [];
@@ -167,7 +185,7 @@ function MapeamentoObsoletos() {
                 })}
                 {!filtradas.length && <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">Nenhum item com os filtros atuais.</TableCell></TableRow>}
               </TableBody>
-            </Table>
+            </table>
           )}
           {filtradas.length > 500 && <p className="text-xs text-muted-foreground pt-2">Exibindo os 500 itens de maior valor. Use os filtros para refinar.</p>}
         </CardContent>
