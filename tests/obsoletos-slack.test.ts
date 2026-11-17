@@ -13,7 +13,7 @@ test("Prazo pela faixa mais crítica, em dias úteis", () => {
 });
 
 test("Título, padrão de posicionamento e mensagem única", () => {
-  expect(tituloTrendObs("Escoar Pará", "Alm_Box, Alm_Para", new Date(2026, 10, 13), 7)).toBe(":package: *Risco sem Giro #7* - Escoar Pará - Almox - Alm_Box, Alm_Para - 13/11/2026");
+  expect(tituloTrendObs("Escoar Pará", "Alm_Box, Alm_Para", new Date(2026, 10, 13), 7)).toBe(":warning: *Risco sem Giro #7* - Escoar Pará - Almox - Alm_Box, Alm_Para - 13/11/2026");
   const pad = padraoPosicionamento(["Comercial", "Produtos"], { dias: 3, data: new Date(2026, 10, 18), faixa: "+90" });
   expect(pad).toContain("COMERCIAL | SKU:"); expect(pad).toContain("PRODUTOS | SKU:"); expect(pad).toContain("18/11/2026");
   expect(padraoPosicionamento(["Comercial"], { dias: 3, data: new Date(), faixa: "+90" })).not.toContain("PRODUTOS |");
