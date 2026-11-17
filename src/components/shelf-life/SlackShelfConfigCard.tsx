@@ -93,8 +93,8 @@ export function SlackShelfConfigCard() {
         </div>
         <div className="space-y-2 rounded-md border p-3">
           <Label>Risco sem Giro (Obsoletos)</Label>
-          <p className="text-xs text-muted-foreground">Com canal, a Trend sai pela API como no Risco de Shelf (mensagem + fio). Sem canal, usa o webhook numa mensagem única. Os departamentos e responsáveis abaixo valem para os dois.</p>
-          <Input value={canalObs} placeholder="Canal: #risco-sem-giro (opcional)" onChange={(e) => setCanalObs(e.target.value)} />
+          <p className="text-xs text-muted-foreground">A Trend sai como no Risco de Shelf (mensagem principal + detalhes como resposta). Sem canal próprio, usa o canal do Risco de Shelf; o webhook só é usado se a conexão do Slack não estiver disponível.</p>
+          <Input value={canalObs} placeholder="Canal próprio (opcional; vazio = canal do Risco de Shelf)" onChange={(e) => setCanalObs(e.target.value)} />
           <div className="flex gap-2">
             <Input type="password" value={webhookObs} placeholder="https://hooks.slack.com/services/…" onChange={(e) => setWebhookObs(e.target.value)} />
             <Button onClick={salvarObs}>Salvar</Button>
