@@ -5642,6 +5642,119 @@ export type Database = {
         }
         Relationships: []
       }
+      obsoletos_slack_envios: {
+        Row: {
+          almox: string | null
+          canal: string | null
+          created_at: string
+          departamentos: string[]
+          enviado_em: string | null
+          enviado_por: string
+          equipes: string[]
+          erro: string | null
+          id: string
+          link: string | null
+          lotes: Json
+          numero: number
+          observacao: string
+          pessoas: string[]
+          prazo_posicionamento: string | null
+          thread_ts: string | null
+          valor_total: number
+        }
+        Insert: {
+          almox?: string | null
+          canal?: string | null
+          created_at?: string
+          departamentos?: string[]
+          enviado_em?: string | null
+          enviado_por?: string
+          equipes?: string[]
+          erro?: string | null
+          id?: string
+          link?: string | null
+          lotes?: Json
+          numero?: number
+          observacao: string
+          pessoas?: string[]
+          prazo_posicionamento?: string | null
+          thread_ts?: string | null
+          valor_total?: number
+        }
+        Update: {
+          almox?: string | null
+          canal?: string | null
+          created_at?: string
+          departamentos?: string[]
+          enviado_em?: string | null
+          enviado_por?: string
+          equipes?: string[]
+          erro?: string | null
+          id?: string
+          link?: string | null
+          lotes?: Json
+          numero?: number
+          observacao?: string
+          pessoas?: string[]
+          prazo_posicionamento?: string | null
+          thread_ts?: string | null
+          valor_total?: number
+        }
+        Relationships: []
+      }
+      obsoletos_slack_equipes: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+          ordem: number
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          ordem?: number
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          ordem?: number
+        }
+        Relationships: []
+      }
+      obsoletos_slack_responsaveis: {
+        Row: {
+          created_at: string
+          equipe_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          equipe_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          equipe_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "obsoletos_slack_responsaveis_equipe_id_fkey"
+            columns: ["equipe_id"]
+            isOneToOne: false
+            referencedRelation: "obsoletos_slack_equipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ops_excluidas_dispersao: {
         Row: {
           excluido_em: string
