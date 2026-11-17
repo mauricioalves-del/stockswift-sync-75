@@ -8,6 +8,8 @@ const schema = z.object({
   observacao: z.string().trim().min(1).max(300),
   departamentoIds: z.array(z.string().uuid()).max(50),
   equipes: z.array(z.enum(["Comercial", "Produtos"])).min(1),
+  // pessoas específicas marcadas na Trend, além dos responsáveis dos departamentos
+  usuarioIds: z.array(z.string().uuid()).max(50).optional(),
   itens: z.array(z.object({ sku: z.string().max(40), lote: z.string().max(80), almoxarifado: z.string().max(120) })).min(1).max(1000),
   reenviar: z.boolean().optional(),
 });
@@ -30,7 +32,8 @@ export const enviarObsoletosSlack = createServerFn({ method: "POST" })
   .inputValidator((d) => schema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const canal = await cfg(supabase, "slack_canal_obsoletos"), webhook = await cfg(supabase, "slack_webhook_obsoletos");
+    // Mesmo modelo do Risco de Shelf: mensagem principal + detalhes como resposta no fio. Sem canal próprio, usa o canal do Shelf.
+    const canal = (await cfg(supabase, "slack_canal_obsoletos")) || (await cfg(supabase, "slack_canal_shelf")), webhook = await cfg(supabase, "slack_webhook_obsoletos");
     const viaApi = !!canal && temApi();
     if (!viaApi && !webhook) throw new Error("Configure o canal ou o webhook do Slack para Obsoletos em Configurações.");
 
@@ -61,12 +64,13 @@ export const enviarObsoletosSlack = createServerFn({ method: "POST" })
 
     // Responsáveis (mesmo cadastro de departamentos do Risco de Shelf)
     let deptNomes: string[] = [], emails: string[] = [];
+    if (data.usuarioIds?.length) { const { supabaseAdmin } = await import("@/integrations/supabase/client.server"); const { data: profs } = await supabaseAdmin.from("profiles").select("email").in("id", data.usuarioIds); emails.push(...((profs ?? []).map((p) => p.email).filter(Boolean) as string[])); }
     if (data.departamentoIds.length) {
       const { data: deps } = await supabase.from("shelf_slack_departamentos").select("id, nome").in("id", data.departamentoIds);
       deptNomes = (deps ?? []).map((d) => d.nome);
       const { data: resp } = await supabase.from("shelf_slack_responsaveis").select("user_id").in("departamento_id", data.departamentoIds);
       const ids = Array.from(new Set((resp ?? []).map((r) => r.user_id)));
-      if (ids.length) { const { supabaseAdmin } = await import("@/integrations/supabase/client.server"); const { data: profs } = await supabaseAdmin.from("profiles").select("email").in("id", ids); emails = Array.from(new Set((profs ?? []).map((p) => p.email).filter(Boolean))) as string[]; }
+      if (ids.length) { const { supabaseAdmin } = await import("@/integrations/supabase/client.server"); const { data: profs } = await supabaseAdmin.from("profiles").select("email").in("id", ids); emails = Array.from(new Set([...emails, ...((profs ?? []).map((p) => p.email).filter(Boolean) as string[])])); }
     }
     const mencoes: string[] = [];
     for (const e of emails) { try { if (!temApi()) throw new Error(); const u = await slack(`users.lookupByEmail?email=${encodeURIComponent(e)}`, {}); mencoes.push(`<@${u.user.id}>`); } catch { mencoes.push(`*${e}*`); } }
