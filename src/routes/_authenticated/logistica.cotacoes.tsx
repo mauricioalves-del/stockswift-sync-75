@@ -2,7 +2,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Sparkles, Trash2, Trophy } from "lucide-react";
+import { Bot, Loader2, Plus, Sparkles, Trash2, Trophy } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Secao } from "@/components/abast-dash/comum";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { brl, Campo, dataBR, Hero, inputCls, nf, sb, Status } from "@/components/logistica/ui";
 import { cotarPorTabelas, erroExclusaoSolicitacao, podeExcluirSolicitacao, ZONA_ROTULO, zonaPorCep, type Zona } from "@/lib/tms";
 import { buscarCep, formatarCep, soDigitosCep } from "@/lib/cep";
+import { estimarMercadoIA } from "@/lib/cotacao-ia.functions";
+import { prestadorDaPlataforma, type OpcaoIA, type PremissasIA } from "@/lib/cotacao-ia";
 
 export const Route = createFileRoute("/_authenticated/logistica/cotacoes")({ component: Cotacoes, head: () => ({ meta: [{ title: "Cotações de transporte — Controle Logístico" }] }) });
 
@@ -33,11 +36,12 @@ function Cotacoes() {
   const qc = useQueryClient();
   const { role } = useRole(); const podeExcluir = podeExcluirSolicitacao(role);
   const q = useQuery({ queryKey: ["tms-cotacoes"], queryFn: async () => {
-    const [s, c, p, t, e, cc] = await Promise.all([
+    const [s, c, p, t, e, cc, ia] = await Promise.all([
       sb.from("log_solicitacoes").select("*").order("numero", { ascending: false }).limit(300), sb.from("log_cotacoes").select("*"), sb.from("log_prestadores").select("*").order("nome"),
-      sb.from("log_tabelas_frete").select("*"), sb.from("log_embalagens").select("*").eq("ativo", true), sb.from("log_centros_custo").select("centro_custo").order("centro_custo")]);
+      sb.from("log_tabelas_frete").select("*"), sb.from("log_embalagens").select("*").eq("ativo", true), sb.from("log_centros_custo").select("centro_custo").order("centro_custo"),
+      sb.from("log_estimativas_ia").select("*").order("created_at", { ascending: false }).limit(500)]);
     for (const r of [s, c, p, t, e]) if (r.error) throw r.error;
-    return { sol: s.data as any[], cot: c.data as any[], pres: p.data as any[], tab: (t.data as any[]).map((x) => ({ ...x, valor_fixo: +x.valor_fixo, valor_km: +x.valor_km, valor_kg: +x.valor_kg, minimo: +x.minimo, prazo_dias: x.prazo_dias == null ? null : +x.prazo_dias })), emb: (e.data as any[]).map((x) => ({ ...x, custo: +x.custo, capacidade_kg: x.capacidade_kg == null ? null : +x.capacidade_kg })), cc: ((cc.data ?? []) as any[]).map((x) => x.centro_custo as string) };
+    return { sol: s.data as any[], cot: c.data as any[], pres: p.data as any[], tab: (t.data as any[]).map((x) => ({ ...x, valor_fixo: +x.valor_fixo, valor_km: +x.valor_km, valor_kg: +x.valor_kg, minimo: +x.minimo, prazo_dias: x.prazo_dias == null ? null : +x.prazo_dias })), emb: (e.data as any[]).map((x) => ({ ...x, custo: +x.custo, capacidade_kg: x.capacidade_kg == null ? null : +x.capacidade_kg })), cc: ((cc.data ?? []) as any[]).map((x) => x.centro_custo as string), ia: (ia.data ?? []) as any[] };
   } });
   const [nova, setNova] = useState(false); const [f, setF] = useState(vazio); const [sel, setSel] = useState<string | null>(null);
   const [buscandoCep, setBuscandoCep] = useState(false);
@@ -57,6 +61,19 @@ function Cotacoes() {
   const nExcluir = paraExcluir ? (q.data?.cot ?? []).filter((c) => c.solicitacao_id === paraExcluir.id).length : 0;
   const atual = q.data?.sol.find((s) => s.id === sel);
   const cots = useMemo(() => (q.data?.cot ?? []).filter((c) => c.solicitacao_id === sel).sort((a, b) => +a.total - +b.total), [q.data, sel]);
+  const estimativa = useMemo(() => (q.data?.ia ?? []).find((x) => x.solicitacao_id === sel) ?? null, [q.data, sel]);
+  const estimar = useServerFn(estimarMercadoIA); const [estimando, setEstimando] = useState(false);
+  async function gerarEstimativa(id: string) {
+    setEstimando(true);
+    try { await estimar({ data: { solicitacaoId: id } }); toast.success("Estimativa de mercado pronta — 3 opções externas."); await recarregar(); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Não foi possível gerar a estimativa agora."); }
+    finally { setEstimando(false); }
+  }
+  function usarEstimativa(o: OpcaoIA, pr: PremissasIA) {
+    const pid = prestadorDaPlataforma(o.plataforma, q.data?.pres ?? []);
+    setManual({ prestador_id: pid ?? "", modal: o.modal, frete: String(o.valor_estimado).replace(".", ","), embalagem: pr.termica_custo ? String(pr.termica_custo).replace(".", ",") : "", prazo: o.prazo_dias == null ? "" : String(o.prazo_dias) });
+    toast.message(pid ? `Valores de ${o.plataforma} copiados. Confirme com a plataforma e clique em Adicionar.` : `Valores de ${o.plataforma} copiados. Escolha o prestador (cadastre ${o.plataforma} em Cadastros se precisar) e clique em Adicionar.`);
+  }
   const nomeP = (id: string) => q.data?.pres.find((p) => p.id === id)?.nome ?? "—";
   const recarregar = () => qc.invalidateQueries({ queryKey: ["tms-cotacoes"] });
 
@@ -131,6 +148,7 @@ function Cotacoes() {
                 <td className="px-2 py-1 text-right text-xs">{c.prazo_dias == null ? "—" : `${c.prazo_dias} d`}</td>
                 <td className="px-2 py-1 text-right">{atual.status === "cotacao" ? <Button size="sm" variant={i === 0 ? "default" : "outline"} onClick={() => escolher(c.id)}>Escolher</Button> : c.escolhida ? <Status s="aprovada" /> : null}</td></tr>)}</tbody></table>
             {cots.length > 1 && <p className="text-xs text-muted-foreground">Diferença entre a mais barata e a mais cara: <b>{brl(+cots[cots.length - 1].total - +cots[0].total)}</b>. {new Set(cots.map((c) => c.prestador_id)).size < 3 && <span className="text-amber-700">Faltam cotações para chegar a 3 prestadores.</span>}</p>}
+            <EstimativaIA est={estimativa} podeGerar={atual.status === "cotacao"} gerando={estimando} onGerar={() => gerarEstimativa(atual.id)} onUsar={usarEstimativa} />
             {atual.status === "cotacao" && <div className="space-y-2 rounded-lg border p-2">
               <div className="flex items-center justify-between"><b className="text-xs">Adicionar cotação</b><Button size="sm" variant="outline" onClick={() => cotarAuto(atual.id)}><Sparkles className="mr-1 size-3.5" />Recalcular pelas tabelas</Button></div>
               <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
@@ -182,6 +200,34 @@ function Cotacoes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+/** Bloco "Estimativa de mercado (IA)": 3 opções externas, só referência de preço. */
+function EstimativaIA({ est, podeGerar, gerando, onGerar, onUsar }: { est: any | null; podeGerar: boolean; gerando: boolean; onGerar: () => void; onUsar: (o: OpcaoIA, p: PremissasIA) => void }) {
+  const opcoes = (Array.isArray(est?.opcoes) ? est.opcoes : []) as OpcaoIA[];
+  const pr = (est?.premissas ?? {}) as PremissasIA;
+  const kmTxt = pr.km != null ? `${nf(pr.km)} km ${pr.km_fonte === "rota" ? "(rota calculada)" : "(informado)"}` : "sem distância";
+  return (
+    <div className="space-y-2 rounded-lg border border-dashed p-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5"><Bot className="size-4 text-muted-foreground" /><b className="text-xs">Estimativa de mercado (IA)</b>{est && <span className="text-[10px] text-muted-foreground">gerada em {new Date(est.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</span>}</div>
+        {podeGerar && <Button size="sm" variant="outline" disabled={gerando} onClick={onGerar}>{gerando ? <Loader2 className="mr-1 size-3.5 animate-spin" /> : <Sparkles className="mr-1 size-3.5" />}{gerando ? "Avaliando o mercado…" : est ? "Refazer estimativa" : "Estimar 3 opções com IA"}</Button>}
+      </div>
+      {!est ? <p className="text-xs text-muted-foreground">{podeGerar ? "A IA avalia o mercado com os dados da solicitação e sugere 3 plataformas ou transportadoras diferentes, com faixa de preço e prazo." : "Nenhuma estimativa gerada para esta solicitação."}</p> : <>
+        <div className="grid gap-2 md:grid-cols-3">{opcoes.map((o) => { const total = o.valor_estimado + (pr.termica_custo || 0); return (
+          <div key={o.plataforma} className="flex flex-col gap-1 rounded-md border bg-muted/30 p-2 text-xs">
+            <div className="flex items-start justify-between gap-2"><b className="text-sm">{o.plataforma}</b><span className="rounded bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">{o.modal}</span></div>
+            <div className="text-base font-semibold tabular-nums">{brl(o.valor_estimado)}</div>
+            <div className="text-muted-foreground">faixa {brl(o.valor_min)} – {brl(o.valor_max)} · {o.prazo_dias == null ? "prazo n/d" : o.prazo_dias === 0 ? "mesmo dia" : `${o.prazo_dias} d`}</div>
+            {pr.termica_custo ? <div className="text-muted-foreground">+ térmica {brl(pr.termica_custo)} = <b className="text-foreground">{brl(total)}</b></div> : null}
+            {o.observacao && <p className="text-[11px] leading-snug text-muted-foreground">{o.observacao}</p>}
+            {podeGerar && <Button size="sm" variant="ghost" className="mt-auto h-7 justify-start px-1 text-xs" onClick={() => onUsar(o, pr)}>Usar como cotação</Button>}
+          </div>); })}</div>
+        {est.resumo && <p className="text-xs"><b>Recomendação:</b> {est.resumo}</p>}
+        <p className="text-[10px] text-muted-foreground">Premissas: {kmTxt} · {nf(pr.peso_kg, 1)} kg{pr.termico ? ` · térmica ${pr.termica_itens?.join(" + ") || "—"}` : ""}. Valores estimados por IA com base no mercado, não são preços contratados: confirme com a plataforma antes de escolher. A estimativa não conta como uma das 3 cotações.</p>
+      </>}
     </div>
   );
 }

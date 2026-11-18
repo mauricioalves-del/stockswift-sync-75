@@ -526,6 +526,13 @@
       "when": 1795031937906,
       "tag": "0074_log_solicitacoes_guarda_exclusao",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1795033972505,
+      "tag": "0075_log_estimativas_ia",
+      "breakpoints": true
     }
   ]
 }

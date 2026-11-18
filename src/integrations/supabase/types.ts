@@ -5296,6 +5296,47 @@ export type Database = {
         }
         Relationships: []
       }
+      log_estimativas_ia: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          modelo: string | null
+          opcoes: Json
+          premissas: Json
+          resumo: string | null
+          solicitacao_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          modelo?: string | null
+          opcoes?: Json
+          premissas?: Json
+          resumo?: string | null
+          solicitacao_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          modelo?: string | null
+          opcoes?: Json
+          premissas?: Json
+          resumo?: string | null
+          solicitacao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "log_estimativas_ia_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "log_solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       log_eventos: {
         Row: {
           anexo_path: string | null

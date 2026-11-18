@@ -12,6 +12,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.118",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -47,6 +48,7 @@
     "@tanstack/router-plugin": "1.168.42",
     "@zxing/browser": "^0.2.0",
     "@zxing/library": "^0.23.0",
+    "ai": "^7.0.173",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
