@@ -31,7 +31,8 @@ export function MapaEntregasGeo({ pontos, origem, origemNome }: { pontos: PontoE
     carregarLeaflet().then((L) => {
       if (!vivo || !div.current || mapa.current) return;
       mapa.current = L.map(div.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: false }).setView([-14.5, -52], 4);
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { attribution: "© OpenStreetMap · © CARTO", maxZoom: 18 }).addTo(mapa.current);
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", { attribution: "Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap", maxZoom: 16 }).addTo(mapa.current);
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxZoom: 16, pane: "overlayPane" }).addTo(mapa.current);
       camada.current = L.layerGroup().addTo(mapa.current); desenhar();
     }).catch(() => setErro(true));
     return () => { vivo = false; mapa.current?.remove(); mapa.current = null; };
