@@ -120,6 +120,12 @@ const NAV: (NavItem | NavGroup)[] = [
     ],
   },
   {
+    id: "logistica", label: "Controle Logístico", icon: Truck, role: "gestor",
+    items: [
+      { to: "/logistica", label: "Painel Logístico", icon: Truck, role: "gestor" },
+    ],
+  },
+  {
     id: "gestao", label: "Gestão", icon: TrendingUp, role: "any",
     items: [
       { to: "/gestao/minhas-tarefas", label: "Minhas Tarefas", icon: ClipboardList, role: "any" },
