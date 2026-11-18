@@ -124,6 +124,10 @@ const NAV: (NavItem | NavGroup)[] = [
     items: [
       // Oculto para todos, exceto Administrador (ignora a matriz de permissões).
       { to: "/logistica", label: "Painel Logístico", icon: Truck, role: "somenteAdmin" },
+      { to: "/logistica/cotacoes", label: "Cotações", icon: ListChecks, role: "somenteAdmin" },
+      { to: "/logistica/ordens", label: "Follow-up de entregas", icon: Gauge, role: "somenteAdmin" },
+      { to: "/logistica/prestador", label: "Portal do prestador", icon: Upload, role: "somenteAdmin" },
+      { to: "/logistica/cadastros", label: "Cadastros de transporte", icon: SlidersHorizontal, role: "somenteAdmin" },
     ],
   },
   {
