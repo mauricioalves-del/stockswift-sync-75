@@ -93,7 +93,8 @@ export function indicadoresLogistica(envios: Envio[], trechos: TrechoPJ[], fixos
     porNatureza: por((x) => x.natureza), porModal: por((x) => (x.modal ?? "—").toUpperCase()), porCC: por((x) => x.cc ?? "—"),
     custoMedioEntrega: ult.length ? soma(ult, totalEnvio) / ult.length : null,
     cortesias: e.filter((x) => /CORTESIA/.test(sem(x.operacao)) || /CORTESIA/.test(sem(x.cliente))).length,
-    freteCobrado: soma(e, (x) => x.cobrado), prejuizo: soma(e, (x) => x.cobrado - totalEnvio(x)),
+    // resultado do frete só sobre o frete de venda: remessas internas e compras nunca são cobradas de cliente
+    freteCobrado: soma(e.filter((x) => x.natureza === "venda"), (x) => x.cobrado), prejuizo: soma(e.filter((x) => x.natureza === "venda"), (x) => x.cobrado - totalEnvio(x)),
     transf: { qtd: transf.length, kg: soma(transf, (x) => x.kg ?? 0), valor: soma(transf, totalEnvio), porKg: soma(transf, (x) => x.kg ?? 0) ? soma(transf, totalEnvio) / soma(transf, (x) => x.kg ?? 0) : null },
     pj: { km: soma(t, (x) => x.km ?? 0), valorKm: kmPJ, fixo: fixoPJ, porArea: [...pjPorArea.entries()].map(([k, v]) => ({ k, valor: v })).sort((a, b) => b.valor - a.valor), residencia: soma(residencia, (x) => x.valor), trechosResidencia: residencia.length },
   };
