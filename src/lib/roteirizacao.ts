@@ -1,6 +1,6 @@
 // Roteirização do portal do prestador: tipos e regras puras (sem rede), compartilhadas entre tela e servidor.
 export type Ponto = { nome: string; lat: number; lng: number };
-export type Parada = { endereco: string; numero?: string | null; cep?: string | null; cidade?: string | null; uf?: string | null; cliente?: string | null; lat?: number | null; lng?: number | null; sequencia?: number | null; km_trecho?: number | null };
+export type Parada = { endereco: string; bairro?: string | null; numero?: string | null; cep?: string | null; cidade?: string | null; uf?: string | null; cliente?: string | null; lat?: number | null; lng?: number | null; sequencia?: number | null; km_trecho?: number | null };
 
 /** Waypoints do OSRM /trip trazem, na ordem de entrada, a posição de cada ponto na viagem otimizada. Índice 0 é a origem. */
 export function ordenarPelaViagem<T>(paradas: T[], waypoints: { waypoint_index: number }[]): T[] {

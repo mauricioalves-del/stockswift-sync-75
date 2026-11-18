@@ -2,12 +2,13 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MapPin, Navigation, Plus, Route as RouteIcon, Trash2 } from "lucide-react";
+import { Loader2, MapPin, Navigation, Plus, Route as RouteIcon, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Campo, dataBR, inputCls, nf, sb } from "@/components/logistica/ui";
 import { calcularRota } from "@/lib/roteirizacao.functions";
 import { STATUS_ITIN, type Parada } from "@/lib/roteirizacao";
+import { buscarCep, formatarCep, soDigitosCep } from "@/lib/cep";
 
 const paradaVazia: Parada = { cliente: "", endereco: "", numero: "", cidade: "São Paulo", uf: "SP", cep: "" };
 const COR: Record<string, string> = { planejado: "bg-info/15 text-info", em_rota: "bg-warning/25 text-foreground", finalizado: "bg-success/15 text-success", cancelado: "bg-muted text-muted-foreground" };
@@ -31,7 +32,18 @@ export function Itinerarios({ prestadorId, ordens }: { prestadorId: string; orde
   const [f, setF] = useState({ descricao: "", data: new Date().toISOString().slice(0, 10), ordem_id: "", retorno_origem: false, paradas: [{ ...paradaVazia }] as Parada[] });
   const [ocupado, setOcupado] = useState<string | null>(null);
   const r = () => qc.invalidateQueries({ queryKey: ["tms-itinerarios", prestadorId] });
-  const setP = (i: number, k: keyof Parada, v: string) => setF({ ...f, paradas: f.paradas.map((p, j) => (j === i ? { ...p, [k]: v } : p)) });
+  const setP = (i: number, k: keyof Parada, v: string) => setF((f) => ({ ...f, paradas: f.paradas.map((p, j) => (j === i ? { ...p, [k]: v, ...(k === "cep" ? {} : { lat: null, lng: null }) } : p)) }));
+  const [buscandoCep, setBuscandoCep] = useState<number | null>(null);
+  async function mudarCep(i: number, v: string) {
+    const fmt = formatarCep(v); setP(i, "cep", fmt);
+    if (soDigitosCep(fmt).length !== 8) return;
+    setBuscandoCep(i);
+    const e = await buscarCep(fmt);
+    setBuscandoCep(null);
+    if (!e) return toast.error("CEP não encontrado. Confira o número ou preencha o endereço manualmente.");
+    setF((f) => ({ ...f, paradas: f.paradas.map((p, j) => (j === i && soDigitosCep(p.cep ?? "") === e.cep ? { ...p, endereco: e.endereco || p.endereco, bairro: e.bairro || null, cidade: e.cidade, uf: e.uf, lat: null, lng: null } : p)) }));
+    if (!e.endereco) toast.message("CEP geral da cidade: informe a rua manualmente.");
+  }
 
   async function executar(id: string, finalizar = false) {
     setOcupado(id);
@@ -64,12 +76,12 @@ export function Itinerarios({ prestadorId, ordens }: { prestadorId: string; orde
         <div className="mt-3 space-y-2">
           {f.paradas.map((p, i) => (
             <div key={i} className="grid grid-cols-2 gap-2 rounded-md border bg-card p-2 md:grid-cols-12">
-              <Campo l={`Destino ${i + 1} · cliente`} className="col-span-2 md:col-span-3"><input className={inputCls} value={p.cliente ?? ""} onChange={(e) => setP(i, "cliente", e.target.value)} /></Campo>
-              <Campo l="Endereço (rua)" className="col-span-2 md:col-span-3"><input className={inputCls} value={p.endereco} onChange={(e) => setP(i, "endereco", e.target.value)} /></Campo>
+              <Campo l={`Destino ${i + 1} · CEP`} className="md:col-span-2"><div className="relative"><input className={inputCls} inputMode="numeric" placeholder="00000-000" value={p.cep ?? ""} onChange={(e) => mudarCep(i, e.target.value)} />{buscandoCep === i && <Loader2 aria-label="Buscando CEP" className="absolute right-2 top-1/2 mt-0.5 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />}</div></Campo>
+              <Campo l="Cliente" className="md:col-span-2"><input className={inputCls} value={p.cliente ?? ""} onChange={(e) => setP(i, "cliente", e.target.value)} /></Campo>
+              <Campo l={p.bairro ? `Endereço (rua) · ${p.bairro}` : "Endereço (rua)"} className="col-span-2 md:col-span-3"><input className={inputCls} value={p.endereco} onChange={(e) => setP(i, "endereco", e.target.value)} /></Campo>
               <Campo l="Nº" className="md:col-span-1"><input className={inputCls} value={p.numero ?? ""} onChange={(e) => setP(i, "numero", e.target.value)} /></Campo>
               <Campo l="Cidade" className="md:col-span-2"><input className={inputCls} value={p.cidade ?? ""} onChange={(e) => setP(i, "cidade", e.target.value)} /></Campo>
               <Campo l="UF" className="md:col-span-1"><input className={inputCls} maxLength={2} value={p.uf ?? ""} onChange={(e) => setP(i, "uf", e.target.value.toUpperCase())} /></Campo>
-              <Campo l="CEP" className="md:col-span-1"><input className={inputCls} value={p.cep ?? ""} onChange={(e) => setP(i, "cep", e.target.value)} /></Campo>
               <div className="flex items-end md:col-span-1"><Button variant="ghost" size="icon" aria-label="Remover destino" disabled={f.paradas.length === 1} onClick={() => setF({ ...f, paradas: f.paradas.filter((_, j) => j !== i) })}><Trash2 className="size-4" /></Button></div>
             </div>
           ))}
@@ -99,7 +111,7 @@ export function Itinerarios({ prestadorId, ordens }: { prestadorId: string; orde
               </div>
               <ol className="mt-2 space-y-0.5 text-xs text-muted-foreground">
                 <li>Saída · {it.origem?.nome}</li>
-                {(it.paradas as Parada[]).map((p, i) => <li key={i}><b className="text-foreground">{p.sequencia ?? i + 1}.</b> {p.cliente ? `${p.cliente} — ` : ""}{[p.endereco, p.numero, p.cidade, p.uf].filter(Boolean).join(", ")}{p.km_trecho != null && <span className="tabular-nums"> · {nf(p.km_trecho, 1)} km</span>}</li>)}
+                {(it.paradas as Parada[]).map((p, i) => <li key={i}><b className="text-foreground">{p.sequencia ?? i + 1}.</b> {p.cliente ? `${p.cliente} — ` : ""}{[p.endereco, p.numero, p.bairro, p.cidade, p.uf].filter(Boolean).join(", ")}{p.km_trecho != null && <span className="tabular-nums"> · {nf(p.km_trecho, 1)} km</span>}</li>)}
                 {it.retorno_origem && <li>Retorno · {it.origem?.nome}</li>}
               </ol>
             </div>
