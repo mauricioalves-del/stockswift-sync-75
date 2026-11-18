@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { indicadoresLogistica, lerPlanilhaFretes, type Envio, type FixoPJ, type TrechoPJ } from "@/lib/logistica";
 import { oportunidades, ZONA_ROTULO, zonaEnvio, type Zona } from "@/lib/tms";
+import { MapaEntregasGeo } from "@/components/logistica/MapaEntregasGeo";
 
 export const Route = createFileRoute("/_authenticated/logistica/")({
   component: LogisticaPage,
@@ -109,12 +110,14 @@ function LogisticaPage() {
   const q = useQuery({
     enabled: cli && pode, queryKey: ["logistica"], staleTime: 5 * 60_000,
     queryFn: async () => {
-      const [envios, trechos, fixos] = await Promise.all([
+      const [envios, trechos, fixos, org] = await Promise.all([
         fetchAll<any>((f, t) => sb.from("log_envios").select("*").order("data").range(f, t)),
         fetchAll<any>((f, t) => sb.from("log_trechos_pj").select("*").order("data").range(f, t)),
         fetchAll<any>((f, t) => sb.from("log_custos_fixos").select("prestador, mes, valor, rateio").range(f, t)),
+        sb.from("app_config").select("valor").eq("chave", "log_origem").maybeSingle(),
       ]);
-      return { envios: envios.map((e: any) => ({ ...e, frete: +e.frete, isopor: +e.isopor, gelox: +e.gelox, seguro: +e.seguro, cobrado: +e.cobrado, kg: e.kg == null ? null : +e.kg, km: e.km == null ? null : +e.km })) as Envio[], trechos: trechos.map((t: any) => ({ ...t, valor: +t.valor, km: t.km == null ? null : +t.km })) as TrechoPJ[], fixos: fixos.map((f: any) => ({ ...f, valor: +f.valor })) as FixoPJ[] };
+      const o = (org as any)?.data?.valor ?? {};
+      return { origem: { nome: String(o.nome ?? "Fábrica Mágio (SP)"), lat: Number(o.lat ?? -23.5505), lng: Number(o.lng ?? -46.6333) }, envios: envios.map((e: any) => ({ ...e, frete: +e.frete, isopor: +e.isopor, gelox: +e.gelox, seguro: +e.seguro, cobrado: +e.cobrado, kg: e.kg == null ? null : +e.kg, km: e.km == null ? null : +e.km })) as Envio[], trechos: trechos.map((t: any) => ({ ...t, valor: +t.valor, km: t.km == null ? null : +t.km })) as TrechoPJ[], fixos: fixos.map((f: any) => ({ ...f, valor: +f.valor })) as FixoPJ[] };
     },
   });
   const ultimoDado = useMemo(() => { const d = [...(q.data?.envios ?? []).map((e) => e.data), ...(q.data?.trechos ?? []).map((t) => t.data)].sort(); return d[d.length - 1] ?? hoje; }, [q.data, hoje]);
@@ -182,7 +185,8 @@ function LogisticaPage() {
         </Secao>
 
         <Secao letra="M" titulo="Mapa de entregas — Grande SP × fora da região">
-          <MapaEntregas envios={detalhe} />
+          <MapaEntregasGeo origem={[q.data!.origem.lat, q.data!.origem.lng]} origemNome={q.data!.origem.nome} pontos={detalhe.map((e: any) => ({ data: e.data, cliente: e.cliente, uf: e.uf, cidade: e.cidade, lat: e.lat == null ? null : Number(e.lat), lng: e.lng == null ? null : Number(e.lng), km: e.km == null ? null : Number(e.km), zona: e.zona, fora_sp: e.fora_sp, custo: e.frete + e.isopor + e.gelox + e.seguro }))} />
+          <details className="mt-3"><summary className="cursor-pointer text-xs font-semibold text-muted-foreground">Resumo por região (Grande SP × fora)</summary><div className="mt-2"><MapaEntregas envios={detalhe} /></div></details>
         </Secao>
         <Secao letra="R" titulo="Oportunidades de redução de custo">
           <div className="grid gap-2 md:grid-cols-2">{oportunidades(detalhe, k.pj.residencia).map((o) => <div key={o.titulo} className="rounded-lg border border-l-4 border-l-emerald-500 p-3 text-sm"><div className="flex justify-between gap-2"><b>{o.titulo}</b><span className="whitespace-nowrap text-xs font-semibold text-emerald-700">potencial ~{o.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}</span></div><p className="mt-1 text-xs text-muted-foreground">{o.acao}</p></div>)}</div>
