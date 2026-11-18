@@ -184,8 +184,8 @@ function LogisticaPage() {
             <Bar dataKey="venda" stackId="a" name={NAT.venda} fill={COR_NAT.venda} /><Bar dataKey="compra" stackId="a" name={NAT.compra} fill={COR_NAT.compra} /><Bar dataKey="interno" stackId="a" name={NAT.interno} fill={COR_NAT.interno} />{!soEnvios && <Bar dataKey="pj" stackId="a" name="PJ (km + fixo)" fill={COR_NAT.pj} />}</BarChart></ResponsiveContainer></div>
         </Secao>
 
-        <Secao letra="M" titulo="Mapa de entregas — Grande SP × fora da região">
-          <MapaEntregasGeo origem={[q.data!.origem.lat, q.data!.origem.lng]} origemNome={q.data!.origem.nome} pontos={detalhe.map((e: any) => ({ data: e.data, cliente: e.cliente, uf: e.uf, cidade: e.cidade, lat: e.lat == null ? null : Number(e.lat), lng: e.lng == null ? null : Number(e.lng), km: e.km == null ? null : Number(e.km), zona: e.zona, fora_sp: e.fora_sp, custo: e.frete + e.isopor + e.gelox + e.seguro }))} />
+        <Secao letra="M" titulo="Mapa de entregas — Brasil por estado e zonas de São Paulo">
+          <MapaEntregasGeo pontos={detalhe.map((e: any) => ({ data: e.data, cliente: e.cliente, uf: e.uf, cidade: e.cidade, cep: e.cep, lat: e.lat == null ? null : Number(e.lat), lng: e.lng == null ? null : Number(e.lng), km: e.km == null ? null : Number(e.km), zona: e.zona, fora_sp: e.fora_sp, custo: e.frete + e.isopor + e.gelox + e.seguro }))} />
           <details className="mt-3"><summary className="cursor-pointer text-xs font-semibold text-muted-foreground">Resumo por região (Grande SP × fora)</summary><div className="mt-2"><MapaEntregas envios={detalhe} /></div></details>
         </Secao>
         <Secao letra="R" titulo="Oportunidades de redução de custo">
