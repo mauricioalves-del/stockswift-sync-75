@@ -5074,6 +5074,162 @@ export type Database = {
         }
         Relationships: []
       }
+      log_custos_fixos: {
+        Row: {
+          created_at: string
+          descricao: string
+          id: number
+          mes: string
+          prestador: string
+          rateio: Json
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          descricao: string
+          id?: number
+          mes: string
+          prestador: string
+          rateio?: Json
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          descricao?: string
+          id?: number
+          mes?: string
+          prestador?: string
+          rateio?: Json
+          valor?: number
+        }
+        Relationships: []
+      }
+      log_envios: {
+        Row: {
+          cc: string | null
+          chave: string
+          cliente: string | null
+          cobrado: number
+          created_at: string
+          data: string
+          fonte: string | null
+          fora_sp: boolean | null
+          frete: number
+          gelox: number
+          id: number
+          isopor: number
+          kg: number | null
+          km: number | null
+          modal: string | null
+          natureza: string
+          observacao: string | null
+          operacao: string | null
+          origem_destino: string | null
+          pedido: string | null
+          seguro: number
+          total: number | null
+          uf: string | null
+          valor_pedido: number | null
+        }
+        Insert: {
+          cc?: string | null
+          chave: string
+          cliente?: string | null
+          cobrado?: number
+          created_at?: string
+          data: string
+          fonte?: string | null
+          fora_sp?: boolean | null
+          frete?: number
+          gelox?: number
+          id?: number
+          isopor?: number
+          kg?: number | null
+          km?: number | null
+          modal?: string | null
+          natureza: string
+          observacao?: string | null
+          operacao?: string | null
+          origem_destino?: string | null
+          pedido?: string | null
+          seguro?: number
+          total?: number | null
+          uf?: string | null
+          valor_pedido?: number | null
+        }
+        Update: {
+          cc?: string | null
+          chave?: string
+          cliente?: string | null
+          cobrado?: number
+          created_at?: string
+          data?: string
+          fonte?: string | null
+          fora_sp?: boolean | null
+          frete?: number
+          gelox?: number
+          id?: number
+          isopor?: number
+          kg?: number | null
+          km?: number | null
+          modal?: string | null
+          natureza?: string
+          observacao?: string | null
+          operacao?: string | null
+          origem_destino?: string | null
+          pedido?: string | null
+          seguro?: number
+          total?: number | null
+          uf?: string | null
+          valor_pedido?: number | null
+        }
+        Relationships: []
+      }
+      log_trechos_pj: {
+        Row: {
+          cc: string | null
+          chave: string
+          created_at: string
+          data: string
+          destino: string | null
+          fonte: string | null
+          id: number
+          km: number | null
+          operacao: string | null
+          prestador: string
+          saida: string | null
+          valor: number
+        }
+        Insert: {
+          cc?: string | null
+          chave: string
+          created_at?: string
+          data: string
+          destino?: string | null
+          fonte?: string | null
+          id?: number
+          km?: number | null
+          operacao?: string | null
+          prestador: string
+          saida?: string | null
+          valor?: number
+        }
+        Update: {
+          cc?: string | null
+          chave?: string
+          created_at?: string
+          data?: string
+          destino?: string | null
+          fonte?: string | null
+          id?: number
+          km?: number | null
+          operacao?: string | null
+          prestador?: string
+          saida?: string | null
+          valor?: number
+        }
+        Relationships: []
+      }
       mapa_almoxarifados: {
         Row: {
           ativo: boolean
