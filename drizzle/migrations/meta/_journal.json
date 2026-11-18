@@ -491,6 +491,13 @@
       "when": 1794950000000,
       "tag": "0069_logistica_base",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1794960000000,
+      "tag": "0070_logistica_tms",
+      "breakpoints": true
     }
   ]
 }
