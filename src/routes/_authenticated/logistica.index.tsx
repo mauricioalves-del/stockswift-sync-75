@@ -139,7 +139,7 @@ function LogisticaPage() {
               <Card t="Custo logístico total" v={brl(k.total)} sub={`envios ${brl(k.envios)} · PJ ${brl(k.kmPJ + k.fixoPJ)}`} borda="border-l-slate-900" />
               <Card t="Envios" v={nf(k.qtdEnvios)} sub={`${nf(k.cortesias)} cortesia(s) · ${k.qtdEnvios ? Math.round((k.cortesias / k.qtdEnvios) * 100) : 0}% do total`} borda="border-l-sky-600" />
               <Card t="Custo médio por entrega" v={brl(k.custoMedioEntrega, 2)} sub="frete de venda, sem aéreo" borda="border-l-sky-600" />
-              <Card t="Resultado do frete" v={brl(k.prejuizo)} sub={`cobrado do cliente: ${brl(k.freteCobrado)}`} borda={k.prejuizo < 0 ? "border-l-red-500" : "border-l-emerald-500"} cls={k.prejuizo < 0 ? "text-red-600" : "text-emerald-700"} />
+              <Card t="Resultado do frete de venda" v={brl(k.prejuizo)} sub={`cobrado do cliente: ${brl(k.freteCobrado)} · sem remessas internas e compras`} borda={k.prejuizo < 0 ? "border-l-red-500" : "border-l-emerald-500"} cls={k.prejuizo < 0 ? "text-red-600" : "text-emerald-700"} />
               <Card t="PJ · km rodados" v={`${nf(k.pj.km)} km`} sub={`${brl(k.pj.valorKm)} em km + ${brl(k.pj.fixo)} fixo`} borda="border-l-violet-500" />
               <Card t="PJ · km da residência" v={brl(k.pj.residencia)} sub={`${nf(k.pj.trechosResidencia)} trecho(s) · ponto a renegociar`} borda={k.pj.residencia ? "border-l-amber-500" : "border-l-emerald-500"} cls={k.pj.residencia ? "text-amber-600" : ""} />
               <Card t="Transferências Pará ↔ SP" v={brl(k.transf.valor)} sub={`${nf(k.transf.qtd)} envio(s) · ${nf(k.transf.kg)} kg`} borda="border-l-teal-600" />
