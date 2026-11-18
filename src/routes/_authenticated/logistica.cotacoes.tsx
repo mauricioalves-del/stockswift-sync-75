@@ -15,6 +15,17 @@ export const Route = createFileRoute("/_authenticated/logistica/cotacoes")({ com
 const TIPOS: Record<string, [string, "venda" | "compra" | "interno"]> = { entrega_b2b: ["Entrega B2B", "venda"], transferencia: ["Transferência Pará ↔ SP", "interno"], ativacao: ["Ativação / evento", "interno"], coleta: ["Coleta em fornecedor", "compra"], devolucao: ["Devolução / remessa interna", "interno"], outro: ["Outro", "venda"] };
 const vazio = { tipo: "entrega_b2b", centro_custo: "", pedido: "", valor_pedido: "", cliente: "", origem: "Fábrica Mágio (SP)", destino_endereco: "", destino_cep: "", destino_cidade: "", destino_uf: "SP", zona: "" as "" | Zona, peso_kg: "", volumes: "", km_estimado: "", termico: true, data_limite: "", observacao: "" };
 
+/** Coordenada do destino: BrasilAPI (CEP v2) e, sem ela, busca por endereço/cidade no OpenStreetMap. */
+async function geocodificar(cep: string, cidade: string, uf: string, endereco: string): Promise<{ lat: number | null; lng: number | null }> {
+  const d = cep.replace(/\D/g, "");
+  try { if (d.length === 8) { const r = await fetch(`https://brasilapi.com.br/api/cep/v2/${d}`); if (r.ok) { const j = await r.json(); const c = j?.location?.coordinates; if (c?.latitude && c?.longitude) return { lat: +c.latitude, lng: +c.longitude }; if (!cidade && j?.city) cidade = j.city; } } } catch { /* segue */ }
+  for (const q of [[endereco, cidade, uf].filter(Boolean).join(", "), [cidade, uf].filter(Boolean).join(", ")]) {
+    if (!q) continue;
+    try { const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`); const j = await r.json(); if (j?.[0]) return { lat: +j[0].lat, lng: +j[0].lon }; } catch { /* segue */ }
+  }
+  return { lat: null, lng: null };
+}
+
 function Cotacoes() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["tms-cotacoes"], queryFn: async () => {
@@ -36,7 +47,8 @@ function Cotacoes() {
     if (!f.centro_custo) return toast.error("Escolha o centro de custo.");
     const zona = f.zona || (f.tipo === "transferencia" ? "para_sp" : zonaPorCep(f.destino_cep, f.destino_uf)) || "grande_sp";
     const num = (v: string) => (v === "" ? null : Number(String(v).replace(",", ".")));
-    const { data, error } = await sb.from("log_solicitacoes").insert({ ...f, zona, natureza: TIPOS[f.tipo][1], valor_pedido: num(f.valor_pedido), peso_kg: num(f.peso_kg), volumes: num(f.volumes), km_estimado: num(f.km_estimado), data_limite: f.data_limite || null }).select("id").single();
+    const geo = await geocodificar(f.destino_cep, f.destino_cidade, f.destino_uf, f.destino_endereco);
+    const { data, error } = await sb.from("log_solicitacoes").insert({ ...f, ...geo, zona, natureza: TIPOS[f.tipo][1], valor_pedido: num(f.valor_pedido), peso_kg: num(f.peso_kg), volumes: num(f.volumes), km_estimado: num(f.km_estimado), data_limite: f.data_limite || null }).select("id").single();
     if (error) return toast.error(error.message);
     toast.success("Solicitação aberta — gerando cotações automáticas."); setNova(false); setF(vazio); setSel(data.id); await recarregar(); await cotarAuto(data.id);
   }
