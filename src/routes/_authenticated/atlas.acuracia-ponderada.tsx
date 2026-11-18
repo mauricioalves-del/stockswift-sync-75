@@ -129,11 +129,11 @@ function AcuraciaPonderada() {
         <h1 className="flex items-center gap-2 text-xl font-bold"><Scale className="size-5" /> Acurácia Ponderada <span className="ml-2 text-sm font-normal text-slate-300">Item a item · IAQ · IAP</span></h1>
         <Tabs value={visao} onValueChange={(v) => setVisao(v as Visao)}>
           <TabsList className="h-8 flex-wrap">
-            <TabsTrigger value="acuracia" className="text-xs"><Scale className="mr-1 size-3.5" /> Acurácia Ponderada</TabsTrigger>
-            <TabsTrigger value="painel-inventario" className="text-xs"><BarChart3 className="mr-1 size-3.5" /> Painel Inventário</TabsTrigger>
-            <TabsTrigger value="fechamento" className="text-xs"><CalendarCheck className="mr-1 size-3.5" /> Fechamento Inventário</TabsTrigger>
-            <TabsTrigger value="pre-inventario" className="text-xs"><ListChecks className="mr-1 size-3.5" /> Pré-inventário</TabsTrigger>
-            <TabsTrigger value="pos-inventario" className="text-xs"><ClipboardList className="mr-1 size-3.5" /> Pós-Inventário</TabsTrigger>
+            <TabsTrigger value="acuracia" className="text-xs text-slate-300 hover:bg-white/10 hover:text-white data-[state=active]:bg-info data-[state=active]:text-info-foreground data-[state=active]:shadow-sm"><Scale className="mr-1 size-3.5" /> Acurácia Ponderada</TabsTrigger>
+            <TabsTrigger value="painel-inventario" className="text-xs text-slate-300 hover:bg-white/10 hover:text-white data-[state=active]:bg-success data-[state=active]:text-success-foreground data-[state=active]:shadow-sm"><BarChart3 className="mr-1 size-3.5" /> Painel Inventário</TabsTrigger>
+            <TabsTrigger value="fechamento" className="text-xs text-slate-300 hover:bg-white/10 hover:text-white data-[state=active]:bg-warning data-[state=active]:text-warning-foreground data-[state=active]:shadow-sm"><CalendarCheck className="mr-1 size-3.5" /> Fechamento Inventário</TabsTrigger>
+            <TabsTrigger value="pre-inventario" className="text-xs text-slate-300 hover:bg-white/10 hover:text-white data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground data-[state=active]:shadow-sm"><ListChecks className="mr-1 size-3.5" /> Pré-inventário</TabsTrigger>
+            <TabsTrigger value="pos-inventario" className="text-xs text-slate-300 hover:bg-white/10 hover:text-white data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"><ClipboardList className="mr-1 size-3.5" /> Pós-Inventário</TabsTrigger>
           </TabsList>
         </Tabs>
         <div className="text-xs text-slate-300">Competência: {mes ? `${mes.slice(5)}/${mes.slice(0, 4)}` : "todas"} · Leitura: {q.dataUpdatedAt ? new Date(q.dataUpdatedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—"}</div>
