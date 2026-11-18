@@ -5074,6 +5074,72 @@ export type Database = {
         }
         Relationships: []
       }
+      log_cotacoes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          detalhe: Json
+          embalagem: number
+          escolhida: boolean
+          frete: number
+          id: string
+          modal: string
+          origem: string
+          prazo_dias: number | null
+          prestador_id: string
+          seguro: number
+          solicitacao_id: string
+          total: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          detalhe?: Json
+          embalagem?: number
+          escolhida?: boolean
+          frete?: number
+          id?: string
+          modal: string
+          origem?: string
+          prazo_dias?: number | null
+          prestador_id: string
+          seguro?: number
+          solicitacao_id: string
+          total?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          detalhe?: Json
+          embalagem?: number
+          escolhida?: boolean
+          frete?: number
+          id?: string
+          modal?: string
+          origem?: string
+          prazo_dias?: number | null
+          prestador_id?: string
+          seguro?: number
+          solicitacao_id?: string
+          total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "log_cotacoes_prestador_id_fkey"
+            columns: ["prestador_id"]
+            isOneToOne: false
+            referencedRelation: "log_prestadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_cotacoes_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "log_solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       log_custos_fixos: {
         Row: {
           created_at: string
@@ -5104,10 +5170,39 @@ export type Database = {
         }
         Relationships: []
       }
+      log_embalagens: {
+        Row: {
+          ativo: boolean
+          capacidade_kg: number | null
+          custo: number
+          id: string
+          nome: string
+          tipo: string
+        }
+        Insert: {
+          ativo?: boolean
+          capacidade_kg?: number | null
+          custo: number
+          id?: string
+          nome: string
+          tipo: string
+        }
+        Update: {
+          ativo?: boolean
+          capacidade_kg?: number | null
+          custo?: number
+          id?: string
+          nome?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
       log_envios: {
         Row: {
           cc: string | null
+          cep: string | null
           chave: string
+          cidade: string | null
           cliente: string | null
           cobrado: number
           created_at: string
@@ -5120,20 +5215,26 @@ export type Database = {
           isopor: number
           kg: number | null
           km: number | null
+          lat: number | null
+          lng: number | null
           modal: string | null
           natureza: string
           observacao: string | null
           operacao: string | null
+          ordem_id: string | null
           origem_destino: string | null
           pedido: string | null
           seguro: number
           total: number | null
           uf: string | null
           valor_pedido: number | null
+          zona: string | null
         }
         Insert: {
           cc?: string | null
+          cep?: string | null
           chave: string
+          cidade?: string | null
           cliente?: string | null
           cobrado?: number
           created_at?: string
@@ -5146,20 +5247,26 @@ export type Database = {
           isopor?: number
           kg?: number | null
           km?: number | null
+          lat?: number | null
+          lng?: number | null
           modal?: string | null
           natureza: string
           observacao?: string | null
           operacao?: string | null
+          ordem_id?: string | null
           origem_destino?: string | null
           pedido?: string | null
           seguro?: number
           total?: number | null
           uf?: string | null
           valor_pedido?: number | null
+          zona?: string | null
         }
         Update: {
           cc?: string | null
+          cep?: string | null
           chave?: string
+          cidade?: string | null
           cliente?: string | null
           cobrado?: number
           created_at?: string
@@ -5172,18 +5279,396 @@ export type Database = {
           isopor?: number
           kg?: number | null
           km?: number | null
+          lat?: number | null
+          lng?: number | null
           modal?: string | null
           natureza?: string
           observacao?: string | null
           operacao?: string | null
+          ordem_id?: string | null
           origem_destino?: string | null
           pedido?: string | null
           seguro?: number
           total?: number | null
           uf?: string | null
           valor_pedido?: number | null
+          zona?: string | null
         }
         Relationships: []
+      }
+      log_eventos: {
+        Row: {
+          anexo_path: string | null
+          autor: string | null
+          created_at: string
+          descricao: string | null
+          id: number
+          ordem_id: string
+          status: string
+        }
+        Insert: {
+          anexo_path?: string | null
+          autor?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: number
+          ordem_id: string
+          status: string
+        }
+        Update: {
+          anexo_path?: string | null
+          autor?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: number
+          ordem_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "log_eventos_ordem_id_fkey"
+            columns: ["ordem_id"]
+            isOneToOne: false
+            referencedRelation: "log_ordens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      log_lancamentos: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          centro_custo: string | null
+          created_at: string
+          created_by: string | null
+          data: string
+          descricao: string | null
+          id: string
+          motivo: string | null
+          nota_numero: string | null
+          nota_path: string | null
+          ordem_id: string | null
+          prestador_id: string
+          quantidade: number | null
+          status: string
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          centro_custo?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          descricao?: string | null
+          id?: string
+          motivo?: string | null
+          nota_numero?: string | null
+          nota_path?: string | null
+          ordem_id?: string | null
+          prestador_id: string
+          quantidade?: number | null
+          status?: string
+          tipo: string
+          valor: number
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          centro_custo?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          descricao?: string | null
+          id?: string
+          motivo?: string | null
+          nota_numero?: string | null
+          nota_path?: string | null
+          ordem_id?: string | null
+          prestador_id?: string
+          quantidade?: number | null
+          status?: string
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "log_lancamentos_ordem_id_fkey"
+            columns: ["ordem_id"]
+            isOneToOne: false
+            referencedRelation: "log_ordens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_lancamentos_prestador_id_fkey"
+            columns: ["prestador_id"]
+            isOneToOne: false
+            referencedRelation: "log_prestadores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      log_ordens: {
+        Row: {
+          aprovado_por: string | null
+          coletado_em: string | null
+          comprovante_path: string | null
+          cotacao_id: string | null
+          created_at: string
+          entregue_em: string | null
+          id: string
+          justificativa_excecao: string | null
+          modal: string | null
+          numero: number
+          prestador_id: string
+          previsao: string | null
+          recebedor: string | null
+          solicitacao_id: string
+          status: string
+          valor_aprovado: number
+        }
+        Insert: {
+          aprovado_por?: string | null
+          coletado_em?: string | null
+          comprovante_path?: string | null
+          cotacao_id?: string | null
+          created_at?: string
+          entregue_em?: string | null
+          id?: string
+          justificativa_excecao?: string | null
+          modal?: string | null
+          numero?: number
+          prestador_id: string
+          previsao?: string | null
+          recebedor?: string | null
+          solicitacao_id: string
+          status?: string
+          valor_aprovado?: number
+        }
+        Update: {
+          aprovado_por?: string | null
+          coletado_em?: string | null
+          comprovante_path?: string | null
+          cotacao_id?: string | null
+          created_at?: string
+          entregue_em?: string | null
+          id?: string
+          justificativa_excecao?: string | null
+          modal?: string | null
+          numero?: number
+          prestador_id?: string
+          previsao?: string | null
+          recebedor?: string | null
+          solicitacao_id?: string
+          status?: string
+          valor_aprovado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "log_ordens_cotacao_id_fkey"
+            columns: ["cotacao_id"]
+            isOneToOne: false
+            referencedRelation: "log_cotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_ordens_prestador_id_fkey"
+            columns: ["prestador_id"]
+            isOneToOne: false
+            referencedRelation: "log_prestadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_ordens_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "log_solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      log_prestadores: {
+        Row: {
+          ativo: boolean
+          contato: string | null
+          created_at: string
+          documento: string | null
+          email: string | null
+          id: string
+          modais: string[]
+          nome: string
+          telefone: string | null
+          tipo: string
+          user_id: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          contato?: string | null
+          created_at?: string
+          documento?: string | null
+          email?: string | null
+          id?: string
+          modais?: string[]
+          nome: string
+          telefone?: string | null
+          tipo?: string
+          user_id?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          contato?: string | null
+          created_at?: string
+          documento?: string | null
+          email?: string | null
+          id?: string
+          modais?: string[]
+          nome?: string
+          telefone?: string | null
+          tipo?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      log_solicitacoes: {
+        Row: {
+          centro_custo: string
+          cliente: string | null
+          created_at: string
+          data_limite: string | null
+          destino_cep: string | null
+          destino_cidade: string | null
+          destino_endereco: string | null
+          destino_uf: string | null
+          id: string
+          km_estimado: number | null
+          lat: number | null
+          lng: number | null
+          natureza: string
+          numero: number
+          observacao: string | null
+          origem: string
+          pedido: string | null
+          peso_kg: number | null
+          solicitante: string | null
+          status: string
+          termico: boolean
+          tipo: string
+          valor_pedido: number | null
+          volumes: number | null
+          zona: string | null
+        }
+        Insert: {
+          centro_custo: string
+          cliente?: string | null
+          created_at?: string
+          data_limite?: string | null
+          destino_cep?: string | null
+          destino_cidade?: string | null
+          destino_endereco?: string | null
+          destino_uf?: string | null
+          id?: string
+          km_estimado?: number | null
+          lat?: number | null
+          lng?: number | null
+          natureza: string
+          numero?: number
+          observacao?: string | null
+          origem?: string
+          pedido?: string | null
+          peso_kg?: number | null
+          solicitante?: string | null
+          status?: string
+          termico?: boolean
+          tipo: string
+          valor_pedido?: number | null
+          volumes?: number | null
+          zona?: string | null
+        }
+        Update: {
+          centro_custo?: string
+          cliente?: string | null
+          created_at?: string
+          data_limite?: string | null
+          destino_cep?: string | null
+          destino_cidade?: string | null
+          destino_endereco?: string | null
+          destino_uf?: string | null
+          id?: string
+          km_estimado?: number | null
+          lat?: number | null
+          lng?: number | null
+          natureza?: string
+          numero?: number
+          observacao?: string | null
+          origem?: string
+          pedido?: string | null
+          peso_kg?: number | null
+          solicitante?: string | null
+          status?: string
+          termico?: boolean
+          tipo?: string
+          valor_pedido?: number | null
+          volumes?: number | null
+          zona?: string | null
+        }
+        Relationships: []
+      }
+      log_tabelas_frete: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          minimo: number
+          modal: string
+          observacao: string | null
+          prazo_dias: number | null
+          prestador_id: string
+          termico: boolean
+          valor_fixo: number
+          valor_kg: number
+          valor_km: number
+          zona: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          minimo?: number
+          modal: string
+          observacao?: string | null
+          prazo_dias?: number | null
+          prestador_id: string
+          termico?: boolean
+          valor_fixo?: number
+          valor_kg?: number
+          valor_km?: number
+          zona: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          minimo?: number
+          modal?: string
+          observacao?: string | null
+          prazo_dias?: number | null
+          prestador_id?: string
+          termico?: boolean
+          valor_fixo?: number
+          valor_kg?: number
+          valor_km?: number
+          zona?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "log_tabelas_frete_prestador_id_fkey"
+            columns: ["prestador_id"]
+            isOneToOne: false
+            referencedRelation: "log_prestadores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       log_trechos_pj: {
         Row: {
@@ -7679,6 +8164,12 @@ export type Database = {
         }
         Relationships: []
       }
+      log_centros_custo: {
+        Row: {
+          centro_custo: string | null
+        }
+        Relationships: []
+      }
       v_consumo_relevancia_sku: {
         Row: {
           qtd_total: number | null
@@ -8175,6 +8666,12 @@ export type Database = {
       }
       is_gestor: { Args: { _user_id: string }; Returns: boolean }
       limpar_movimentacoes_erp: { Args: { p_pares: Json }; Returns: number }
+      log_escolher_cotacao: {
+        Args: { p_cotacao: string; p_justificativa?: string }
+        Returns: string
+      }
+      log_meu_prestador: { Args: never; Returns: string }
+      log_sincronizar_envio: { Args: { p_ordem: string }; Returns: undefined }
       pendencias_assinatura_inventario: {
         Args: never
         Returns: {
