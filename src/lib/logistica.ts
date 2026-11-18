@@ -75,8 +75,11 @@ export function lerPlanilhaFretes(buf: ArrayBuffer, arquivo: string) {
 
 export type FixoPJ = { prestador: string; mes: string; valor: number; rateio: Record<string, number> };
 /** Indicadores do pilar por mês. */
-export function indicadoresLogistica(envios: Envio[], trechos: TrechoPJ[], fixos: FixoPJ[], mes: string) {
-  const e = envios.filter((x) => x.data.slice(0, 7) === mes), t = trechos.filter((x) => x.data.slice(0, 7) === mes), f = fixos.filter((x) => x.mes === mes);
+/** Indicadores do período [de, ate] (datas AAAA-MM-DD); os custos fixos entram pelos meses do período. */
+export function indicadoresLogistica(envios: Envio[], trechos: TrechoPJ[], fixos: FixoPJ[], de: string, ate: string = `${de.slice(0, 7)}-31`) {
+  if (de.length === 7) de = `${de}-01`;
+  const dentro = (d: string) => d >= de && d <= ate;
+  const e = envios.filter((x) => dentro(x.data)), t = trechos.filter((x) => dentro(x.data)), f = fixos.filter((x) => x.mes >= de.slice(0, 7) && x.mes <= ate.slice(0, 7));
   const soma = <T,>(l: T[], fn: (x: T) => number) => l.reduce((a, x) => a + (fn(x) || 0), 0);
   const totalEnvio = (x: Envio) => x.frete + x.isopor + x.gelox + x.seguro;
   const kmPJ = soma(t, (x) => x.valor), fixoPJ = soma(f, (x) => x.valor), envTot = soma(e, totalEnvio);
