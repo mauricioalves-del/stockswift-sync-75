@@ -12,6 +12,7 @@ import { Secao, TabelaRolavel, Th } from "@/components/abast-dash/comum";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { indicadoresLogistica, lerPlanilhaFretes, type Envio, type FixoPJ, type TrechoPJ } from "@/lib/logistica";
+import { oportunidades, ZONA_ROTULO, zonaEnvio, type Zona } from "@/lib/tms";
 
 export const Route = createFileRoute("/_authenticated/logistica/")({
   component: LogisticaPage,
@@ -71,6 +72,32 @@ function Importador({ onFim }: { onFim: () => void }) {
       </DialogContent>
     </Dialog>
   </>;
+}
+
+// Mapa do Brasil em grade de estados (cada quadrado = UF), sem dependência de mapa externo
+const GRADE: Record<string, [number, number]> = { RR: [2, 0], AP: [4, 0], AM: [1, 1], PA: [3, 1], MA: [4, 1], CE: [5, 1], RN: [6, 1], AC: [0, 2], RO: [1, 2], MT: [2, 2], TO: [3, 2], PI: [4, 2], PE: [5, 2], PB: [6, 2], MS: [2, 3], GO: [3, 3], DF: [4, 3], BA: [5, 3], AL: [6, 3], PR: [2, 4], SP: [3, 4], MG: [4, 4], ES: [5, 4], SE: [6, 4], SC: [2, 5], RJ: [4, 5], RS: [2, 6] };
+const ZCOR: Record<Zona, string> = { grande_sp: "#34436C", interior_sp: "#5B7DB8", fora_estado: "#D98E04", para_sp: "#2E7D6B", sp_para: "#6BAF9D" };
+function MapaEntregas({ envios }: { envios: Envio[] }) {
+  const porUf = new Map<string, number>(); const porZona = new Map<Zona, { n: number; v: number }>();
+  for (const e of envios) { const uf = (e.uf ?? "SP").toUpperCase(); porUf.set(uf, (porUf.get(uf) ?? 0) + 1); const z = zonaEnvio(e as any); const a = porZona.get(z) ?? { n: 0, v: 0 }; a.n++; a.v += e.frete + e.isopor + e.gelox + e.seguro; porZona.set(z, a); }
+  const max = Math.max(1, ...porUf.values()), tot = envios.length || 1;
+  const gsp = porZona.get("grande_sp")?.n ?? 0, fora = tot - gsp - (porZona.get("para_sp")?.n ?? 0) - (porZona.get("sp_para")?.n ?? 0);
+  return <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+        <div className="rounded-xl border border-l-4 border-l-[#34436C] bg-card p-3 shadow-sm"><div className="text-[11px] font-semibold uppercase text-muted-foreground">Entregas na Grande SP</div><div className="text-2xl font-bold tabular-nums">{gsp}</div><div className="text-xs text-muted-foreground">{Math.round((gsp / tot) * 100)}% dos envios</div></div>
+        <div className="rounded-xl border border-l-4 border-l-[#D98E04] bg-card p-3 shadow-sm"><div className="text-[11px] font-semibold uppercase text-muted-foreground">Fora da Grande SP</div><div className="text-2xl font-bold tabular-nums">{fora}</div><div className="text-xs text-muted-foreground">interior/litoral + outros estados · capacidade de distribuição</div></div>
+        <div className="rounded-xl border border-l-4 border-l-[#2E7D6B] bg-card p-3 shadow-sm"><div className="text-[11px] font-semibold uppercase text-muted-foreground">Transferências Pará ↔ SP</div><div className="text-2xl font-bold tabular-nums">{(porZona.get("para_sp")?.n ?? 0) + (porZona.get("sp_para")?.n ?? 0)}</div></div>
+      </div>
+      <table className="w-full text-sm"><thead><tr><Th c="Região" /><Th c="Envios" d /><Th c="% dos envios" d /><Th c="Custo" d /><Th c="Custo médio" d /></tr></thead>
+        <tbody>{(Object.keys(ZONA_ROTULO) as Zona[]).filter((z) => porZona.get(z)).map((z) => { const a = porZona.get(z)!; return <tr key={z} className="border-t"><td className="px-2 py-1"><span className="mr-2 inline-block size-2.5 rounded-sm" style={{ background: ZCOR[z] }} />{ZONA_ROTULO[z]}</td><td className="px-2 py-1 text-right tabular-nums">{a.n}</td><td className="px-2 py-1 text-right tabular-nums">{Math.round((a.n / tot) * 100)}%</td><td className="px-2 py-1 text-right tabular-nums">{a.v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}</td><td className="px-2 py-1 text-right tabular-nums">{(a.v / a.n).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 })}</td></tr>; })}</tbody></table>
+      <p className="text-xs text-muted-foreground">Histórico importado usa UF + “fora de SP capital”; as novas solicitações usam o CEP (01000–09999 = Grande SP; 11000–19999 = interior e litoral).</p>
+    </div>
+    <svg viewBox="0 0 280 280" className="w-full" role="img" aria-label="Envios por estado">
+      {Object.entries(GRADE).map(([uf, [c, r]]) => { const n = porUf.get(uf) ?? 0; const a = n ? 0.15 + 0.85 * (n / max) : 0; return <g key={uf}><rect x={c * 40 + 2} y={r * 40 + 2} width={36} height={36} rx={6} fill={n ? (uf === "SP" ? "#34436C" : uf === "PA" ? "#2E7D6B" : "#D98E04") : "currentColor"} fillOpacity={n ? a : 0.06} stroke="currentColor" strokeOpacity={0.15} />
+        <text x={c * 40 + 20} y={r * 40 + 18} textAnchor="middle" fontSize="10" fontWeight={700} fill={n && a > 0.5 ? "#fff" : "currentColor"}>{uf}</text><text x={c * 40 + 20} y={r * 40 + 31} textAnchor="middle" fontSize="9" fill={n && a > 0.5 ? "#fff" : "currentColor"} fillOpacity={n ? 1 : 0.4}>{n || ""}</text></g>; })}
+    </svg>
+  </div>;
 }
 
 function LogisticaPage() {
@@ -154,6 +181,13 @@ function LogisticaPage() {
             <Bar dataKey="venda" stackId="a" name={NAT.venda} fill={COR_NAT.venda} /><Bar dataKey="compra" stackId="a" name={NAT.compra} fill={COR_NAT.compra} /><Bar dataKey="interno" stackId="a" name={NAT.interno} fill={COR_NAT.interno} />{!soEnvios && <Bar dataKey="pj" stackId="a" name="PJ (km + fixo)" fill={COR_NAT.pj} />}</BarChart></ResponsiveContainer></div>
         </Secao>
 
+        <Secao letra="M" titulo="Mapa de entregas — Grande SP × fora da região">
+          <MapaEntregas envios={detalhe} />
+        </Secao>
+        <Secao letra="R" titulo="Oportunidades de redução de custo">
+          <div className="grid gap-2 md:grid-cols-2">{oportunidades(detalhe, k.pj.residencia).map((o) => <div key={o.titulo} className="rounded-lg border border-l-4 border-l-emerald-500 p-3 text-sm"><div className="flex justify-between gap-2"><b>{o.titulo}</b><span className="whitespace-nowrap text-xs font-semibold text-emerald-700">potencial ~{o.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}</span></div><p className="mt-1 text-xs text-muted-foreground">{o.acao}</p></div>)}</div>
+          <p className="mt-2 text-xs text-muted-foreground">Estimativas de economia são metas iniciais (não medidas): servem para priorizar as frentes e serão recalculadas com as cotações reais.</p>
+        </Secao>
         <Secao letra="D" titulo="Onde está o custo">
           <div className="grid gap-3 lg:grid-cols-3">
             <Ranking titulo="Por natureza" linhas={k.porNatureza.map((x) => ({ ...x, k: NAT[x.k] ?? x.k }))} cor={COR_NAT.venda} total={k.envios} />
