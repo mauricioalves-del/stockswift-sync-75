@@ -128,7 +128,7 @@ function AcuraciaPonderada() {
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-5 py-4 text-white">
         <h1 className="flex items-center gap-2 text-xl font-bold"><Scale className="size-5" /> Acurácia Ponderada <span className="ml-2 text-sm font-normal text-slate-300">Item a item · IAQ · IAP</span></h1>
         <Tabs value={visao} onValueChange={(v) => setVisao(v as Visao)}>
-          <TabsList className="h-8 flex-wrap">
+          <TabsList className="h-auto max-w-full min-h-9 flex-wrap gap-1 bg-white/10 p-1 text-slate-300">
             <TabsTrigger value="acuracia" className="text-xs text-slate-300 hover:bg-white/10 hover:text-white data-[state=active]:bg-info data-[state=active]:text-info-foreground data-[state=active]:shadow-sm"><Scale className="mr-1 size-3.5" /> Acurácia Ponderada</TabsTrigger>
             <TabsTrigger value="painel-inventario" className="text-xs text-slate-300 hover:bg-white/10 hover:text-white data-[state=active]:bg-success data-[state=active]:text-success-foreground data-[state=active]:shadow-sm"><BarChart3 className="mr-1 size-3.5" /> Painel Inventário</TabsTrigger>
             <TabsTrigger value="fechamento" className="text-xs text-slate-300 hover:bg-white/10 hover:text-white data-[state=active]:bg-warning data-[state=active]:text-warning-foreground data-[state=active]:shadow-sm"><CalendarCheck className="mr-1 size-3.5" /> Fechamento Inventário</TabsTrigger>
