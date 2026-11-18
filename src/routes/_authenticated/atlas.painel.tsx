@@ -151,10 +151,10 @@ function AtlasPainel() {
         <div className="space-y-2">
           <h1 className="flex items-center gap-2 text-xl font-bold"><LayoutDashboard className="size-5" /> Movimentados <span className="ml-2 text-sm font-normal text-slate-300">Acurácia das contagens diárias · Divergências do Atlas</span></h1>
           <Tabs value={visao} onValueChange={(v) => setVisao(v as Visao)}>
-            <TabsList className="h-8">
-              <TabsTrigger value="painel" className="text-xs"><LayoutDashboard className="mr-1 size-3.5" /> Painel</TabsTrigger>
-              <TabsTrigger value="farol" className="text-xs"><ClipboardCheck className="mr-1 size-3.5" /> Farol de Movimentados</TabsTrigger>
-              <TabsTrigger value="divergencias" className="text-xs"><ListChecks className="mr-1 size-3.5" /> Divergências</TabsTrigger>
+            <TabsList className="h-9 gap-1 bg-white/10 p-1 text-slate-300">
+              <TabsTrigger value="painel" className="text-xs text-slate-300 hover:bg-white/10 hover:text-white data-[state=active]:bg-info data-[state=active]:text-info-foreground data-[state=active]:shadow-sm"><LayoutDashboard className="mr-1 size-3.5" /> Painel</TabsTrigger>
+              <TabsTrigger value="farol" className="text-xs text-slate-300 hover:bg-white/10 hover:text-white data-[state=active]:bg-warning data-[state=active]:text-warning-foreground data-[state=active]:shadow-sm"><ClipboardCheck className="mr-1 size-3.5" /> Farol de Movimentados</TabsTrigger>
+              <TabsTrigger value="divergencias" className="text-xs text-slate-300 hover:bg-white/10 hover:text-white data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground data-[state=active]:shadow-sm"><ListChecks className="mr-1 size-3.5" /> Divergências</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
