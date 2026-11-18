@@ -57,6 +57,7 @@ function Cadastros() {
           <div className="flex items-end"><Button className="w-full" onClick={() => nt.prestador_id && exec(sb.from("log_tabelas_frete").insert({ ...nt, valor_fixo: num(nt.valor_fixo), valor_km: num(nt.valor_km), valor_kg: num(nt.valor_kg), minimo: num(nt.minimo), prazo_dias: nt.prazo_dias ? num(nt.prazo_dias) : null }), "Tabela cadastrada")}>Adicionar</Button></div>
         </div>
       </Secao>
+      <Secao letra="D" titulo="Origem das entregas (centro das zonas do mapa)"><Origem /></Secao>
       <Secao letra="C" titulo="Embalagens térmicas">
         <table className="w-full text-sm"><thead className="bg-muted text-xs"><tr>{["Embalagem", "Tipo", "Capacidade", "Custo"].map((h) => <th key={h} className="px-2 py-1 text-left">{h}</th>)}</tr></thead>
           <tbody>{(q.data?.emb ?? []).map((e) => <tr key={e.id} className="border-t"><td className="px-2 py-1">{e.nome}</td><td className="px-2 py-1">{e.tipo}</td><td className="px-2 py-1">{e.capacidade_kg ? `${e.capacidade_kg} kg` : "—"}</td>
@@ -64,4 +65,24 @@ function Cadastros() {
       </Secao>
     </div>
   );
+}
+
+function Origem() {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["log-origem"], queryFn: async () => (await sb.from("app_config").select("valor").eq("chave", "log_origem").maybeSingle()).data?.valor ?? {} });
+  const [f, setF] = useState<{ nome: string; lat: string; lng: string } | null>(null);
+  const v = f ?? { nome: q.data?.nome ?? "", lat: String(q.data?.lat ?? ""), lng: String(q.data?.lng ?? "") };
+  async function salvar() {
+    const lat = Number(v.lat.replace(",", ".")), lng = Number(v.lng.replace(",", "."));
+    if (!isFinite(lat) || !isFinite(lng) || Math.abs(lat) > 34 || Math.abs(lng) > 75) return toast.error("Coordenada inválida (ex.: -23.55 e -46.63).");
+    const { error } = await sb.from("app_config").upsert({ chave: "log_origem", valor: { nome: v.nome || "Origem", lat, lng }, updated_at: new Date().toISOString() });
+    if (error) return toast.error(error.message); toast.success("Origem atualizada"); setF(null); qc.invalidateQueries({ queryKey: ["log-origem"] }); qc.invalidateQueries({ queryKey: ["logistica"] });
+  }
+  return <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+    <Campo l="Nome" className="md:col-span-2"><input className={inputCls} value={v.nome} onChange={(e) => setF({ ...v, nome: e.target.value })} /></Campo>
+    <Campo l="Latitude"><input className={inputCls} value={v.lat} onChange={(e) => setF({ ...v, lat: e.target.value })} /></Campo>
+    <Campo l="Longitude"><input className={inputCls} value={v.lng} onChange={(e) => setF({ ...v, lng: e.target.value })} /></Campo>
+    <div className="flex items-end"><Button className="w-full" onClick={salvar}>Salvar</Button></div>
+    <p className="col-span-2 text-xs text-muted-foreground md:col-span-5">No Google Maps, clique com o botão direito sobre a fábrica e copie as coordenadas. As zonas de entrega são anéis de 10, 25, 50 e 150 km a partir deste ponto.</p>
+  </div>;
 }
