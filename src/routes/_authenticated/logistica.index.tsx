@@ -74,8 +74,9 @@ function Importador({ onFim }: { onFim: () => void }) {
 }
 
 function LogisticaPage() {
-  const { isAdmin, role } = useRole();
-  const pode = isAdmin || role === "GERENTE" || role === "COORDENADOR_CONTROLE";
+  const { isAdmin } = useRole();
+  // Módulo restrito: somente Administrador.
+  const pode = isAdmin;
   const qc = useQueryClient(); const hoje = hojeBrt();
   const [cli, setCli] = useState(false); useEffect(() => setCli(true), []);
   const q = useQuery({
@@ -103,7 +104,7 @@ function LogisticaPage() {
   const detalhe = useMemo(() => filtrados.filter((e) => e.data >= f.de && e.data <= f.ate).sort((a, b) => b.data.localeCompare(a.data)), [filtrados, f]);
   const trechosPer = useMemo(() => (q.data?.trechos ?? []).filter((t) => t.data >= f.de && t.data <= f.ate), [q.data, f]);
 
-  if (!pode) return <div className="p-8 text-center text-muted-foreground">Acesso restrito a gestores.</div>;
+  if (!pode) return <div className="p-8 text-center text-muted-foreground">Acesso restrito a administradores.</div>;
   const atual = f.de === `${ultimoDado.slice(0, 7)}-01` && f.ate === fimMes(ultimoDado.slice(0, 7));
   const ano = `${ultimoDado.slice(0, 4)}`;
   return (

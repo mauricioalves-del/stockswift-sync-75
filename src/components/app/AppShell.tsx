@@ -25,7 +25,7 @@ import { syncPendingCounts } from "@/lib/sync";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MobileBottomNav } from "@/components/app/MobileBottomNav";
 
-type Access = "any" | "write" | "admin" | "gestor";
+type Access = "any" | "write" | "admin" | "gestor" | "somenteAdmin";
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; role: Access };
 type NavSubGroup = { id: string; label: string; items: NavItem[] };
 type NavGroup = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; items: (NavItem | NavSubGroup)[]; role?: Access };
@@ -120,9 +120,10 @@ const NAV: (NavItem | NavGroup)[] = [
     ],
   },
   {
-    id: "logistica", label: "Controle Logístico", icon: Truck, role: "gestor",
+    id: "logistica", label: "Controle Logístico", icon: Truck, role: "somenteAdmin",
     items: [
-      { to: "/logistica", label: "Painel Logístico", icon: Truck, role: "gestor" },
+      // Oculto para todos, exceto Administrador (ignora a matriz de permissões).
+      { to: "/logistica", label: "Painel Logístico", icon: Truck, role: "somenteAdmin" },
     ],
   },
   {
@@ -259,6 +260,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const canSee = (item: NavItem) => {
     if (isAdmin) return true;
+    if (item.role === "somenteAdmin") return false;
     if (perms.isMapped(item.to)) return perms.canView(item.to);
     return canByRole(item.role);
   };
