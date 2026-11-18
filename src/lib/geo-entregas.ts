@@ -43,3 +43,45 @@ export function agruparPorZona(pontos: PontoEntrega[], origem: [number, number])
   for (const p of pontos) { const z = zonaDoEnvio(p, origem); const a = m.get(z.id)!; a.n++; a.custo += p.custo; if (z.aproximada) a.aprox++; }
   return ZONAS_ANEL.map((z) => ({ ...z, ...m.get(z.id)! }));
 }
+
+/** Zonas da cidade de São Paulo (subprefeituras agrupadas) + região metropolitana, com as cores do painel. */
+export const ZONAS_SP = [
+  { id: "centro", nome: "Centro", cor: "#f97316" },
+  { id: "sul", nome: "Zona Sul", cor: "#2563eb" },
+  { id: "leste", nome: "Zona Leste", cor: "#dc2626" },
+  { id: "oeste", nome: "Zona Oeste", cor: "#16a34a" },
+  { id: "norte", nome: "Zona Norte", cor: "#7f1d1d" },
+  { id: "metropolitana", nome: "Região metropolitana", cor: "#eab308" },
+  { id: "interior", nome: "Interior e litoral de SP", cor: "#64748b" },
+  { id: "sem_endereco", nome: "Grande SP sem endereço (histórico)", cor: "#cbd5e1" },
+] as const;
+export type ZonaSP = (typeof ZONAS_SP)[number]["id"];
+
+/** Zona pelo CEP (faixas dos Correios): 01 centro · 02 norte · 03 e 080–084 leste · 04 sul · 05 oeste · demais 06–09 metropolitana · 11–19 interior/litoral. */
+export function zonaSpPorCep(cep: string | null | undefined): ZonaSP | null {
+  const d = String(cep ?? "").replace(/\D/g, ""); if (d.length < 5) return null;
+  const p2 = Number(d.slice(0, 2)), p3 = Number(d.slice(0, 3));
+  if (p2 === 1) return "centro"; if (p2 === 2) return "norte"; if (p2 === 3 || (p3 >= 80 && p3 <= 84)) return "leste";
+  if (p2 === 4) return "sul"; if (p2 === 5) return "oeste"; if (p2 >= 6 && p2 <= 9) return "metropolitana"; if (p2 >= 11 && p2 <= 19) return "interior";
+  return null;
+}
+type Anel = number[][]; type Geo = { type: "Polygon" | "MultiPolygon"; coordinates: any };
+function dentroAnel(pt: [number, number], anel: Anel) { // [lng, lat]
+  let dentro = false;
+  for (let i = 0, j = anel.length - 1; i < anel.length; j = i++) {
+    const [xi, yi] = anel[i], [xj, yj] = anel[j];
+    if ((yi > pt[1]) !== (yj > pt[1]) && pt[0] < ((xj - xi) * (pt[1] - yi)) / (yj - yi) + xi) dentro = !dentro;
+  }
+  return dentro;
+}
+export function pontoNoPoligono(lng: number, lat: number, g: Geo) {
+  const polis: Anel[][] = g.type === "Polygon" ? [g.coordinates] : g.coordinates;
+  return polis.some((p) => dentroAnel([lng, lat], p[0]) && !p.slice(1).some((buraco) => dentroAnel([lng, lat], buraco)));
+}
+/** Zona de São Paulo do envio: coordenada (polígonos) → CEP → região registrada. Só para envios do estado de SP. */
+export function zonaSpDoEnvio(p: PontoEntrega & { cep?: string | null }, poligonos: { zona: string; geometry: Geo }[]): ZonaSP {
+  if (p.lat != null && p.lng != null) { const z = poligonos.find((x) => pontoNoPoligono(p.lng!, p.lat!, x.geometry)); if (z) return z.zona as ZonaSP; }
+  const c = zonaSpPorCep(p.cep); if (c) return c;
+  if (p.lat != null && p.lng != null) return "interior";
+  return p.fora_sp || p.zona === "interior_sp" ? "interior" : "sem_endereco";
+}
