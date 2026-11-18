@@ -87,6 +87,17 @@ export function oportunidades(envios: Envio[], kmResidencia: number) {
 }
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
+/** Quem pode excluir uma solicitação de cotação: os mesmos papéis que o banco trata como gestão (is_gestor). */
+export function podeExcluirSolicitacao(role: string | null | undefined): boolean {
+  return role === "ADMINISTRADOR" || role === "GERENTE";
+}
+
+/** Mensagem amigável para a recusa do banco: solicitação que já virou ordem de serviço. */
+export function erroExclusaoSolicitacao(msg: string | null | undefined): string {
+  if (/ordem de servi/i.test(msg ?? "")) return "Esta solicitação já virou ordem de serviço. Exclua a ordem em Follow-up antes de excluir a solicitação.";
+  return msg || "Não foi possível excluir a solicitação.";
+}
+
 /** Fluxo de status da ordem de serviço (follow-up). */
 export const STATUS_ORDEM = ["programada", "coletada", "em_transito", "entregue", "ocorrencia", "cancelada"] as const;
 export const PROXIMOS: Record<string, string[]> = { programada: ["coletada", "cancelada"], coletada: ["em_transito", "entregue", "ocorrencia"], em_transito: ["entregue", "ocorrencia"], ocorrencia: ["em_transito", "entregue", "cancelada"], entregue: [], cancelada: [] };

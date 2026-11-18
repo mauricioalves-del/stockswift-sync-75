@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import * as XLSX from "xlsx";
 import { indicadoresLogistica, lerPlanilhaFretes, natureza } from "../src/lib/logistica";
+import { erroExclusaoSolicitacao, podeExcluirSolicitacao } from "../src/lib/tms";
 
 test("Lê envios, trechos do PJ e LATAM sem duplicar; natureza do frete", () => {
   const wb = XLSX.utils.book_new();
@@ -28,4 +29,12 @@ test("Lê envios, trechos do PJ e LATAM sem duplicar; natureza do frete", () => 
   expect(k.transf).toMatchObject({ qtd: 1, kg: 108.5 });
   expect(k.pj).toMatchObject({ valorKm: 96.6, fixo: 4000, residencia: 65, trechosResidencia: 1 });
   expect(natureza("Cortesia", "COMERCIAL", "CORTESIA")).toBe("venda");
+});
+
+test("Só administrador e gerente podem excluir solicitação; mensagem do banco fica amigável", () => {
+  expect(["ADMINISTRADOR", "GERENTE"].map(podeExcluirSolicitacao)).toEqual([true, true]);
+  expect(["COORDENADOR_CONTROLE", "INVENTARIANTE", "CONSULTA", "VENDEDOR", "OPERADOR_ESTOQUE", "DIRETOR_OPERACOES", "COORDENADOR_FINANCEIRO", "AUDITOR", null, undefined].map(podeExcluirSolicitacao)).toEqual(new Array(10).fill(false));
+  expect(erroExclusaoSolicitacao('A solicitação #12 já virou ordem de serviço. Exclua a ordem antes de excluir a solicitação.')).toContain("Follow-up");
+  expect(erroExclusaoSolicitacao("duplicate key")).toBe("duplicate key");
+  expect(erroExclusaoSolicitacao(null)).toBe("Não foi possível excluir a solicitação.");
 });

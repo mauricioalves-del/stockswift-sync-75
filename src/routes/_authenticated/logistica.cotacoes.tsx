@@ -2,13 +2,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Sparkles, Trophy } from "lucide-react";
+import { Loader2, Plus, Sparkles, Trash2, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { Secao } from "@/components/abast-dash/comum";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useRole } from "@/hooks/useRole";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { brl, Campo, dataBR, Hero, inputCls, nf, sb, Status } from "@/components/logistica/ui";
-import { cotarPorTabelas, ZONA_ROTULO, zonaPorCep, type Zona } from "@/lib/tms";
+import { cotarPorTabelas, erroExclusaoSolicitacao, podeExcluirSolicitacao, ZONA_ROTULO, zonaPorCep, type Zona } from "@/lib/tms";
 import { buscarCep, formatarCep, soDigitosCep } from "@/lib/cep";
 
 export const Route = createFileRoute("/_authenticated/logistica/cotacoes")({ component: Cotacoes, head: () => ({ meta: [{ title: "Cotações de transporte — Controle Logístico" }] }) });
@@ -29,6 +31,7 @@ async function geocodificar(cep: string, cidade: string, uf: string, endereco: s
 
 function Cotacoes() {
   const qc = useQueryClient();
+  const { role } = useRole(); const podeExcluir = podeExcluirSolicitacao(role);
   const q = useQuery({ queryKey: ["tms-cotacoes"], queryFn: async () => {
     const [s, c, p, t, e, cc] = await Promise.all([
       sb.from("log_solicitacoes").select("*").order("numero", { ascending: false }).limit(300), sb.from("log_cotacoes").select("*"), sb.from("log_prestadores").select("*").order("nome"),
@@ -50,6 +53,8 @@ function Cotacoes() {
   }
   const [manual, setManual] = useState({ prestador_id: "", modal: "aplicativo", frete: "", embalagem: "", prazo: "" });
   const [filtro, setFiltro] = useState("cotacao");
+  const [paraExcluir, setParaExcluir] = useState<any | null>(null); const [excluindo, setExcluindo] = useState(false);
+  const nExcluir = paraExcluir ? (q.data?.cot ?? []).filter((c) => c.solicitacao_id === paraExcluir.id).length : 0;
   const atual = q.data?.sol.find((s) => s.id === sel);
   const cots = useMemo(() => (q.data?.cot ?? []).filter((c) => c.solicitacao_id === sel).sort((a, b) => +a.total - +b.total), [q.data, sel]);
   const nomeP = (id: string) => q.data?.pres.find((p) => p.id === id)?.nome ?? "—";
@@ -84,6 +89,17 @@ function Cotacoes() {
     const r = await sb.rpc("log_escolher_cotacao", { p_cotacao: id, p_justificativa: just }); if (r.error) return toast.error(r.error.message);
     toast.success("Cotação aprovada — ordem de serviço criada em Follow-up."); recarregar();
   }
+  async function excluir() {
+    const alvo = paraExcluir; if (!alvo) return;
+    setExcluindo(true);
+    const { data, error } = await sb.from("log_solicitacoes").delete().eq("id", alvo.id).select("id");
+    setExcluindo(false);
+    if (error) return toast.error(erroExclusaoSolicitacao(error.message));
+    if (!data?.length) return toast.error("Só administradores e gerentes podem excluir solicitações.");
+    toast.success(`Solicitação #${alvo.numero} excluída.`);
+    if (sel === alvo.id) setSel(null);
+    setParaExcluir(null); recarregar();
+  }
   const lista = (q.data?.sol ?? []).filter((s) => filtro === "todas" || s.status === filtro);
 
   return (
@@ -95,10 +111,13 @@ function Cotacoes() {
         <Secao letra="A" titulo="Solicitações">
           <div className="mb-2 flex flex-wrap gap-1">{["cotacao", "aprovada", "em_transporte", "entregue", "todas"].map((s) => <button key={s} onClick={() => setFiltro(s)} className={`h-7 rounded-md border px-2 text-xs font-semibold ${filtro === s ? "bg-slate-900 text-white" : "bg-background"}`}>{s === "todas" ? "Todas" : s === "cotacao" ? "Em cotação" : s === "aprovada" ? "Aprovadas" : s === "em_transporte" ? "Em transporte" : "Entregues"}</button>)}</div>
           <div className="max-h-[560px] space-y-1.5 overflow-auto">{lista.map((s) => { const n = (q.data?.cot ?? []).filter((c) => c.solicitacao_id === s.id).length; return (
-            <button key={s.id} onClick={() => setSel(s.id)} className={`w-full rounded-lg border p-2 text-left text-sm hover:bg-muted ${sel === s.id ? "border-slate-900 ring-1 ring-slate-900" : ""}`}>
+            <div key={s.id} className={`flex items-stretch overflow-hidden rounded-lg border ${sel === s.id ? "border-slate-900 ring-1 ring-slate-900" : ""}`}>
+              <button onClick={() => setSel(s.id)} className="flex-1 p-2 text-left text-sm hover:bg-muted">
               <div className="flex items-center justify-between gap-2"><b>#{s.numero} · {TIPOS[s.tipo]?.[0]}</b><Status s={s.status} /></div>
               <div className="text-xs text-muted-foreground">{s.cliente || s.destino_cidade || "—"} · {ZONA_ROTULO[s.zona as Zona] ?? "—"} · {nf(s.peso_kg, 1)} kg · {s.centro_custo}</div>
-              <div className="text-xs text-muted-foreground">{n} cotação(ões) · limite {dataBR(s.data_limite)}</div></button>); })}
+              <div className="text-xs text-muted-foreground">{n} cotação(ões) · limite {dataBR(s.data_limite)}</div></button>
+              {podeExcluir && <button type="button" aria-label={`Excluir solicitação ${s.numero}`} title="Excluir solicitação" onClick={() => setParaExcluir(s)} className="grid w-9 shrink-0 place-items-center border-l text-muted-foreground hover:bg-red-50 hover:text-red-700"><Trash2 className="size-4" /></button>}
+            </div>); })}
             {!lista.length && <p className="py-6 text-center text-sm text-muted-foreground">Nenhuma solicitação neste filtro.</p>}</div>
         </Secao>
         <Secao letra="B" titulo={atual ? `Cotações da solicitação #${atual.numero}` : "Cotações"}>
@@ -148,6 +167,21 @@ function Cotacoes() {
           <div className="flex justify-end"><Button onClick={criar}>Abrir e cotar</Button></div>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={!!paraExcluir} onOpenChange={(o) => { if (!o && !excluindo) setParaExcluir(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir solicitação {paraExcluir ? `#${paraExcluir.numero}` : ""}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {paraExcluir ? <>{paraExcluir.cliente || paraExcluir.destino_cidade || "Sem cliente"} · {ZONA_ROTULO[paraExcluir.zona as Zona] ?? "—"}<br />
+                {nExcluir} cotação(ões) desta solicitação também serão excluídas, sem como recuperar. Se a solicitação já virou ordem de serviço, ela não será excluída.</> : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={excluindo}>Manter</AlertDialogCancel>
+            <AlertDialogAction disabled={excluindo} onClick={(e) => { e.preventDefault(); excluir(); }} className="bg-red-600 text-white hover:bg-red-700">{excluindo ? <Loader2 className="mr-1 size-4 animate-spin" /> : null}Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

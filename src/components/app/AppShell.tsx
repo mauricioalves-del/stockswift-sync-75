@@ -190,7 +190,7 @@ const subPodeVer = (i: NavItem | NavSubGroup, canSee: (x: NavItem) => boolean) =
 const PORTAL_PARCEIRO = "/logistica/prestador";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { role, isAdmin, canWrite } = useRole();
+  const { role, isAdmin, canWrite, loading: roleCarregando } = useRole();
   const perms = usePermissions();
   const isCoord = role === "COORDENADOR_CONTROLE";
   const navigate = useNavigate();
@@ -259,7 +259,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const parceiroQ = useQuery({ queryKey: ["meu-prestador"], queryFn: async () => ((await supabase.rpc("log_meu_prestador" as any)).data as string | null) ?? null, staleTime: 5 * 60_000 });
-  const parceiro = !isAdmin && !!parceiroQ.data;
+  // Parceiro = vinculado a um prestador e não é gestão. Só decide depois que o papel chegou:
+  // se a consulta do prestador responder antes da do papel, o gestor era empurrado para o portal.
+  const gestor = isAdmin || role === "GERENTE";
+  const parceiro = !roleCarregando && !gestor && !!parceiroQ.data;
   const pathAtual = useRouterState({ select: (s) => s.location.pathname });
   useEffect(() => { if (parceiro && pathAtual !== PORTAL_PARCEIRO) navigate({ to: PORTAL_PARCEIRO, replace: true }); }, [parceiro, pathAtual, navigate]);
 

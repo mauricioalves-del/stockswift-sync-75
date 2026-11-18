@@ -519,6 +519,13 @@
       "when": 1795027567453,
       "tag": "0073_log_origem_fabrica",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1795031937906,
+      "tag": "0074_log_solicitacoes_guarda_exclusao",
+      "breakpoints": true
     }
   ]
 }
