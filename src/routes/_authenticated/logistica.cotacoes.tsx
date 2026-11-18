@@ -2,13 +2,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Sparkles, Trophy } from "lucide-react";
+import { Loader2, Plus, Sparkles, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { Secao } from "@/components/abast-dash/comum";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { brl, Campo, dataBR, Hero, inputCls, nf, sb, Status } from "@/components/logistica/ui";
 import { cotarPorTabelas, ZONA_ROTULO, zonaPorCep, type Zona } from "@/lib/tms";
+import { buscarCep, formatarCep, soDigitosCep } from "@/lib/cep";
 
 export const Route = createFileRoute("/_authenticated/logistica/cotacoes")({ component: Cotacoes, head: () => ({ meta: [{ title: "Cotações de transporte — Controle Logístico" }] }) });
 
@@ -36,6 +37,17 @@ function Cotacoes() {
     return { sol: s.data as any[], cot: c.data as any[], pres: p.data as any[], tab: (t.data as any[]).map((x) => ({ ...x, valor_fixo: +x.valor_fixo, valor_km: +x.valor_km, valor_kg: +x.valor_kg, minimo: +x.minimo, prazo_dias: x.prazo_dias == null ? null : +x.prazo_dias })), emb: (e.data as any[]).map((x) => ({ ...x, custo: +x.custo, capacidade_kg: x.capacidade_kg == null ? null : +x.capacidade_kg })), cc: ((cc.data ?? []) as any[]).map((x) => x.centro_custo as string) };
   } });
   const [nova, setNova] = useState(false); const [f, setF] = useState(vazio); const [sel, setSel] = useState<string | null>(null);
+  const [buscandoCep, setBuscandoCep] = useState(false);
+  async function mudarCep(v: string) {
+    const fmt = formatarCep(v); setF((f) => ({ ...f, destino_cep: fmt, zona: "" }));
+    if (soDigitosCep(fmt).length !== 8) return;
+    setBuscandoCep(true);
+    const e = await buscarCep(fmt);
+    setBuscandoCep(false);
+    if (!e) return toast.error("CEP não encontrado. Confira o número ou preencha o endereço manualmente.");
+    setF((f) => (soDigitosCep(f.destino_cep) === e.cep ? { ...f, destino_endereco: e.endereco || f.destino_endereco, destino_cidade: e.cidade, destino_uf: e.uf, zona: "" } : f));
+    if (!e.endereco) toast.message("CEP geral da cidade: informe a rua manualmente.");
+  }
   const [manual, setManual] = useState({ prestador_id: "", modal: "aplicativo", frete: "", embalagem: "", prazo: "" });
   const [filtro, setFiltro] = useState("cotacao");
   const atual = q.data?.sol.find((s) => s.id === sel);
@@ -122,7 +134,7 @@ function Cotacoes() {
             <Campo l="Valor do pedido (R$)"><input className={inputCls} value={f.valor_pedido} onChange={(e) => setF({ ...f, valor_pedido: e.target.value })} /></Campo>
             <Campo l="Origem" className="md:col-span-2"><input className={inputCls} value={f.origem} onChange={(e) => setF({ ...f, origem: e.target.value })} /></Campo>
             <Campo l="Endereço de entrega" className="md:col-span-2"><input className={inputCls} value={f.destino_endereco} onChange={(e) => setF({ ...f, destino_endereco: e.target.value })} /></Campo>
-            <Campo l="CEP"><input className={inputCls} value={f.destino_cep} onChange={(e) => setF({ ...f, destino_cep: e.target.value, zona: "" })} /></Campo>
+            <Campo l="CEP"><div className="relative"><input className={inputCls} inputMode="numeric" placeholder="00000-000" value={f.destino_cep} onChange={(e) => mudarCep(e.target.value)} />{buscandoCep && <Loader2 aria-label="Buscando CEP" className="absolute right-2 top-1/2 mt-0.5 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />}</div></Campo>
             <Campo l="Cidade"><input className={inputCls} value={f.destino_cidade} onChange={(e) => setF({ ...f, destino_cidade: e.target.value })} /></Campo>
             <Campo l="UF"><input className={inputCls} maxLength={2} value={f.destino_uf} onChange={(e) => setF({ ...f, destino_uf: e.target.value.toUpperCase(), zona: "" })} /></Campo>
             <Campo l="Zona"><select className={inputCls} value={f.zona || (f.tipo === "transferencia" ? "para_sp" : zonaPorCep(f.destino_cep, f.destino_uf) ?? "")} onChange={(e) => setF({ ...f, zona: e.target.value as Zona })}>{(Object.keys(ZONA_ROTULO) as Zona[]).map((z) => <option key={z} value={z}>{ZONA_ROTULO[z]}</option>)}</select></Campo>
