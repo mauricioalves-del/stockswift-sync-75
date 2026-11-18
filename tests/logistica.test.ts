@@ -24,7 +24,7 @@ test("Lê envios, trechos do PJ e LATAM sem duplicar; natureza do frete", () => 
   expect(r.envios.length).toBe(4); // a linha duplicada da LATAM fica de fora
   expect(r.trechos.length).toBe(2);
   expect(r.envios.map((e) => e.natureza)).toEqual(["venda", "compra", "interno", "interno"]);
-  const k = indicadoresLogistica(r.envios, r.trechos, [{ prestador: "Nelson", mes: "2026-08", valor: 4000, rateio: {} }], "2026-08");
+  const k = indicadoresLogistica(r.envios, r.trechos, [{ prestador: "Nelson", mes: "2026-08", valor: 4000, rateio: {} }], "2026-08-01", "2026-08-31");
   expect(k.transf).toMatchObject({ qtd: 1, kg: 108.5 });
   expect(k.pj).toMatchObject({ valorKm: 96.6, fixo: 4000, residencia: 65, trechosResidencia: 1 });
   expect(natureza("Cortesia", "COMERCIAL", "CORTESIA")).toBe("venda");
