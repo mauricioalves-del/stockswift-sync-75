@@ -79,6 +79,7 @@ import { Route as AuthenticatedGestaoModelosChecklistRouteImport } from './route
 import { Route as AuthenticatedGestaoPlanejamentoRouteImport } from './routes/_authenticated/gestao.planejamento'
 import { Route as AuthenticatedGestaoPlanoIntegracaoRouteImport } from './routes/_authenticated/gestao.plano-integracao'
 import { Route as AuthenticatedGestaoPreInventarioRouteImport } from './routes/_authenticated/gestao.pre-inventario'
+import { Route as AuthenticatedLogisticaIndexRouteImport } from './routes/_authenticated/logistica.index'
 import { Route as AuthenticatedMissoesIndexRouteImport } from './routes/_authenticated/missoes.index'
 import { Route as AuthenticatedMissoesIdRouteImport } from './routes/_authenticated/missoes.$id'
 import { Route as AuthenticatedObsoletosAcoesRouteImport } from './routes/_authenticated/obsoletos.acoes'
@@ -523,6 +524,12 @@ const AuthenticatedGestaoPreInventarioRoute =
     path: '/gestao/pre-inventario',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedLogisticaIndexRoute =
+  AuthenticatedLogisticaIndexRouteImport.update({
+    id: '/logistica/',
+    path: '/logistica/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMissoesIndexRoute =
   AuthenticatedMissoesIndexRouteImport.update({
     id: '/missoes/',
@@ -883,6 +890,7 @@ export interface FileRoutesByFullPath {
   '/api/public/import-recebimento-transferencia': typeof ApiPublicImportRecebimentoTransferenciaRoute
   '/baixas/': typeof AuthenticatedBaixasIndexRoute
   '/config/': typeof AuthenticatedConfigIndexRoute
+  '/logistica/': typeof AuthenticatedLogisticaIndexRoute
   '/missoes/': typeof AuthenticatedMissoesIndexRoute
   '/atlas/assinatura-fechamento/$id': typeof AuthenticatedAtlasAssinaturaFechamentoIdRoute
   '/atlas/modulo/$id': typeof AuthenticatedAtlasModuloIdRoute
@@ -997,6 +1005,7 @@ export interface FileRoutesByTo {
   '/api/public/import-recebimento-transferencia': typeof ApiPublicImportRecebimentoTransferenciaRoute
   '/baixas': typeof AuthenticatedBaixasIndexRoute
   '/config': typeof AuthenticatedConfigIndexRoute
+  '/logistica': typeof AuthenticatedLogisticaIndexRoute
   '/missoes': typeof AuthenticatedMissoesIndexRoute
   '/atlas/assinatura-fechamento/$id': typeof AuthenticatedAtlasAssinaturaFechamentoIdRoute
   '/atlas/modulo/$id': typeof AuthenticatedAtlasModuloIdRoute
@@ -1113,6 +1122,7 @@ export interface FileRoutesById {
   '/api/public/import-recebimento-transferencia': typeof ApiPublicImportRecebimentoTransferenciaRoute
   '/_authenticated/baixas/': typeof AuthenticatedBaixasIndexRoute
   '/_authenticated/config/': typeof AuthenticatedConfigIndexRoute
+  '/_authenticated/logistica/': typeof AuthenticatedLogisticaIndexRoute
   '/_authenticated/missoes/': typeof AuthenticatedMissoesIndexRoute
   '/_authenticated/atlas/assinatura-fechamento/$id': typeof AuthenticatedAtlasAssinaturaFechamentoIdRoute
   '/_authenticated/atlas/modulo/$id': typeof AuthenticatedAtlasModuloIdRoute
@@ -1229,6 +1239,7 @@ export interface FileRouteTypes {
     | '/api/public/import-recebimento-transferencia'
     | '/baixas/'
     | '/config/'
+    | '/logistica/'
     | '/missoes/'
     | '/atlas/assinatura-fechamento/$id'
     | '/atlas/modulo/$id'
@@ -1343,6 +1354,7 @@ export interface FileRouteTypes {
     | '/api/public/import-recebimento-transferencia'
     | '/baixas'
     | '/config'
+    | '/logistica'
     | '/missoes'
     | '/atlas/assinatura-fechamento/$id'
     | '/atlas/modulo/$id'
@@ -1458,6 +1470,7 @@ export interface FileRouteTypes {
     | '/api/public/import-recebimento-transferencia'
     | '/_authenticated/baixas/'
     | '/_authenticated/config/'
+    | '/_authenticated/logistica/'
     | '/_authenticated/missoes/'
     | '/_authenticated/atlas/assinatura-fechamento/$id'
     | '/_authenticated/atlas/modulo/$id'
@@ -1980,6 +1993,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGestaoPreInventarioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/logistica/': {
+      id: '/_authenticated/logistica/'
+      path: '/logistica'
+      fullPath: '/logistica/'
+      preLoaderRoute: typeof AuthenticatedLogisticaIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/missoes/': {
       id: '/_authenticated/missoes/'
       path: '/missoes'
@@ -2389,6 +2409,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSuprimentosRiscoObsoletosRoute: typeof AuthenticatedSuprimentosRiscoObsoletosRoute
   AuthenticatedBaixasIndexRoute: typeof AuthenticatedBaixasIndexRoute
   AuthenticatedConfigIndexRoute: typeof AuthenticatedConfigIndexRoute
+  AuthenticatedLogisticaIndexRoute: typeof AuthenticatedLogisticaIndexRoute
   AuthenticatedMissoesIndexRoute: typeof AuthenticatedMissoesIndexRoute
   AuthenticatedAtlasAssinaturaFechamentoIdRoute: typeof AuthenticatedAtlasAssinaturaFechamentoIdRoute
   AuthenticatedAtlasModuloIdRoute: typeof AuthenticatedAtlasModuloIdRoute
@@ -2522,6 +2543,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedSuprimentosRiscoObsoletosRoute,
   AuthenticatedBaixasIndexRoute: AuthenticatedBaixasIndexRoute,
   AuthenticatedConfigIndexRoute: AuthenticatedConfigIndexRoute,
+  AuthenticatedLogisticaIndexRoute: AuthenticatedLogisticaIndexRoute,
   AuthenticatedMissoesIndexRoute: AuthenticatedMissoesIndexRoute,
   AuthenticatedAtlasAssinaturaFechamentoIdRoute:
     AuthenticatedAtlasAssinaturaFechamentoIdRoute,
