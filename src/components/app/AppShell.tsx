@@ -187,6 +187,8 @@ const casa = (to: string, pathname: string) => pathname === to || (to !== "/dash
 const itemAtivo = (to: string, pathname: string) => casa(to, pathname) && !TODOS_DESTINOS.some((o) => o.length > to.length && o.startsWith(to + "/") && casa(o, pathname));
 const subPodeVer = (i: NavItem | NavSubGroup, canSee: (x: NavItem) => boolean) => isSubGroup(i) ? i.items.some(canSee) : canSee(i);
 
+const PORTAL_PARCEIRO = "/logistica/prestador";
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { role, isAdmin, canWrite } = useRole();
   const perms = usePermissions();
@@ -256,6 +258,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     navigate({ to: "/auth", replace: true });
   }
 
+  const parceiroQ = useQuery({ queryKey: ["meu-prestador"], queryFn: async () => ((await supabase.rpc("log_meu_prestador" as any)).data as string | null) ?? null, staleTime: 5 * 60_000 });
+  const parceiro = !isAdmin && !!parceiroQ.data;
+  const pathAtual = useRouterState({ select: (s) => s.location.pathname });
+  useEffect(() => { if (parceiro && pathAtual !== PORTAL_PARCEIRO) navigate({ to: PORTAL_PARCEIRO, replace: true }); }, [parceiro, pathAtual, navigate]);
+
   // Fallback por papel — usado apenas quando o item não estiver mapeado na matriz.
   const isGerente = role === "GERENTE";
   const canByRole = (r: Access) =>
@@ -264,6 +271,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const canSee = (item: NavItem) => {
     if (isAdmin) return true;
+    // Parceiro (usuário vinculado a um prestador): acesso exclusivo ao Portal do prestador.
+    if (parceiro) return item.to === PORTAL_PARCEIRO;
     if (item.role === "somenteAdmin") return false;
     if (perms.isMapped(item.to)) return perms.canView(item.to);
     return canByRole(item.role);
@@ -278,7 +287,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         .filter((i) => subPodeVer(i, canSee)),
     } : n),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [canWrite, isAdmin, isCoord, perms.loading, perms.canView]);
+    [canWrite, isAdmin, isCoord, perms.loading, perms.canView, parceiro]);
 
   if (approvalQ.data && approvalQ.data.aprovado === false) {
     return (

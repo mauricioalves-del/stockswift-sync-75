@@ -5334,6 +5334,84 @@ export type Database = {
           },
         ]
       }
+      log_itinerarios: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: string
+          descricao: string | null
+          duracao_min: number | null
+          finalizado_em: string | null
+          geometria: Json | null
+          id: string
+          iniciado_em: string | null
+          km_total: number | null
+          observacao: string | null
+          ordem_id: string | null
+          origem: Json
+          paradas: Json
+          prestador_id: string
+          retorno_origem: boolean
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          descricao?: string | null
+          duracao_min?: number | null
+          finalizado_em?: string | null
+          geometria?: Json | null
+          id?: string
+          iniciado_em?: string | null
+          km_total?: number | null
+          observacao?: string | null
+          ordem_id?: string | null
+          origem: Json
+          paradas?: Json
+          prestador_id: string
+          retorno_origem?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          descricao?: string | null
+          duracao_min?: number | null
+          finalizado_em?: string | null
+          geometria?: Json | null
+          id?: string
+          iniciado_em?: string | null
+          km_total?: number | null
+          observacao?: string | null
+          ordem_id?: string | null
+          origem?: Json
+          paradas?: Json
+          prestador_id?: string
+          retorno_origem?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "log_itinerarios_ordem_id_fkey"
+            columns: ["ordem_id"]
+            isOneToOne: false
+            referencedRelation: "log_ordens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_itinerarios_prestador_id_fkey"
+            columns: ["prestador_id"]
+            isOneToOne: false
+            referencedRelation: "log_prestadores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       log_lancamentos: {
         Row: {
           aprovado_em: string | null
@@ -8671,6 +8749,7 @@ export type Database = {
         Returns: string
       }
       log_meu_prestador: { Args: never; Returns: string }
+      log_origem_fabrica: { Args: never; Returns: Json }
       log_sincronizar_envio: { Args: { p_ordem: string }; Returns: undefined }
       pendencias_assinatura_inventario: {
         Args: never

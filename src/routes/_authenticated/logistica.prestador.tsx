@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { brl, dataBR, Hero, ROT, sb, Status } from "@/components/logistica/ui";
 import { NovoLancamento, TIPOS_LANC } from "@/components/logistica/Lancamentos";
 import { PROXIMOS } from "@/lib/tms";
+import { Itinerarios } from "@/components/logistica/Itinerarios";
 
 export const Route = createFileRoute("/_authenticated/logistica/prestador")({ component: Portal, head: () => ({ meta: [{ title: "Portal do prestador — Controle Logístico" }] }) });
 
@@ -34,8 +35,9 @@ function Portal() {
           <tbody>{d.ord.map((o: any) => <tr key={o.id} className="border-t"><td className="px-2 py-1">OS {o.numero}</td><td className="px-2 py-1">{dataBR(o.previsao)}</td><td className="px-2 py-1">{brl(o.valor_aprovado)}</td><td className="px-2 py-1"><Status s={o.status} /></td>
             <td className="px-2 py-1"><div className="flex gap-1">{(PROXIMOS[o.status] ?? []).filter((s) => s !== "cancelada").map((s) => <Button key={s} size="sm" variant="outline" onClick={() => mudar(o, s)}>{ROT[s]}</Button>)}</div></td></tr>)}</tbody></table>
       </Secao>
-      <Secao letra="B" titulo="Lançar custo ou cobrança"><NovoLancamento prestadorId={d.id} ordens={d.ord.filter((o: any) => o.status !== "cancelada").map((o: any) => ({ id: o.id, numero: o.numero, rotulo: dataBR(o.previsao) }))} ccs={d.cc} onFim={r} /></Secao>
-      <Secao letra="C" titulo="Meus lançamentos">
+      <Secao letra="B" titulo="Itinerário de entrega · km automático"><Itinerarios prestadorId={d.id} ordens={d.ord.filter((o: any) => o.status !== "cancelada" && o.status !== "entregue").map((o: any) => ({ id: o.id, numero: o.numero }))} /></Secao>
+      <Secao letra="C" titulo="Lançar custo ou cobrança"><NovoLancamento prestadorId={d.id} ordens={d.ord.filter((o: any) => o.status !== "cancelada").map((o: any) => ({ id: o.id, numero: o.numero, rotulo: dataBR(o.previsao) }))} ccs={d.cc} onFim={r} /></Secao>
+      <Secao letra="D" titulo="Meus lançamentos">
         <table className="w-full text-sm"><thead className="bg-muted text-xs"><tr>{["Data", "Tipo", "Descrição", "Nota", "Valor", "Status"].map((h) => <th key={h} className="px-2 py-1 text-left">{h}</th>)}</tr></thead>
           <tbody>{d.lan.map((l: any) => <tr key={l.id} className="border-t"><td className="px-2 py-1">{dataBR(l.data)}</td><td className="px-2 py-1">{TIPOS_LANC[l.tipo]}</td><td className="px-2 py-1">{l.descricao}</td><td className="px-2 py-1">{l.nota_numero ?? (l.nota_path ? "anexada" : "—")}</td><td className="px-2 py-1">{brl(l.valor)}</td><td className="px-2 py-1"><Status s={l.status} />{l.motivo && <span className="ml-1 text-xs text-muted-foreground">{l.motivo}</span>}</td></tr>)}</tbody></table>
       </Secao>

@@ -505,6 +505,20 @@
       "when": 1794970000000,
       "tag": "0071_logistica_geo",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1795027450253,
+      "tag": "0072_log_itinerarios",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1795027567453,
+      "tag": "0073_log_origem_fabrica",
+      "breakpoints": true
     }
   ]
 }

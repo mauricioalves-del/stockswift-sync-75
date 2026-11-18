@@ -80,6 +80,10 @@ import { Route as AuthenticatedGestaoPlanejamentoRouteImport } from './routes/_a
 import { Route as AuthenticatedGestaoPlanoIntegracaoRouteImport } from './routes/_authenticated/gestao.plano-integracao'
 import { Route as AuthenticatedGestaoPreInventarioRouteImport } from './routes/_authenticated/gestao.pre-inventario'
 import { Route as AuthenticatedLogisticaIndexRouteImport } from './routes/_authenticated/logistica.index'
+import { Route as AuthenticatedLogisticaCadastrosRouteImport } from './routes/_authenticated/logistica.cadastros'
+import { Route as AuthenticatedLogisticaCotacoesRouteImport } from './routes/_authenticated/logistica.cotacoes'
+import { Route as AuthenticatedLogisticaOrdensRouteImport } from './routes/_authenticated/logistica.ordens'
+import { Route as AuthenticatedLogisticaPrestadorRouteImport } from './routes/_authenticated/logistica.prestador'
 import { Route as AuthenticatedMissoesIndexRouteImport } from './routes/_authenticated/missoes.index'
 import { Route as AuthenticatedMissoesIdRouteImport } from './routes/_authenticated/missoes.$id'
 import { Route as AuthenticatedObsoletosAcoesRouteImport } from './routes/_authenticated/obsoletos.acoes'
@@ -530,6 +534,30 @@ const AuthenticatedLogisticaIndexRoute =
     path: '/logistica/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedLogisticaCadastrosRoute =
+  AuthenticatedLogisticaCadastrosRouteImport.update({
+    id: '/logistica/cadastros',
+    path: '/logistica/cadastros',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedLogisticaCotacoesRoute =
+  AuthenticatedLogisticaCotacoesRouteImport.update({
+    id: '/logistica/cotacoes',
+    path: '/logistica/cotacoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedLogisticaOrdensRoute =
+  AuthenticatedLogisticaOrdensRouteImport.update({
+    id: '/logistica/ordens',
+    path: '/logistica/ordens',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedLogisticaPrestadorRoute =
+  AuthenticatedLogisticaPrestadorRouteImport.update({
+    id: '/logistica/prestador',
+    path: '/logistica/prestador',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMissoesIndexRoute =
   AuthenticatedMissoesIndexRouteImport.update({
     id: '/missoes/',
@@ -856,6 +884,10 @@ export interface FileRoutesByFullPath {
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/gestao/plano-integracao': typeof AuthenticatedGestaoPlanoIntegracaoRoute
   '/gestao/pre-inventario': typeof AuthenticatedGestaoPreInventarioRoute
+  '/logistica/cadastros': typeof AuthenticatedLogisticaCadastrosRoute
+  '/logistica/cotacoes': typeof AuthenticatedLogisticaCotacoesRoute
+  '/logistica/ordens': typeof AuthenticatedLogisticaOrdensRoute
+  '/logistica/prestador': typeof AuthenticatedLogisticaPrestadorRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/obsoletos/acoes': typeof AuthenticatedObsoletosAcoesRoute
   '/obsoletos/dashboard': typeof AuthenticatedObsoletosDashboardRoute
@@ -971,6 +1003,10 @@ export interface FileRoutesByTo {
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/gestao/plano-integracao': typeof AuthenticatedGestaoPlanoIntegracaoRoute
   '/gestao/pre-inventario': typeof AuthenticatedGestaoPreInventarioRoute
+  '/logistica/cadastros': typeof AuthenticatedLogisticaCadastrosRoute
+  '/logistica/cotacoes': typeof AuthenticatedLogisticaCotacoesRoute
+  '/logistica/ordens': typeof AuthenticatedLogisticaOrdensRoute
+  '/logistica/prestador': typeof AuthenticatedLogisticaPrestadorRoute
   '/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/obsoletos/acoes': typeof AuthenticatedObsoletosAcoesRoute
   '/obsoletos/dashboard': typeof AuthenticatedObsoletosDashboardRoute
@@ -1088,6 +1124,10 @@ export interface FileRoutesById {
   '/_authenticated/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/_authenticated/gestao/plano-integracao': typeof AuthenticatedGestaoPlanoIntegracaoRoute
   '/_authenticated/gestao/pre-inventario': typeof AuthenticatedGestaoPreInventarioRoute
+  '/_authenticated/logistica/cadastros': typeof AuthenticatedLogisticaCadastrosRoute
+  '/_authenticated/logistica/cotacoes': typeof AuthenticatedLogisticaCotacoesRoute
+  '/_authenticated/logistica/ordens': typeof AuthenticatedLogisticaOrdensRoute
+  '/_authenticated/logistica/prestador': typeof AuthenticatedLogisticaPrestadorRoute
   '/_authenticated/missoes/$id': typeof AuthenticatedMissoesIdRoute
   '/_authenticated/obsoletos/acoes': typeof AuthenticatedObsoletosAcoesRoute
   '/_authenticated/obsoletos/dashboard': typeof AuthenticatedObsoletosDashboardRoute
@@ -1205,6 +1245,10 @@ export interface FileRouteTypes {
     | '/gestao/planejamento'
     | '/gestao/plano-integracao'
     | '/gestao/pre-inventario'
+    | '/logistica/cadastros'
+    | '/logistica/cotacoes'
+    | '/logistica/ordens'
+    | '/logistica/prestador'
     | '/missoes/$id'
     | '/obsoletos/acoes'
     | '/obsoletos/dashboard'
@@ -1320,6 +1364,10 @@ export interface FileRouteTypes {
     | '/gestao/planejamento'
     | '/gestao/plano-integracao'
     | '/gestao/pre-inventario'
+    | '/logistica/cadastros'
+    | '/logistica/cotacoes'
+    | '/logistica/ordens'
+    | '/logistica/prestador'
     | '/missoes/$id'
     | '/obsoletos/acoes'
     | '/obsoletos/dashboard'
@@ -1436,6 +1484,10 @@ export interface FileRouteTypes {
     | '/_authenticated/gestao/planejamento'
     | '/_authenticated/gestao/plano-integracao'
     | '/_authenticated/gestao/pre-inventario'
+    | '/_authenticated/logistica/cadastros'
+    | '/_authenticated/logistica/cotacoes'
+    | '/_authenticated/logistica/ordens'
+    | '/_authenticated/logistica/prestador'
     | '/_authenticated/missoes/$id'
     | '/_authenticated/obsoletos/acoes'
     | '/_authenticated/obsoletos/dashboard'
@@ -2000,6 +2052,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLogisticaIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/logistica/cadastros': {
+      id: '/_authenticated/logistica/cadastros'
+      path: '/logistica/cadastros'
+      fullPath: '/logistica/cadastros'
+      preLoaderRoute: typeof AuthenticatedLogisticaCadastrosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/logistica/cotacoes': {
+      id: '/_authenticated/logistica/cotacoes'
+      path: '/logistica/cotacoes'
+      fullPath: '/logistica/cotacoes'
+      preLoaderRoute: typeof AuthenticatedLogisticaCotacoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/logistica/ordens': {
+      id: '/_authenticated/logistica/ordens'
+      path: '/logistica/ordens'
+      fullPath: '/logistica/ordens'
+      preLoaderRoute: typeof AuthenticatedLogisticaOrdensRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/logistica/prestador': {
+      id: '/_authenticated/logistica/prestador'
+      path: '/logistica/prestador'
+      fullPath: '/logistica/prestador'
+      preLoaderRoute: typeof AuthenticatedLogisticaPrestadorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/missoes/': {
       id: '/_authenticated/missoes/'
       path: '/missoes'
@@ -2384,6 +2464,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGestaoPlanejamentoRoute: typeof AuthenticatedGestaoPlanejamentoRoute
   AuthenticatedGestaoPlanoIntegracaoRoute: typeof AuthenticatedGestaoPlanoIntegracaoRoute
   AuthenticatedGestaoPreInventarioRoute: typeof AuthenticatedGestaoPreInventarioRoute
+  AuthenticatedLogisticaCadastrosRoute: typeof AuthenticatedLogisticaCadastrosRoute
+  AuthenticatedLogisticaCotacoesRoute: typeof AuthenticatedLogisticaCotacoesRoute
+  AuthenticatedLogisticaOrdensRoute: typeof AuthenticatedLogisticaOrdensRoute
+  AuthenticatedLogisticaPrestadorRoute: typeof AuthenticatedLogisticaPrestadorRoute
   AuthenticatedMissoesIdRoute: typeof AuthenticatedMissoesIdRoute
   AuthenticatedObsoletosAcoesRoute: typeof AuthenticatedObsoletosAcoesRoute
   AuthenticatedObsoletosDashboardRoute: typeof AuthenticatedObsoletosDashboardRoute
@@ -2511,6 +2595,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedGestaoPlanoIntegracaoRoute:
     AuthenticatedGestaoPlanoIntegracaoRoute,
   AuthenticatedGestaoPreInventarioRoute: AuthenticatedGestaoPreInventarioRoute,
+  AuthenticatedLogisticaCadastrosRoute: AuthenticatedLogisticaCadastrosRoute,
+  AuthenticatedLogisticaCotacoesRoute: AuthenticatedLogisticaCotacoesRoute,
+  AuthenticatedLogisticaOrdensRoute: AuthenticatedLogisticaOrdensRoute,
+  AuthenticatedLogisticaPrestadorRoute: AuthenticatedLogisticaPrestadorRoute,
   AuthenticatedMissoesIdRoute: AuthenticatedMissoesIdRoute,
   AuthenticatedObsoletosAcoesRoute: AuthenticatedObsoletosAcoesRoute,
   AuthenticatedObsoletosDashboardRoute: AuthenticatedObsoletosDashboardRoute,
