@@ -2,7 +2,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, LabelList, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AlertTriangle, CalendarDays, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +11,7 @@ import { fetchAll } from "@/lib/fetch-all";
 import { Secao, TabelaRolavel, Th } from "@/components/abast-dash/comum";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { indicadoresLogistica, lerPlanilhaFretes, type Envio, type FixoPJ, type TrechoPJ } from "@/lib/logistica";
+import { indicadoresLogistica, lerPlanilhaFretes, moedaResumo, type Envio, type FixoPJ, type TrechoPJ } from "@/lib/logistica";
 import { oportunidades, ZONA_ROTULO, zonaEnvio, type Zona } from "@/lib/tms";
 import { MapaEntregasGeo } from "@/components/logistica/MapaEntregasGeo";
 
@@ -37,6 +37,8 @@ function Card({ t, v, sub, borda = "border-l-slate-300", cls = "" }: { t: string
 function Barra({ v, max, cor }: { v: number; max: number; cor: string }) {
   return <div className="h-1.5 w-full rounded bg-muted"><div className="h-1.5 rounded" style={{ width: `${max ? Math.max(2, (v / max) * 100) : 0}%`, background: cor }} /></div>;
 }
+// Rótulo do total gasto em cada coluna, resumido: 6000 → "6k", 7500 → "7,5k".
+const ROTULO_TOTAL: any = { dataKey: "total", position: "top", className: "fill-slate-600 dark:fill-slate-300", style: { fontSize: 10, fontWeight: 700 }, formatter: (v: any) => moedaResumo(Number(v)) };
 function Ranking({ titulo, linhas, cor, total }: { titulo: string; linhas: { k: string; qtd: number; valor: number }[]; cor: string; total: number }) {
   const max = Math.max(0, ...linhas.map((l) => l.valor));
   return <div className="rounded-lg border p-3"><div className="mb-2 text-xs font-bold">{titulo}</div>
@@ -129,7 +131,7 @@ function LogisticaPage() {
   const soEnvios = f.natureza !== "TODAS" || f.cc !== "TODOS" || f.modal !== "TODOS"; // filtros de envio tiram o PJ da conta
   const k = useMemo(() => (q.data ? indicadoresLogistica(filtrados, soEnvios ? [] : q.data.trechos, soEnvios ? [] : q.data.fixos, f.de, f.ate) : null), [q.data, filtrados, f, soEnvios]);
   const meses = useMemo(() => { const s = new Set<string>(); q.data?.envios.forEach((e) => s.add(e.data.slice(0, 7))); q.data?.trechos.forEach((t) => s.add(t.data.slice(0, 7))); return [...s].sort(); }, [q.data]);
-  const serie = useMemo(() => q.data ? meses.map((m) => { const x = indicadoresLogistica(filtrados, soEnvios ? [] : q.data!.trechos, soEnvios ? [] : q.data!.fixos, m, fimMes(m)); const n = (nat: string) => x.porNatureza.find((p) => p.k === nat)?.valor ?? 0; return { mes: mesRot(m), venda: Math.round(n("venda")), compra: Math.round(n("compra")), interno: Math.round(n("interno")), pj: Math.round(x.kmPJ + x.fixoPJ), envios: x.qtdEnvios }; }) : [], [q.data, meses, filtrados, soEnvios]);
+  const serie = useMemo(() => q.data ? meses.map((m) => { const x = indicadoresLogistica(filtrados, soEnvios ? [] : q.data!.trechos, soEnvios ? [] : q.data!.fixos, m, fimMes(m)); const n = (nat: string) => x.porNatureza.find((p) => p.k === nat)?.valor ?? 0; const venda = Math.round(n("venda")), compra = Math.round(n("compra")), interno = Math.round(n("interno")), pj = Math.round(x.kmPJ + x.fixoPJ); return { mes: mesRot(m), venda, compra, interno, pj, total: venda + compra + interno + pj, envios: x.qtdEnvios }; }) : [], [q.data, meses, filtrados, soEnvios]);
   const opcoes = useMemo(() => ({ cc: [...new Set((q.data?.envios ?? []).map((e) => e.cc ?? "—"))].sort(), modal: [...new Set((q.data?.envios ?? []).map((e) => (e.modal ?? "—").toUpperCase()))].sort() }), [q.data]);
   const detalhe = useMemo(() => filtrados.filter((e) => e.data >= f.de && e.data <= f.ate).sort((a, b) => b.data.localeCompare(a.data)), [filtrados, f]);
   const trechosPer = useMemo(() => (q.data?.trechos ?? []).filter((t) => t.data >= f.de && t.data <= f.ate), [q.data, f]);
@@ -180,8 +182,8 @@ function LogisticaPage() {
         </Secao>
 
         <Secao letra="C" titulo="Evolução mensal por natureza">
-          <div className="h-72"><ResponsiveContainer><BarChart data={serie}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="mes" fontSize={11} /><YAxis fontSize={11} tickFormatter={(v) => `${Math.round(v / 1000)}k`} /><Tooltip formatter={(v: any) => brl(Number(v))} /><Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar dataKey="venda" stackId="a" name={NAT.venda} fill={COR_NAT.venda} /><Bar dataKey="compra" stackId="a" name={NAT.compra} fill={COR_NAT.compra} /><Bar dataKey="interno" stackId="a" name={NAT.interno} fill={COR_NAT.interno} />{!soEnvios && <Bar dataKey="pj" stackId="a" name="PJ (km + fixo)" fill={COR_NAT.pj} />}</BarChart></ResponsiveContainer></div>
+          <div className="h-72"><ResponsiveContainer><BarChart data={serie} margin={{ top: 18 }}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="mes" fontSize={11} /><YAxis fontSize={11} tickFormatter={(v) => `${Math.round(v / 1000)}k`} /><Tooltip formatter={(v: any) => brl(Number(v))} /><Legend wrapperStyle={{ fontSize: 11 }} />
+            <Bar dataKey="venda" stackId="a" name={NAT.venda} fill={COR_NAT.venda} /><Bar dataKey="compra" stackId="a" name={NAT.compra} fill={COR_NAT.compra} /><Bar dataKey="interno" stackId="a" name={NAT.interno} fill={COR_NAT.interno}>{soEnvios && <LabelList {...ROTULO_TOTAL} />}</Bar>{!soEnvios && <Bar dataKey="pj" stackId="a" name="PJ (km + fixo)" fill={COR_NAT.pj}><LabelList {...ROTULO_TOTAL} /></Bar>}</BarChart></ResponsiveContainer></div>
         </Secao>
 
         <Secao letra="M" titulo="Mapa de entregas — Brasil por estado e zonas de São Paulo">

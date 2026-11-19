@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import * as XLSX from "xlsx";
-import { indicadoresLogistica, lerPlanilhaFretes, natureza } from "../src/lib/logistica";
+import { indicadoresLogistica, lerPlanilhaFretes, moedaResumo, natureza } from "../src/lib/logistica";
 import { erroExclusaoSolicitacao, podeExcluirSolicitacao } from "../src/lib/tms";
 
 test("Lê envios, trechos do PJ e LATAM sem duplicar; natureza do frete", () => {
@@ -37,4 +37,14 @@ test("Só administrador e gerente podem excluir solicitação; mensagem do banco
   expect(erroExclusaoSolicitacao('A solicitação #12 já virou ordem de serviço. Exclua a ordem antes de excluir a solicitação.')).toContain("Follow-up");
   expect(erroExclusaoSolicitacao("duplicate key")).toBe("duplicate key");
   expect(erroExclusaoSolicitacao(null)).toBe("Não foi possível excluir a solicitação.");
+});
+
+test("Rótulo do total por coluna sai resumido: 6k, 7,5k", () => {
+  expect(moedaResumo(6000)).toBe("6k");
+  expect(moedaResumo(7500)).toBe("7,5k");
+  expect(moedaResumo(6532)).toBe("6,5k");
+  expect(moedaResumo(12345)).toBe("12,3k");
+  expect(moedaResumo(850)).toBe("850");
+  expect(moedaResumo(0)).toBe("0");
+  expect(moedaResumo(null)).toBe("—");
 });

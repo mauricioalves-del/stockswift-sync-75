@@ -23,6 +23,15 @@ export const data = (v: unknown): string | null => {
   return us ? `${us[3]}-${us[1].padStart(2, "0")}-${us[2].padStart(2, "0")}` : /^\d{4}-\d{2}-\d{2}/.test(String(v)) ? String(v).slice(0, 10) : null;
 };
 
+/** Total resumido para rótulos de gráfico: 6000 → "6k", 7500 → "7,5k", 850 → "850". */
+export function moedaResumo(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return "—";
+  const a = Math.abs(v);
+  if (a >= 1_000_000) return `${(v / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}M`;
+  if (a >= 1000) return `${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}k`;
+  return Math.round(v).toLocaleString("pt-BR");
+}
+
 /** Natureza do frete (Exploratório Fretes): interno = remessas entre unidades/lojas/boxes e Pará ↔ SP; compra = suprimentos; venda = o resto (pedidos, cortesias, amostras). */
 export function natureza(operacao: string | null, cc: string | null, cliente: string | null): Natureza {
   const o = sem(`${operacao ?? ""} ${cliente ?? ""}`), c = sem(cc);
