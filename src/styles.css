@@ -38,6 +38,7 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+  --color-mar: var(--mar);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -97,6 +98,9 @@
   --warning-foreground: oklch(0.28 0.05 50);
   --info: oklch(0.55 0.12 220);
   --info-foreground: oklch(1 0 0);
+
+  /* Mar — fundo azul dos mapas (oceano) */
+  --mar: #A7C9E8;
 
   --border: oklch(0.86 0.022 85);
   --input: oklch(0.88 0.02 85);
@@ -158,6 +162,8 @@
   --warning-foreground: oklch(0.22 0.05 50);
   --info: oklch(0.7 0.13 220);
   --info-foreground: oklch(0.13 0.03 145);
+
+  --mar: #20395A;
 
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 12%);
@@ -232,6 +238,8 @@
   --info: #1565C0;
   --info-foreground: #FFFFFF;
 
+  --mar: #A7C9E8;                    /* Mar */
+
   --border: #D2CCBD;
   --input: #C9C2B1;
   --ring: #4E7F84;
@@ -292,6 +300,8 @@
   --destructive-foreground: #1B2430;
   --info: #4FC3F7;
   --info-foreground: #10191F;
+
+  --mar: #20395A;                    /* Mar */
 
   --border: #38455A;
   --input: #3F4D63;

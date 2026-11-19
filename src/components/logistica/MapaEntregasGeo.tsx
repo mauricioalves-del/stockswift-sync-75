@@ -39,7 +39,9 @@ export function MapaEntregasGeo({ pontos }: { pontos: PontoMapa[] }) {
     carregarLeaflet().then((L) => {
       if (!vivo || !div.current || mapa.current) return;
       mapa.current = L.map(div.current, { scrollWheelZoom: false, zoomSnap: 0.25 }).setView([-15, -53], 4);
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", { attribution: "Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap", maxZoom: 16 }).addTo(mapa.current);
+      // Mar em azul: basemap oceânico da Esri (fundo) + camada de rótulos e fronteiras por cima.
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}", { attribution: "Tiles © Esri — Fontes: GEBCO, NOAA, National Geographic e outros órgãos de geociências", maxZoom: 16 }).addTo(mapa.current);
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}", { maxZoom: 16 }).addTo(mapa.current);
       camada.current = L.layerGroup().addTo(mapa.current); desenhar();
     }).catch(() => setErro(true));
     return () => { vivo = false; mapa.current?.remove(); mapa.current = null; };
@@ -93,7 +95,7 @@ export function MapaEntregasGeo({ pontos }: { pontos: PontoMapa[] }) {
           <select value={uf === "BR" || uf === "SP" ? "" : uf} onChange={(e) => e.target.value && setUf(e.target.value)} className="rounded-md border bg-white px-1 py-1 font-semibold text-slate-700"><option value="">Outro estado…</option>{Object.keys(UF_CENTRO).filter((u) => u !== "SP").sort().map((u) => <option key={u} value={u}>{UF_CENTRO[u][2]}{estados.includes(u) ? " ●" : ""}</option>)}</select>
           {uf === "BR" && <><button onClick={() => setMetrica("n")} className={`rounded-md px-2 py-1 ${metrica === "n" ? "bg-slate-200 font-semibold" : "text-slate-700"}`}>Envios</button><button onClick={() => setMetrica("custo")} className={`rounded-md px-2 py-1 ${metrica === "custo" ? "bg-slate-200 font-semibold" : "text-slate-700"}`}>Custo</button></>}
         </div>
-        <div ref={div} className="h-[520px] w-full bg-muted" />
+        <div ref={div} className="h-[520px] w-full bg-mar" />
         {uf === "SP" && <div className="absolute bottom-6 left-3 z-[500] rounded-lg bg-white/95 p-2 text-[11px] text-slate-700 shadow">{ZONAS_SP.slice(0, 6).map((z) => <div key={z.id} className="flex items-center gap-1.5"><span className="inline-block size-3 rounded-sm" style={{ background: z.cor }} />{z.nome}</div>)}<div className="mt-1 flex items-center gap-1.5"><span className="inline-block size-3 rounded-full border-2 border-white bg-slate-700 shadow" />entrega</div></div>}
         {erro && <p className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">Não foi possível carregar o mapa.</p>}
       </div>
