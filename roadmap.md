@@ -129,3 +129,7 @@
 - [x] D e E com mesma altura e tabelas recolhidas em "Ver detalhes" com percentuais destacados; I com a mesma lógica.
 - [x] F e G: clique na barra abre janela com produto, sistema, contagem, divergência e valor do período filtrado.
 - [x] H: farol vermelho < 60%, amarelo 60–95%, verde ≥ 95%; Valor Mod em vermelho. Testes e tela autenticada verificados.
+
+## Mapa de entregas: mar em azul
+- [x] Trocar o fundo do mapa pelo basemap oceânico da Esri (mar em azul) com camada de rótulos e fronteiras, mantendo estados, zonas, marcadores e totais do app.
+- [x] Validar na tela autenticada: visão Brasil e São Paulo (zonas), computador e celular, temas claro e escuro; oceano lido como azul e camadas do app intactas.
