@@ -303,28 +303,28 @@ export function slideMovimentados(p: Pptx, mesLabel: string, pag: number, d: Dad
 }
 
 const ORDEM_EVOL: Record<string, number> = { "Involução": 0, "Sem histórico": 1, "Estável": 2, "Evolução": 3 };
+/** Status do almoxarifado pelo IAP (indicador principal); acurácia item a item fica só como referência. */
 export function linhaScorecardAlmox(i: ItemScorecardAlmox) {
-  const sf = statusEvolucao(i.deltaAcuracia);
+  const status = statusEvolucao(i.deltaIap ?? null, false, 0.2);
   const sm: Status | null = i.movAplicavel ? statusEvolucao(i.deltaMov) : null;
-  const status = sm && ORDEM_EVOL[sm.label] < ORDEM_EVOL[sf.label] ? sm : sf;
-  const partes = [`Acurácia ${fmtPct(i.acuracia)}`];
-  if (i.deltaAcuracia != null) partes.push(`(${i.deltaAcuracia >= 0 ? "+" : ""}${fmtPP(i.deltaAcuracia)} vs. mês anterior)`);
+  const partes = [`IAP ${fmtPct(i.iap)}`];
+  if (i.deltaIap != null) partes.push(`(${i.deltaIap >= 0 ? "+" : ""}${fmtPP(i.deltaIap)} vs. mês anterior)`);
   if (i.movAplicavel) { partes.push(`· Movimentados ${fmtPct(i.mov)}`); if (i.deltaMov != null) partes.push(`(${i.deltaMov >= 0 ? "+" : ""}${fmtPP(i.deltaMov)})`); }
   else partes.push("· Movimentados: não aplicável a este almoxarifado");
-  if (i.iap != null) partes.push(`· IAP ${fmtPct(i.iap)}`);
-  const critica = i.acuracia != null && i.acuracia < 85;
-  const passo = sf.label === "Involução" && sm?.label === "Involução" ? "Reconferência prioritária: acurácia e conciliação de movimentados pioraram juntas neste almoxarifado."
-    : sf.label === "Involução" ? "Investigar causa raiz das divergências recorrentes de fechamento neste almoxarifado."
+  if (i.acuracia != null) partes.push(`· Item a item ${fmtPct(i.acuracia)} (referência)`);
+  const critica = i.iap != null && i.iap < 98; // meta provisória do IAP: ≥ 98%
+  const passo = status.label === "Involução" && sm?.label === "Involução" ? "Reconferência prioritária: IAP e conciliação de movimentados pioraram juntos neste almoxarifado."
+    : status.label === "Involução" ? "Investigar os itens de maior valor que derrubaram o IAP neste fechamento."
+    : critica ? "IAP abaixo da meta (98%): reconferir os itens de maior valor até voltar à faixa saudável."
     : sm?.label === "Involução" ? "Reforçar a conciliação diária de movimentados — reconciliação piorou vs. o mês anterior."
-    : critica ? "Intensificar a cadência de conferência até a acurácia voltar pra faixa saudável."
-    : sf.label === "Sem histórico" && (!sm || sm.label === "Sem histórico") ? "Sem histórico suficiente ainda — acompanhar a partir do próximo fechamento."
-    : "Manter a cadência atual de fechamento e conciliação — sem sinal de piora no mês.";
+    : status.label === "Sem histórico" ? "Sem histórico de IAP suficiente ainda — acompanhar a partir do próximo fechamento."
+    : "Manter a cadência atual de fechamento e conciliação — sem sinal de piora no IAP.";
   return { frente: i.nome, status, leitura: partes.join(" "), passo };
 }
 
 export function slideScorecardAlmox(p: Pptx, mesLabel: string, pag: number, d: DadosMbr) {
   const s = novoSlide(p);
-  cabecalho(s, "Scorecard de Inventário — por Almoxarifado", mesLabel, pag, "Evolução vs. o mês anterior e plano de ação por almoxarifado, cruzando fechamento e Controle de Movimentados");
+  cabecalho(s, "Scorecard de Inventário — por Almoxarifado", mesLabel, pag, "Evolução do IAP vs. o mês anterior e plano de ação por almoxarifado (item a item e movimentados como referência)");
   if (!d.scorecardAlmox.length) { caixaLeitura(s, MARGEM, 1.6, LC, 1.4, "Sem almoxarifado cadastrado", "Nenhum almoxarifado ativo encontrado no Cadastro — sem base para montar o scorecard por setor.", { corRotulo: COR.ATENCAO }); return; }
   const linhas = d.scorecardAlmox.map(linhaScorecardAlmox).map((l, i) => ({ ...l, i })).sort((a, b) => ORDEM_EVOL[a.status.label] - ORDEM_EVOL[b.status.label] || a.i - b.i);
   const n = linhas.length, tam = n <= 8 ? 11.5 : n <= 11 ? 10.5 : 9.5;
