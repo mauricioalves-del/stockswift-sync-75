@@ -37,10 +37,15 @@ test("Movimentados: meses da fonte sobrescrevem o resumo persistido; meses antig
   expect(evolucaoMovimentados(F, null, "2026-09").map((p) => [p.mes, p.pct])).toEqual([["2026-08", 90], ["2026-09", 50]]);
 });
 
-test("Scorecard por almoxarifado usa o pior sinal entre fechamento e movimentados", () => {
-  const l = linhaScorecardAlmox({ almoxarifado: "A", nome: "A", acuracia: 90, deltaAcuracia: 3, iap: 99, mov: 80, deltaMov: -2, movAplicavel: true });
-  expect(l.status.label).toBe("Involução");
-  expect(l.passo).toContain("conciliação diária");
+test("Scorecard por almoxarifado: status pelo IAP, item a item só como referência", () => {
+  // item a item caiu 5,6 pp, mas o IAP subiu: é evolução
+  const a = linhaScorecardAlmox({ almoxarifado: "A", nome: "A", acuracia: 90, deltaAcuracia: -5.6, iap: 99.3, deltaIap: 0.4, mov: 80, deltaMov: -2, movAplicavel: true });
+  expect(a.status.label).toBe("Evolução");
+  expect(a.leitura.startsWith("IAP 99,3%")).toBe(true);
+  expect(a.passo).toContain("conciliação diária");
+  const b = linhaScorecardAlmox({ almoxarifado: "B", nome: "B", acuracia: 95, deltaAcuracia: 6, iap: 97, deltaIap: -1.2, mov: null, deltaMov: null, movAplicavel: false });
+  expect(b.status.label).toBe("Involução");
+  expect(linhaScorecardAlmox({ almoxarifado: "C", nome: "C", acuracia: 60, deltaAcuracia: null, iap: 99.9, deltaIap: 0.1, mov: null, deltaMov: null, movAplicavel: false }).status.label).toBe("Estável");
 });
 
 test("Gera o .pptx da Seção 2 com dados mínimos", async () => {
