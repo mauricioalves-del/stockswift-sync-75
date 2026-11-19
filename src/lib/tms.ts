@@ -101,3 +101,13 @@ export function erroExclusaoSolicitacao(msg: string | null | undefined): string 
 /** Fluxo de status da ordem de serviço (follow-up). */
 export const STATUS_ORDEM = ["programada", "coletada", "em_transito", "entregue", "ocorrencia", "cancelada"] as const;
 export const PROXIMOS: Record<string, string[]> = { programada: ["coletada", "cancelada"], coletada: ["em_transito", "entregue", "ocorrencia"], em_transito: ["entregue", "ocorrencia"], ocorrencia: ["em_transito", "entregue", "cancelada"], entregue: [], cancelada: [] };
+
+/** Edição de solicitação/cotação: mesmos papéis que o banco trata como gestão (UPDATE só para gestores). */
+export function podeEditarSolicitacao(role: string | null | undefined, status: string | null | undefined): boolean {
+  return podeExcluirSolicitacao(role) && status === "cotacao";
+}
+
+/** Chave do cadastro de cliente — igual à coluna gerada no banco: nome sem caixa/espaços + dígitos do CEP. */
+export function chaveCliente(nome: string | null | undefined, cep: string | null | undefined): string {
+  return `${(nome ?? "").trim().toLowerCase()}|${(cep ?? "").replace(/\D/g, "")}`;
+}

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { cotarPorTabelas, embalagemTermica, zonaEnvio, zonaPorCep } from "../src/lib/tms";
+import { chaveCliente, cotarPorTabelas, podeEditarSolicitacao, embalagemTermica, zonaEnvio, zonaPorCep } from "../src/lib/tms";
 
 const emb = [{ nome: "Gelox M", tipo: "gelox", capacidade_kg: null, custo: 4.68 }, { nome: "Isopor P", tipo: "isopor", capacidade_kg: 3, custo: 19.9 }, { nome: "Isopor M", tipo: "isopor", capacidade_kg: 8, custo: 29.9 }, { nome: "Isopor GG", tipo: "isopor", capacidade_kg: 40, custo: 249.9 }];
 test("Zonas por CEP e pelo histórico", () => {
@@ -19,4 +19,15 @@ test("Embalagem térmica e cotação com 3 prestadores", () => {
   const r = cotarPorTabelas({ zona: "grande_sp", peso_kg: 2, km_estimado: 12, termico: true, dias_ate_limite: 0 }, tab, pres, emb);
   expect(r.map((o) => o.prestador)).toEqual(["Lalamove", "Nelson", "Miguel"]); // prazo 0 primeiro
   expect(r[0].total).toBe(Math.round((8 + 19.2 + 19.9 + 2 * 4.68) * 100) / 100);
+});
+
+test("Edição: só administrador e gerente, e apenas solicitações em cotação", () => {
+  expect(podeEditarSolicitacao("ADMINISTRADOR", "cotacao")).toBe(true);
+  expect(podeEditarSolicitacao("GERENTE", "cotacao")).toBe(true);
+  expect(podeEditarSolicitacao("OPERADOR_ESTOQUE", "cotacao")).toBe(false);
+  expect(podeEditarSolicitacao("ADMINISTRADOR", "aprovada")).toBe(false);
+});
+test("Cadastro de cliente: mesmo nome e CEP viram um único cadastro", () => {
+  expect(chaveCliente("  Frutites ", "31515-200")).toBe(chaveCliente("frutites", "31515200"));
+  expect(chaveCliente("Frutites", "31515-200")).not.toBe(chaveCliente("Frutites", "01001-000"));
 });

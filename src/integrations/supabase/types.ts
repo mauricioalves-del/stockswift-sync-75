@@ -5074,6 +5074,54 @@ export type Database = {
         }
         Relationships: []
       }
+      log_clientes: {
+        Row: {
+          cep: string | null
+          chave: string | null
+          cidade: string | null
+          created_at: string
+          created_by: string | null
+          endereco: string | null
+          id: string
+          lat: number | null
+          lng: number | null
+          nome: string
+          uf: string | null
+          updated_at: string
+          zona: string | null
+        }
+        Insert: {
+          cep?: string | null
+          chave?: string | null
+          cidade?: string | null
+          created_at?: string
+          created_by?: string | null
+          endereco?: string | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          nome: string
+          uf?: string | null
+          updated_at?: string
+          zona?: string | null
+        }
+        Update: {
+          cep?: string | null
+          chave?: string | null
+          cidade?: string | null
+          created_at?: string
+          created_by?: string | null
+          endereco?: string | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          nome?: string
+          uf?: string | null
+          updated_at?: string
+          zona?: string | null
+        }
+        Relationships: []
+      }
       log_corridas: {
         Row: {
           centro_custo: string | null
