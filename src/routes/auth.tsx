@@ -76,7 +76,7 @@ function AuthPage() {
           </div>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Mágio Chocolates</h1>
-            <p className="text-xs uppercase tracking-[0.2em] opacity-80 mt-1">Inventário · Amazônia Premium</p>
+            <p className="text-xs uppercase tracking-[0.2em] opacity-80 mt-1">Inventário</p>
             <p className="text-sm italic opacity-90 mt-3 max-w-xs mx-auto">"Controle, rastreabilidade e acuracidade inspirados na Amazônia."</p>
           </div>
         </div>

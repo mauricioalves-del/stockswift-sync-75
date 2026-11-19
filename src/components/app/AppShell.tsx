@@ -436,7 +436,7 @@ function SidebarContent({
         {!collapsed && (
           <div>
             <div className="font-semibold leading-tight tracking-tight">Mágio Chocolates</div>
-            <div className="text-[10px] text-sidebar-foreground/60 leading-tight uppercase tracking-widest">Amazônia Premium</div>
+            <div className="text-[10px] text-sidebar-foreground/60 leading-tight uppercase tracking-widest">Inventário</div>
           </div>
         )}
       </div>
