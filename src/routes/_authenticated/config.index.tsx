@@ -120,7 +120,7 @@ function ConfigPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base"><Palette className="size-4" /> Aparência</CardTitle>
-          <CardDescription>Escolha entre as identidades visuais: Atual, Mágio Claro e Mágio Escuro. A preferência fica salva na sua conta.</CardDescription>
+          <CardDescription>Escolha entre as identidades visuais: Mágio Claro e Mágio Escuro. A preferência fica salva na sua conta.</CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild variant="outline" className="w-full justify-between">

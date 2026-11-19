@@ -1,16 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type ThemeId = "atual" | "magio-claro" | "magio-escuro";
+export type ThemeId = "magio-claro" | "magio-escuro";
 
 export const THEMES: { id: ThemeId; nome: string; descricao: string; dark: boolean; swatches: string[] }[] = [
-  {
-    id: "atual",
-    nome: "Amazônia Premium (Atual)",
-    descricao: "Identidade anterior — Verde Floresta, Dourado Cacau e Bege Natural. Disponível como opção.",
-    dark: false,
-    swatches: ["#1B5E20", "#2E7D32", "#C9A227", "#5D4037", "#F5F1E6"],
-  },
   {
     id: "magio-claro",
     nome: "Mágio Claro",
@@ -31,7 +24,7 @@ const STORAGE_KEY = "magio.theme";
 const LEGACY_KEY = "inv-theme";
 
 export function isThemeId(v: unknown): v is ThemeId {
-  return v === "atual" || v === "magio-claro" || v === "magio-escuro";
+  return v === "magio-claro" || v === "magio-escuro";
 }
 
 export function readStoredTheme(): ThemeId {
@@ -109,7 +102,7 @@ export function useTheme() {
     })();
   }, []);
 
-  /** Atalho claro/escuro do tema Mágio (o tema "Atual" cai no Mágio Escuro). */
+  /** Atalho claro/escuro do tema Mágio. */
   const toggle = useCallback(() => {
     setTheme(theme === "magio-escuro" ? "magio-claro" : "magio-escuro");
   }, [theme, setTheme]);

@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_authenticated/config/aparencia")({
   head: () => ({
     meta: [
       { title: "Aparência — Temas do sistema" },
-      { name: "description", content: "Escolha entre as identidades visuais do sistema Mágio: Atual, Mágio Claro e Mágio Escuro." },
+      { name: "description", content: "Escolha entre as identidades visuais do sistema Mágio: Mágio Claro e Mágio Escuro." },
       { property: "og:title", content: "Aparência — Temas do sistema" },
       { property: "og:description", content: "Troque a identidade visual do sistema em tempo real e salve a preferência por usuário." },
       { property: "og:type", content: "website" },
@@ -60,7 +60,7 @@ function AparenciaPage() {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
         {THEMES.map((t) => {
           const ativo = theme === t.id;
           return (
@@ -103,8 +103,7 @@ function AparenciaPage() {
 
       <p className="text-xs text-muted-foreground">
         Mágio Claro é o tema oficial do aplicativo e o padrão para quem ainda não escolheu. O ícone de sol/lua no
-        cabeçalho alterna rapidamente entre Mágio Claro e Mágio Escuro. O tema Amazônia Premium permanece disponível
-        apenas nesta tela.
+        cabeçalho alterna rapidamente entre Mágio Claro e Mágio Escuro.
       </p>
     </div>
   );
