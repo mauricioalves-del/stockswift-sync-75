@@ -322,6 +322,31 @@ export function linhaScorecardAlmox(i: ItemScorecardAlmox) {
   return { frente: i.nome, status, leitura: partes.join(" "), passo };
 }
 
+/** Resumo gerencial: o que causou a involução do IAP por almoxarifado e os 10 maiores impactos do mês. */
+export function slideResumoInvolucao(p: Pptx, mesLabel: string, pag: number, d: DadosMbr) {
+  const s = novoSlide(p), v = d.involucao;
+  cabecalho(s, "Resumo Gerencial — Causas da Involução do IAP", mesLabel, pag, "Almoxarifados em que o IAP caiu vs. o mês anterior e os 10 itens que mais pesaram no resultado");
+  if (!v.almoxes.length) { caixaLeitura(s, MARGEM, 1.6, LARGURA - 2 * MARGEM, 1.3, "Sem involução no IAP", "Nenhum almoxarifado teve queda de IAP acima de 0,2 pp neste fechamento.", { corRotulo: COR.SUCESSO, tamanho: 13 }); return; }
+  const LC = LARGURA - 2 * MARGEM, le = 6.6, xd = MARGEM + le + 0.3, ld = LC - le - 0.3;
+  texto(s, MARGEM, 1.5, le, 0.22, "ALMOXARIFADOS EM INVOLUÇÃO", { tamanho: 10, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
+  tabela(s, MARGEM, 1.72, le, Math.min(1.75, 0.3 + 0.26 * v.almoxes.length), ["Almoxarifado", "IAP", "Δ vs. ant.", "Divergência (R$)", "vs. mês ant.", "Itens div. (ant.)"],
+    v.almoxes.map((a): Celula[] => [{ t: a.nome, negrito: true, cor: COR.AZUL_INSTITUCIONAL }, fmtPct(a.iap), { t: fmtPP(a.deltaIap), cor: COR.ERRO, negrito: true }, fmtMoeda(a.divValor), { t: `${a.divValor >= a.divValorAnt ? "+" : "−"}${fmtMoeda(Math.abs(a.divValor - a.divValorAnt))}`, cor: a.divValor > a.divValorAnt ? COR.ERRO : COR.SUCESSO }, `${fmtNum(a.itensDiv)} (${fmtNum(a.itensDivAnt)})`]),
+    { larguras: [1.5, 0.8, 0.9, 1.2, 1.1, 0.9], tamanho: 9 });
+  const t1 = v.top10[0], pior = v.almoxes[0];
+  const insights = [
+    `${pior.nome} teve a maior queda (${fmtPP(pior.deltaIap)}): divergência foi de ${fmtMoeda(pior.divValorAnt)} para ${fmtMoeda(pior.divValor)}.`,
+    v.pctTop10 != null ? `Os 10 maiores itens explicam ${v.pctTop10}% do valor divergente dos almoxarifados em involução (${fmtMoeda(v.totalDiv)}).` : "",
+    t1 ? `Maior impacto: ${t1.sku} · ${t1.descricao.slice(0, 34)} (${t1.almox}) — ${fmtMoeda(t1.valor)}, ${fmtPP(t1.pp)} do IAP.` : "",
+    `${v.novos} dos 10 são divergências novas (não apareceram no fechamento anterior); faltas ${fmtMoeda(v.faltasTop)} × sobras ${fmtMoeda(v.sobrasTop)}.`,
+  ].filter(Boolean).map((x) => `• ${x}`).join("\n");
+  caixaLeitura(s, xd, 1.5, ld, 1.97, "Leitura gerencial", insights, { tamanho: 9.5 });
+  texto(s, MARGEM, 3.62, LC, 0.22, "TOP 10 IMPACTOS NO IAP DO MÊS", { tamanho: 10, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
+  tabela(s, MARGEM, 3.84, LC, Math.min(3.0, 0.3 + 0.26 * v.top10.length), ["#", "Almox.", "Item", "Sistema", "Contagem", "Diverg.", "Valor", "Impacto IAP", "Situação"],
+    v.top10.map((x, k): Celula[] => [String(k + 1), x.almox, `${x.sku} · ${x.descricao.slice(0, 42)}`, fmtNum(x.sistema), fmtNum(x.contagem), { t: `${x.divergencia > 0 ? "+" : ""}${fmtNum(x.divergencia)}`, cor: x.divergencia < 0 ? COR.ERRO : COR.INFO }, { t: fmtMoeda(x.valor), negrito: true }, `${fmtPP(x.pp)}`, x.novo ? "Nova" : `Recorrente${x.recorrencias ? ` (${x.recorrencias}x)` : ""}`]),
+    { larguras: [0.35, 1.1, 4.1, 0.8, 0.85, 0.75, 1.0, 0.95, 1.2], tamanho: 8.5 });
+  texto(s, MARGEM, 7.0, LC, 0.2, "Impacto IAP = valor da divergência ÷ valor do estoque contado no almoxarifado. Valor pelo custo atual do cadastro; itens sem custo ficam fora do IAP.", { tamanho: 8, italico: true });
+}
+
 export function slideScorecardAlmox(p: Pptx, mesLabel: string, pag: number, d: DadosMbr) {
   const s = novoSlide(p);
   cabecalho(s, "Scorecard de Inventário — por Almoxarifado", mesLabel, pag, "Evolução do IAP vs. o mês anterior e plano de ação por almoxarifado (item a item e movimentados como referência)");
