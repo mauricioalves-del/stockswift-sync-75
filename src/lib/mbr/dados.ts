@@ -11,7 +11,7 @@ export type FontesMbr = { inv: DadosInv; movHist: MovHist[]; movDiv: MovDiv[]; r
 export type ItemConc = { sku: string; descricao: string | null; almoxarifado: string; qtd_sistema: number; qtd_contagem: number; divergencia: number; valor: number; pctAcum: number };
 export type PontoMov = { mes: string; itens_analisados: number; itens_sem_divergencia: number; pct: number | null };
 export type LinhaAlmoxMov = { almoxarifado: string; itens_analisados: number; itens_sem_divergencia: number; pct: number | null };
-export type ItemScorecardAlmox = { almoxarifado: string; nome: string; acuracia: number | null; deltaAcuracia: number | null; iap: number | null; mov: number | null; deltaMov: number | null; movAplicavel: boolean };
+export type ItemScorecardAlmox = { almoxarifado: string; nome: string; acuracia: number | null; deltaAcuracia: number | null; iap: number | null; deltaIap?: number | null; mov: number | null; deltaMov: number | null; movAplicavel: boolean };
 
 const mesDe = (d: string | null | undefined) => (d ? String(d).slice(0, 7) : null);
 const pct = (sem: number, tot: number) => (tot ? r2((sem / tot) * 100) : null);
@@ -70,6 +70,9 @@ export function evolucaoMovimentados(F: FontesMbr, almox: string | null, ateMes:
 
 export function scorecardAlmox(F: FontesMbr, mes: string): ItemScorecardAlmox[] {
   const comp = new Map(comparativoPorAlmox(F.inv, mes).map((c) => [c.chave, c]));
+  // IAP do fechamento anterior de cada almoxarifado (indicador principal de evolução do scorecard)
+  const cacheMes = new Map<string, Map<string, number | null>>();
+  const iapEm = (m: string, alm: string) => { if (!cacheMes.has(m)) cacheMes.set(m, new Map(comparativoPorAlmox(F.inv, m).map((c) => [c.chave, c.iap ?? null]))); return cacheMes.get(m)!.get(alm) ?? null; };
   return F.almox.filter((a) => a.ativo !== false).sort((a, b) => a.codigo.localeCompare(b.codigo)).map((a) => {
     const fech = evolucaoMensal(F.inv, a.codigo).filter((p) => p.mes <= mes);
     const ult = fech.at(-1), pen = fech.at(-2);
@@ -79,6 +82,7 @@ export function scorecardAlmox(F: FontesMbr, mes: string): ItemScorecardAlmox[] 
       almoxarifado: a.codigo, nome: a.nome_exibicao || a.codigo,
       acuracia: ult?.acuracia ?? null, deltaAcuracia: ult?.acuracia != null && pen?.acuracia != null ? r2(ult.acuracia - pen.acuracia) : null,
       iap: comp.get(a.codigo)?.iap ?? null,
+      deltaIap: (() => { const atual = ult && ult.mes === mes ? comp.get(a.codigo)?.iap ?? null : null; const ant = pen ? iapEm(pen.mes, a.codigo) : null; return atual != null && ant != null ? r2(atual - ant) : null; })(),
       mov: mu?.pct ?? null, deltaMov: mu?.pct != null && mp?.pct != null ? r2(mu.pct - mp.pct) : null,
       movAplicavel: !!a.participa_contagem_diaria,
     };
