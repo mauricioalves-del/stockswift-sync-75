@@ -89,6 +89,29 @@ export function scorecardAlmox(F: FontesMbr, mes: string): ItemScorecardAlmox[] 
   });
 }
 
+/** Resumo gerencial da involução: almoxarifados cujo IAP caiu e os 10 itens que mais pesaram (valor e pp do IAP). */
+export function causasInvolucao(F: FontesMbr, mes: string, limiar = 0.2) {
+  const D = F.inv, custo = (sku: string) => D.custos.get(sku);
+  const nome = new Map(F.almox.map((a) => [a.codigo, a.nome_exibicao || a.codigo]));
+  const almoxes: { codigo: string; nome: string; iap: number | null; deltaIap: number; mesAnt: string; divValor: number; divValorAnt: number; itensDiv: number; itensDivAnt: number; faltas: number; sobras: number }[] = [];
+  const impactos: { almox: string; sku: string; descricao: string; sistema: number; contagem: number; divergencia: number; valor: number; pp: number; novo: boolean; recorrencias: number }[] = [];
+  for (const sc of scorecardAlmox(F, mes)) {
+    if (sc.deltaIap == null || sc.deltaIap > -limiar) continue;
+    const fech = evolucaoMensal(D, sc.almoxarifado).filter((p) => p.mes <= mes); const ant = fech.at(-2)?.mes; if (!ant) continue;
+    const doMes = D.itens.filter((i) => i.almoxarifado === sc.almoxarifado && i.mes === mes), doAnt = D.itens.filter((i) => i.almoxarifado === sc.almoxarifado && i.mes === ant);
+    const portfolio = doMes.reduce((s, i) => s + (custo(i.sku) != null ? i.qtd_sistema * custo(i.sku)! : 0), 0);
+    const val = (i: ItemInv) => (custo(i.sku) != null ? Math.abs(i.divergencia) * custo(i.sku)! : 0);
+    const divM = doMes.filter((i) => i.divergente), divA = doAnt.filter((i) => i.divergente), divAntSku = new Set(divA.map((i) => i.sku));
+    almoxes.push({ codigo: sc.almoxarifado, nome: sc.nome, iap: sc.iap, deltaIap: sc.deltaIap, mesAnt: ant, divValor: r2(divM.reduce((s, i) => s + val(i), 0)), divValorAnt: r2(divA.reduce((s, i) => s + val(i), 0)), itensDiv: divM.length, itensDivAnt: divA.length,
+      faltas: r2(divM.filter((i) => i.divergencia < 0).reduce((s, i) => s + val(i), 0)), sobras: r2(divM.filter((i) => i.divergencia > 0).reduce((s, i) => s + val(i), 0)) });
+    for (const i of divM) { const v = val(i); if (!v) continue; impactos.push({ almox: nome.get(sc.almoxarifado) ?? sc.almoxarifado, sku: i.sku, descricao: i.descricao ?? "—", sistema: i.qtd_sistema, contagem: i.qtd_contagem, divergencia: i.divergencia, valor: r2(v), pp: portfolio ? r2((v / portfolio) * 100) : 0, novo: !divAntSku.has(i.sku), recorrencias: i.recorrencias || 0 }); }
+  }
+  impactos.sort((a, b) => b.valor - a.valor);
+  const top10 = impactos.slice(0, 10), total = impactos.reduce((s, x) => s + x.valor, 0);
+  return { almoxes: almoxes.sort((a, b) => a.deltaIap - b.deltaIap), top10, totalDiv: r2(total), pctTop10: total ? Math.round((top10.reduce((s, x) => s + x.valor, 0) / total) * 100) : null,
+    novos: top10.filter((x) => x.novo).length, faltasTop: r2(top10.filter((x) => x.divergencia < 0).reduce((s, x) => s + x.valor, 0)), sobrasTop: r2(top10.filter((x) => x.divergencia > 0).reduce((s, x) => s + x.valor, 0)) };
+}
+
 /** Todos os números das Seções 1 e 2 do MBR para o mês "AAAA-MM". */
 export function coletarDados(F: FontesMbr, mes: string) {
   const D = F.inv, f = { almox: null, mes };
@@ -111,6 +134,7 @@ export function coletarDados(F: FontesMbr, mes: string) {
     movimentadosPorAlmox: movimentadosPorAlmox(F, mes),
     evolucaoMovimentados: evolucaoMovimentados(F, null, mes),
     scorecardAlmox: scorecardAlmox(F, mes),
+    involucao: causasInvolucao(F, mes),
     // os dois piores almoxarifados do mês (acurácia item a item), com evolução e maiores faltas/sobras
     piores: comparativoPorAlmox(D, mes).filter((c) => c.item != null).sort((a, b) => (a.item ?? 0) - (b.item ?? 0)).slice(0, 2).map((c) => ({
       almox: c.chave, item: c.item, iap: c.iap, iaq: c.iaq,
