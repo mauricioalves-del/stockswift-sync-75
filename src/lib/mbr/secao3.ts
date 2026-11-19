@@ -25,7 +25,7 @@ function semDados(s: Slide, dado: unknown, titulo: string, msg: string) {
 }
 const erroFonte = (nome: string) => `Não foi possível ler os dados de ${nome} no Stock Savvy agora — confira o acesso à tela e gere o MBR de novo.`;
 
-export const ITENS_SECAO3 = ["Pacote de Baixas – Operações", "Pacote de Baixas – Investimento Operacional", "Controle de Pacotes de Baixa", "Farol de Shelf-Life", "Próximos 30 Dias (validade)", "Itens sem Movimentação", "Itens sem Movimentação — Item a Item", "Recuperação de Shelf", "Dispersão de Ficha Técnica — Pareto", "Furo de Ficha Técnica", "Testes Industriais", "Controle de FEFO"];
+export const ITENS_SECAO3 = ["Pacote de Baixas – Operações", "Pacote de Baixas – Investimento Operacional", "Baixas Operacionais — Visão do Ano", "Passivos — Risco por Almoxarifado", "Farol de Shelf-Life", "Próximos 30 Dias (validade)", "Itens sem Movimentação", "Itens sem Movimentação — Item a Item", "Recuperação de Shelf", "Dispersão de Ficha Técnica — Pareto", "Furo de Ficha Técnica", "Testes Industriais", "Controle de FEFO"];
 export const DESCRICAO_SECAO3 = "Passivos e baixas, validade de lotes, estoque parado, recuperação de shelf, dispersão de ficha técnica, Testes Industriais e FEFO — lidos direto do Stock Savvy.";
 
 // ---------- Dashboard Baixas Operacionais ----------
@@ -97,47 +97,71 @@ export function slideInvestimento(p: Pptx, mesLabel: string, pag: number, d: Dad
 }
 
 // ---------- Controle de Pacotes de Baixa ----------
+/** Slide 1/2 — Baixas operacionais no ano: acumulado desde janeiro, passivos e baixas por inventário do mês. */
 export function slidePacotes(p: Pptx, mesLabel: string, pag: number, d: DadosPacotes | null, mes: string) {
   const s = novoSlide(p);
-  cabecalho(s, "Controle de Pacotes de Baixa", mesLabel, pag, "Evolução mensal (MoM) desde janeiro — a partir de julho a baixa fiscal passou a ser padronizada");
+  cabecalho(s, "Baixas Operacionais — Visão do Ano", mesLabel, pag, "Acumulado de baixas desde janeiro, passivos e baixas por inventário do mês analisado");
   if (semDados(s, d, "Pacotes de Baixa indisponíveis", erroFonte("Mapeamento de Passivos"))) return;
-  const v = d!, ano = mes.slice(0, 4), pa = v.passivosAcum, ri = v.inventarioAcum;
-  if (!pa.quantidade && !ri.entradas_qtd && !ri.saidas_qtd) {
-    caixaLeitura(s, MARGEM, 1.6, LC, 1.4, `Sem dados desde julho até ${mesLabel}`, "Não há baixa operacional aprovada nem ajuste de inventário oficial nesta janela (desde julho até o mês deste relatório) para montar a evolução MoM e o impacto por almoxarifado.", { corRotulo: COR.ATENCAO, tamanho: 13 });
+  const v = d!, ano = mes.slice(0, 4), A = v.ano, M = v.mes;
+  if (!A.passivos.quantidade && !A.inventario.entradas_qtd && !A.inventario.saidas_qtd) {
+    caixaLeitura(s, MARGEM, 1.6, LC, 1.4, `Sem baixas em ${ano}`, "Não há baixa operacional aprovada nem ajuste de inventário oficial desde janeiro.", { corRotulo: COR.ATENCAO, tamanho: 13 });
     return;
   }
-  const dif = v.diferenca;
-  const [corDif, ctxDif] = Math.abs(dif) < 1 ? [COR.SUCESSO, "perda e baixa quase batem"] : dif > 0 ? [COR.ATENCAO, "perda física acima da baixa"] : [COR.INFO, "baixa acima da perda física"];
-  const fechRot = v.mesFechamento ? rotuloMes(v.mesFechamento) : "—";
+  const varM = v.variacaoPassivos;
   linhaKpis(s, 1.52, [
-    { valor: fmtMoeda(pa.valor), rotulo: "Passivo Acumulado (desde Jul.)", contexto: `${fmtNum(pa.quantidade)} baixa(s) aprovada(s)` },
-    { valor: fmtMoeda(Math.abs(ri.resultado_valor)), rotulo: "Resultado Inventário Acumulado", cor: ri.resultado_valor >= 0 ? COR.SUCESSO : COR.ERRO, contexto: `${fmtNum(ri.entradas_qtd)} entrada(s) · ${fmtNum(ri.saidas_qtd)} saída(s)` },
-    { valor: fmtMoeda(Math.abs(dif)), rotulo: "Diferença Acumulada", cor: corDif, contexto: ctxDif },
-    { valor: fmtMoeda(v.resultadoFechamento), rotulo: `Resultado Invent. — ${fechRot}`, cor: v.resultadoFechamento >= 0 ? COR.SUCESSO : COR.ERRO, contexto: `Passivo no mês: ${fmtMoeda(v.passivoFechamento)}` },
+    { valor: fmtMoeda(A.passivos.valor), rotulo: `Baixas acumuladas em ${ano}`, cor: COR.AZUL_INSTITUCIONAL, contexto: `${fmtNum(A.passivos.quantidade)} baixa(s) aprovada(s) desde janeiro` },
+    { valor: fmtMoeda(M.passivos.valor), rotulo: `Passivos do mês (${mesCurto(mes)})`, cor: COR.ERRO, contexto: `${fmtNum(M.passivos.quantidade)} baixa(s)${varM != null ? ` · ${varM >= 0 ? "+" : "−"}${fmtMoeda(Math.abs(varM))} vs. mês anterior` : ""}` },
+    { valor: fmtMoeda(Math.abs(M.inventario.resultado_valor)), rotulo: "Baixas por inventário no mês", cor: M.inventario.resultado_valor < 0 ? COR.ERRO : COR.SUCESSO, contexto: `${fmtMoeda(M.inventario.saidas_valor)} em saídas · ${fmtMoeda(M.inventario.entradas_valor)} em entradas` },
+    { valor: fmtMoeda(A.mediaMensal), rotulo: "Média mensal de baixas no ano", contexto: `resultado de inventário no ano: ${fmtMoeda(A.inventario.resultado_valor)}` },
   ], 0.68, 0.383, 20);
-  const le = 7.15, xd = MARGEM + le + 0.35, ld = LC - le - 0.35, yTit = 2.26, yG = 2.48, hG = 1.62;
-  texto(s, MARGEM, yTit, le, 0.22, "EVOLUÇÃO MENSAL (MoM) — PASSIVOS × RESULTADO DE INVENTÁRIO", { tamanho: 10.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
+  const le = 7.0, xd = MARGEM + le + 0.35, ld = LC - le - 0.35, yTit = 2.36, yG = 2.6, hG = 3.2;
+  texto(s, MARGEM, yTit, le, 0.22, `EVOLUÇÃO MENSAL (MoM) — PASSIVOS × BAIXAS POR INVENTÁRIO · ${ano}`, { tamanho: 10.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
   if (v.evolucao.length) {
     const cats = v.evolucao.map((e) => rotuloMes(e.mes)), pas = v.evolucao.map((e) => e.valor), inv = v.evolucao.map((e) => Math.abs(e.resultado));
-    graficoEmpilhado(p, s, MARGEM, yG, le, hG, cats, [{ nome: "Passivos do Mês", valores: pas, cor: COR.ERRO }, { nome: "Resultado de Inventário (abs.)", valores: inv, cor: COR.AZUL_INSTITUCIONAL }], { formato: '"R$ "#,##0', totais: pas.map((x, i) => x + inv[i]), tamEixo: 8 });
+    graficoEmpilhado(p, s, MARGEM, yG, le, hG, cats, [{ nome: "Passivos aprovados", valores: pas, cor: COR.ERRO }, { nome: "Baixas por inventário (resultado, abs.)", valores: inv, cor: COR.AZUL_INSTITUCIONAL }], { formato: '"R$ "#,##0', totais: pas.map((x, i) => x + inv[i]), tamEixo: 8 });
     texto(s, MARGEM, yG + hG + 0.02, le, 0.16, `Padronização da baixa fiscal a partir de Jul/${ano.slice(2)} — meses anteriores servem de referência.`, { tamanho: 8, italico: true });
   } else caixaLeitura(s, MARGEM, yG, le, hG, "Evolução não disponível", `Nenhuma baixa aprovada nem ajuste de inventário desde janeiro de ${ano}.`, { corRotulo: COR.ATENCAO, tamanho: 12 });
-  texto(s, xd, yTit, ld, 0.22, "IMPACTO POR ALMOXARIFADO", { tamanho: 10.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
-  if (v.porAlmox.length) graficoEmpilhado(p, s, xd, yG, ld, hG, v.porAlmox.map((a) => a.almox), [{ nome: "Passivos (R$)", valores: v.porAlmox.map((a) => a.passivos), cor: COR.ERRO }, { nome: "Resultado Inventário (abs., R$)", valores: v.porAlmox.map((a) => a.inventarioAbs), cor: COR.AZUL_INSTITUCIONAL }], { horizontal: true, formato: '"R$ "#,##0', tamEixo: 8 });
-  else caixaLeitura(s, xd, yG, ld, hG, "Impacto por almoxarifado", "Sem passivo aprovado nem ajuste de inventário nesta janela.");
-  const yTt = 4.4, yTb = 4.62, lt = (LC - 0.35) / 2, xt2 = MARGEM + lt + 0.35;
-  texto(s, MARGEM, yTt, lt, 0.2, "TOP 10 BAIXAS DO PERÍODO (POR SKU)", { tamanho: 10, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
-  if (v.topBaixas.length) tabela(s, MARGEM, yTb, lt, Math.min(1.72, 0.32 + 0.26 * v.topBaixas.length), ["SKU", "Produto", "Qtd.", "Valor"], v.topBaixas.map((t) => [t.sku || "—", corte(t.descricao || "—", 38), fmtNum(t.quantidade), fmtMoeda(t.valor)]), { larguras: [1, 2.4, 0.7, 1.2], tamanho: 9.5 });
-  else caixaLeitura(s, MARGEM, yTb, lt, 1.72, "Top 10 Baixas do Período", "Nenhuma baixa aprovada nesta janela.");
-  texto(s, xt2, yTt, lt, 0.2, "TOP 10 JUSTIFICATIVAS — AJUSTE DE PROCESSO", { tamanho: 10, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
-  if (v.justificativas.length) tabela(s, xt2, yTb, lt, Math.min(1.72, 0.32 + 0.26 * Math.min(6, v.justificativas.length)), ["SKU", "Almox.", "Justificativa", "Valor"], v.justificativas.slice(0, 6).map((j) => [j.sku || "—", corte(j.almox, 14), j.justificativa, fmtMoeda(j.valor)]), { larguras: [0.85, 0.9, 2.6, 1.05], tamanho: 9.5 });
-  else caixaLeitura(s, xt2, yTb, lt, 1.72, "Top 10 Justificativas", "Nenhuma divergência resolvida como ajuste de processo nesta janela.");
-  const ap = v.ajusteProcesso;
-  const trecho = Math.abs(dif) < 1 ? " A baixa aprovada bate com a perda física medida pelo inventário neste recorte."
-    : dif > 0 ? ` A perda física acumulada (Resultado de Inventário) segue ${fmtMoeda(Math.abs(dif))} acima do que já foi decidido como baixa — sinal de que ainda há passivo a ser formalizado.`
-    : ` A baixa já aprovada segue ${fmtMoeda(Math.abs(dif))} acima da perda física medida pelo inventário — o controle está à frente do fechamento físico.`;
-  texto(s, MARGEM, 6.38, LC, 0.32, `Desde julho, o controle já evitou registrar ${fmtMoeda(ap.valor)} como perda real — ${fmtNum(ap.quantidade)} baixa(s) reclassificada(s) como ajuste de processo (erro de cadastro/contagem, timing de nota fiscal ou produção não encerrada, entre outros).${trecho}`, { tamanho: 9.5, negrito: true, cor: COR.SUCESSO });
-  texto(s, MARGEM, 6.74, LC, 0.32, `Fonte: baixas operacionais aprovadas, ajustes de inventário oficiais e divergências resolvidas (Mapeamento de Passivos do Atlas no Stock Savvy) — janela de julho de ${ano} até ${mesLabel.toLowerCase()}.`, { tamanho: 9, italico: true });
+  texto(s, xd, yTit, ld, 0.22, `TOP 10 BAIXAS DO ANO (POR SKU)`, { tamanho: 10.5, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
+  if (v.topBaixasAno.length) tabela(s, xd, yG, ld, Math.min(hG, 0.32 + 0.27 * v.topBaixasAno.length), ["SKU", "Produto", "Qtd.", "Valor"], v.topBaixasAno.map((t) => [t.sku || "—", corte(t.descricao || "—", 30), fmtNum(t.quantidade), { t: fmtMoeda(t.valor), negrito: true }]), { larguras: [1, 2.3, 0.6, 1.1], tamanho: 9 });
+  else caixaLeitura(s, xd, yG, ld, hG, "Top 10 baixas do ano", "Nenhuma baixa aprovada no ano.");
+  const top = v.topBaixasAno[0], conc = top && A.passivos.valor ? Math.round((v.topBaixasAno.slice(0, 3).reduce((x, t) => x + t.valor, 0) / A.passivos.valor) * 100) : null;
+  const leitura = `Em ${ano}, ${fmtMoeda(A.passivos.valor)} em ${fmtNum(A.passivos.quantidade)} baixa(s) aprovada(s). No mês, ${fmtMoeda(M.passivos.valor)} de passivos e ${fmtMoeda(Math.abs(M.inventario.resultado_valor))} de baixas por inventário.` + (conc != null ? ` Os 3 maiores SKUs concentram ${conc}% do valor baixado no ano — ${corte(top!.descricao || top!.sku, 40)} lidera com ${fmtMoeda(top!.valor)}.` : "");
+  texto(s, MARGEM, 6.2, LC, 0.4, leitura, { tamanho: 10, negrito: true, cor: COR.VERDE_AMAZONIA });
+  texto(s, MARGEM, 6.74, LC, 0.32, `Fonte: baixas operacionais aprovadas e ajustes de inventário oficiais (Mapeamento de Passivos no Stock Savvy) — janeiro a ${mesLabel.toLowerCase()}.`, { tamanho: 9, italico: true });
+}
+
+/** Slide 2/2 — Maior risco de passivos por almoxarifado, falhas de processo, perdas reais e plano de ação. */
+export function slidePassivosRisco(p: Pptx, mesLabel: string, pag: number, d: DadosPacotes | null, mes: string) {
+  const s = novoSlide(p);
+  cabecalho(s, "Passivos — Risco por Almoxarifado e Plano de Ação", mesLabel, pag, "Onde está o maior risco no ano, falhas de processo identificadas, perdas reais e ações para evitar a perda");
+  if (semDados(s, d, "Passivos indisponíveis", erroFonte("Mapeamento de Passivos"))) return;
+  const v = d!, ano = mes.slice(0, 4);
+  const le = 6.3, xd = MARGEM + le + 0.35, ld = LC - le - 0.35;
+  texto(s, MARGEM, 1.5, le, 0.22, `RISCO POR ALMOXARIFADO · ${ano} (PASSIVOS + BAIXAS POR INVENTÁRIO)`, { tamanho: 10, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
+  const alm = v.almoxAno.slice(0, 6);
+  if (alm.length) graficoEmpilhado(p, s, MARGEM, 1.72, le, 1.75, alm.map((a) => a.nome), [{ nome: "Passivos (R$)", valores: alm.map((a) => a.passivos), cor: COR.ERRO }, { nome: "Baixas por inventário (abs., R$)", valores: alm.map((a) => a.inventarioAbs), cor: COR.AZUL_INSTITUCIONAL }], { horizontal: true, formato: FORMATO_K, tamEixo: 8 });
+  else caixaLeitura(s, MARGEM, 1.72, le, 1.75, "Risco por almoxarifado", "Sem passivo aprovado nem ajuste de inventário no ano.");
+  // Insights
+  const a1 = alm[0], pct = a1 && v.totalRisco ? Math.round((a1.acumulado / v.totalRisco) * 100) : null, c1 = v.causasProcesso[0], p1 = v.perdasReais[0];
+  const ins = [
+    a1 ? `${a1.nome} concentra ${pct}% do risco do ano (${fmtMoeda(a1.acumulado)}).` : "Sem concentração de risco relevante no ano.",
+    `Perda real confirmada: ${fmtMoeda(v.perdaRealAno)}${p1 ? ` — principal causa: ${p1.causa} (${fmtNum(p1.qtd)} caso(s), ${p1.almoxPrincipal})` : ""}.`,
+    `${fmtMoeda(v.ajusteProcessoAno)} em ${fmtNum(v.qtdAjusteAno)} divergência(s) eram falha de processo, não perda — evitadas como baixa.`,
+    c1 ? `Falha mais cara: ${c1.causa} (${fmtMoeda(c1.valor)}, ${fmtNum(c1.qtd)} caso(s), mais em ${c1.almoxPrincipal}).` : "",
+  ].filter(Boolean);
+  caixaLeitura(s, xd, 1.5, ld, 1.97, "Principais insights", ins.map((t) => `• ${t}`).join("\n"), { tamanho: 10 });
+  // Falhas de processo identificadas (item, falha, ação)
+  texto(s, MARGEM, 3.6, LC, 0.22, "MAIORES FALHAS DE PROCESSO IDENTIFICADAS (DIVERGÊNCIAS RESOLVIDAS COMO AJUSTE DE PROCESSO)", { tamanho: 10, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
+  const js = v.justificativasAno.slice(0, 5);
+  if (js.length) tabela(s, MARGEM, 3.82, LC, Math.min(1.55, 0.3 + 0.25 * js.length), ["Item", "Almox.", "Falha identificada", "Ação aplicada / recomendada", "Valor"],
+    js.map((j) => [`${j.sku} · ${corte(j.descricao, 34)}`, corte(j.almox, 16), j.falha, corte(j.acao, 70), { t: fmtMoeda(j.valor), negrito: true }]), { larguras: [3.1, 1.2, 2.2, 4.2, 1.1], tamanho: 8.5 });
+  else caixaLeitura(s, MARGEM, 3.82, LC, 1.2, "Falhas de processo", "Nenhuma divergência resolvida como ajuste de processo no ano.");
+  // Plano de ação por causa (as 4 que mais pesam, somando processo e perda real)
+  const plano = [...v.perdasReais.slice(0, 2), ...v.causasProcesso].sort((x, y) => y.valor - x.valor).slice(0, 4);
+  texto(s, MARGEM, 5.48, LC, 0.22, "PLANO DE AÇÃO PARA EVITAR PERDA", { tamanho: 10, negrito: true, cor: COR.AZUL_INSTITUCIONAL });
+  if (plano.length) tabela(s, MARGEM, 5.7, LC, Math.min(1.2, 0.28 + 0.23 * plano.length), ["Causa", "Casos", "Valor no ano", "Onde mais ocorre", "Ação"],
+    plano.map((c) => [{ t: c.causa, negrito: true }, fmtNum(c.qtd), fmtMoeda(c.valor), corte(c.almoxPrincipal, 18), c.acao]), { larguras: [2.2, 0.6, 1.1, 1.5, 6.4], tamanho: 8.5 });
+  texto(s, MARGEM, 6.98, LC, 0.22, `Fonte: Mapeamento de Passivos e divergências resolvidas no Atlas (Stock Savvy) — janeiro a ${mesLabel.toLowerCase()}. Ação recomendada quando a divergência não tem solução registrada.`, { tamanho: 8, italico: true });
 }
 
 // ---------- Farol de Shelf-Life ----------
