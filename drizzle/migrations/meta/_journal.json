@@ -547,6 +547,13 @@
       "when": 1795090558127,
       "tag": "0077_separacao_requisicoes_operador",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1795091560003,
+      "tag": "0078_abastecimento_acesso_matriz_operador",
+      "breakpoints": true
     }
   ]
 }

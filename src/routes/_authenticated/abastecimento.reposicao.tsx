@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/inventory";
 import { useRole } from "@/hooks/useRole";
+import { useAcessoAbastecimento } from "@/hooks/useAcessoAbastecimento";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { chaveSaldoBaixa, somarBaixasEmAberto, saldoLiquidoBaixas } from "@/lib/abastecimento-baixas";
 import { CLASSES_PORTFOLIO } from "@/lib/abastecimento-portfolio";
@@ -66,7 +67,8 @@ const COLS: ColDef<ItemRep>[] = [
 
 function ReposicaoPage() {
   const { isAdmin, role } = useRole();
-  const pode = isAdmin || role === "GERENTE" || role === "COORDENADOR_CONTROLE";
+  const acesso = useAcessoAbastecimento("/abastecimento/reposicao");
+  const pode = acesso.pode;
   const gestor = isAdmin || role === "GERENTE";
   const qc = useQueryClient();
   const bruto = useAbastBruto(pode);
@@ -180,7 +182,7 @@ function ReposicaoPage() {
   }
 
 
-  if (!pode) return <div className="p-8 text-center text-muted-foreground">Acesso restrito a gestores.</div>;
+  if (!pode) return <div className="p-8 text-center text-muted-foreground">{acesso.carregando ? "Carregando..." : "Acesso restrito a gestores."}</div>;
   const semDados = !bruto.isLoading && !!mont && itens.length === 0;
 
   return (

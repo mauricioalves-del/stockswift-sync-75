@@ -5,6 +5,7 @@ import { ArrowUpRight, Download, Search, Tags } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
 import { useRole } from "@/hooks/useRole";
+import { useAcessoAbastecimento } from "@/hooks/useAcessoAbastecimento";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { criarElegibilidade } from "@/lib/abastecimento-validacao";
 import { nk } from "@/lib/abastecimento-dados";
@@ -41,7 +42,8 @@ function CelulaTd({ c }: { c: Celula }) {
 
 function EstoquePage() {
   const { isAdmin, role } = useRole();
-  const pode = isAdmin || role === "GERENTE" || role === "COORDENADOR_CONTROLE";
+  const acesso = useAcessoAbastecimento("/abastecimento/estoque");
+  const pode = acesso.pode;
   const { sku: skuParam } = Route.useSearch();
   const hoje = hojeBrt();
   const bruto = useAbastBruto(pode);
@@ -74,7 +76,7 @@ function EstoquePage() {
     const url = URL.createObjectURL(new Blob([csvEstoque(lista)], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = `Estoque_Visao_Geral_${hoje}.csv`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
-  if (!pode) return <div className="p-8 text-center text-muted-foreground">Acesso restrito a gestores.</div>;
+  if (!pode) return <div className="p-8 text-center text-muted-foreground">{acesso.carregando ? "Carregando..." : "Acesso restrito a gestores."}</div>;
   const filtrando = f.estados.length > 0 || f.stockout || f.stockover || f.busca !== "" || f.categoria !== "" || nFiltros > 0 || ordem !== null;
   const estados: Estado[] = ["ruptura", "abaixo", "ok", "excesso"];
   return (

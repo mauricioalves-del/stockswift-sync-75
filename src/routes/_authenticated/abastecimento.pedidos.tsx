@@ -5,6 +5,7 @@ import { ClipboardList, Download, PackageCheck, Pencil, Trash2, Undo2 } from "lu
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
+import { useAcessoAbastecimento } from "@/hooks/useAcessoAbastecimento";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -76,7 +77,11 @@ function PedidosPage() {
   const comercial = isAdmin || !!papeisQ.data?.gc;
   const diretor = isAdmin || role === "DIRETOR_OPERACOES" || !!papeisQ.data?.dir;
   const gestor = isAdmin || role === "GERENTE";
-  const pode = gestor || role === "COORDENADOR_CONTROLE" || comercial || diretor;
+  const acesso = useAcessoAbastecimento("/abastecimento/pedidos");
+  const pode = gestor || acesso.pode || comercial || diretor;
+  // Operador autorizado na matriz (criar/editar em Pedidos): conduz separação, envio e recebimento nos seus almox.
+  const almoxQ = useQuery({ enabled: !gestor && acesso.podeOperar, queryKey: ["meus-almox-permitidos"], queryFn: async () => { const uid = (await supabase.auth.getUser()).data.user?.id; const { data, error } = await sb.rpc("almoxarifados_permitidos", { _uid: uid }); if (error) throw error; return (data ?? null) as string[] | null; } });
+  const logistica = (p: Pedido) => gestor || (acesso.podeOperar && (almoxQ.data === null || (!!p.almox_origem && !!almoxQ.data?.includes(p.almox_origem))));
   const qc = useQueryClient();
   const [status, setStatus] = useState("ATIVOS");
   const [aberto, setAberto] = useState<string | null>(null);
@@ -212,10 +217,10 @@ function PedidosPage() {
                     <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => setRessalva(p)}>Adicionar Produto</Button>
                     <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => setMateriais(p)}>Uso e consumo</Button>
                   </>}
-                  {gestor && (p.status === "ABERTO" || p.status === "EM_SEPARACAO") && p.requisicao_id && <Link to="/suprimentos/requisicoes" title={`Separar na tela Requisições (${p.requisicao_numero})`} className="inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs hover:bg-muted"><PackageCheck className="size-3.5" /> Separar</Link>}
-                  {gestor && (p.status === "ABERTO" || p.status === "EM_SEPARACAO") && <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => mudar(p, "SEPARADO")} title="Marcar como separado sem gerar a ficha de separação">Separado</Button>}
-                  {gestor && (p.status === "SEPARADO" || p.status === "EM_SEPARACAO" || (p.status === "ABERTO" && !p.requisicao_id)) && <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => mudar(p, "ENVIADO")}>Marcar enviado</Button>}
-                  {gestor && p.status === "ENVIADO" && <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => mudar(p, "RECEBIDO")}>Marcar recebido</Button>}
+                  {logistica(p) && (p.status === "ABERTO" || p.status === "EM_SEPARACAO") && p.requisicao_id && <Link to="/suprimentos/requisicoes" title={`Separar na tela Requisições (${p.requisicao_numero})`} className="inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs hover:bg-muted"><PackageCheck className="size-3.5" /> Separar</Link>}
+                  {(gestor || (logistica(p) && !p.requisicao_id)) && (p.status === "ABERTO" || p.status === "EM_SEPARACAO") && <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => mudar(p, "SEPARADO")} title="Marcar como separado sem gerar a ficha de separação">Separado</Button>}
+                  {logistica(p) && (p.status === "SEPARADO" || p.status === "EM_SEPARACAO" || (p.status === "ABERTO" && !p.requisicao_id)) && <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => mudar(p, "ENVIADO")}>Marcar enviado</Button>}
+                  {logistica(p) && p.status === "ENVIADO" && <Button size="sm" variant="outline" disabled={agindo === p.id} onClick={() => mudar(p, "RECEBIDO")}>Marcar recebido</Button>}
                   {gestor && (p.status === "ABERTO" || p.status === "ENVIADO" || aguardando) && <Button size="sm" variant="ghost" disabled={agindo === p.id} onClick={() => mudar(p, "CANCELADO")}>Cancelar</Button>}
                   {gestor && separando && <span className="ml-2 text-[10px] text-muted-foreground" title="Há separação registrada: cancele ou estorne pela requisição">cancelar pela requisição</span>}
                 </TableCell></TableRow>

@@ -43,7 +43,8 @@ export function useAbastBruto(habilitado: boolean) {
           const m = new Map<string, any>(ps.map((p: any) => [p.id, p]));
           return (its ?? []).filter((i: any) => i.aceito !== false).map((i: any) => ({ loja: m.get(i.pedido_id).loja, id_produto: i.id_produto, qtd: Number(i.qtd_pedida), separada: Number(i.qtd_separada) || 0, status: m.get(i.pedido_id).status }));
         }, [] as any[]),
-        fetchAll<BaixaReposicao>((f, t) => sb.from("baixa_operacional").select("codigo_produto, id_local, quantidade, status_fluxo, data_execucao").in("status_fluxo", BAIXAS_EM_ABERTO).is("data_execucao", null).order("id").range(f, t)),
+        // Baixas em aberto por consulta resumida (produto, almox, quantidade): mesmo resultado para gestores e operadores autorizados na matriz.
+        fetchAll<BaixaReposicao>((f, t) => sb.rpc("abast_baixas_reposicao", { p_status: BAIXAS_EM_ABERTO }).order("id").range(f, t)),
       ]);
       // Portfólio validado pelo gestor (última validação ativa por loja): só esses SKUs entram no planejamento e nos indicadores
       const vals = await seguro(async () => ((await sb.from("abast_validacoes_portfolio").select("loja, itens, aprovado_em, competencia, versao, aprovador_nome").eq("status", "VALIDADA").order("aprovado_em", { ascending: false })).data ?? []) as any[], []);

@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
 import { criarElegibilidade, nomeMes } from "@/lib/abastecimento-validacao";
 import { useRole } from "@/hooks/useRole";
+import { useAcessoAbastecimento } from "@/hooks/useAcessoAbastecimento";
 import { useAbastBruto } from "@/lib/abastecimento-hook";
 import { montarDash, transitoPorLocal, type Cluster } from "@/lib/abastecimento-dash";
 import type { HistLinha } from "@/lib/abastecimento-dash-hist";
@@ -25,7 +26,8 @@ const padrao = (hoje: string): Filtro => ({ de: `${hoje.slice(0, 7)}-01`, ate: h
 
 function DashboardPage() {
   const { isAdmin, role } = useRole();
-  const pode = isAdmin || role === "GERENTE" || role === "COORDENADOR_CONTROLE";
+  const acesso = useAcessoAbastecimento("/abastecimento/dashboard");
+  const pode = acesso.pode;
   const hoje = hojeBrt();
   const [filtro, setFiltro] = useState<Filtro>(() => padrao(hoje));
   const [chipG, setChipG] = useState<ChipG>("TODOS");
@@ -62,7 +64,7 @@ function DashboardPage() {
   const irFarol = (c: Cluster | "SEMACAO") => { setChipG(c); document.getElementById("bloco-g")?.scrollIntoView({ behavior: "smooth", block: "start" }); };
   const atualizado = bruto.dataUpdatedAt ? new Date(bruto.dataUpdatedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—";
 
-  if (!pode) return <div className="p-8 text-center text-muted-foreground">Acesso restrito a gestores.</div>;
+  if (!pode) return <div className="p-8 text-center text-muted-foreground">{acesso.carregando ? "Carregando..." : "Acesso restrito a gestores."}</div>;
   const set = (p: Partial<Filtro>) => setFiltro({ ...filtro, ...p });
   const mesAtual = filtro.de === `${hoje.slice(0, 7)}-01` && filtro.ate === hoje, soHoje = filtro.de === hoje && filtro.ate === hoje;
   return (

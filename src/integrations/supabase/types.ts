@@ -8640,6 +8640,17 @@ export type Database = {
         Args: { p_id: string; p_status: string }
         Returns: Json
       }
+      abast_baixas_reposicao: {
+        Args: { p_status: string[] }
+        Returns: {
+          codigo_produto: string
+          data_execucao: string
+          id: string
+          id_local: string
+          quantidade: number
+          status_fluxo: string
+        }[]
+      }
       abast_catalogo_materiais: { Args: never; Returns: Json }
       abast_cd_ajustar: {
         Args: {
@@ -8706,6 +8717,8 @@ export type Database = {
           saldo_inicial: number
         }[]
       }
+      abast_pode_operar_pedidos: { Args: { _uid: string }; Returns: boolean }
+      abast_pode_ver_modulos: { Args: { _uid: string }; Returns: boolean }
       abast_registrar_disponibilidade: {
         Args: { p_data?: string }
         Returns: Json
@@ -8894,6 +8907,10 @@ export type Database = {
       }
       pode_contar_item_missao: {
         Args: { _item_missao_id: string; _uid: string }
+        Returns: boolean
+      }
+      pode_na_matriz: {
+        Args: { _acao: string; _rota: string; _uid: string }
         Returns: boolean
       }
       pode_separar_requisicoes: { Args: { _uid: string }; Returns: boolean }
