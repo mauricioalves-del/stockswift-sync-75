@@ -5,7 +5,7 @@ import { ALMOX_SS_PARA_ATLAS, MOTIVO_PARA_HIPOTESE, lerTudo } from "./atlas-inve
 
 export type BaixaP = { id: string; sku: string | null; almoxarifado: string | null; motivo: string; status: string; quantidade: number; valor: number; data: string | null; vinculada: number | null };
 export type AjusteP = { id: number; sku: string | null; descricao: string | null; almoxarifado: string | null; data: string | null; ajuste_qtd: number; valor: number; id_lote: string | null; qtd_sistema: number | null; qtd_contagem: number | null };
-export type DivP = { id: number; sku: string; almoxarifado: string; data: string | null; origem: string | null; status: string; hipotese: string | null; valor: number };
+export type DivP = { id: number; sku: string; almoxarifado: string; data: string | null; origem: string | null; status: string; hipotese: string | null; valor: number; solucao?: string | null };
 export type DadosPassivos = { baixas: BaixaP[]; ajustes: AjusteP[]; divs: DivP[]; descricoes: Map<string, string> };
 export type Filtro = { ano: number | null; mes: number | null; inicio: string | null; fim: string | null; almox: string | null; motivos: string[] };
 
@@ -29,7 +29,7 @@ export async function carregarPassivos(): Promise<DadosPassivos> {
     lerTudo<any>("baixa_operacional", "*").catch(() => [] as any[]),
     lerTudo<any>("atlas_baixas_operacionais", "origem_id, sku, almoxarifado, motivo_baixa_bruto, status_fluxo, quantidade, valor_total, data_baixa, divergencia_vinculada_id"),
     lerTudo<any>("atlas_ajustes_inventario_oficial", "id, sku, descricao_produto, almoxarifado, dt_invent, ajuste_qtd, valor_total, id_lote, qtd_sistema, qtd_contagem", (q) => q.eq("conta_como_ajuste_inventario", true)),
-    lerTudo<any>("atlas_divergencias", "id, sku, almoxarifado, data_deteccao, origem, status, hipotese_confirmada, valor_estimado"),
+    lerTudo<any>("atlas_divergencias", "id, sku, almoxarifado, data_deteccao, origem, status, hipotese_confirmada, valor_estimado, solucao_aplicada"),
     lerTudo<any>("atlas_produtos", "sku, descricao", undefined, "sku"),
   ]);
   const porId = new Map<string, BaixaP>();
@@ -45,7 +45,7 @@ export async function carregarPassivos(): Promise<DadosPassivos> {
   return {
     baixas: [...porId.values()],
     ajustes: ajustes.filter((a: any) => a.ajuste_qtd).map((a: any) => ({ id: a.id, sku: a.sku, descricao: a.descricao_produto, almoxarifado: a.almoxarifado, data: a.dt_invent ? String(a.dt_invent).slice(0, 10) : null, ajuste_qtd: Number(a.ajuste_qtd), valor: Number(a.valor_total) || 0, id_lote: a.id_lote, qtd_sistema: a.qtd_sistema, qtd_contagem: a.qtd_contagem })),
-    divs: divs.map((d: any) => ({ id: d.id, sku: d.sku, almoxarifado: d.almoxarifado, data: d.data_deteccao ? String(d.data_deteccao).slice(0, 10) : null, origem: d.origem, status: d.status, hipotese: d.hipotese_confirmada, valor: Number(d.valor_estimado) || 0 })),
+    divs: divs.map((d: any) => ({ id: d.id, sku: d.sku, almoxarifado: d.almoxarifado, data: d.data_deteccao ? String(d.data_deteccao).slice(0, 10) : null, origem: d.origem, status: d.status, hipotese: d.hipotese_confirmada, valor: Number(d.valor_estimado) || 0, solucao: d.solucao_aplicada ?? null })),
     descricoes: new Map(prod.map((p: any) => [p.sku, p.descricao])),
   };
 }
