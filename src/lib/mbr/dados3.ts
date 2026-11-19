@@ -142,6 +142,56 @@ export function pacotesBaixa(D: DadosPassivos, mes: string, rot: Rotulos) {
     /** variação dos passivos aprovados vs. o mês anterior (série completa, como no Atlas) */
     variacaoPassivos: todas.length >= 2 ? r2(todas.at(-1)!.valor - todas.at(-2)!.valor) : null,
     porAlmox: porAlmoxarifado(D, fAcum).slice(0, 6), topBaixas: topSkus(D, fAcum, "valor").slice(0, 6), justificativas,
+    ...visaoAnual(D, mes, rot),
+  };
+}
+
+/** Plano de ação por causa identificada (o que evita a perda se repetir). */
+export const ACAO_POR_CAUSA: Record<string, string> = {
+  Pedido_Compra_Pendente: "Dar entrada fiscal do pedido de compra antes do fechamento (Suprimentos em D+1 do recebimento).",
+  Transferencia_Pendente: "Emitir e receber a NF de transferência no mesmo dia; não contar item com transferência em trânsito.",
+  Sem_Divergencia_Real: "Recontar os itens de maior valor antes de abrir divergência (dupla checagem).",
+  Erro_Operacional: "Checklist de separação e baixa por OP; reciclagem da equipe do almoxarifado.",
+  Erro_Cadastro: "Revisar cadastro (unidade, fator de conversão, ficha técnica) dos SKUs reincidentes.",
+  Producao_Nao_Encerrada: "Encerrar as OPs antes do inventário (corte de produção no dia do fechamento).",
+  Consumo_Parcial_OP: "Apontar o consumo real no encerramento da OP, sem baixa pela ficha teórica.",
+  Pendencia_Faturamento: "Faturar no mesmo dia o que foi expedido; conciliar o faturamento pendente antes do fechamento.",
+  Falha_Inventario: "Contagem cega com segunda contagem nos itens divergentes.",
+  Ajuste_Manual_Incorreto: "Ajuste manual só com aprovação do gestor e evidência anexada.",
+  Movimentacao_Duplicada: "Bloquear lançamento duplicado (mesmo SKU, lote e documento) no ERP.",
+  Conversao_Unidade_Incorreta: "Corrigir o fator de conversão (kg × un) na ficha e no cadastro.",
+  Erro_Fiscal: "Conferir CFOP e nota na entrada antes da contagem.",
+  Divergencia_Ficha_Tecnica: "Atualizar a ficha técnica com o consumo real medido nas últimas OPs.",
+  Avaria_Perda: "Perda real por avaria: revisar armazenagem e transporte e registrar a causa por lote.",
+  Perda_Nao_Identificada: "Perda real sem causa: contagem cíclica semanal e controle de acesso ao almoxarifado.",
+};
+const PERDA_REAL_MBR = new Set(["Avaria_Perda", "Perda_Nao_Identificada"]);
+
+/** Visão do ano (janeiro até o fim do mês analisado) e do mês, para os dois slides de baixas e passivos. */
+export function visaoAnual(D: DadosPassivos, mes: string, rot: Rotulos) {
+  const ano = mes.slice(0, 4), fim = fimDoMes(mes);
+  const fAno: Filtro = { ano: null, mes: null, inicio: `${ano}-01-01`, fim, almox: null, motivos: [] };
+  const fMes: Filtro = { ano: Number(ano), mes: Number(mes.slice(5, 7)), inicio: null, fim: null, almox: null, motivos: [] };
+  const rAno = resumoExecutivo(D, fAno), rMes = resumoExecutivo(D, fMes);
+  const meses = Number(mes.slice(5, 7));
+  const nomeAlmox = (a: string) => rot.almox.get(a) ?? a;
+  const rotulo = (h: string | null) => (h && rot.hipotese.get(h)) ?? h ?? "—";
+  const divsAno = D.divs.filter((d) => d.status === "Resolvida" && d.hipotese && d.data && d.data >= fAno.inicio! && d.data <= fim);
+  const grupo = (lista: typeof divsAno) => { const m = new Map<string, { causa: string; chave: string; qtd: number; valor: number; almox: Map<string, number> }>();
+    for (const d of lista) { const e = m.get(d.hipotese!) ?? { causa: rotulo(d.hipotese), chave: d.hipotese!, qtd: 0, valor: 0, almox: new Map() }; e.qtd++; e.valor += d.valor; e.almox.set(nomeAlmox(d.almoxarifado), (e.almox.get(nomeAlmox(d.almoxarifado)) ?? 0) + d.valor); m.set(d.hipotese!, e); }
+    return [...m.values()].map((e) => ({ causa: e.causa, chave: e.chave, qtd: e.qtd, valor: r2(e.valor), almoxPrincipal: [...e.almox].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—", acao: ACAO_POR_CAUSA[e.chave] ?? "Investigar a causa raiz e definir responsável e prazo." })).sort(desc((x) => x.valor)); };
+  const causasProcesso = grupo(divsAno.filter((d) => AJUSTE_PROCESSO.has(d.hipotese!)));
+  const perdasReais = grupo(divsAno.filter((d) => PERDA_REAL_MBR.has(d.hipotese!)));
+  const justificativasAno = divsAno.filter((d) => AJUSTE_PROCESSO.has(d.hipotese!)).sort(desc((d) => d.valor)).slice(0, 10)
+    .map((d) => ({ sku: d.sku, descricao: D.descricoes.get(d.sku) ?? "—", almox: nomeAlmox(d.almoxarifado), falha: rotulo(d.hipotese), acao: (d.solucao && !/^[\s—–-]*$/.test(d.solucao) ? d.solucao : null) || ACAO_POR_CAUSA[d.hipotese!] || "—", valor: r2(d.valor) }));
+  const almoxAno = porAlmoxarifado(D, fAno).map((a) => ({ ...a, nome: nomeAlmox(a.almox) }));
+  const totalRisco = almoxAno.reduce((s, a) => s + a.acumulado, 0);
+  return {
+    ano: { inicio: fAno.inicio!, passivos: rAno.passivos, inventario: rAno.inventario, mediaMensal: r2(rAno.passivos.valor / Math.max(1, meses)) },
+    mes: { passivos: rMes.passivos, inventario: rMes.inventario },
+    topBaixasAno: topSkus(D, fAno, "valor").slice(0, 10),
+    almoxAno, totalRisco: r2(totalRisco), causasProcesso, perdasReais, justificativasAno,
+    perdaRealAno: r2(perdasReais.reduce((s, x) => s + x.valor, 0)), ajusteProcessoAno: r2(causasProcesso.reduce((s, x) => s + x.valor, 0)), qtdAjusteAno: causasProcesso.reduce((s, x) => s + x.qtd, 0),
   };
 }
 export type DadosPacotes = ReturnType<typeof pacotesBaixa>;
