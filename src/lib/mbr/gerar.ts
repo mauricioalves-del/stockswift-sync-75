@@ -5,13 +5,13 @@ import { lerTudo } from "../atlas-investigacao";
 import { coletarDados, type FontesMbr } from "./dados";
 import { ALTURA, LARGURA, nomeMes } from "./formato";
 import { slideAberturaSecao, slideCapa } from "./kit";
-import { ITENS_SECAO2, SLIDES_SECAO2 } from "./secao2";
+import { slideResumoInvolucao, ITENS_SECAO2, SLIDES_SECAO2 } from "./secao2";
 import { ITENS_SECAO1, slideResumoExecutivo, slideScorecard, type Consolidado } from "./secao1";
 import { slideRupturas } from "./rupturas";
 import { reincidencia, slideFarolMov, slidePlanoReincidencia, slideProximos30, slideReincidencia } from "./operacao";
 import { marcosLinhaTempo, slideAutomacoes, slideLinhaTempo, slidesPdca } from "./automacoes";
 import { slideDivergenciasAtlas, slideDoisPiores, slideEvolucaoControles, slideMapeamentoAcoes, slidePlanoAcao, slidePonteValor, slideResultados, slideRupturaExcesso, slideScorecardExec, type Extras } from "./executivo";
-import { DESCRICAO_SECAO3, ITENS_SECAO3, slideBaixas, slideDispersao, slideFarol, slideFefo, slideFuroFicha, slideInvestimento, slideItensSemMov, slidePacotes, slideRecuperacao, slideSemMovimentacao, slideTestes } from "./secao3";
+import { DESCRICAO_SECAO3, ITENS_SECAO3, slideBaixas, slideDispersao, slideFarol, slideFefo, slideFuroFicha, slideInvestimento, slideItensSemMov, slidePacotes, slidePassivosRisco, slideRecuperacao, slideSemMovimentacao, slideTestes } from "./secao3";
 import { slideAberturaAtlas, slideAberturaMetas, slideFechamentoModulos, slideImpacto, slideMetas, slideProximosPassos, slidesFechamentoAcoes } from "./secao4";
 import type { Riscos } from "./fontes3";
 
@@ -67,11 +67,13 @@ export function montarMbr(F: FontesMbr, mes: string, geradoEm = new Date(), R: P
   slideFarolMov(p, rotulo, prox(), R?.farolMov ?? null);
   slideEvolucaoControles(p, rotulo, prox(), c, X);
   fScoreAlmox(p, rotulo, prox(), d);
+  slideResumoInvolucao(p, rotulo, prox(), d);
   // Seção 3
   slideAberturaSecao(p, rotulo, prox(), 3, TOTAL_SECOES, "Mapeamento de Riscos e Passivos", DESCRICAO_SECAO3, ITENS_SECAO3);
   slideBaixas(p, rotulo, prox(), R?.baixas ?? null, mes);
   slideInvestimento(p, rotulo, prox(), R?.investimento ?? null);
   slidePacotes(p, rotulo, prox(), R?.pacotes ?? null, mes);
+  slidePassivosRisco(p, rotulo, prox(), R?.pacotes ?? null, mes);
   slideFarol(p, rotulo, prox(), R?.farol ?? null, geradoEm);
   slideProximos30(p, rotulo, prox(), R?.farol ?? null);
   slideSemMovimentacao(p, rotulo, prox(), R?.semMov ?? null, geradoEm);
