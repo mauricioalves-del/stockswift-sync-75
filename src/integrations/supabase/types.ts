@@ -5074,6 +5074,77 @@ export type Database = {
         }
         Relationships: []
       }
+      log_corridas: {
+        Row: {
+          centro_custo: string | null
+          created_at: string
+          created_by: string | null
+          data: string
+          finalizada_em: string | null
+          id: string
+          km_total: number | null
+          numero: number
+          observacao: string | null
+          origem: Json
+          paradas: Json
+          prestador_id: string
+          rota: Json | null
+          status: string
+          tabela_id: string | null
+          tarifa_km: number | null
+          valor_estimado: number | null
+          voltar_origem: boolean
+        }
+        Insert: {
+          centro_custo?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          finalizada_em?: string | null
+          id?: string
+          km_total?: number | null
+          numero?: number
+          observacao?: string | null
+          origem: Json
+          paradas?: Json
+          prestador_id: string
+          rota?: Json | null
+          status?: string
+          tabela_id?: string | null
+          tarifa_km?: number | null
+          valor_estimado?: number | null
+          voltar_origem?: boolean
+        }
+        Update: {
+          centro_custo?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          finalizada_em?: string | null
+          id?: string
+          km_total?: number | null
+          numero?: number
+          observacao?: string | null
+          origem?: Json
+          paradas?: Json
+          prestador_id?: string
+          rota?: Json | null
+          status?: string
+          tabela_id?: string | null
+          tarifa_km?: number | null
+          valor_estimado?: number | null
+          voltar_origem?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "log_corridas_prestador_id_fkey"
+            columns: ["prestador_id"]
+            isOneToOne: false
+            referencedRelation: "log_prestadores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       log_cotacoes: {
         Row: {
           created_at: string
@@ -8792,6 +8863,7 @@ export type Database = {
       log_meu_prestador: { Args: never; Returns: string }
       log_origem_fabrica: { Args: never; Returns: Json }
       log_sincronizar_envio: { Args: { p_ordem: string }; Returns: undefined }
+      log_sou_parceiro: { Args: never; Returns: boolean }
       pendencias_assinatura_inventario: {
         Args: never
         Returns: {
