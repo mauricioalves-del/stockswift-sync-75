@@ -219,8 +219,6 @@ export function SepararRequisicaoDialog({
   const finalizar = useMutation({
     mutationFn: async () => {
       if (!requisicao) return;
-      const { data: u } = await supabase.auth.getUser();
-      const now = new Date().toISOString();
       const items = itensQ.data ?? [];
 
       // Validar motivos
@@ -232,57 +230,21 @@ export function SepararRequisicaoDialog({
         }
       }
 
-      // Atualiza cada item + decrementa estoque
-      let totalOk = 0, totalParcial = 0, totalNao = 0;
-      for (const it of items) {
+      // Separação atômica no banco: itens, baixa de estoque por lote, status e auditoria
+      const payload = items.map((it) => {
         const l = linhas[it.id];
-        const qs = Number(l?.qtdSeparar || 0);
-        const qSolic = Number(it.quantidade_solicitada);
-        let status = "NAO_SEPARADO";
-        if (qs >= qSolic) { status = "SEPARADO"; totalOk++; }
-        else if (qs > 0) { status = "SEPARADO_PARCIAL"; totalParcial++; }
-        else { totalNao++; }
-
-        const { error: e1 } = await supabase.from("requisicao_itens" as never).update({
-          quantidade_separada: qs,
-          quantidade_atendida: qs,
-          status_item: status,
-          motivo_nao_separacao: qs < qSolic ? l.motivo : null,
-          lotes_separados: l?.alocacoes ?? [],
-          separado_por: u.user?.id,
-          separado_em: now,
-        } as never).eq("id", it.id);
-        if (e1) throw e1;
-
-        // Decrementa estoque_sistemico por lote
-        for (const a of l?.alocacoes ?? []) {
-          const { data: est } = await supabase.from("estoque_sistemico")
-            .select("quantidade").eq("id", a.estoque_id).single();
-          const novaQtd = Math.max(0, Number(est?.quantidade ?? 0) - a.quantidade);
-          const { error: e2 } = await supabase.from("estoque_sistemico")
-            .update({ quantidade: novaQtd }).eq("id", a.estoque_id);
-          if (e2) throw e2;
-        }
-      }
-
-      // Status geral
-      let statusReq = "ENVIADA";
-      if (totalOk === items.length) statusReq = "ATENDIDA";
-      else if (totalOk + totalParcial > 0) statusReq = "EM_SEPARACAO";
-
-      const { error: e3 } = await supabase.from("requisicoes" as never)
-        .update({ status: statusReq } as never).eq("id", requisicao.id);
-      if (e3) throw e3;
-
-      // Auditoria
-      await supabase.from("auditoria").insert({
-        entidade: "requisicoes",
-        entidade_id: requisicao.id,
-        acao: "SEPARACAO",
-        usuario: u.user?.id,
-        dados_depois: { status: statusReq, itens: items.map((i) => ({ id: i.id, sku: i.id_produto, separada: linhas[i.id]?.qtdSeparar, lotes: linhas[i.id]?.alocacoes })) },
-        observacao: `Separação FEFO: ${totalOk} ok, ${totalParcial} parcial, ${totalNao} não separado`,
+        return {
+          item_id: it.id,
+          quantidade: Number(l?.qtdSeparar || 0),
+          motivo: l?.motivo ?? "",
+          alocacoes: (l?.alocacoes ?? []).map((a) => ({ estoque_id: a.estoque_id, quantidade: a.quantidade })),
+        };
       });
+      const { error } = await supabase.rpc("separar_requisicao", {
+        _requisicao_id: requisicao.id,
+        _itens: payload,
+      });
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       toast.success("Separação finalizada");

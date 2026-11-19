@@ -8896,8 +8896,13 @@ export type Database = {
         Args: { _item_missao_id: string; _uid: string }
         Returns: boolean
       }
+      pode_separar_requisicoes: { Args: { _uid: string }; Returns: boolean }
       pode_ver_documento_baixa: {
         Args: { _path: string; _uid: string }
+        Returns: boolean
+      }
+      pode_ver_requisicao_separacao: {
+        Args: { _origem: string; _uid: string }
         Returns: boolean
       }
       pre_inventario_liberar: {
@@ -8987,6 +8992,10 @@ export type Database = {
           p_observacao?: string
         }
         Returns: Json
+      }
+      separar_requisicao: {
+        Args: { _itens: Json; _requisicao_id: string }
+        Returns: string
       }
       sincronizar_tarefas_assinatura: { Args: never; Returns: number }
       usuario_aprovado: { Args: { _uid: string }; Returns: boolean }

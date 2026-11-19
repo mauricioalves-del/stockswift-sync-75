@@ -15,6 +15,7 @@ import { ClipboardList, Plus, Loader2, Check, X, Trash2, PackageCheck, Printer, 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useRole } from "@/hooks/useRole";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatBRL } from "@/lib/inventory";
 import { SepararRequisicaoDialog } from "@/components/suprimentos/SepararRequisicaoDialog";
 
@@ -48,6 +49,10 @@ const STATUS_SEPARAVEL = new Set(["ENVIADA", "APROVADA", "AGUARDANDO_SEPARACAO",
 
 function RequisicoesPage() {
   const { isAdmin, canWrite } = useRole();
+  const perms = usePermissions();
+  // Separar: papéis de escrita ou quem tem criar/editar em Requisições na matriz de permissões
+  // (o banco repete a mesma checagem e limita ao almoxarifado do usuário).
+  const podeSeparar = canWrite || (perms.isMapped("/suprimentos/requisicoes") && perms.canWrite("/suprimentos/requisicoes"));
   const qc = useQueryClient();
   const [statusF, setStatusF] = useState<string>("__all");
   const [novoOpen, setNovoOpen] = useState(false);
@@ -215,7 +220,7 @@ function RequisicoesPage() {
                               </Button>
                             </>
                           )}
-                          {canWrite && STATUS_SEPARAVEL.has(r.status) && (
+                          {podeSeparar && STATUS_SEPARAVEL.has(r.status) && (
                             <Button size="sm" variant="ghost" onClick={() => setSepararOpen(r)} title="Separar (FEFO)">
                               <PackageCheck className="size-4 text-info" />
                             </Button>
