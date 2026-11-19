@@ -33,6 +33,7 @@ export const calcularRota = createServerFn({ method: "POST" })
     const [{ data: meu }, { data: gestor }] = await Promise.all([sb.rpc("log_meu_prestador"), sb.rpc("is_gestor", { _user_id: context.userId })]);
     if (meu !== it.prestador_id && !gestor) throw new Error("Sem permissão para este itinerário.");
     if (it.status === "finalizado") throw new Error("Corrida já finalizada.");
+    if (it.status === "cancelado") throw new Error("Rota cancelada: a quilometragem foi desconsiderada.");
     const paradas: Parada[] = Array.isArray(it.paradas) ? it.paradas : [];
     if (!paradas.length) throw new Error("Cadastre ao menos um destino de entrega.");
     if (paradas.length > 24) throw new Error("Máximo de 24 destinos por itinerário.");
@@ -58,7 +59,7 @@ export const calcularRota = createServerFn({ method: "POST" })
     const km = metrosParaKm(trip.distance), min = Math.round(trip.duration / 60);
     const upd: any = { paradas: ordenadas, km_total: km, duracao_min: min, geometria: trip.geometry, origem };
     if (data.finalizar) { upd.status = "finalizado"; upd.finalizado_em = new Date().toISOString(); }
-    const u = await supabaseAdmin.from("log_itinerarios").update(upd).eq("id", it.id);
+    const u = await supabaseAdmin.from("log_itinerarios").update(upd).eq("id", it.id).neq("status", "cancelado");
     if (u.error) throw new Error(u.error.message);
     return { km, duracao_min: min, paradas: ordenadas.length, retorno_km: it.retorno_origem && trip.legs?.length ? metrosParaKm(trip.legs[trip.legs.length - 1].distance) : null };
   });

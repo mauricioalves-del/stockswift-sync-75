@@ -2,12 +2,13 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, MapPin, Navigation, Plus, Route as RouteIcon, Trash2 } from "lucide-react";
+import { Ban, Loader2, MapPin, Navigation, Plus, Route as RouteIcon, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Campo, dataBR, inputCls, nf, sb } from "@/components/logistica/ui";
 import { calcularRota } from "@/lib/roteirizacao.functions";
-import { STATUS_ITIN, type Parada } from "@/lib/roteirizacao";
+import { STATUS_ITIN, kmConsiderado, podeCancelarItinerario, type Parada } from "@/lib/roteirizacao";
 import { buscarCep, formatarCep, soDigitosCep } from "@/lib/cep";
 
 const paradaVazia: Parada = { cliente: "", endereco: "", numero: "", cidade: "São Paulo", uf: "SP", cep: "" };
@@ -31,6 +32,8 @@ export function Itinerarios({ prestadorId, ordens }: { prestadorId: string; orde
   const origemQ = useQuery({ queryKey: ["log-origem-fabrica"], queryFn: async () => ((await sb.rpc("log_origem_fabrica")).data ?? null) });
   const [f, setF] = useState({ descricao: "", data: new Date().toISOString().slice(0, 10), ordem_id: "", retorno_origem: false, paradas: [{ ...paradaVazia }] as Parada[] });
   const [ocupado, setOcupado] = useState<string | null>(null);
+  const [cancelando, setCancelando] = useState<any | null>(null);
+  const [motivo, setMotivo] = useState("");
   const r = () => qc.invalidateQueries({ queryKey: ["tms-itinerarios", prestadorId] });
   const setP = (i: number, k: keyof Parada, v: string) => setF((f) => ({ ...f, paradas: f.paradas.map((p, j) => (j === i ? { ...p, [k]: v, ...(k === "cep" ? {} : { lat: null, lng: null }) } : p)) }));
   const [buscandoCep, setBuscandoCep] = useState<number | null>(null);
@@ -63,6 +66,21 @@ export function Itinerarios({ prestadorId, ordens }: { prestadorId: string; orde
     const res = await sb.from("log_itinerarios").update(extra).eq("id", it.id); if (res.error) return toast.error(res.error.message); r();
   }
 
+  async function confirmarCancelamento() {
+    const it = cancelando; if (!it) return;
+    if (!motivo.trim()) return toast.error("Informe o motivo do cancelamento.");
+    setOcupado(it.id);
+    const res = await sb.from("log_itinerarios").update({ status: "cancelado", motivo_cancelamento: motivo.trim() }).eq("id", it.id).select("id");
+    setOcupado(null);
+    if (res.error) return toast.error(res.error.message);
+    if (!res.data?.length) return toast.error("Não foi possível cancelar esta rota. Atualize a tela e tente de novo.");
+    toast.success("Rota cancelada: a quilometragem foi desconsiderada.");
+    setCancelando(null); setMotivo(""); r();
+  }
+  const lista = q.data ?? [];
+  const totalKm = lista.reduce((s, it) => s + kmConsiderado(it), 0);
+  const nCanceladas = lista.filter((it) => it.status === "cancelado").length;
+
   return (
     <div className="space-y-4">
       <div className="rounded-lg border bg-muted/30 p-3">
@@ -92,14 +110,20 @@ export function Itinerarios({ prestadorId, ordens }: { prestadorId: string; orde
         </div>
       </div>
 
-      {(q.data ?? []).length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Nenhum itinerário cadastrado.</p> : (
-        <div className="space-y-2">{(q.data ?? []).map((it) => {
-          const url = linkMaps(it);
+      {lista.length > 0 && (
+        <p className="text-xs text-muted-foreground">Km considerados: <b className="tabular-nums text-foreground">{nf(totalKm, 1)} km</b>{nCanceladas > 0 && <> · {nCanceladas} rota(s) cancelada(s) desconsiderada(s)</>}</p>
+      )}
+      {lista.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Nenhum itinerário cadastrado.</p> : (
+        <div className="space-y-2">{lista.map((it) => {
+          const cancelada = it.status === "cancelado";
+          const url = cancelada ? null : linkMaps(it);
           return (
-            <div key={it.id} className="rounded-lg border bg-card p-3">
+            <div key={it.id} className={`rounded-lg border bg-card p-3 ${cancelada ? "opacity-70" : ""}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2 text-sm"><b>{dataBR(it.data)}</b>{it.descricao && <span>{it.descricao}</span>}<span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${COR[it.status]}`}>{STATUS_ITIN[it.status]}</span>
-                  {it.km_total != null && <span className="font-semibold tabular-nums">{nf(it.km_total, 1)} km{it.duracao_min != null && <span className="font-normal text-muted-foreground"> · {it.duracao_min} min</span>}</span>}</div>
+                  {it.km_total != null && (cancelada
+                    ? <span className="tabular-nums text-muted-foreground"><s>{nf(it.km_total, 1)} km</s> · desconsiderado</span>
+                    : <span className="font-semibold tabular-nums">{nf(it.km_total, 1)} km{it.duracao_min != null && <span className="font-normal text-muted-foreground"> · {it.duracao_min} min</span>}</span>)}</div>
                 <div className="flex flex-wrap gap-1">
                   {url && <Button asChild size="sm" variant="outline"><a href={url} target="_blank" rel="noopener noreferrer"><Navigation className="size-4" />Abrir rota</a></Button>}
                   {it.status !== "finalizado" && it.status !== "cancelado" && <>
@@ -107,8 +131,10 @@ export function Itinerarios({ prestadorId, ordens }: { prestadorId: string; orde
                     {it.status === "planejado" && <Button size="sm" variant="outline" onClick={() => status(it, "em_rota")}>Iniciar corrida</Button>}
                     <Button size="sm" disabled={ocupado === it.id} onClick={() => executar(it.id, true)}>Finalizar corrida</Button>
                   </>}
+                  {podeCancelarItinerario(it.status) && <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" disabled={ocupado === it.id} onClick={() => { setMotivo(""); setCancelando(it); }}><Ban className="size-4" />Cancelar rota</Button>}
                 </div>
               </div>
+              {cancelada && <p className="mt-2 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Cancelada{it.cancelado_em ? ` em ${dataBR(it.cancelado_em)}` : ""}{it.motivo_cancelamento ? ` · Motivo: ${it.motivo_cancelamento}` : ""}</p>}
               <ol className="mt-2 space-y-0.5 text-xs text-muted-foreground">
                 <li>Saída · {it.origem?.nome}</li>
                 {(it.paradas as Parada[]).map((p, i) => <li key={i}><b className="text-foreground">{p.sequencia ?? i + 1}.</b> {p.cliente ? `${p.cliente} — ` : ""}{[p.endereco, p.numero, p.bairro, p.cidade, p.uf].filter(Boolean).join(", ")}{p.km_trecho != null && <span className="tabular-nums"> · {nf(p.km_trecho, 1)} km</span>}</li>)}
@@ -118,6 +144,25 @@ export function Itinerarios({ prestadorId, ordens }: { prestadorId: string; orde
           );
         })}</div>
       )}
+
+      <Dialog open={!!cancelando} onOpenChange={(o) => { if (!o) { setCancelando(null); setMotivo(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar rota?</DialogTitle>
+            <DialogDescription>
+              {cancelando && <>Rota de {dataBR(cancelando.data)}{cancelando.km_total != null && <> com {nf(cancelando.km_total, 1)} km</>}. </>}
+              A quilometragem será desconsiderada e a rota não poderá ser reaberta, recalculada nem finalizada.
+            </DialogDescription>
+          </DialogHeader>
+          <label className="block text-xs font-medium">Motivo do cancelamento
+            <textarea className="mt-1 block min-h-20 w-full rounded-md border bg-background px-2 py-1.5 text-sm" value={motivo} maxLength={300} placeholder="Ex.: entrega remarcada pelo cliente" onChange={(e) => setMotivo(e.target.value)} />
+          </label>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setCancelando(null); setMotivo(""); }}>Manter rota</Button>
+            <Button variant="destructive" disabled={!motivo.trim() || ocupado === cancelando?.id} onClick={confirmarCancelamento}><Ban className="size-4" />Cancelar rota</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

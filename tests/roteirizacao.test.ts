@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { metrosParaKm, ordenarPelaViagem, urlViagem } from "../src/lib/roteirizacao";
+import { kmConsiderado, metrosParaKm, ordenarPelaViagem, podeCancelarItinerario, urlViagem } from "../src/lib/roteirizacao";
 
 describe("roteirização", () => {
   test("reordena as paradas pela sequência otimizada, origem fixa", () => {
@@ -16,5 +16,16 @@ describe("roteirização", () => {
     expect(ida).toContain("/-46.600000,-23.500000;-46.700000,-23.600000?");
     expect(ida).toContain("source=first&roundtrip=false&destination=any");
     expect(urlViagem("https://x", o, [{ lat: -23.6, lng: -46.7 }], true)).toContain("roundtrip=true&overview");
+  });
+  test("rota cancelada não entra na quilometragem", () => {
+    expect(kmConsiderado({ status: "cancelado", km_total: 13.6 })).toBe(0);
+    expect(kmConsiderado({ status: "planejado", km_total: "13.6" })).toBe(13.6);
+    expect(kmConsiderado({ status: "finalizado", km_total: null })).toBe(0);
+  });
+  test("só rota planejada ou em rota pode ser cancelada", () => {
+    expect(podeCancelarItinerario("planejado")).toBe(true);
+    expect(podeCancelarItinerario("em_rota")).toBe(true);
+    expect(podeCancelarItinerario("finalizado")).toBe(false);
+    expect(podeCancelarItinerario("cancelado")).toBe(false);
   });
 });

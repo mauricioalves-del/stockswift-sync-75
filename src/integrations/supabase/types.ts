@@ -5448,6 +5448,8 @@ export type Database = {
       }
       log_itinerarios: {
         Row: {
+          cancelado_em: string | null
+          cancelado_por: string | null
           created_at: string
           created_by: string | null
           data: string
@@ -5458,6 +5460,7 @@ export type Database = {
           id: string
           iniciado_em: string | null
           km_total: number | null
+          motivo_cancelamento: string | null
           observacao: string | null
           ordem_id: string | null
           origem: Json
@@ -5468,6 +5471,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cancelado_em?: string | null
+          cancelado_por?: string | null
           created_at?: string
           created_by?: string | null
           data?: string
@@ -5478,6 +5483,7 @@ export type Database = {
           id?: string
           iniciado_em?: string | null
           km_total?: number | null
+          motivo_cancelamento?: string | null
           observacao?: string | null
           ordem_id?: string | null
           origem: Json
@@ -5488,6 +5494,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cancelado_em?: string | null
+          cancelado_por?: string | null
           created_at?: string
           created_by?: string | null
           data?: string
@@ -5498,6 +5506,7 @@ export type Database = {
           id?: string
           iniciado_em?: string | null
           km_total?: number | null
+          motivo_cancelamento?: string | null
           observacao?: string | null
           ordem_id?: string | null
           origem?: Json

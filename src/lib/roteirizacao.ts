@@ -16,3 +16,10 @@ export function urlViagem(base: string, origem: Ponto, pontos: { lat: number; ln
   return `${base}/trip/v1/driving/${coords}?source=first&roundtrip=${retorno}${retorno ? "" : "&destination=any"}&overview=simplified&geometries=geojson&steps=false`;
 }
 export const STATUS_ITIN: Record<string, string> = { planejado: "Planejado", em_rota: "Em rota", finalizado: "Finalizado", cancelado: "Cancelado" };
+/** Situações que podem ser canceladas: só rotas ainda abertas (planejada ou em rota). */
+export const podeCancelarItinerario = (status: string) => status === "planejado" || status === "em_rota";
+/** Km que entram na conta: rota cancelada é desconsiderada, mesmo que tenha sido calculada antes. */
+export function kmConsiderado(it: { status: string; km_total?: number | string | null }) {
+  if (it.status === "cancelado" || it.km_total == null) return 0;
+  const n = Number(it.km_total); return Number.isFinite(n) ? n : 0;
+}
