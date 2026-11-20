@@ -11,6 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Upload, FileSpreadsheet, Loader2, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useRole } from "@/hooks/useRole";
+import { numeroOuNulo, resolverCusto } from "@/lib/custo-contabil";
+import { agregarCustoContabil } from "@/lib/custo-historico";
 
 export const Route = createFileRoute("/_authenticated/importar")({
   component: ImportarPage,
@@ -30,6 +32,8 @@ interface Row {
   unidade: string;       // local
   peso_kg: number;
   custo_vlr: number;
+  contabil_sp: number | null;   // Custo_Contabil_SP
+  contabil_para: number | null; // Custo_Contabil_Para
   ean: string;
 }
 
@@ -92,6 +96,8 @@ function ImportarPage() {
           unidade: pick(r, "Unidade", "unidade") || "",
           peso_kg: Number(String(r["Peso_Kg"] ?? 0).replace(",", ".")) || 0,
           custo_vlr: Number(String(r["Custo_Vlr"] ?? 0).replace(",", ".")) || 0,
+          contabil_sp: numeroOuNulo(pick(r, "Custo_Contabil_SP", "Custo Contabil SP", "Custo_Contábil_SP")),
+          contabil_para: numeroOuNulo(pick(r, "Custo_Contabil_Para", "Custo Contabil Para", "Custo_Contábil_Para")),
           ean: pick(r, "EAN", "Ean", "ean"),
         });
       });
@@ -128,7 +134,7 @@ function ImportarPage() {
     // Deduplicar por (SKU + Lote + Almox) somando quantidades — evita "ON CONFLICT affect row a second time"
     const agg = new Map<string, {
       id_produto: string; lote: string; descricao: string; unidade: string; quantidade: number;
-      custo_unitario: number; id_local: string; origem: string; cliente: string;
+      custo_unitario: number; custo_contabil: number | null; custo_padrao: number | null; origem_custo: string; id_local: string; origem: string; cliente: string;
       data_validade: string | null; importado_por: string | undefined; ean: string | null;
       validade_manual_em: string; data_importacao: string;
     }>();
@@ -145,7 +151,8 @@ function ImportarPage() {
           descricao: r.descricao,
           unidade: r.um,
           quantidade: r.qtd,
-          custo_unitario: r.custo_vlr,
+          // custo contábil (SP ou Pará, pela região do almoxarifado) com prioridade; sem ele, o custo padrão (Custo_Vlr)
+          ...(() => { const c = resolverCusto({ origem: r.origem, custoPadrao: r.custo_vlr, contabilSp: r.contabil_sp, contabilPara: r.contabil_para }); return { custo_unitario: c.custo, custo_contabil: c.custo_contabil, custo_padrao: c.custo_padrao, origem_custo: c.origem_custo }; })(),
           id_local: r.unidade || "",
           origem: r.origem,
           cliente: "",
@@ -202,6 +209,15 @@ function ImportarPage() {
       console.error("Falha ao zerar lotes obsoletos", e);
     }
 
+    // 3.2 Histórico diário do custo contábil (base do custo dos fechamentos de inventário)
+    let custosContabeis = 0;
+    try {
+      const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+      const hist = agregarCustoContabil(payload.map((p) => ({ id_produto: p.id_produto, origem: p.origem, quantidade: p.quantidade, custo_contabil: p.custo_contabil, custo_padrao: p.custo_padrao })))
+        .map((h) => ({ ...h, data: hoje, atualizado_em: new Date().toISOString() }));
+      for (let i = 0; i < hist.length; i += CHUNK) { const { error } = await (supabase as any).from("custo_contabil_historico").upsert(hist.slice(i, i + CHUNK), { onConflict: "data,sku,regiao" }); if (!error) custosContabeis += Math.min(CHUNK, hist.length - i); }
+    } catch (e) { console.error("Falha ao gravar o histórico de custo contábil", e); }
+
     // 4. Log de importação
 
     await supabase.from("importacoes_estoque").insert({
@@ -211,7 +227,7 @@ function ImportarPage() {
       novos,
       atualizados,
       erros: fail,
-      detalhes: { origens_novas: novasOrigens.map((o) => o.codigo_origem), lotes_zerados: zerados },
+      detalhes: { origens_novas: novasOrigens.map((o) => o.codigo_origem), lotes_zerados: zerados, linhas_custo_contabil: payload.filter((p) => p.origem_custo === "CONTABIL").length, historico_custo_contabil: custosContabeis },
     });
 
     await supabase.from("audit_logs").insert({
@@ -223,7 +239,7 @@ function ImportarPage() {
 
     setImporting(false);
     setResult({ ok, novos, atualizados, fail, origens: novasOrigens.length, when: new Date().toLocaleString("pt-BR") });
-    if (fail === 0) toast.success(`${ok} registros sincronizados (${novos} novos, ${atualizados} atualizados, ${zerados} lotes zerados)`);
+    if (fail === 0) toast.success(`${ok} registros sincronizados (${novos} novos, ${atualizados} atualizados, ${zerados} lotes zerados) · custo contábil em ${payload.filter((p) => p.origem_custo === "CONTABIL").length} lote(s)${payload.some((p) => p.origem_custo === "CONTABIL") ? "" : " — a planilha não trouxe Custo_Contabil_SP/Para"}`);
     else toast.error(`${fail} falhas na sincronização`);
     setRows([]);
   }
