@@ -2,7 +2,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, Loader2, Pencil, Plus, Sparkles, Trash2, Trophy } from "lucide-react";
+import { Bot, LayoutDashboard, Loader2, Pencil, Plus, Sparkles, Trash2, Trophy } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Secao } from "@/components/abast-dash/comum";
@@ -14,6 +14,7 @@ import { brl, Campo, dataBR, Hero, inputCls, nf, sb, Status } from "@/components
 import { chaveCliente, cotarPorTabelas, erroExclusaoSolicitacao, podeEditarSolicitacao, podeExcluirSolicitacao, ZONA_ROTULO, zonaPorCep, type Zona } from "@/lib/tms";
 import { buscarCep, formatarCep, soDigitosCep } from "@/lib/cep";
 import { estimarMercadoIA } from "@/lib/cotacao-ia.functions";
+import { PainelExecutivoCotacao } from "@/components/logistica/PainelExecutivoCotacao";
 import { prestadorDaPlataforma, type OpcaoIA, type PremissasIA } from "@/lib/cotacao-ia";
 
 export const Route = createFileRoute("/_authenticated/logistica/cotacoes")({ component: Cotacoes, head: () => ({ meta: [{ title: "Cotações de transporte — Controle Logístico" }] }) });
@@ -43,6 +44,7 @@ function Cotacoes() {
     for (const r of [s, c, p, t, e]) if (r.error) throw r.error;
     return { sol: s.data as any[], cot: c.data as any[], pres: p.data as any[], tab: (t.data as any[]).map((x) => ({ ...x, valor_fixo: +x.valor_fixo, valor_km: +x.valor_km, valor_kg: +x.valor_kg, minimo: +x.minimo, prazo_dias: x.prazo_dias == null ? null : +x.prazo_dias })), emb: (e.data as any[]).map((x) => ({ ...x, custo: +x.custo, capacidade_kg: x.capacidade_kg == null ? null : +x.capacidade_kg })), cc: ((cc.data ?? []) as any[]).map((x) => x.centro_custo as string), ia: (ia.data ?? []) as any[], cli: (cli.data ?? []) as any[] };
   } });
+  const [painel, setPainel] = useState(false);
   const [nova, setNova] = useState(false); const [f, setF] = useState(vazio); const [sel, setSel] = useState<string | null>(null);
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [editando, setEditando] = useState<any | null>(null); const [salvando, setSalvando] = useState(false);
@@ -213,6 +215,7 @@ function Cotacoes() {
                 <td className="px-2 py-1 text-right text-xs">{c.prazo_dias == null ? "—" : `${c.prazo_dias} d`}</td>
                 <td className="px-2 py-1 text-right"><div className="flex items-center justify-end gap-1">{podeEditarSolicitacao(role, atual.status) && !c.escolhida && <Button size="sm" variant="ghost" aria-label={`Editar cotação de ${nomeP(c.prestador_id)}`} title="Editar cotação" onClick={() => editarCotacao(c)}><Pencil className="size-3.5" /></Button>}{atual.status === "cotacao" ? <Button size="sm" variant={i === 0 ? "default" : "outline"} onClick={() => escolher(c.id)}>Escolher</Button> : c.escolhida ? <Status s="aprovada" /> : null}</div></td></tr>)}</tbody></table></div>
             {cots.length > 1 && <p className="text-xs text-muted-foreground">Diferença entre a mais barata e a mais cara: <b>{brl(+cots[cots.length - 1].total - +cots[0].total)}</b>. {new Set(cots.map((c) => c.prestador_id)).size < 3 && <span className="text-amber-700">Faltam cotações para chegar a 3 prestadores.</span>}</p>}
+            {cots.length > 0 && <div className="flex justify-end"><Button size="sm" onClick={() => setPainel(true)}><LayoutDashboard className="mr-1 size-4" />Visão executiva e calculadora de custo</Button></div>}
             <EstimativaIA est={estimativa} podeGerar={atual.status === "cotacao"} gerando={estimando} onGerar={() => gerarEstimativa(atual.id)} onUsar={usarEstimativa} />
             {atual.status === "cotacao" && <div className="space-y-2 rounded-lg border p-2">
               <div className="flex items-center justify-between"><b className="text-xs">{editCot ? `Editar cotação de ${nomeP(cots.find((c) => c.id === editCot)?.prestador_id ?? "")}` : "Adicionar cotação"}</b><Button size="sm" variant="outline" onClick={() => cotarAuto(atual.id)}><Sparkles className="mr-1 size-3.5" />Recalcular pelas tabelas</Button></div>
@@ -226,6 +229,9 @@ function Cotacoes() {
           </div>}
         </Secao>
       </div>
+      <Dialog open={painel && !!atual} onOpenChange={setPainel}>
+        <DialogContent className="max-h-[94vh] max-w-6xl overflow-y-auto">{atual && <PainelExecutivoCotacao sol={atual} cots={cots} nomeP={nomeP} embalagens={q.data?.emb ?? []} />}</DialogContent>
+      </Dialog>
       <Dialog open={nova} onOpenChange={(o) => { setNova(o); if (!o) setEditando(null); }}>
         <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{editando ? `Editar solicitação #${editando.numero}` : "Nova solicitação de transporte"}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
