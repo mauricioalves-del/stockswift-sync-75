@@ -4,9 +4,11 @@
 // IAP (ponderada por valor, só SKUs com custo cadastrado).
 import { lerTudo } from "./atlas-investigacao";
 
-export type ItemInv = { id: number; fechamento_id: number; sku: string; descricao: string | null; almoxarifado: string; categoria: string | null; qtd_sistema: number; qtd_contagem: number; divergencia: number; valor: number; pct: number | null; divergente: boolean; mes: string | null; data: string | null; recorrente: boolean; recorrencias: number };
+export type ItemInv = { custoUsado?: number | null; id: number; fechamento_id: number; sku: string; descricao: string | null; almoxarifado: string; categoria: string | null; qtd_sistema: number; qtd_contagem: number; divergencia: number; valor: number; pct: number | null; divergente: boolean; mes: string | null; data: string | null; recorrente: boolean; recorrencias: number };
 export type Fechamento = { id: number; almoxarifado: string; data: string; mes: string };
 export type DadosInv = { itens: ItemInv[]; fechamentos: Fechamento[]; custos: Map<string, number> };
+/** Custo do item no inventário: o contábil gravado no fechamento (data do inventário); sem ele, o custo de hoje do cadastro. */
+export const custoDe = (D: DadosInv, i: ItemInv): number | undefined => (i.custoUsado != null ? i.custoUsado : D.custos.get(i.sku));
 export type FiltroInv = { almox: string | null; mes: string | null };
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -15,7 +17,7 @@ export const FAIXAS: [number, number, string][] = [[0, 5, "0 a 5 un."], [5, 20, 
 export async function carregarInventario(): Promise<DadosInv> {
   const [fech, itens, prod] = await Promise.all([
     lerTudo<any>("atlas_fechamentos_inventario", "id, almoxarifado, data_fechamento"),
-    lerTudo<any>("atlas_itens_fechamento", "id, fechamento_id, sku, descricao_produto, almoxarifado, categoria_produto, qtd_sistema, qtd_contagem, divergencia_qtd, valor_estimado, percentual_acuracia, divergente, recorrencias_anteriores, destaque_recorrente"),
+    lerTudo<any>("atlas_itens_fechamento", "id, fechamento_id, sku, descricao_produto, almoxarifado, categoria_produto, qtd_sistema, qtd_contagem, divergencia_qtd, valor_estimado, percentual_acuracia, divergente, recorrencias_anteriores, destaque_recorrente, custo_unitario_usado"),
     lerTudo<any>("atlas_produtos", "sku, custo_unitario", (q) => q.not("custo_unitario", "is", null), "sku"),
   ]);
   return montarInventario(fech, itens, prod);
@@ -30,14 +32,14 @@ export function montarInventario(fech: any[], itens: any[], prod: any[]): DadosI
     custos: new Map(prod.filter((p) => p.custo_unitario != null).map((p) => [p.sku, Number(p.custo_unitario)])),
     itens: itens.map((i) => {
       const f = fm.get(Number(i.fechamento_id));
-      return { id: Number(i.id), fechamento_id: Number(i.fechamento_id), sku: i.sku, descricao: i.descricao_produto, almoxarifado: i.almoxarifado, categoria: i.categoria_produto, qtd_sistema: Number(i.qtd_sistema) || 0, qtd_contagem: Number(i.qtd_contagem) || 0, divergencia: Number(i.divergencia_qtd) || 0, valor: Number(i.valor_estimado) || 0, pct: i.percentual_acuracia == null ? null : Number(i.percentual_acuracia), divergente: i.divergente === true || i.divergente === "t", mes: f?.mes ?? null, data: f?.data ?? null, recorrente: i.destaque_recorrente === true || i.destaque_recorrente === "t", recorrencias: Number(i.recorrencias_anteriores) || 0 };
+      return { custoUsado: Number(i.custo_unitario_usado) > 0 ? Number(i.custo_unitario_usado) : null, id: Number(i.id), fechamento_id: Number(i.fechamento_id), sku: i.sku, descricao: i.descricao_produto, almoxarifado: i.almoxarifado, categoria: i.categoria_produto, qtd_sistema: Number(i.qtd_sistema) || 0, qtd_contagem: Number(i.qtd_contagem) || 0, divergencia: Number(i.divergencia_qtd) || 0, valor: Number(i.valor_estimado) || 0, pct: i.percentual_acuracia == null ? null : Number(i.percentual_acuracia), divergente: i.divergente === true || i.divergente === "t", mes: f?.mes ?? null, data: f?.data ?? null, recorrente: i.destaque_recorrente === true || i.destaque_recorrente === "t", recorrencias: Number(i.recorrencias_anteriores) || 0 };
     }),
   };
 }
 
 const filtrar = (D: DadosInv, f: FiltroInv) => D.itens.filter((i) => (!f.almox || i.almoxarifado === f.almox) && (!f.mes || i.mes === f.mes));
 /** Valor da divergência pelo custo atual do cadastro; sem custo, o valor gravado no fechamento (planilha). */
-const valorAtual = (D: DadosInv, i: ItemInv) => { const c = D.custos.get(i.sku); return c != null ? Math.abs(i.divergencia) * c : Math.abs(i.valor); };
+const valorAtual = (D: DadosInv, i: ItemInv) => { const c = custoDe(D, i); return c != null ? Math.abs(i.divergencia) * c : Math.abs(i.valor); };
 
 // ---------- Painel Inventário ----------
 export function kpis(D: DadosInv, f: FiltroInv) {
@@ -105,9 +107,9 @@ export function tresModelos(D: DadosInv, itens: ItemInv[]) {
   const qtdSistema = itens.reduce((s, i) => s + Math.abs(i.qtd_sistema), 0);
   const qtdDivergente = div.reduce((s, i) => s + Math.abs(i.divergencia), 0);
   const iaq = qtdSistema ? r2((1 - qtdDivergente / qtdSistema) * 100) : null;
-  const comCusto = itens.filter((i) => D.custos.has(i.sku));
-  const portfolio = comCusto.reduce((s, i) => s + i.qtd_sistema * D.custos.get(i.sku)!, 0);
-  const divergenteValor = comCusto.filter((i) => i.divergente).reduce((s, i) => s + Math.abs(i.divergencia) * D.custos.get(i.sku)!, 0);
+  const comCusto = itens.filter((i) => custoDe(D, i) != null);
+  const portfolio = comCusto.reduce((s, i) => s + i.qtd_sistema * custoDe(D, i)!, 0);
+  const divergenteValor = comCusto.filter((i) => i.divergente).reduce((s, i) => s + Math.abs(i.divergencia) * custoDe(D, i)!, 0);
   const iap = comCusto.length && portfolio ? r2((1 - divergenteValor / portfolio) * 100) : null;
   // Valor divergente total do período: mesmo critério do MoM (Valor Mod), Pareto e magnitude — custo do cadastro, ou valor da planilha sem custo.
   const divergenteTotal = div.reduce((s, i) => s + valorAtual(D, i), 0);
