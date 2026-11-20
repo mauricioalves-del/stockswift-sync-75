@@ -1,5 +1,5 @@
 // MBR — coleta dos dados das Seções 1 e 2 a partir das tabelas atlas_* (funções puras, testáveis com o backup do Atlas).
-import { comparativoPorAlmox, evolucaoMensal, evolucaoPonderada, faltaSobra, kpis, tresModelos, FAIXAS, type DadosInv, type ItemInv } from "../atlas-inventario";
+import { comparativoPorAlmox, evolucaoMensal, evolucaoPonderada, faltaSobra, kpis, tresModelos, FAIXAS, type DadosInv, type ItemInv, custoDe } from "../atlas-inventario";
 import { r2 } from "./formato";
 
 export type MovHist = { almoxarifado: string | null; data_movimento: string | null; divergencia: number | null; valor_divergencia: number | null };
@@ -16,7 +16,7 @@ export type ItemScorecardAlmox = { almoxarifado: string; nome: string; acuracia:
 const mesDe = (d: string | null | undefined) => (d ? String(d).slice(0, 7) : null);
 const pct = (sem: number, tot: number) => (tot ? r2((sem / tot) * 100) : null);
 /** Valor da divergência pelo custo atual do cadastro; sem custo, o valor gravado no fechamento. */
-const valorAtual = (D: DadosInv, i: ItemInv) => { const c = D.custos.get(i.sku); return c != null ? Math.abs(i.divergencia) * c : Math.abs(i.valor); };
+const valorAtual = (D: DadosInv, i: ItemInv) => { const c = custoDe(D, i); return c != null ? Math.abs(i.divergencia) * c : Math.abs(i.valor); };
 
 /** Lista de concentração de valor (Pareto) do mês: até 50 maiores divergências por valor, com % acumulado. */
 export function concentracaoValor(D: DadosInv, mes: string, topN = 20) {
@@ -91,7 +91,7 @@ export function scorecardAlmox(F: FontesMbr, mes: string): ItemScorecardAlmox[] 
 
 /** Resumo gerencial da involução: almoxarifados cujo IAP caiu e os 10 itens que mais pesaram (valor e pp do IAP). */
 export function causasInvolucao(F: FontesMbr, mes: string, limiar = 0.2) {
-  const D = F.inv, custo = (sku: string) => D.custos.get(sku);
+  const D = F.inv;
   const nome = new Map(F.almox.map((a) => [a.codigo, a.nome_exibicao || a.codigo]));
   const almoxes: { codigo: string; nome: string; iap: number | null; deltaIap: number; mesAnt: string; divValor: number; divValorAnt: number; itensDiv: number; itensDivAnt: number; faltas: number; sobras: number }[] = [];
   const impactos: { almox: string; sku: string; descricao: string; sistema: number; contagem: number; divergencia: number; valor: number; pp: number; novo: boolean; recorrencias: number }[] = [];
@@ -99,8 +99,8 @@ export function causasInvolucao(F: FontesMbr, mes: string, limiar = 0.2) {
     if (sc.deltaIap == null || sc.deltaIap > -limiar) continue;
     const fech = evolucaoMensal(D, sc.almoxarifado).filter((p) => p.mes <= mes); const ant = fech.at(-2)?.mes; if (!ant) continue;
     const doMes = D.itens.filter((i) => i.almoxarifado === sc.almoxarifado && i.mes === mes), doAnt = D.itens.filter((i) => i.almoxarifado === sc.almoxarifado && i.mes === ant);
-    const portfolio = doMes.reduce((s, i) => s + (custo(i.sku) != null ? i.qtd_sistema * custo(i.sku)! : 0), 0);
-    const val = (i: ItemInv) => (custo(i.sku) != null ? Math.abs(i.divergencia) * custo(i.sku)! : 0);
+    const portfolio = doMes.reduce((s, i) => s + (custoDe(D, i) != null ? i.qtd_sistema * custoDe(D, i)! : 0), 0);
+    const val = (i: ItemInv) => (custoDe(D, i) != null ? Math.abs(i.divergencia) * custoDe(D, i)! : 0);
     const divM = doMes.filter((i) => i.divergente), divA = doAnt.filter((i) => i.divergente), divAntSku = new Set(divA.map((i) => i.sku));
     almoxes.push({ codigo: sc.almoxarifado, nome: sc.nome, iap: sc.iap, deltaIap: sc.deltaIap, mesAnt: ant, divValor: r2(divM.reduce((s, i) => s + val(i), 0)), divValorAnt: r2(divA.reduce((s, i) => s + val(i), 0)), itensDiv: divM.length, itensDivAnt: divA.length,
       faltas: r2(divM.filter((i) => i.divergencia < 0).reduce((s, i) => s + val(i), 0)), sobras: r2(divM.filter((i) => i.divergencia > 0).reduce((s, i) => s + val(i), 0)) });
