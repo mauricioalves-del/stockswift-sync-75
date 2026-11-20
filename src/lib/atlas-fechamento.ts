@@ -5,6 +5,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { comoObjetos, limparTexto, normalizarAlmoxarifado, parseData, parseDecimal, parseSku, type Contexto, type Planilha } from "./atlas-importar";
 import { investigarLote, lerTudo } from "./atlas-investigacao";
+import { custoContabilNaData, skuNorm } from "./custo-historico";
 
 const sb = supabase as any;
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -63,6 +64,14 @@ export async function importarFechamento(p: Planilha, arquivo: string, aba: stri
     } catch (e: any) { erros.push(`linha ${k + 2}: ${e?.message ?? e}`); }
   });
   if (!linhas.length) throw new Error("Nenhum item válido na planilha.");
+  // custo contábil vigente na data do inventário (histórico da carga de lotes); sem histórico, fica o custo de hoje
+  const contabil = await custoContabilNaData(linhas.map((l) => l.sku), linhas[0].almox, linhas[0].data);
+  const custoUsado = new Map<Linha, { custo: number | null; origem: string }>();
+  for (const l of linhas) {
+    const c = contabil.get(skuNorm(l.sku));
+    if (c != null) { custoUsado.set(l, { custo: c, origem: "CONTABIL_LOTE" }); if (l.divergente) l.valor = r2(Math.abs(l.div) * c) * (l.valor < 0 ? -1 : 1); }
+    else custoUsado.set(l, { custo: ctx.produtos.get(l.sku)?.custo ?? null, origem: l.divergente && l.valor ? "PLANILHA" : "CADASTRO" });
+  }
 
   progresso?.("criando o fechamento…");
   const { data: f, error } = await sb.from("atlas_fechamentos_inventario").insert({ arquivo_origem: arquivo, criado_por: ctx.usuario, criado_em: new Date().toISOString(), almoxarifado: linhas[0].almox, data_fechamento: linhas[0].data }).select("id").single();
@@ -75,7 +84,7 @@ export async function importarFechamento(p: Planilha, arquivo: string, aba: stri
     const idsHist = await inserirRetornandoIds("atlas_movimentacoes_historico", oks.map((l) => ({ sku: l.sku, almoxarifado: l.almox, categoria_produto: l.categoria, data_movimento: l.data, entrada: 0, saida: 0, saldo_sistema: l.sis, saldo_fisico: l.cont, divergencia: 0, valor_divergencia: 0, unidade: l.unidade, observacao_original: obsDe(l), status: "Historico_Resolvido", origem: "fechamento_inventario" })));
     const idDiv = new Map(divs.map((l, i) => [l, idsDiv[i]])), idHist = new Map(oks.map((l, i) => [l, idsHist[i]]));
     progresso?.("gravando os itens…");
-    const idsItens = await inserirRetornandoIds("atlas_itens_fechamento", linhas.map((l) => { const rec = recorr.get(`${l.sku}|${l.almox}`) ?? 0; return { fechamento_id: f.id, sku: l.sku, descricao_produto: l.descricao, almoxarifado: l.almox, categoria_produto: l.categoria, qtd_sistema: l.sis, qtd_contagem: l.cont, divergencia_qtd: l.div, valor_estimado: l.valor, percentual_acuracia: l.pct, divergente: l.divergente, resumo_planilha: l.resumo, observacao_pos_inventario: l.obsPos, observacao_extra: l.obs2, recorrencias_anteriores: rec, destaque_recorrente: rec > 0, divergencia_id: idDiv.get(l) ?? null, movimentacao_historico_id: idHist.get(l) ?? null }; }));
+    const idsItens = await inserirRetornandoIds("atlas_itens_fechamento", linhas.map((l) => { const rec = recorr.get(`${l.sku}|${l.almox}`) ?? 0; return { custo_unitario_usado: custoUsado.get(l)?.custo ?? null, origem_custo: custoUsado.get(l)?.origem ?? null, fechamento_id: f.id, sku: l.sku, descricao_produto: l.descricao, almoxarifado: l.almox, categoria_produto: l.categoria, qtd_sistema: l.sis, qtd_contagem: l.cont, divergencia_qtd: l.div, valor_estimado: l.valor, percentual_acuracia: l.pct, divergente: l.divergente, resumo_planilha: l.resumo, observacao_pos_inventario: l.obsPos, observacao_extra: l.obs2, recorrencias_anteriores: rec, destaque_recorrente: rec > 0, divergencia_id: idDiv.get(l) ?? null, movimentacao_historico_id: idHist.get(l) ?? null }; }));
     // ações de pós-inventário: abre para divergente com "obs pós inv"; fecha as pendentes de quem agora não divergiu
     const novas = linhas.map((l, i) => ({ l, item: idsItens[i] })).filter(({ l }) => l.divergente && l.obsPos).map(({ l, item }) => ({ item_fechamento_id: item, fechamento_id: f.id, sku: l.sku, descricao_produto: l.descricao, almoxarifado: l.almox, acao_descricao: l.obsPos, status: "Pendente", origem_automatica: true, criado_por: ctx.usuario, criado_em: new Date().toISOString() }));
     if (novas.length) await inserirRetornandoIds("atlas_acoes_pos_inventario", novas);
@@ -133,8 +142,10 @@ export type ItemF = { id: number; sku: string; descricao_produto: string | null;
 export function resumoFechamento(itens: ItemF[], custos: Map<string, number>) {
   const total = itens.length, div = itens.filter((i) => i.divergente);
   const qs = itens.reduce((s, i) => s + Math.abs(Number(i.qtd_sistema) || 0), 0), qd = div.reduce((s, i) => s + Math.abs(Number(i.divergencia_qtd) || 0), 0);
-  const cc = itens.filter((i) => custos.has(i.sku));
-  const port = cc.reduce((s, i) => s + (Number(i.qtd_sistema) || 0) * custos.get(i.sku)!, 0), vd = cc.filter((i) => i.divergente).reduce((s, i) => s + Math.abs(Number(i.divergencia_qtd) || 0) * custos.get(i.sku)!, 0);
+  // custo do item: o gravado no fechamento (contábil da data) e, sem ele, o custo de hoje do cadastro
+  const cu = (i: ItemF) => { const g = Number((i as any).custo_unitario_usado); return g > 0 ? g : custos.get(i.sku); };
+  const cc = itens.filter((i) => cu(i) != null);
+  const port = cc.reduce((s, i) => s + (Number(i.qtd_sistema) || 0) * cu(i)!, 0), vd = cc.filter((i) => i.divergente).reduce((s, i) => s + Math.abs(Number(i.divergencia_qtd) || 0) * cu(i)!, 0);
   const falta = div.filter((i) => Number(i.divergencia_qtd) < 0), sobra = div.filter((i) => Number(i.divergencia_qtd) > 0);
   const vF = falta.reduce((s, i) => s + Math.abs(Number(i.valor_estimado) || 0), 0), vS = sobra.reduce((s, i) => s + Math.abs(Number(i.valor_estimado) || 0), 0);
   return { total_itens: total, total_divergentes: div.length, item_a_item_pct: total ? r2(((total - div.length) / total) * 100) : null, iaq_pct: qs ? r2((1 - qd / qs) * 100) : null, iap_pct: port ? r2((1 - vd / port) * 100) : null, cobertura_custo_pct: total ? r2((cc.length / total) * 100) : null, valor_falta: r2(vF), valor_sobra: r2(vS), resultado_liquido: r2(vS - vF), itens_com_falta: falta.length, itens_com_sobra: sobra.length };
