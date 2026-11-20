@@ -2,7 +2,7 @@
 // Farol de Movimentados (cumprimento de rotina, disciplina e nível de entrega por setor).
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
-import type { DadosInv } from "@/lib/atlas-inventario";
+import { custoDe, type DadosInv } from "@/lib/atlas-inventario";
 import { ALMOX_FAROL, coberturaItens, conciliacaoPorDia, ehDiaUtil, movimentoPelaConciliacao, movimentosPorDia, nivelServico, situacaoDia, type AlmoxFarol, type ConcLinha, type MovLinha, type SituacaoDia } from "@/lib/farol-movimentados";
 import { fimDoMes, mesesAte, type DadosFarol } from "./dados3";
 import { painelLeitura } from "./executivo";
@@ -43,7 +43,7 @@ export function reincidencia(D: DadosInv | null | undefined, mes: string, janela
   for (const i of D.itens) {
     if (!i.mes || !set.has(i.mes) || !i.divergente) continue;
     const k = `${i.almoxarifado}|${i.sku}`, e = m.get(k) ?? { almox: i.almoxarifado, sku: i.sku, descricao: i.descricao ?? i.sku, porMes: new Map(), perda: 0 };
-    const c = D.custos.get(i.sku), v = c != null ? Math.abs(i.divergencia) * c : Math.abs(i.valor);
+    const c = custoDe(D, i), v = c != null ? Math.abs(i.divergencia) * c : Math.abs(i.valor);
     e.porMes.set(i.mes, (e.porMes.get(i.mes) ?? 0) + i.divergencia); if (i.divergencia < 0) e.perda += v; m.set(k, e);
   }
   const out: Reincidente[] = [];
@@ -57,7 +57,7 @@ export function reincidencia(D: DadosInv | null | undefined, mes: string, janela
     out.push({ almox: e.almox, sku: e.sku, descricao: e.descricao, meses: meses_, janela: mf.length, seguidos: seg, padrao, perda: Math.round(e.perda * 100) / 100, ultimo: e.porMes.get(mf[mf.length - 1]) ?? 0, acao, meta: "Zero divergência em 2 fechamentos seguidos" });
   }
   out.sort((a, b) => b.perda - a.perda || b.meses - a.meses);
-  const perdaPeriodo = D.itens.filter((i) => i.mes && set.has(i.mes) && i.divergencia < 0).reduce((t, i) => { const c = D.custos.get(i.sku); return t + (c != null ? Math.abs(i.divergencia) * c : Math.abs(i.valor)); }, 0);
+  const perdaPeriodo = D.itens.filter((i) => i.mes && set.has(i.mes) && i.divergencia < 0).reduce((t, i) => { const c = custoDe(D, i); return t + (c != null ? Math.abs(i.divergencia) * c : Math.abs(i.valor)); }, 0);
   const porAlmox = [...out.reduce((mm, r) => { const e = mm.get(r.almox) ?? { almox: r.almox, skus: 0, perda: 0 }; e.skus++; e.perda += r.perda; return mm.set(r.almox, e); }, new Map<string, { almox: string; skus: number; perda: number }>()).values()].sort((a, b) => b.perda - a.perda);
   const porPadrao = ["Falta recorrente", "Sobra recorrente", "Oscila (falta e sobra)"].map((pd) => ({ padrao: pd, skus: out.filter((r) => r.padrao === pd).length, perda: out.filter((r) => r.padrao === pd).reduce((t, r) => t + r.perda, 0) }));
   return { itens: out, perda: out.reduce((t, r) => t + r.perda, 0), perdaPeriodo, porAlmox, porPadrao, meses };
