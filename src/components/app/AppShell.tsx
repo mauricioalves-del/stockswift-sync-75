@@ -10,7 +10,7 @@ import {
   PackageCheck, Hourglass, Gem, SearchCheck, Store, FileSpreadsheet,
  TrendingDown,
  ReceiptText,
- SlidersHorizontal, UserPlus, Orbit, Scale, ListChecks, Gauge, Upload } from "lucide-react";
+ SlidersHorizontal, UserPlus, Orbit, Scale, ListChecks, Gauge, Upload, ClipboardCheck } from "lucide-react";
 import oncaIcono from "@/assets/onca-icono.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
@@ -39,6 +39,7 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/atlas/inicio", label: "Início", icon: Orbit, role: "any" },
       { to: "/atlas/acuracia-ponderada", label: "Resultado de Inventário", icon: Scale, role: "any" },
       { to: "/atlas/painel", label: "Contagem Cíclica Fabril", icon: LayoutDashboard, role: "any" },
+      { to: "/inventario-geral", label: "Contagem de Inventário", icon: ClipboardCheck, role: "any" },
       { to: "/missoes", label: "Contagem Cíclica Lojas", icon: Target, role: "admin" },
       { to: "/atlas/mapeamento-passivos", label: "Mapeamento de Passivos", icon: AlertTriangle, role: "any" },
       { to: "/atlas/importar", label: "Importar", icon: Upload, role: "write" },
