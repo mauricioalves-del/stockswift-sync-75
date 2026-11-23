@@ -1910,6 +1910,7 @@ export type Database = {
         Row: {
           almoxarifado: string | null
           categoria_produto: string | null
+          custo_unitario_usado: number | null
           descricao_produto: string | null
           destaque_recorrente: boolean | null
           divergencia_id: number | null
@@ -1920,6 +1921,7 @@ export type Database = {
           movimentacao_historico_id: number | null
           observacao_extra: string | null
           observacao_pos_inventario: string | null
+          origem_custo: string | null
           percentual_acuracia: number | null
           qtd_contagem: number | null
           qtd_sistema: number | null
@@ -1931,6 +1933,7 @@ export type Database = {
         Insert: {
           almoxarifado?: string | null
           categoria_produto?: string | null
+          custo_unitario_usado?: number | null
           descricao_produto?: string | null
           destaque_recorrente?: boolean | null
           divergencia_id?: number | null
@@ -1941,6 +1944,7 @@ export type Database = {
           movimentacao_historico_id?: number | null
           observacao_extra?: string | null
           observacao_pos_inventario?: string | null
+          origem_custo?: string | null
           percentual_acuracia?: number | null
           qtd_contagem?: number | null
           qtd_sistema?: number | null
@@ -1952,6 +1956,7 @@ export type Database = {
         Update: {
           almoxarifado?: string | null
           categoria_produto?: string | null
+          custo_unitario_usado?: number | null
           descricao_produto?: string | null
           destaque_recorrente?: boolean | null
           divergencia_id?: number | null
@@ -1962,6 +1967,7 @@ export type Database = {
           movimentacao_historico_id?: number | null
           observacao_extra?: string | null
           observacao_pos_inventario?: string | null
+          origem_custo?: string | null
           percentual_acuracia?: number | null
           qtd_contagem?: number | null
           qtd_sistema?: number | null
@@ -3645,6 +3651,36 @@ export type Database = {
         }
         Relationships: []
       }
+      custo_contabil_historico: {
+        Row: {
+          atualizado_em: string
+          custo_contabil: number
+          custo_padrao: number | null
+          data: string
+          quantidade: number | null
+          regiao: string
+          sku: string
+        }
+        Insert: {
+          atualizado_em?: string
+          custo_contabil: number
+          custo_padrao?: number | null
+          data: string
+          quantidade?: number | null
+          regiao: string
+          sku: string
+        }
+        Update: {
+          atualizado_em?: string
+          custo_contabil?: number
+          custo_padrao?: number | null
+          data?: string
+          quantidade?: number | null
+          regiao?: string
+          sku?: string
+        }
+        Relationships: []
+      }
       demanda_extra: {
         Row: {
           aprovado_em: string | null
@@ -5073,6 +5109,65 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      log_analises_cotacao: {
+        Row: {
+          comentario: string | null
+          cotacao_recomendada: string | null
+          created_at: string
+          created_by: string | null
+          decidido_em: string | null
+          decidido_por: string | null
+          enviado_em: string | null
+          enviado_por: string | null
+          id: string
+          parametros: Json
+          resultado: Json
+          solicitacao_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          comentario?: string | null
+          cotacao_recomendada?: string | null
+          created_at?: string
+          created_by?: string | null
+          decidido_em?: string | null
+          decidido_por?: string | null
+          enviado_em?: string | null
+          enviado_por?: string | null
+          id?: string
+          parametros: Json
+          resultado: Json
+          solicitacao_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          comentario?: string | null
+          cotacao_recomendada?: string | null
+          created_at?: string
+          created_by?: string | null
+          decidido_em?: string | null
+          decidido_por?: string | null
+          enviado_em?: string | null
+          enviado_por?: string | null
+          id?: string
+          parametros?: Json
+          resultado?: Json
+          solicitacao_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "log_analises_cotacao_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "log_solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       log_clientes: {
         Row: {
