@@ -123,7 +123,7 @@ function Planejamento({ onCriado, invId }: { onCriado: () => void; invId?: strin
         <div><Label>Critério ABC (opcional)</Label><select disabled={listaGerada} className={sel} value={f.abc} onChange={(e) => setF({ ...f, abc: e.target.value })}><option value="">Todos os itens</option><option>A</option><option>B</option><option>C</option></select></div>
         <div><Label>Tolerância por SKU (%)</Label><Input value={f.tol} onChange={(e) => setF({ ...f, tol: e.target.value })} /></div>
         <div className="md:col-span-2"><Label>Produtos sem grupo atribuído vão para</Label><select className={sel} value={padraoKey} onChange={(e) => setF({ ...f, padrao: e.target.value })}>{duplas.filter((d) => d.conta).map((d) => <option key={d.key} value={d.key}>{d.nome}</option>)}</select></div>
-        <label className="flex items-center gap-2 text-sm md:col-span-4"><input type="checkbox" checked={f.exibir} onChange={(e) => setF({ ...f, exibir: e.target.checked })} />Mostrar o saldo do sistema às duplas (desmarcado = contagem cega)</label>
+        <p className="text-xs text-muted-foreground md:col-span-4">Contagem cega: só o Administrador vê o saldo do sistema; as duplas recebem apenas o sinal sonoro e a vibração de "dentro da tolerância" ou "divergência".</p>
       </div>
       <div className="space-y-3">
         <div className="flex items-center justify-between"><b className="flex items-center gap-2 text-sm"><Users className="size-4" />Duplas</b><Button size="sm" variant="outline" onClick={() => setDuplas([...duplas, novaDupla(duplas.length + 1)])}><Plus className="mr-1 size-4" />Dupla</Button></div>
