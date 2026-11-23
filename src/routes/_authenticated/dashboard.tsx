@@ -22,7 +22,7 @@ const PILARES = [
   { to: "/shelf-life/risco", icon: ShieldAlert, title: "Mapeamento de Risco", description: "Exposição financeira por validade e criticidade de lote." },
   { to: "/shelf-life/farol", icon: Gauge, title: "Farol de Shelf", description: "Faixas 0-30, 31-60 e 61-90 dias com ações prioritárias." },
   { to: "/producao/dispersao", icon: Factory, title: "Produção", description: "Dispersão de lote, consumo e análise de ordens de produção." },
-  { to: "/missoes", icon: Target, title: "Missões de Inventário", description: "Contagens, recontagens e quebras de FEFO por missão." },
+  { to: "/missoes", icon: Target, title: "Contagem Cíclica Lojas", description: "Contagens, recontagens e quebras de FEFO por missão." },
   { to: "/suprimentos/dashboard", icon: Truck, title: "Dashboard Suprimentos", description: "Estoque, requisições e planejamento de abastecimento." },
 ];
 

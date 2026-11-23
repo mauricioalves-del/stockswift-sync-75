@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/atlas/acuracia-ponderada")
     const n = Number(s.fechamento);
     return { ...(visao ? { visao } : {}), ...(Number.isInteger(n) && n > 0 ? { fechamento: n } : {}) };
   },
-  head: () => ({ meta: [{ title: "Acurácia Ponderada — Atlas" }, { name: "description", content: "Comparativo dos modelos de acurácia, Pareto, magnitude e evolução mensal do Atlas." }, { property: "og:title", content: "Acurácia Ponderada — Atlas" }, { property: "og:description", content: "Comparativo dos modelos de acurácia, Pareto, magnitude e evolução mensal do Atlas." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+  head: () => ({ meta: [{ title: "Resultado de Inventário — Atlas" }, { name: "description", content: "Comparativo dos modelos de acurácia, Pareto, magnitude e evolução mensal do Atlas." }, { property: "og:title", content: "Resultado de Inventário — Atlas" }, { property: "og:description", content: "Comparativo dos modelos de acurácia, Pareto, magnitude e evolução mensal do Atlas." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
 
 const VISOES = ["acuracia", "painel-inventario", "fechamento", "pre-inventario", "pos-inventario"] as const;
@@ -126,7 +126,7 @@ function AcuraciaPonderada() {
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 px-5 py-4 text-white">
-        <h1 className="flex items-center gap-2 text-xl font-bold"><Scale className="size-5" /> Acurácia Ponderada <span className="ml-2 text-sm font-normal text-slate-300">Item a item · IAQ · IAP</span></h1>
+        <h1 className="flex items-center gap-2 text-xl font-bold"><Scale className="size-5" /> Resultado de Inventário <span className="ml-2 text-sm font-normal text-slate-300">Item a item · IAQ · IAP</span></h1>
         <Tabs value={visao} onValueChange={(v) => setVisao(v as Visao)}>
           <TabsList className="h-auto max-w-full min-h-9 flex-wrap gap-1 bg-white/10 p-1 text-slate-300">
             <TabsTrigger value="acuracia" className="text-xs text-slate-300 hover:bg-white/10 hover:text-white data-[state=active]:bg-info data-[state=active]:text-info-foreground data-[state=active]:shadow-sm"><Scale className="mr-1 size-3.5" /> Acurácia Ponderada</TabsTrigger>

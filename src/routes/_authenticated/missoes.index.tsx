@@ -34,7 +34,7 @@ let statusFilterMemory: string = "__all__";
 
 export const Route = createFileRoute("/_authenticated/missoes/")({
   component: MissoesPage,
-  head: () => ({ meta: [{ title: "Missões de Inventário" }] }),
+  head: () => ({ meta: [{ title: "Contagem Cíclica Lojas" }] }),
 });
 
 const TIPOS = ["DIARIA", "SEMANAL", "QUINZENAL", "MENSAL", "EXTRAORDINARIA"];
@@ -47,7 +47,7 @@ function MissoesPage() {
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Missões de Inventário</h1>
+        <h1 className="text-2xl font-bold">Contagem Cíclica Lojas</h1>
         <p className="text-sm text-muted-foreground">Contagens cíclicas programadas por Grupo, Família, SKU ou Local.</p>
       </div>
 

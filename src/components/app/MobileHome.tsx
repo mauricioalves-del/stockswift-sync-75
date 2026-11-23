@@ -21,7 +21,7 @@ const TILES: Tile[] = [
   { to: "/contar", label: "Contar", icon: ClipboardList, tone: "success", role: "write" },
   { to: "/recontagem", label: "Recontagem", icon: RotateCcw, tone: "warning", role: "write" },
   { to: "/gestao/minhas-tarefas", label: "Minhas Tarefas", icon: Target, tone: "info", role: "any" },
-  { to: "/missoes", label: "Missões", icon: Target, role: "admin" },
+  { to: "/missoes", label: "Contagem Cíclica Lojas", icon: Target, role: "admin" },
   { to: "/baixas", label: "Baixas", icon: PackageMinus, role: "write" },
   { to: "/suprimentos/estoque", label: "Estoque", icon: Boxes, role: "any" },
   { to: "/suprimentos/requisicoes", label: "Requisições", icon: Truck, role: "write" },

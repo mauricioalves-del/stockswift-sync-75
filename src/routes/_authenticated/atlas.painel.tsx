@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/_authenticated/atlas/painel")({
   component: AtlasPainel,
   validateSearch: (s: Record<string, unknown>): { visao?: Visao; div?: number } => ({ ...(s.visao === "farol" || s.visao === "divergencias" || s.visao === "painel" ? { visao: s.visao } : {}), ...(Number(s.div) > 0 ? { div: Number(s.div) } : {}) }),
-  head: () => ({ meta: [{ title: "Movimentados — Atlas" }, { name: "description", content: "Acurácia das contagens diárias, Farol de Movimentados e lista de divergências do Atlas." }, { property: "og:title", content: "Movimentados — Atlas" }, { property: "og:description", content: "Acurácia das contagens diárias, Farol de Movimentados e lista de divergências do Atlas." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+  head: () => ({ meta: [{ title: "Contagem Cíclica Fabril — Atlas" }, { name: "description", content: "Acurácia das contagens diárias, Farol de Movimentados e lista de divergências do Atlas." }, { property: "og:title", content: "Contagem Cíclica Fabril — Atlas" }, { property: "og:description", content: "Acurácia das contagens diárias, Farol de Movimentados e lista de divergências do Atlas." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
 });
 
 type Visao = "painel" | "farol" | "divergencias";
@@ -149,7 +149,7 @@ function AtlasPainel() {
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl bg-slate-900 px-5 py-4 text-white">
         <div className="min-w-0 w-full space-y-2 lg:w-auto">
-          <h1 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xl font-bold"><LayoutDashboard className="size-5" /> Movimentados <span className="ml-2 max-w-full text-sm font-normal text-slate-300">Acurácia das contagens diárias · Divergências do Atlas</span></h1>
+          <h1 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xl font-bold"><LayoutDashboard className="size-5" /> Contagem Cíclica Fabril <span className="ml-2 max-w-full text-sm font-normal text-slate-300">Acurácia das contagens diárias · Divergências do Atlas</span></h1>
           <Tabs value={visao} onValueChange={(v) => setVisao(v as Visao)}>
             <TabsList className="h-auto max-w-full min-h-9 flex-wrap gap-1 bg-white/10 p-1 text-slate-300">
               <TabsTrigger value="painel" className="text-xs text-slate-300 hover:bg-white/10 hover:text-white data-[state=active]:bg-info data-[state=active]:text-info-foreground data-[state=active]:shadow-sm"><LayoutDashboard className="mr-1 size-3.5" /> Painel</TabsTrigger>

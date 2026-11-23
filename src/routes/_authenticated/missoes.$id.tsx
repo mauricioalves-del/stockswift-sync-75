@@ -419,7 +419,7 @@ function MissaoExecucaoPage() {
         <div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
             <Link to="/missoes" className="hover:underline flex items-center gap-1">
-              <ArrowLeft className="size-3" /> Missões
+              <ArrowLeft className="size-3" /> Contagem Cíclica Lojas
             </Link>
           </div>
           <h1 className="text-2xl font-bold">{missao.titulo}</h1>

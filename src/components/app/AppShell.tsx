@@ -37,8 +37,9 @@ const NAV: (NavItem | NavGroup)[] = [
     items: [
       // Módulos do antigo pilar Atlas (solicitação de 13/11/2026), na ordem pedida:
       { to: "/atlas/inicio", label: "Início", icon: Orbit, role: "any" },
-      { to: "/atlas/acuracia-ponderada", label: "Acurácia Ponderada", icon: Scale, role: "any" },
-      { to: "/atlas/painel", label: "Movimentados", icon: LayoutDashboard, role: "any" },
+      { to: "/atlas/acuracia-ponderada", label: "Resultado de Inventário", icon: Scale, role: "any" },
+      { to: "/atlas/painel", label: "Contagem Cíclica Fabril", icon: LayoutDashboard, role: "any" },
+      { to: "/missoes", label: "Contagem Cíclica Lojas", icon: Target, role: "admin" },
       { to: "/atlas/mapeamento-passivos", label: "Mapeamento de Passivos", icon: AlertTriangle, role: "any" },
       { to: "/atlas/importar", label: "Importar", icon: Upload, role: "write" },
       // Ocultados do menu (solicitação de 13/11/2026) — rotas preservadas:
@@ -138,7 +139,6 @@ const NAV: (NavItem | NavGroup)[] = [
       { to: "/gestao/modelos-checklist", label: "Modelos de Checklist", icon: FolderTree, role: "write" },
       { to: "/gestao/plano-integracao", label: "Plano de Integração", icon: UserPlus, role: "any" },
       { to: "/baixas", label: "Baixas Operacionais", icon: PackageMinus, role: "write" },
-      { to: "/missoes", label: "Missões de Inventário", icon: Target, role: "admin" },
       { to: "/abc", label: "Classificação ABC", icon: BarChart3, role: "admin" },
     ],
   },
