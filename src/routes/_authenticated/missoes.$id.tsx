@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import {
-  ArrowLeft, ScanLine, Save, Loader2, Warehouse, AlertTriangle,
+  ArrowLeft, ScanLine, Check, Loader2, Warehouse, AlertTriangle,
   PlayCircle, CheckCircle2, Plus, Trash2, CalendarIcon, FileDown, PackageMinus,
 } from "lucide-react";
 import { BaixaConsumoDialog } from "@/components/missoes/BaixaConsumoDialog";
@@ -609,12 +609,11 @@ function MissaoExecucaoPage() {
                     {isAdmin && <TableHead className="text-right">Sistema</TableHead>}
                     <TableHead className="w-[420px]">Contagem por lote</TableHead>
                     <TableHead className="w-40">Status</TableHead>
-                    <TableHead className="w-32 text-right">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {itensFiltrados.length === 0 && (
-                    <TableRow><TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-10 text-muted-foreground">
+                    <TableRow><TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-10 text-muted-foreground">
                       {itens.length === 0 ? "Nenhum item gerado para esta missão." : "Nenhum item corresponde aos filtros."}
                     </TableCell></TableRow>
                   )}
@@ -676,6 +675,17 @@ function TransitoInfo({ transito, estado }: { transito?: TransitoMissao; estado?
     <span className={cn("font-semibold", transito ? "text-primary" : "text-muted-foreground")}>{formatNum(transito?.qtd ?? 0)}</span>
     {transito && <span className="text-[10px] text-muted-foreground ml-1">({transito.notas} NF{transito.notas > 1 ? "s" : ""})</span>}
   </span>;
+}
+
+/** Assinatura do que é gravado de cada linha — compara com o último salvamento para não regravar sem mudança. */
+function snapLinhas(ls: LinhaLote[]): string {
+  return JSON.stringify(ls.map((l) => {
+    const raw = (l.quantidade_contada ?? "").toString().replace(",", ".").trim();
+    const q = raw === "" ? "" : String(Number(raw));
+    return l.eh_nao_relacionado
+      ? [true, (l.lote_manual_texto ?? "").trim(), l.data_validade_manual ?? null, q]
+      : [false, l.lote ?? "", q];
+  }));
 }
 
 const LinhaItem = memo(function LinhaItem({
@@ -754,9 +764,41 @@ const LinhaItem = memo(function LinhaItem({
   const [observacao, setObservacao] = useState(item.observacao ?? "");
   const dirtyRef = useRef(false);
 
-  function alterarObservacao(valor: string) {
+  // ===== Salvamento automático =====
+  // Cada alteração (quantidade, lote, lote manual, validade, observação) agenda o salvamento;
+  // sair do campo ou Enter salva na hora. Linhas incompletas não são gravadas.
+  type EstadoSalvamento = "idle" | "pendente" | "salvando" | "salvo" | "incompleto" | "erro";
+  const [estadoSalvo, setEstadoSalvo] = useState<EstadoSalvamento>("idle");
+  const versaoRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savingRef = useRef(false);
+  const pendenteRef = useRef(false);
+  const jaSalvouRef = useRef(false);
+  const [snapInicial] = useState<string | null>(() => (linhasSalvas.length > 0 ? snapLinhas(buildSeed()) : null));
+  const ultimoSnapRef = useRef<string | null>(snapInicial);
+  const ultimaObsRef = useRef<string | null>((item.observacao ?? "").trim() || null);
+
+  function agendarSalvamento(ms = 1000) {
     dirtyRef.current = true;
+    versaoRef.current += 1;
+    setEstadoSalvo("pendente");
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      void salvarRef.current(true);
+    }, ms);
+  }
+  /** Antecipa um salvamento agendado (ao sair do campo). */
+  function salvarAgora() {
+    if (!timerRef.current) return;
+    clearTimeout(timerRef.current);
+    timerRef.current = null;
+    void salvarRef.current(true);
+  }
+
+  function alterarObservacao(valor: string) {
     setObservacao(valor);
+    agendarSalvamento(1200);
   }
 
   // Ressincroniza quando as linhas salvas chegam depois (fix do seed vazio) —
@@ -766,9 +808,12 @@ const LinhaItem = memo(function LinhaItem({
     [linhasSalvas],
   );
   useEffect(() => {
-    if (dirtyRef.current) return;
+    // Depois do 1º salvamento local, o estado da tela é a fonte da verdade (evita perder o foco ao recarregar).
+    if (dirtyRef.current || jaSalvouRef.current) return;
     if (linhasSalvas.length === 0) return;
-    setLinhas(buildSeed());
+    const seed = buildSeed();
+    ultimoSnapRef.current = snapLinhas(seed);
+    setLinhas(seed);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linhasSalvasKey]);
 
@@ -826,6 +871,7 @@ const LinhaItem = memo(function LinhaItem({
     const prox = lotesSist.find((l) => !usados.has(l.lote));
     if (!prox) { toast.info("Todos os lotes deste SKU já foram adicionados"); return; }
     setLinhas([...linhas, { key: crypto.randomUUID(), lote: prox.lote, eh_nao_relacionado: false, quantidade_contada: "", saldo_sistemico_lote: prox.saldo }]);
+    agendarSalvamento();
   }
 
   function addLinhaManual() {
@@ -839,10 +885,11 @@ const LinhaItem = memo(function LinhaItem({
       quantidade_contada: "",
       saldo_sistemico_lote: 0,
     }]);
+    agendarSalvamento();
   }
   function removerLinha(k: string) {
-    dirtyRef.current = true;
     setLinhas(linhas.filter((l) => l.key !== k));
+    agendarSalvamento(300);
   }
   function alterarLote(k: string, valor: string) {
     dirtyRef.current = true;
@@ -851,52 +898,97 @@ const LinhaItem = memo(function LinhaItem({
       const s = lotesSist.find((x) => x.lote === valor);
       return { ...l, lote: valor, eh_nao_relacionado: false, saldo_sistemico_lote: s?.saldo ?? 0 };
     }));
+    agendarSalvamento(300);
   }
   function alterarLoteManual(k: string, valor: string) {
     dirtyRef.current = true;
     setLinhas(linhas.map((l) => l.key === k ? { ...l, lote_manual_texto: valor } : l));
+    agendarSalvamento(1200);
   }
   function alterarValidadeManual(k: string, valor: string | null) {
     dirtyRef.current = true;
     setLinhas(linhas.map((l) => l.key === k ? { ...l, data_validade_manual: valor } : l));
+    agendarSalvamento(300);
   }
   function alterarQtd(k: string, valor: string) {
     dirtyRef.current = true;
     setLinhas(linhas.map((l) => l.key === k ? { ...l, quantidade_contada: valor } : l));
+    agendarSalvamento(1000);
   }
   function onQtdKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key !== "Enter") return;
     e.preventDefault();
-    if (saving) return;
-    salvar();
+    if (!timerRef.current) return;
+    clearTimeout(timerRef.current);
+    timerRef.current = null;
+    void salvarRef.current(false);
   }
 
-  async function salvar() {
-    if (missao.status === "CANCELADA") {
-      toast.error("Missão encerrada — não aceita novas contagens"); return;
-    }
-    // Validações mínimas
-    if (linhas.length === 0) { toast.error("Adicione ao menos uma linha de lote"); return; }
+  function validarLinhas(): string | null {
+    if (linhas.length === 0) return "Adicione ao menos uma linha de lote";
     for (const l of linhas) {
       const q = Number(l.quantidade_contada.replace(",", "."));
-      if (l.quantidade_contada === "" || Number.isNaN(q) || q < 0) {
-        toast.error("Quantidade inválida em uma das linhas"); sounds.error(); return;
-      }
-      if (!l.eh_nao_relacionado && !l.lote) {
-        toast.error("Selecione o lote em todas as linhas"); return;
-      }
-      if (l.eh_nao_relacionado && !(l.lote_manual_texto ?? "").trim()) {
-        toast.error("Informe o código do lote manual"); return;
-      }
+      if (l.quantidade_contada.trim() === "" || Number.isNaN(q) || q < 0) return "Informe a quantidade em todas as linhas";
+      if (!l.eh_nao_relacionado && !l.lote) return "Selecione o lote em todas as linhas";
+      if (l.eh_nao_relacionado && !(l.lote_manual_texto ?? "").trim()) return "Informe o código do lote manual";
     }
     // Sem lotes duplicados (ignorando não relacionado)
     const codigos = linhas.filter((l) => !l.eh_nao_relacionado).map((l) => l.lote);
-    if (new Set(codigos).size !== codigos.length) {
-      toast.error("Há lotes repetidos — junte as quantidades em uma única linha"); return;
+    if (new Set(codigos).size !== codigos.length) return "Há lotes repetidos — junte as quantidades em uma única linha";
+    return null;
+  }
+
+  /** Fila de salvamento: nunca grava duas vezes ao mesmo tempo; alterações feitas durante a gravação são salvas em seguida. */
+  async function salvar(auto = false) {
+    if (savingRef.current) { pendenteRef.current = true; return; }
+    savingRef.current = true;
+    const versao = versaoRef.current;
+    try {
+      await executarSalvamento(auto);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao salvar a contagem");
+      setEstadoSalvo("erro");
+      setSaving(false);
+    } finally {
+      savingRef.current = false;
+      if (pendenteRef.current || versaoRef.current !== versao) {
+        pendenteRef.current = false;
+        if (!timerRef.current) void salvarRef.current(true);
+      } else {
+        dirtyRef.current = false;
+      }
+    }
+  }
+
+  async function executarSalvamento(auto: boolean) {
+    if (missao.status === "CANCELADA") {
+      if (!auto) toast.error("Missão encerrada — não aceita novas contagens");
+      setEstadoSalvo("idle");
+      return;
+    }
+    const obsAtual = observacao.trim() || null;
+    const snap = snapLinhas(linhas);
+    const erro = validarLinhas();
+    const linhasMudaram = snap !== ultimoSnapRef.current;
+
+    // Linhas incompletas ou sem mudança: grava só a observação (se mudou).
+    if (erro || !linhasMudaram) {
+      if (erro && !auto) { toast.error(erro); sounds.error(); }
+      if (obsAtual !== ultimaObsRef.current) {
+        setEstadoSalvo("salvando");
+        const { error: eObs } = await (supabase as any).from("missoes_itens")
+          .update({ observacao: obsAtual }).eq("id", item.id);
+        if (eObs) { toast.error(eObs.message); setEstadoSalvo("erro"); return; }
+        ultimaObsRef.current = obsAtual;
+        onSaved();
+      }
+      setEstadoSalvo(erro ? "incompleto" : "salvo");
+      return;
     }
 
     const t0 = Date.now();
     setSaving(true);
+    setEstadoSalvo("salvando");
 
     const userId = (await supabase.auth.getUser()).data.user?.id ?? "";
 
@@ -913,7 +1005,7 @@ const LinhaItem = memo(function LinhaItem({
       usuario: userId || null,
     }));
     const { error: eIns } = await (supabase as any).from("itens_missao_lotes").insert(payloadLinhas);
-    if (eIns) { toast.error(eIns.message); sounds.error(); setSaving(false); return; }
+    if (eIns) { toast.error(eIns.message); sounds.error(); setSaving(false); setEstadoSalvo("erro"); return; }
 
     // === Análise nível SKU (agregado, faixa 95–105%) ===
     const { classe, percentual } = classificarFaixa(totalContado, sistemaParaDivergencia);
@@ -950,7 +1042,7 @@ const LinhaItem = memo(function LinhaItem({
     // Atualiza item da missão (mantém quantidade_contada agregada para compatibilidade)
     const { error: eUp } = await (supabase as any).from("missoes_itens")
       .update({ quantidade_contada: totalContado, status_item, observacao: observacao.trim() || null }).eq("id", item.id);
-    if (eUp) { toast.error(eUp.message); sounds.error(); setSaving(false); return; }
+    if (eUp) { toast.error(eUp.message); sounds.error(); setSaving(false); setEstadoSalvo("erro"); return; }
 
     // === Persistência de derivados ===
     // Se OK/QUEBRA_FEFO → não vai pra recontagem; mas se QUEBRA_FEFO cria ocorrência.
@@ -1080,9 +1172,33 @@ const LinhaItem = memo(function LinhaItem({
     }
 
     setSaving(false);
-    dirtyRef.current = false;
+    ultimoSnapRef.current = snap;
+    ultimaObsRef.current = obsAtual;
+    jaSalvouRef.current = true;
+    setEstadoSalvo("salvo");
     onSaved();
   }
+  const salvarRef = useRef(salvar);
+  salvarRef.current = salvar;
+  // Ao sair da tela (ou o item sair do filtro) com algo agendado, grava antes de desmontar.
+  useEffect(() => () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+      void salvarRef.current(true);
+    }
+  }, []);
+
+  const indicadorSalvamento = (() => {
+    const base = "inline-flex items-center gap-1 text-[10px] whitespace-nowrap";
+    if (saving || estadoSalvo === "salvando")
+      return <span className={cn(base, "text-muted-foreground")}><Loader2 className="size-3 animate-spin" /> Salvando…</span>;
+    if (estadoSalvo === "pendente") return <span className={cn(base, "text-muted-foreground")}>Salvando em instantes…</span>;
+    if (estadoSalvo === "salvo") return <span className={cn(base, "text-success")}><Check className="size-3" /> Salvo</span>;
+    if (estadoSalvo === "incompleto") return <span className={cn(base, "text-warning-foreground")}>Preencha para salvar</span>;
+    if (estadoSalvo === "erro") return <span className={cn(base, "text-destructive")}>Não salvou — tente de novo</span>;
+    return null;
+  })();
 
   // Status consolidado do SKU (após salvar)
   const concluido = !!item.status_item && CONCLUIDO_STATUSES.includes(item.status_item);
@@ -1160,6 +1276,7 @@ const LinhaItem = memo(function LinhaItem({
                   className="h-9 text-xs font-mono"
                   value={l.lote_manual_texto ?? ""}
                   onChange={(e) => alterarLoteManual(l.key, e.target.value)}
+                  onBlur={salvarAgora}
                   placeholder="Lote físico (manual)…"
                 />
                 <Popover>
@@ -1213,6 +1330,7 @@ const LinhaItem = memo(function LinhaItem({
                 value={l.quantidade_contada}
                 onChange={(e) => alterarQtd(l.key, e.target.value)}
                 onKeyDown={onQtdKeyDown}
+                onBlur={salvarAgora}
                 placeholder="0"
               />
               {(() => {
@@ -1276,6 +1394,7 @@ const LinhaItem = memo(function LinhaItem({
         <Input
           value={observacao}
           onChange={(e) => alterarObservacao(e.target.value)}
+          onBlur={salvarAgora}
           placeholder="Observação desta linha (opcional)…"
           className="h-9 text-xs"
         />
@@ -1284,9 +1403,7 @@ const LinhaItem = memo(function LinhaItem({
           <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${badge}`}>
             {badgeLabel}
           </span>
-          <Button size="sm" onClick={salvar} disabled={saving} className="h-9 px-5">
-            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <><Save className="size-3.5 mr-1" /> Salvar</>}
-          </Button>
+          {indicadorSalvamento}
         </div>
       </div>
     );
@@ -1324,6 +1441,7 @@ const LinhaItem = memo(function LinhaItem({
                     className="h-8 text-xs flex-1 min-w-[140px] font-mono"
                     value={l.lote_manual_texto ?? ""}
                     onChange={(e) => alterarLoteManual(l.key, e.target.value)}
+                  onBlur={salvarAgora}
                     placeholder="Lote físico (manual)…"
                   />
                   <Popover>
@@ -1381,8 +1499,9 @@ const LinhaItem = memo(function LinhaItem({
                 value={l.quantidade_contada}
                 onChange={(e) => alterarQtd(l.key, e.target.value)}
                 onKeyDown={onQtdKeyDown}
+                onBlur={salvarAgora}
                 placeholder="0"
-                title="Enter para salvar"
+                title="Salva automaticamente"
               />
               {(() => {
                 const saldo = l.eh_nao_relacionado ? null : saldoSistemaDoLote(l.lote, l.saldo_sistemico_lote);
@@ -1446,6 +1565,7 @@ const LinhaItem = memo(function LinhaItem({
           <Input
             value={observacao}
             onChange={(e) => alterarObservacao(e.target.value)}
+          onBlur={salvarAgora}
             placeholder="Observação desta linha (opcional)…"
             className="h-8 text-xs"
           />
@@ -1453,14 +1573,12 @@ const LinhaItem = memo(function LinhaItem({
         </div>
       </TableCell>
       <TableCell className="align-top">
-        <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${badge}`}>
-          {badgeLabel}
-        </span>
-      </TableCell>
-      <TableCell className="text-right align-top">
-        <Button size="sm" onClick={salvar} disabled={saving}>
-          {saving ? <Loader2 className="size-3.5 animate-spin" /> : <><Save className="size-3.5 mr-1" /> Salvar</>}
-        </Button>
+        <div className="flex flex-col items-start gap-1">
+          <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${badge}`}>
+            {badgeLabel}
+          </span>
+          {indicadorSalvamento}
+        </div>
       </TableCell>
     </TableRow>
   );
