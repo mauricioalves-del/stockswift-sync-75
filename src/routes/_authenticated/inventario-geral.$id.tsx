@@ -3,7 +3,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, Download, PackagePlus, Search } from "lucide-react";
+import { ArrowLeft, Check, Download, PackagePlus, Plus, Search, Trash2 } from "lucide-react";
+import { somarTransitoMissao, type NotaTransitoMissao, type TransitoMissao } from "@/lib/missao-transito";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,44 +55,125 @@ function Pagina() {
   );
 }
 
+type Linha = { id: string; codigo_produto: string; descricao: string; lote: string; grupo: string | null; unidade: string | null; origem_item: string; qtd: number | null; identificado: boolean | null; registrado_em: string | null; sistema: number | null; observacao: string | null; criado_por_mim: boolean };
+const TOL_PADRAO = 5;
+function classe(cont: number, sis: number, tol: number) { if (!sis) return cont === 0 ? "OK" : "POS"; const d = ((cont - sis) / sis) * 100; return Math.abs(d) <= tol ? "OK" : d > 0 ? "POS" : "NEG"; }
+const ROT_CLASSE: Record<string, [string, string]> = { OK: ["DENTRO DA TOLERÂNCIA", "bg-emerald-100 text-emerald-800"], POS: ["DIVERGÊNCIA (+)", "bg-amber-100 text-amber-800"], NEG: ["DIVERGÊNCIA (−)", "bg-red-100 text-red-700"] };
+
+/** Lista de contagem no modelo da Contagem Cíclica: um SKU por linha, contagem por lote, trânsito, baixas em aprovação e status. */
 function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "recontagem"; aberta: boolean }) {
-  const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["inv-tarefas", inv.id, fase], queryFn: async () => { const r = await sb.rpc("inv_minhas_tarefas", { p_inv: inv.id, p_fase: fase }); if (r.error) throw r.error; return (r.data ?? []) as any[]; } });
-  const [busca, setBusca] = useState(""); const [valores, setValores] = useState<Record<string, string>>({}); const [ident, setIdent] = useState<Record<string, boolean | undefined>>({}); const [add, setAdd] = useState(false);
-  const itens = (q.data ?? []).filter((i) => !busca || `${i.codigo_produto} ${i.descricao} ${i.lote}`.toLowerCase().includes(busca.toLowerCase()));
-  const feitos = (q.data ?? []).filter((i) => i.qtd != null).length, total = q.data?.length ?? 0;
+  const qc = useQueryClient(); const tol = Number(inv.tolerancia_pct ?? TOL_PADRAO);
+  const q = useQuery({ queryKey: ["inv-tarefas", inv.id, fase], queryFn: async () => { const r = await sb.rpc("inv_minhas_tarefas", { p_inv: inv.id, p_fase: fase }); if (r.error) throw r.error; return (r.data ?? []) as Linha[]; } });
+  const linhas = q.data ?? []; const skus = useMemo(() => [...new Set(linhas.map((l) => l.codigo_produto))], [linhas]);
+  const extras = useQuery({ queryKey: ["inv-extras", inv.id, skus.join(",")], enabled: skus.length > 0, staleTime: 60_000, queryFn: async () => {
+    const fam = new Map<string, string>(), baixas = new Map<string, number>();
+    for (let k = 0; k < skus.length; k += 200) {
+      const lote = skus.slice(k, k + 200);
+      const [f, b] = await Promise.all([sb.from("familias").select("codigo_produto, familia").in("codigo_produto", lote), sb.from("baixa_operacional").select("codigo_produto, quantidade").in("status_fluxo", ["PENDENTE", "AGUARDANDO_ADMIN"]).eq("id_local", inv.almoxarifado).in("codigo_produto", lote)]);
+      for (const x of f.data ?? []) fam.set(x.codigo_produto, x.familia); for (const x of b.data ?? []) baixas.set(x.codigo_produto, (baixas.get(x.codigo_produto) ?? 0) + Number(x.quantidade || 0));
+    }
+    let transito = new Map<string, TransitoMissao>();
+    try {
+      const [notas, lojas, cfg] = await Promise.all([fetchAll<NotaTransitoMissao>((a, z) => sb.from("notas_transferencia_recebimento").select("cod_prod, almox, qtd, nr_nf, lote, recebimento, nota_cancelada").eq("recebimento", "Pendente").or("nota_cancelada.is.null,nota_cancelada.neq.S").order("id").range(a, z)),
+        sb.from("abast_lojas").select("codigo, almoxarifado"), sb.from("abast_config").select("valor").eq("chave", "cd_almoxarifado").maybeSingle()]);
+      transito = somarTransitoMissao(notas, inv.almoxarifado, skus, lojas.data ?? [], String(cfg.data?.valor || "Alm_SP_Fabrica"));
+    } catch { /* trânsito é informativo */ }
+    return { fam, baixas, transito };
+  } });
+  const [busca, setBusca] = useState(""); const [fGrupo, setFGrupo] = useState(""); const [fFam, setFFam] = useState(""); const [fStatus, setFStatus] = useState("");
+  const [val, setVal] = useState<Record<string, string>>({}); const [ident, setIdent] = useState<Record<string, boolean>>({}); const [obs, setObs] = useState<Record<string, string>>({});
+  const [novoLote, setNovoLote] = useState<Record<string, { lote: string; qtd: string } | undefined>>({}); const [add, setAdd] = useState(false);
   const recarregar = () => qc.invalidateQueries({ queryKey: ["inv-tarefas", inv.id, fase] });
-  async function salvar(i: any) {
-    const v = valores[i.id] ?? (i.qtd != null ? String(i.qtd) : ""); const qtd = Number(String(v).replace(",", "."));
-    if (v === "" || !(qtd >= 0)) return toast.error("Informe a quantidade contada.");
-    const idt = ident[i.id] ?? i.identificado;
-    if (fase === "recontagem" && idt == null) return toast.error("Marque se o produto foi identificado na 2ª contagem (Sim/Não).");
-    const r = await sb.rpc("inv_registrar", { p_item: i.id, p_fase: fase, p_qtd: qtd, p_identificado: fase === "recontagem" ? idt : null });
-    if (r.error) return toast.error(r.error.message); recarregar();
+  const verSistema = linhas.some((l) => l.sistema != null);
+
+  const porSku = useMemo(() => { const m = new Map<string, Linha[]>(); for (const l of linhas) m.set(l.codigo_produto, [...(m.get(l.codigo_produto) ?? []), l]); return [...m].map(([sku, ls]) => {
+    const contadas = ls.filter((l) => l.qtd != null), total = contadas.reduce((a, l) => a + Number(l.qtd), 0), sis = ls.reduce((a, l) => a + Number(l.sistema ?? 0), 0);
+    const pend = contadas.length < ls.length, st = pend ? "PENDENTE" : !verSistema ? "CONTADO" : classe(total, sis, tol) === "OK" ? "ACURADO" : "DIVERGENTE";
+    return { sku, ls, desc: ls[0].descricao, grupo: ls[0].grupo, total, sis, st, ident: ls.find((l) => l.identificado != null)?.identificado ?? null, obs: ls.find((l) => l.observacao)?.observacao ?? "" }; }); }, [linhas, verSistema, tol]);
+  const k = useMemo(() => { const conf = porSku.filter((x) => x.st !== "PENDENTE"), acur = porSku.filter((x) => x.st === "ACURADO"), div = porSku.filter((x) => x.st === "DIVERGENTE");
+    const num = conf.reduce((a, x) => a + Math.min(x.total, x.sis), 0), den = conf.reduce((a, x) => a + Math.max(x.total, x.sis), 0);
+    return { total: porSku.length, pend: porSku.length - conf.length, conf: conf.length, acur: acur.length, div: div.length, pct: porSku.length ? Math.round((conf.length / porSku.length) * 100) : 0, ac: verSistema && den ? Math.round((num / den) * 1000) / 10 : null }; }, [porSku, verSistema]);
+  const grupos = [...new Set(porSku.map((x) => x.grupo || "Sem grupo"))].sort(), familias = [...new Set(porSku.map((x) => extras.data?.fam.get(x.sku)).filter(Boolean) as string[])].sort();
+  const lista = porSku.filter((x) => (!busca || `${x.sku} ${x.desc} ${x.ls.map((l) => l.lote).join(" ")}`.toLowerCase().includes(busca.toLowerCase())) && (!fGrupo || (x.grupo || "Sem grupo") === fGrupo) && (!fFam || extras.data?.fam.get(x.sku) === fFam) && (!fStatus || x.st === fStatus));
+
+  async function salvarLinha(l: Linha, identSku: boolean | null) {
+    const v = val[l.id]; if (v == null) return; const qtd = Number(String(v).replace(",", "."));
+    if (v === "" || !(qtd >= 0)) return toast.error("Quantidade inválida.");
+    if (fase === "recontagem" && identSku == null) return toast.error("Marque se o produto foi identificado na 2ª contagem (Sim/Não).");
+    const r = await sb.rpc("inv_registrar", { p_item: l.id, p_fase: fase, p_qtd: qtd, p_identificado: fase === "recontagem" ? identSku : null, p_obs: null });
+    if (r.error) return toast.error(r.error.message); setVal((s) => { const n = { ...s }; delete n[l.id]; return n; }); recarregar();
   }
-  async function concluir() { if (feitos < total && !confirm(`Faltam ${total - feitos} item(ns). Concluir mesmo assim?`)) return; const r = await sb.rpc("inv_concluir", { p_inv: inv.id, p_fase: fase }); if (r.error) return toast.error(r.error.message); toast.success("Etapa da sua dupla concluída."); }
-  const grupos = useMemo(() => { const m = new Map<string, any[]>(); for (const i of itens) { const g = i.grupo || "Sem grupo"; m.set(g, [...(m.get(g) ?? []), i]); } return [...m]; }, [itens]);
+  async function salvarObs(x: typeof porSku[number]) { const o = obs[x.sku]; if (o == null) return; const r = await sb.rpc("inv_registrar", { p_item: x.ls[0].id, p_fase: fase, p_qtd: null, p_identificado: null, p_obs: o }); if (r.error) return toast.error(r.error.message); recarregar(); }
+  async function salvarNovoLote(x: typeof porSku[number]) {
+    const n = novoLote[x.sku]; if (!n) return; const qtd = Number(n.qtd.replace(",", ".")); if (!n.lote.trim() || n.qtd === "" || !(qtd >= 0)) return toast.error("Informe lote e quantidade.");
+    const idt = ident[x.sku] ?? x.ident; if (fase === "recontagem" && idt == null) return toast.error("Marque se o produto foi identificado na 2ª contagem.");
+    const r = await sb.rpc("inv_adicionar_manual", { p_inv: inv.id, p_codigo: x.sku, p_lote: n.lote.trim(), p_qtd: qtd, p_fase: fase, p_identificado: fase === "recontagem" ? idt : null });
+    if (r.error) return toast.error(r.error.message); setNovoLote({ ...novoLote, [x.sku]: undefined }); recarregar();
+  }
+  async function remover(l: Linha) { if (!confirm(`Remover o lote ${l.lote || "(sem lote)"} incluído manualmente?`)) return; const r = await sb.rpc("inv_remover_manual", { p_item: l.id }); if (r.error) return toast.error(r.error.message); recarregar(); }
+  async function concluir() { if (k.pend > 0 && !confirm(`Faltam ${k.pend} SKU(s). Concluir mesmo assim?`)) return; const r = await sb.rpc("inv_concluir", { p_inv: inv.id, p_fase: fase }); if (r.error) return toast.error(r.error.message); toast.success("Etapa da sua dupla concluída."); }
+  function exportar() {
+    const cab = ["SKU", "Produto", "Grupo", "Família", "Lote", ...(verSistema ? ["Sistema"] : []), "Contado", ...(fase === "recontagem" ? ["Identificado na 2ª"] : []), "Observação"];
+    const rows = linhas.map((l) => [l.codigo_produto, l.descricao, l.grupo ?? "", extras.data?.fam.get(l.codigo_produto) ?? "", l.lote, ...(verSistema ? [l.sistema ?? ""] : []), l.qtd ?? "", ...(fase === "recontagem" ? [l.identificado == null ? "" : l.identificado ? "Sim" : "Não"] : []), l.observacao ?? ""]);
+    const csv = [cab, ...rows].map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(";")).join("\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" })); a.download = `inventario-${inv.numero}-${fase}.csv`; a.click();
+  }
+  const Kpi = ({ t, v, tom = "" }: { t: string; v: string; tom?: string }) => <div className="rounded-2xl border bg-card px-4 py-3 shadow-sm"><div className="text-[10px] font-semibold uppercase text-muted-foreground">{t}</div><div className={`text-2xl font-bold tabular-nums ${tom}`}>{v}</div></div>;
+  const ST: Record<string, string> = { PENDENTE: "bg-slate-200 text-slate-700", CONTADO: "bg-sky-100 text-sky-800", ACURADO: "bg-emerald-100 text-emerald-800", DIVERGENTE: "bg-red-100 text-red-700" };
+
   return (
-    <Card><CardContent className="space-y-3 p-4">
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[220px] flex-1"><Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" /><Input className="pl-8" placeholder="Buscar código, produto ou lote" value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
-        <span className="text-sm font-semibold tabular-nums">{feitos}/{total} {fase === "recontagem" ? "recontado(s)" : "contado(s)"}</span>
+        <Button size="sm" variant="outline" onClick={exportar}><Download className="mr-1 size-4" />Baixar Excel</Button>
         {aberta && <Button size="sm" variant="outline" onClick={() => setAdd(true)}><PackagePlus className="mr-1 size-4" />Produto fora da lista</Button>}
-        {aberta && total > 0 && <Button size="sm" onClick={concluir}><Check className="mr-1 size-4" />Concluir {fase === "recontagem" ? "recontagem" : "contagem"} da dupla</Button>}
+        {aberta && k.total > 0 && <Button size="sm" onClick={concluir}><Check className="mr-1 size-4" />Concluir {fase === "recontagem" ? "recontagem" : "contagem"} da dupla</Button>}
+        <span className="ml-auto rounded-full bg-muted px-3 py-1 text-xs">Contagem restrita ao almoxarifado <b>{inv.almoxarifado}</b>{verSistema ? "" : " · contagem cega"}</span>
       </div>
       {!aberta && <p className="rounded-md bg-muted p-2 text-xs">{fase === "recontagem" ? "A recontagem abre quando a gestão encerra a 1ª contagem." : inv.status === "planejado" ? `A lista será gerada em ${dataHora(inv.data_geracao)}.` : "A contagem está encerrada para lançamentos."}</p>}
-      {fase === "recontagem" && <p className="text-xs text-muted-foreground">Itens com divergência na 1ª contagem, feita por outra dupla. Conte sem consultar a contagem anterior; a sua quantidade passa a ser a contagem final oficial.</p>}
-      {grupos.map(([g, lista]) => <div key={g}><div className="mb-1 mt-2 text-xs font-bold uppercase text-muted-foreground">{g} · {lista.filter((x) => x.qtd != null).length}/{lista.length}</div>
-        <div className="divide-y rounded-lg border">{lista.map((i) => (
-          <div key={i.id} className={`flex flex-wrap items-center gap-2 px-3 py-2 ${i.qtd != null ? "bg-emerald-50/60 dark:bg-emerald-950/20" : ""}`}>
-            <div className="min-w-[220px] flex-1"><div className="text-sm font-semibold">{i.descricao}</div><div className="text-[11px] text-muted-foreground">{i.codigo_produto}{i.lote ? ` · lote ${i.lote}` : ""}{i.unidade ? ` · ${i.unidade}` : ""}{i.origem_item === "manual" ? " · incluído manualmente" : ""}</div></div>
-            {fase === "recontagem" && <div className="flex items-center gap-1 text-xs"><span className="text-muted-foreground">Identificado na 2ª contagem?</span>{[true, false].map((b) => <button key={String(b)} disabled={!aberta} onClick={() => setIdent({ ...ident, [i.id]: b })} className={`rounded-md border px-2 py-1 font-semibold ${(ident[i.id] ?? i.identificado) === b ? (b ? "bg-emerald-600 text-white" : "bg-red-600 text-white") : ""}`}>{b ? "Sim" : "Não"}</button>)}</div>}
-            <Input disabled={!aberta} className="h-9 w-28 text-right" inputMode="decimal" placeholder="Qtd" value={valores[i.id] ?? (i.qtd != null ? String(i.qtd) : "")} onChange={(e) => setValores({ ...valores, [i.id]: e.target.value })} onKeyDown={(e) => e.key === "Enter" && salvar(i)} />
-            {aberta && <Button size="sm" variant={i.qtd != null ? "outline" : "default"} onClick={() => salvar(i)}>{i.qtd != null ? "Atualizar" : "Salvar"}</Button>}
-          </div>))}</div></div>)}
-      {!q.isLoading && !total && <p className="py-6 text-center text-sm text-muted-foreground">{fase === "recontagem" ? "Nenhum item para a sua dupla recontar." : "Nenhum item na lista da sua dupla."}</p>}
+      {fase === "recontagem" && <p className="text-xs text-muted-foreground">SKUs com divergência na 1ª contagem, feita por outra dupla. Conte sem consultar a contagem anterior; a sua quantidade vira a contagem final oficial.</p>}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+        <Kpi t="Total SKU" v={String(k.total)} /><Kpi t="Pendentes" v={String(k.pend)} /><Kpi t={fase === "recontagem" ? "Recontados" : "Conferidos"} v={String(k.conf)} />
+        <Kpi t="Divergentes" v={verSistema ? String(k.div) : "—"} tom="text-red-600" /><Kpi t="Acurados" v={verSistema ? String(k.acur) : "—"} tom="text-emerald-700" />
+        <Kpi t="% Concluído" v={`${k.pct}%`} tom="text-teal-700" /><Kpi t="Acuracidade" v={k.ac != null ? `${k.ac}%` : "—"} />
+      </div>
+      <Card><CardContent className="space-y-3 p-4">
+        <div className="flex items-center justify-between"><b>{fase === "recontagem" ? "Itens a recontar" : "Itens a contar"}</b><span className="text-sm text-muted-foreground">{k.conf} de {k.total} · {k.pct}%</span></div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[200px] flex-1"><Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" /><Input className="pl-8" placeholder="Buscar SKU, produto ou lote" value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
+          <select className="h-9 rounded-md border bg-background px-2 text-sm" value={fGrupo} onChange={(e) => setFGrupo(e.target.value)}><option value="">Todos os grupos</option>{grupos.map((g) => <option key={g}>{g}</option>)}</select>
+          <select className="h-9 rounded-md border bg-background px-2 text-sm" value={fFam} onChange={(e) => setFFam(e.target.value)}><option value="">Todas as famílias</option>{familias.map((g) => <option key={g}>{g}</option>)}</select>
+          <span className="text-xs text-muted-foreground">Status:</span>{(verSistema ? ["PENDENTE", "ACURADO", "DIVERGENTE"] : ["PENDENTE", "CONTADO"]).map((s) => <button key={s} onClick={() => setFStatus(fStatus === s ? "" : s)} className={`h-8 rounded-full border px-3 text-xs font-semibold ${fStatus === s ? "bg-slate-900 text-white" : "bg-muted"}`}>{s[0] + s.slice(1).toLowerCase()}</button>)}
+        </div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-sm"><thead className="border-b text-xs text-muted-foreground"><tr>
+          <th className="px-2 py-2 text-left">SKU</th><th className="px-2 py-2 text-left">Produto</th><th className="px-2 py-2 text-right">Estoque em trânsito</th><th className="px-2 py-2 text-right">Baixa em aprovação</th>{verSistema && <th className="px-2 py-2 text-right">Sistema</th>}<th className="px-2 py-2 text-left">Contagem por lote</th><th className="px-2 py-2 text-left">Status</th></tr></thead>
+          <tbody>{lista.map((x) => { const idt = ident[x.sku] ?? x.ident; const tr = extras.data?.transito.get(x.sku), bx = extras.data?.baixas.get(x.sku); return (
+            <tr key={x.sku} className="border-b align-top">
+              <td className="px-2 py-3 font-mono text-xs">{x.sku}{x.grupo && <div className="mt-1 inline-block rounded bg-muted px-1 font-sans text-[10px]">{x.grupo}</div>}</td>
+              <td className="px-2 py-3">{x.desc}{extras.data?.fam.get(x.sku) && <div className="text-[11px] text-muted-foreground">{extras.data.fam.get(x.sku)}</div>}</td>
+              <td className="px-2 py-3 text-right tabular-nums" title={tr?.detalhes.join("\n")}>{tr ? num(tr.qtd) : "0"}</td>
+              <td className="px-2 py-3 text-right tabular-nums">{bx ? num(bx) : "—"}</td>
+              {verSistema && <td className="px-2 py-3 text-right font-semibold tabular-nums">{num(x.sis)}</td>}
+              <td className="w-[300px] px-2 py-3"><div className="space-y-2">
+                {fase === "recontagem" && <div className="flex items-center gap-1 text-[11px]"><span className="text-muted-foreground">Identificado na 2ª contagem?</span>{[true, false].map((b) => <button key={String(b)} disabled={!aberta} onClick={() => setIdent({ ...ident, [x.sku]: b })} className={`rounded-md border px-2 py-0.5 font-semibold ${idt === b ? (b ? "bg-emerald-600 text-white" : "bg-red-600 text-white") : ""}`}>{b ? "Sim" : "Não"}</button>)}</div>}
+                {x.ls.map((l) => { const c = l.qtd != null && l.sistema != null ? classe(Number(l.qtd), Number(l.sistema), tol) : null; return (
+                  <div key={l.id} className="rounded-lg border p-2">
+                    <div className="flex items-center gap-2"><span className="flex-1 truncate rounded-md bg-muted px-2 py-1 font-mono text-[11px]">{l.lote || "sem lote"}</span>{l.origem_item === "manual" && aberta && l.criado_por_mim && <button onClick={() => remover(l)} title="Remover lote manual"><Trash2 className="size-4 text-muted-foreground" /></button>}</div>
+                    <Input disabled={!aberta} inputMode="decimal" className="mt-1 h-9 w-32" placeholder="Qtd" value={val[l.id] ?? (l.qtd != null ? String(l.qtd) : "")} onChange={(e) => setVal({ ...val, [l.id]: e.target.value })} onBlur={() => salvarLinha(l, idt)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+                    {l.sistema != null && <div className="mt-1 text-[11px] text-muted-foreground">Saldo Sistema: <b>{num(l.sistema)}</b></div>}
+                    {c && <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold ${ROT_CLASSE[c][1]}`}>{ROT_CLASSE[c][0]}</span>}
+                    {l.origem_item === "manual" && <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800">lote manual</span>}
+                  </div>); })}
+                {aberta && (novoLote[x.sku] ? <div className="flex gap-1"><Input className="h-8" placeholder="Lote" value={novoLote[x.sku]!.lote} onChange={(e) => setNovoLote({ ...novoLote, [x.sku]: { ...novoLote[x.sku]!, lote: e.target.value } })} /><Input className="h-8 w-20" placeholder="Qtd" value={novoLote[x.sku]!.qtd} onChange={(e) => setNovoLote({ ...novoLote, [x.sku]: { ...novoLote[x.sku]!, qtd: e.target.value } })} /><Button size="sm" onClick={() => salvarNovoLote(x)}>OK</Button></div>
+                  : <Button size="sm" variant="secondary" className="w-full" onClick={() => setNovoLote({ ...novoLote, [x.sku]: { lote: "", qtd: "" } })}><Plus className="mr-1 size-4" />Adicionar lote manual</Button>)}
+                <div className="text-[11px] text-muted-foreground">Total contado: <b>{num(x.total)}</b>{verSistema && <> · Total Sistema: <b>{num(x.sis)}</b></>}</div>
+                <Input disabled={!aberta} className="h-8 text-xs" placeholder="Observação desta linha" value={obs[x.sku] ?? x.obs} onChange={(e) => setObs({ ...obs, [x.sku]: e.target.value })} onBlur={() => salvarObs(x)} />
+              </div></td>
+              <td className="px-2 py-3"><span className={`rounded px-2 py-0.5 text-[10px] font-bold ${ST[x.st]}`}>{x.st}</span></td>
+            </tr>); })}</tbody></table></div>
+        {!q.isLoading && !k.total && <p className="py-6 text-center text-sm text-muted-foreground">{fase === "recontagem" ? "Nenhum item para a sua dupla recontar." : "Nenhum item na lista da sua dupla."}</p>}
+      </CardContent></Card>
       <AdicionarManual inv={inv} fase={fase} aberto={add} onFechar={() => setAdd(false)} onOk={recarregar} />
-    </CardContent></Card>
+    </div>
   );
 }
 
