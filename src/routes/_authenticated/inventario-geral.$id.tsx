@@ -4,6 +4,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, Download, PackagePlus, Plus, Search, Trash2 } from "lucide-react";
+import { sounds } from "@/lib/audio";
 import { somarTransitoMissao, type NotaTransitoMissao, type TransitoMissao } from "@/lib/missao-transito";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,12 @@ const TOL_PADRAO = 5;
 function classe(cont: number, sis: number, tol: number) { if (!sis) return cont === 0 ? "OK" : "POS"; const d = ((cont - sis) / sis) * 100; return Math.abs(d) <= tol ? "OK" : d > 0 ? "POS" : "NEG"; }
 const ROT_CLASSE: Record<string, [string, string]> = { OK: ["DENTRO DA TOLERÂNCIA", "bg-emerald-100 text-emerald-800"], POS: ["DIVERGÊNCIA (+)", "bg-amber-100 text-amber-800"], NEG: ["DIVERGÊNCIA (−)", "bg-red-100 text-red-700"] };
 
+/** Sinal sonoro + vibração (celular) como na Contagem Cíclica. */
+function feedback(tipo: "ok" | "divergente" | "erro" | "salvo") {
+  try { if (tipo === "ok") sounds.success(); else if (tipo === "divergente") sounds.divergente(); else if (tipo === "erro") sounds.error(); else sounds.scan(); } catch { /* sem áudio */ }
+  try { navigator.vibrate?.(tipo === "ok" ? 80 : tipo === "divergente" ? [200, 100, 200, 100, 350] : tipo === "erro" ? [400] : 40); } catch { /* sem vibração */ }
+}
+
 /** Lista de contagem no modelo da Contagem Cíclica: um SKU por linha, contagem por lote, trânsito, baixas em aprovação e status. */
 function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "recontagem"; aberta: boolean }) {
   const qc = useQueryClient(); const tol = Number(inv.tolerancia_pct ?? TOL_PADRAO);
@@ -98,17 +105,21 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
 
   async function salvarLinha(l: Linha, identSku: boolean | null) {
     const v = val[l.id]; if (v == null) return; const qtd = Number(String(v).replace(",", "."));
-    if (v === "" || !(qtd >= 0)) return toast.error("Quantidade inválida.");
-    if (fase === "recontagem" && identSku == null) return toast.error("Marque se o produto foi identificado na 2ª contagem (Sim/Não).");
+    if (v === "" || !(qtd >= 0)) { feedback("erro"); return toast.error("Quantidade inválida."); }
+    if (fase === "recontagem" && identSku == null) { feedback("erro"); return toast.error("Marque se o produto foi identificado na 2ª contagem (Sim/Não)."); }
     const r = await sb.rpc("inv_registrar", { p_item: l.id, p_fase: fase, p_qtd: qtd, p_identificado: fase === "recontagem" ? identSku : null, p_obs: null });
-    if (r.error) return toast.error(r.error.message); setVal((s) => { const n = { ...s }; delete n[l.id]; return n; }); recarregar();
+    if (r.error) { feedback("erro"); return toast.error(r.error.message); }
+    if (r.data === "OK") { feedback("ok"); toast.success("Dentro da tolerância"); }
+    else if (r.data === "DIVERGENTE") { feedback("divergente"); toast.warning(fase === "recontagem" ? "Ainda divergente — confira antes de seguir" : "Divergência — reconfira a contagem deste SKU"); }
+    else feedback("salvo");
+    setVal((s) => { const n = { ...s }; delete n[l.id]; return n; }); recarregar();
   }
   async function salvarObs(x: typeof porSku[number]) { const o = obs[x.sku]; if (o == null) return; const r = await sb.rpc("inv_registrar", { p_item: x.ls[0].id, p_fase: fase, p_qtd: null, p_identificado: null, p_obs: o }); if (r.error) return toast.error(r.error.message); recarregar(); }
   async function salvarNovoLote(x: typeof porSku[number]) {
-    const n = novoLote[x.sku]; if (!n) return; const qtd = Number(n.qtd.replace(",", ".")); if (!n.lote.trim() || n.qtd === "" || !(qtd >= 0)) return toast.error("Informe lote e quantidade.");
+    const n = novoLote[x.sku]; if (!n) return; const qtd = Number(n.qtd.replace(",", ".")); if (!n.lote.trim() || n.qtd === "" || !(qtd >= 0)) { feedback("erro"); return toast.error("Informe lote e quantidade."); }
     const idt = ident[x.sku] ?? x.ident; if (fase === "recontagem" && idt == null) return toast.error("Marque se o produto foi identificado na 2ª contagem.");
     const r = await sb.rpc("inv_adicionar_manual", { p_inv: inv.id, p_codigo: x.sku, p_lote: n.lote.trim(), p_qtd: qtd, p_fase: fase, p_identificado: fase === "recontagem" ? idt : null });
-    if (r.error) return toast.error(r.error.message); setNovoLote({ ...novoLote, [x.sku]: undefined }); recarregar();
+    if (r.error) { feedback("erro"); return toast.error(r.error.message); } feedback("salvo"); setNovoLote({ ...novoLote, [x.sku]: undefined }); recarregar();
   }
   async function remover(l: Linha) { if (!confirm(`Remover o lote ${l.lote || "(sem lote)"} incluído manualmente?`)) return; const r = await sb.rpc("inv_remover_manual", { p_item: l.id }); if (r.error) return toast.error(r.error.message); recarregar(); }
   async function concluir() { if (k.pend > 0 && !confirm(`Faltam ${k.pend} SKU(s). Concluir mesmo assim?`)) return; const r = await sb.rpc("inv_concluir", { p_inv: inv.id, p_fase: fase }); if (r.error) return toast.error(r.error.message); toast.success("Etapa da sua dupla concluída."); }
@@ -127,7 +138,7 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
         <Button size="sm" variant="outline" onClick={exportar}><Download className="mr-1 size-4" />Baixar Excel</Button>
         {aberta && <Button size="sm" variant="outline" onClick={() => setAdd(true)}><PackagePlus className="mr-1 size-4" />Produto fora da lista</Button>}
         {aberta && k.total > 0 && <Button size="sm" onClick={concluir}><Check className="mr-1 size-4" />Concluir {fase === "recontagem" ? "recontagem" : "contagem"} da dupla</Button>}
-        <span className="ml-auto rounded-full bg-muted px-3 py-1 text-xs">Contagem restrita ao almoxarifado <b>{inv.almoxarifado}</b>{verSistema ? "" : " · contagem cega"}</span>
+        <span className="ml-auto rounded-full bg-muted px-3 py-1 text-xs">Contagem restrita ao almoxarifado <b>{inv.almoxarifado}</b>{verSistema ? " · você vê o saldo (administrador)" : " · contagem cega"}</span>
       </div>
       {!aberta && <p className="rounded-md bg-muted p-2 text-xs">{fase === "recontagem" ? "A recontagem abre quando a gestão encerra a 1ª contagem." : inv.status === "planejado" ? `A lista será gerada em ${dataHora(inv.data_geracao)}.` : "A contagem está encerrada para lançamentos."}</p>}
       {fase === "recontagem" && <p className="text-xs text-muted-foreground">SKUs com divergência na 1ª contagem, feita por outra dupla. Conte sem consultar a contagem anterior; a sua quantidade vira a contagem final oficial.</p>}
