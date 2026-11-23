@@ -568,6 +568,13 @@
       "when": 1795120000000,
       "tag": "0080_log_analises_cotacao",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1795130000000,
+      "tag": "0081_inventario_geral",
+      "breakpoints": true
     }
   ]
 }
