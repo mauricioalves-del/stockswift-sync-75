@@ -582,6 +582,13 @@
       "when": 1795140000000,
       "tag": "0082_inventario_geral_v2",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1795150000000,
+      "tag": "0083_inventario_geral_cego_feedback",
+      "breakpoints": true
     }
   ]
 }
