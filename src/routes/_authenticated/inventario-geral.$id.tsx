@@ -104,7 +104,7 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
     return { fam, baixas, transito };
   } });
   const [busca, setBusca] = useState(""); const [fGrupo, setFGrupo] = useState(""); const [fFam, setFFam] = useState(""); const [fStatus, setFStatus] = useState("");
-  const [val, setVal] = useState<Record<string, string>>({}); const [ident, setIdent] = useState<Record<string, boolean>>({}); const [obs, setObs] = useState<Record<string, string>>({});
+  const [val, setVal] = useState<Record<string, string>>({}); const [obs, setObs] = useState<Record<string, string>>({});
   const [novoLote, setNovoLote] = useState<Record<string, { lote: string; qtd: string } | undefined>>({}); const [add, setAdd] = useState(false);
   const recarregar = () => qc.invalidateQueries({ queryKey: ["inv-tarefas", inv.id, fase] });
   const verSistema = linhas.some((l) => l.sistema != null);
@@ -140,7 +140,7 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
     if (r.error && ehFalhaDeRede(r.error)) return offline(); if (r.error) return toast.error(r.error.message); recarregar(); }
   async function salvarNovoLote(x: typeof porSku[number]) {
     const n = novoLote[x.sku]; if (!n) return; const qtd = Number(n.qtd.replace(",", ".")); if (!n.lote.trim() || n.qtd === "" || !(qtd >= 0)) { feedback("erro"); return toast.error("Informe lote e quantidade."); }
-    const idt = ident[x.sku] ?? x.ident; if (fase === "recontagem" && idt == null) return toast.error("Marque se o produto foi identificado na 2ª contagem.");
+    const idt = true;
     const pIdt = fase === "recontagem" ? idt ?? null : null;
     const offline = () => { guardar({ tipo: "manual", chave: chaveManual(inv.id, x.sku, n.lote, fase), inv: inv.id, codigo: x.sku, lote: n.lote.trim(), qtd, fase, identificado: pIdt, em: new Date().toISOString() }); setNovoLote({ ...novoLote, [x.sku]: undefined }); };
     if (!navigator.onLine) return offline();
@@ -184,7 +184,7 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
         </div>
         <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-sm"><thead className="border-b text-xs text-muted-foreground"><tr>
           <th className="px-2 py-2 text-left">SKU</th><th className="px-2 py-2 text-left">Produto</th><th className="px-2 py-2 text-right">Estoque em trânsito</th><th className="px-2 py-2 text-right">Baixa em aprovação</th>{verSistema && <th className="px-2 py-2 text-right">Sistema</th>}<th className="px-2 py-2 text-left">Contagem por lote</th><th className="px-2 py-2 text-left">Status</th></tr></thead>
-          <tbody>{lista.map((x) => { const idt = ident[x.sku] ?? x.ident; const tr = extras.data?.transito.get(x.sku), bx = extras.data?.baixas.get(x.sku); return (
+          <tbody>{lista.map((x) => { const idt = true; const tr = extras.data?.transito.get(x.sku), bx = extras.data?.baixas.get(x.sku); return (
             <tr key={x.sku} className="border-b align-top">
               <td className="px-2 py-3 font-mono text-xs">{x.sku}{x.grupo && <div className="mt-1 inline-block rounded bg-muted px-1 font-sans text-[10px]">{x.grupo}</div>}</td>
               <td className="px-2 py-3">{x.desc}{extras.data?.fam.get(x.sku) && <div className="text-[11px] text-muted-foreground">{extras.data.fam.get(x.sku)}</div>}</td>
@@ -192,8 +192,7 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
               <td className="px-2 py-3 text-right tabular-nums">{bx ? num(bx) : "—"}</td>
               {verSistema && <td className="px-2 py-3 text-right font-semibold tabular-nums">{num(x.sis)}</td>}
               <td className="w-[300px] px-2 py-3"><div className="space-y-2">
-                {fase === "recontagem" && <div className="flex items-center gap-1 text-[11px]"><span className="text-muted-foreground">Identificado na 2ª contagem?</span>{[true, false].map((b) => <button key={String(b)} disabled={!aberta} onClick={() => setIdent({ ...ident, [x.sku]: b })} className={`rounded-md border px-2 py-0.5 font-semibold ${idt === b ? (b ? "bg-emerald-600 text-white" : "bg-red-600 text-white") : ""}`}>{b ? "Sim" : "Não"}</button>)}</div>}
-                {x.ls.map((l) => { const c = l.qtd != null && l.sistema != null ? classe(Number(l.qtd), Number(l.sistema), tol) : null; return (
+                                {x.ls.map((l) => { const c = l.qtd != null && l.sistema != null ? classe(Number(l.qtd), Number(l.sistema), tol) : null; return (
                   <div key={l.id} className="rounded-lg border p-2">
                     <div className="flex items-center gap-2"><span className="flex-1 truncate rounded-md bg-muted px-2 py-1 font-mono text-[11px]">{l.lote || "sem lote"}</span>{l.origem_item === "manual" && aberta && l.criado_por_mim && <button onClick={() => remover(l)} title="Remover lote manual"><Trash2 className="size-4 text-muted-foreground" /></button>}</div>
                     <Input disabled={!aberta} inputMode="decimal" className="mt-1 h-9 w-32" placeholder="Qtd" value={val[l.id] ?? (l.qtd != null ? String(l.qtd) : "")} onChange={(e) => setVal({ ...val, [l.id]: e.target.value })} onBlur={() => salvarLinha(l, idt)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
@@ -226,7 +225,7 @@ function AdicionarManual({ inv, fase, aberto, onFechar, onOk }: { inv: any; fase
   }
   async function incluir() {
     const n = Number(qtd.replace(",", ".")); if (!sel || !(n >= 0) || qtd === "") return toast.error("Escolha o produto e informe a quantidade.");
-    const r = await sb.rpc("inv_adicionar_manual", { p_inv: inv.id, p_codigo: sel.codigo, p_lote: lote.trim(), p_qtd: n, p_fase: fase, p_identificado: fase === "recontagem" ? ident : null });
+    const r = await sb.rpc("inv_adicionar_manual", { p_inv: inv.id, p_codigo: sel.codigo, p_lote: lote.trim(), p_qtd: n, p_fase: fase, p_identificado: fase === "recontagem" ? true : null });
     if (r.error) return toast.error(r.error.message); toast.success("Produto incluído na lista da sua dupla."); setSel(null); setTermo(""); setRes([]); setLote(""); setQtd(""); onOk(); onFechar();
   }
   return (
@@ -235,7 +234,7 @@ function AdicionarManual({ inv, fase, aberto, onFechar, onOk }: { inv: any; fase
       <div className="flex gap-2"><Input placeholder="Código ou descrição" value={termo} onChange={(e) => setTermo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && buscar()} /><Button variant="outline" onClick={buscar}><Search className="size-4" /></Button></div>
       <div className="max-h-56 divide-y overflow-y-auto rounded border">{res.map((p) => <button key={p.codigo} onClick={() => setSel(p)} className={`block w-full px-2 py-1.5 text-left text-sm hover:bg-muted ${sel?.codigo === p.codigo ? "bg-muted font-semibold" : ""}`}>{p.codigo} · {p.descricao}</button>)}</div>
       {sel && <div className="grid grid-cols-2 gap-2"><Input placeholder="Lote (opcional)" value={lote} onChange={(e) => setLote(e.target.value)} /><Input placeholder="Quantidade contada" inputMode="decimal" value={qtd} onChange={(e) => setQtd(e.target.value)} />
-        {fase === "recontagem" && <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={ident} onChange={(e) => setIdent(e.target.checked)} />Produto identificado na 2ª contagem</label>}</div>}
+        </div>}
       <div className="flex justify-end"><Button onClick={incluir} disabled={!sel}>Incluir</Button></div>
     </DialogContent></Dialog>
   );
