@@ -142,7 +142,6 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
         <span className="ml-auto rounded-full bg-muted px-3 py-1 text-xs">Contagem restrita ao almoxarifado <b>{inv.almoxarifado}</b>{verSistema ? " · você vê o saldo (administrador)" : " · contagem cega"}</span>
       </div>
       {!aberta && <p className="rounded-md bg-muted p-2 text-xs">{fase === "recontagem" ? "A recontagem abre quando a gestão encerra a 1ª contagem." : inv.status === "planejado" ? `A lista será gerada em ${dataHora(inv.data_geracao)}.` : "A contagem está encerrada para lançamentos."}</p>}
-      {fase === "recontagem" && <p className="text-xs text-muted-foreground">SKUs com divergência na 1ª contagem, feita por outra dupla. Conte sem consultar a contagem anterior; a sua quantidade vira a contagem final oficial.</p>}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
         <Kpi t="Total SKU" v={String(k.total)} /><Kpi t="Pendentes" v={String(k.pend)} /><Kpi t={fase === "recontagem" ? "Recontados" : "Conferidos"} v={String(k.conf)} />
         <Kpi t="Divergentes" v={verSistema ? String(k.div) : "—"} tom="text-red-600" /><Kpi t="Acurados" v={verSistema ? String(k.acur) : "—"} tom="text-emerald-700" />

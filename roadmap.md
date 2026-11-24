@@ -1,5 +1,8 @@
 # Correção de grupos das Baixas Operacionais
 
+## Inventário: recontagem pela mesma pessoa ou dupla
+- [x] Permitir a mesma pessoa/dupla como responsável pela recontagem, mantendo outra dupla opcional; sete testes passaram e a escolha da Dupla 1 do Pará foi salva e relida pela tela. A contagem real não foi encerrada nem alterada para testar lançamentos da segunda etapa.
+
 ## Missões: estoque em trânsito
 - [x] Exibir estoque em trânsito por SKU e almoxarifado antes de Baixa em aprovação, também no celular, sem alterar saldo ou cálculo de divergência.
 - [x] Cinco testes passaram; missão Pátio de 05/11 autenticada confirmou trânsito zero para SKU 05104020, baixa 1, sistema 18 e contado 48 preservados; coluna e versão celular verificadas sem erros.

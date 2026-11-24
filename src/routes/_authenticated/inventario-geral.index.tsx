@@ -10,9 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchAll } from "@/lib/fetch-all";
+import { destinoRecontagem, participaRecontagem, recontagemValida } from "@/lib/inventario-recontagem";
 import { dataHora, nomeUsuario, sb, StatusInv, type Usuario } from "@/components/inventario-geral/comum";
 
-export const Route = createFileRoute("/_authenticated/inventario-geral/")({ component: Pagina, head: () => ({ meta: [{ title: "Contagem de Inventário" }] }) });
+export const Route = createFileRoute("/_authenticated/inventario-geral/")({ component: Pagina, head: () => ({ meta: [{ title: "Planejamento de Inventário · Inventário" }, { name: "description", content: "Planeje contagens de inventário e escolha a mesma dupla ou outra dupla para recontar." }, { property: "og:title", content: "Planejamento de Inventário · Inventário" }, { property: "og:description", content: "Inventários e planejamento de contagem e recontagem." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }) });
 
 type DuplaForm = { key: string; id?: string; nome: string; membro1: string; membro2: string; conta: boolean; reconta: boolean; grupos: string[]; recontadaPor: string };
 const chave = () => Math.random().toString(36).slice(2);
@@ -23,7 +24,7 @@ function Pagina() {
   const [aba, setAba] = useState("lista"); const [editando, setEditando] = useState<string | null>(null);
   return (
     <div className="space-y-4">
-      <div><h1 className="text-3xl font-bold">Contagem de Inventário</h1><p className="text-sm text-muted-foreground">Inventário geral do almoxarifado: lista gerada na data e hora planejadas, contagem cega por duplas e grupos, recontagem por outra dupla e contagem final oficial.</p></div>
+      <div><h1 className="text-3xl font-bold">Contagem de Inventário</h1></div>
       <Tabs value={aba} onValueChange={setAba}>
         <TabsList><TabsTrigger value="lista">Inventários</TabsTrigger>{gestor.data && <TabsTrigger value="plano" onClick={() => setEditando(null)}>{editando ? "Editar planejamento" : "Planejamento"}</TabsTrigger>}</TabsList>
         <TabsContent value="lista"><Lista gestor={!!gestor.data} onEditar={(id) => { setEditando(id); setAba("plano"); }} /></TabsContent>
@@ -63,7 +64,7 @@ function Planejamento({ onCriado, invId }: { onCriado: () => void; invId?: strin
   const amanha = new Date(Date.now() + 86400000); amanha.setHours(7, 0, 0, 0);
   const local = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   const [f, setF] = useState({ titulo: "", almoxarifado: "", data: local(amanha), abc: "", padrao: "", exibir: false, tol: "5" });
-  const [duplas, setDuplas] = useState<DuplaForm[]>(() => { const a = novaDupla(1), b = novaDupla(2, { conta: false, reconta: true }); a.recontadaPor = b.key; return [a, b]; });
+  const [duplas, setDuplas] = useState<DuplaForm[]>(() => [novaDupla(1, { reconta: true })]);
   const [status, setStatus] = useState("planejado"); const [carregado, setCarregado] = useState(!invId); const [removidas, setRemovidas] = useState<string[]>([]);
   useEffect(() => { if (!invId) return; (async () => {
     const [inv, du, gr] = await Promise.all([sb.from("inv_inventarios").select("*").eq("id", invId).single(), sb.from("inv_duplas").select("*").eq("inventario_id", invId).order("nome"), sb.from("inv_dupla_grupos").select("dupla_id, grupo").eq("inventario_id", invId)]);
@@ -85,8 +86,8 @@ function Planejamento({ onCriado, invId }: { onCriado: () => void; invId?: strin
     if (duplas.some((d) => !d.membro1)) return toast.error("Cada dupla precisa de pelo menos um integrante.");
     if (new Set(pessoas).size !== pessoas.length) return toast.error("Uma pessoa não pode estar em duas duplas do mesmo inventário (a contagem é cega entre duplas).");
     if (!duplas.some((d) => d.conta)) return toast.error("Defina ao menos uma dupla de contagem.");
-    const semRec = duplas.find((d) => d.conta && (!d.recontadaPor || d.recontadaPor === d.key || !duplas.find((x) => x.key === d.recontadaPor && x.reconta)));
-    if (semRec) return toast.error(`Defina quem reconta a ${semRec.nome} (uma dupla de recontagem diferente dela).`);
+    const semRec = duplas.find((d) => d.conta && !recontagemValida(d, duplas));
+    if (semRec) return toast.error(`Escolha a mesma dupla ou uma dupla habilitada para recontar a ${semRec.nome}.`);
     setSalvando(true);
     try {
       const cab: any = { titulo: f.titulo, exibir_sistema: f.exibir, tolerancia_pct: Number(f.tol.replace(",", ".")) || 0 };
@@ -97,11 +98,14 @@ function Planejamento({ onCriado, invId }: { onCriado: () => void; invId?: strin
       for (const rid of removidas) { const r = await sb.from("inv_duplas").delete().eq("id", rid); if (r.error) throw new Error("Não foi possível remover uma dupla que já tem itens contados."); }
       const idPorKey = new Map<string, string>();
       for (const d of duplas) {
-        const linha = { inventario_id: id, nome: d.nome, membro1: d.membro1, membro2: d.membro2 || null, conta: d.conta, reconta: d.reconta };
+        const linha = { inventario_id: id, nome: d.nome, membro1: d.membro1, membro2: d.membro2 || null, conta: d.conta, reconta: participaRecontagem(d, duplas) };
         if (d.id) { const r = await sb.from("inv_duplas").update(linha).eq("id", d.id); if (r.error) throw r.error; idPorKey.set(d.key, d.id); }
         else { const r = await sb.from("inv_duplas").insert(linha).select("id").single(); if (r.error) throw r.error; idPorKey.set(d.key, r.data.id); }
       }
-      for (const d of duplas) await sb.from("inv_duplas").update({ recontada_por: d.conta ? idPorKey.get(d.recontadaPor) ?? null : null }).eq("id", idPorKey.get(d.key));
+      for (const d of duplas) {
+        const r = await sb.from("inv_duplas").update({ recontada_por: d.conta ? idPorKey.get(destinoRecontagem(d)) ?? null : null }).eq("id", idPorKey.get(d.key));
+        if (r.error) throw r.error;
+      }
       await sb.from("inv_dupla_grupos").delete().eq("inventario_id", id);
       const gr = duplas.filter((d) => d.conta).flatMap((d) => d.grupos.map((g) => ({ inventario_id: id, dupla_id: idPorKey.get(d.key), grupo: g })));
       if (gr.length) { const r = await sb.from("inv_dupla_grupos").insert(gr); if (r.error) throw r.error; }
@@ -141,13 +145,11 @@ function Planejamento({ onCriado, invId }: { onCriado: () => void; invId?: strin
                 <div className="flex max-h-40 flex-wrap gap-1 overflow-y-auto">{base.data!.grupos.map((g) => { const dono = usados.get(g); const ativo = dono === d.key; return (
                   <button key={g} type="button" disabled={dono != null && !ativo} onClick={() => upd(d.key, { grupos: ativo ? d.grupos.filter((x) => x !== g) : [...d.grupos, g] })}
                     className={`rounded-full border px-2 py-0.5 text-[11px] ${ativo ? "border-slate-900 bg-slate-900 text-white" : dono != null ? "opacity-30" : "hover:bg-muted"}`}>{g}</button>); })}</div></div>
-              <div><div className="mb-1 text-[11px] font-semibold text-muted-foreground">Recontagem dos grupos desta dupla *</div>
-                <select className={sel} value={d.recontadaPor} onChange={(e) => upd(d.key, { recontadaPor: e.target.value })}><option value="">Quem reconta…</option>{recontadoras.filter((r) => r.key !== d.key).map((r) => <option key={r.key} value={r.key}>{r.nome}</option>)}</select>
-                {!recontadoras.some((r) => r.key !== d.key) && <p className="mt-1 text-[11px] text-amber-700">Marque "Reconta" em outra dupla.</p>}</div>
+              <div><div className="mb-1 text-[11px] font-semibold text-muted-foreground">Responsável pela recontagem</div>
+                <select aria-label={`Responsável pela recontagem de ${d.nome}`} className={sel} value={d.recontadaPor === d.key ? "" : d.recontadaPor} onChange={(e) => upd(d.key, { recontadaPor: e.target.value })}><option value="">Mesma pessoa / dupla</option>{recontadoras.filter((r) => r.key !== d.key).map((r) => <option key={r.key} value={r.key}>{r.nome}</option>)}</select></div>
             </div>}
           </div>))}
         {semGrupo.length > 0 && <p className="text-xs text-amber-700">{semGrupo.length} grupo(s) sem dupla — os itens deles irão para "{duplas.find((d) => d.key === padraoKey)?.nome ?? "—"}".</p>}
-        <p className="text-xs text-muted-foreground">Cada dupla vê só a própria lista. Itens com divergência (fora da tolerância por SKU) vão para a dupla definida em "Recontagem dos grupos desta dupla"; a recontagem vira a contagem final oficial.</p>
       </div>
       <div className="flex justify-end gap-2">{invId && <Button variant="outline" onClick={onCriado}>Cancelar</Button>}<Button onClick={salvar} disabled={salvando}>{salvando ? "Salvando…" : invId ? "Salvar alterações" : "Criar inventário"}</Button></div>
     </CardContent></Card>
