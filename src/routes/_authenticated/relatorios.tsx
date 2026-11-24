@@ -5,8 +5,6 @@ import { FileSpreadsheet, FileText, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/inventory";
 
@@ -48,6 +46,7 @@ function RelatoriosPage() {
     const acurados = rows.filter((r) => r.acuracidade != null && Number(r.acuracidade) >= 97 && Number(r.acuracidade) <= 100).length;
     const acuracidade = rows.length ? (acurados / rows.length) * 100 : 0;
 
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
     const doc = new jsPDF();
     doc.setFontSize(16);
     doc.text("Relatório de Inventário", 14, 16);
