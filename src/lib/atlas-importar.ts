@@ -82,7 +82,7 @@ export function parseDecimal(v: unknown): number {
 const DE_PARA_ALMOX: [string, string][] = [
   ["Processo", "Almox_SP_Processo"], ["Qualidade", "Almox_SP_Qualidade"], ["Ativa", "Almox_SP_Ativacao"], ["Degusta", "Almox_SP_Degustacao"],
   ["Box2", "Almox_Box_2"], ["Box 2", "Almox_Box_2"], ["Box", "Almox_Box"], ["Loja", "Almox_SP_Loja"], ["Paulista", "Almox_SP_PatioPaulista"],
-  ["Par", "Almox_PA_Para"], ["Geral", "Almox_SP_Fabrica"], ["Frabrica", "Almox_SP_Fabrica"], ["Frabica", "Almox_SP_Fabrica"], ["Fabrica", "Almox_SP_Fabrica"],
+  ["Eldorado", "Almox ElDorado"], ["Par", "Almox_PA_Para"], ["Geral", "Almox_SP_Fabrica"], ["Frabrica", "Almox_SP_Fabrica"], ["Frabica", "Almox_SP_Fabrica"], ["Fabrica", "Almox_SP_Fabrica"],
 ];
 export function normalizarAlmoxarifado(v: unknown): string {
   if (v == null) return "NAO_MAPEADO__vazio";
