@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchAll } from "@/lib/fetch-all";
 import { acuracidadePorItem } from "@/lib/inventario-acuracidade";
 import { useRole } from "@/hooks/useRole";
+import { aplicarPendentes, chaveManual, chaveRegistrar, ehFalhaDeRede, enfileirar, enviarFila, gravarFila, lerFila, type OpOffline } from "@/lib/inventario-offline";
 import { dataHora, nomeUsuario, num, sb, StatusInv, type Usuario } from "@/components/inventario-geral/comum";
 
 export const Route = createFileRoute("/_authenticated/inventario-geral/$id")({ component: Pagina, head: () => ({ meta: [{ title: "Contagem de Inventário · Inventário" }, { name: "description", content: "Contagem, recontagem e acuracidade por item do inventário." }, { property: "og:title", content: "Contagem de Inventário · Inventário" }, { property: "og:description", content: "Acompanhe os itens conferidos, acurados e divergentes do inventário." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }) });
@@ -72,8 +73,21 @@ function feedback(tipo: "ok" | "divergente" | "erro" | "salvo") {
 /** Lista de contagem no modelo da Contagem Cíclica: um SKU por linha, contagem por lote, trânsito, baixas em aprovação e status. */
 function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "recontagem"; aberta: boolean }) {
   const qc = useQueryClient(); const tol = Number(inv.tolerancia_pct ?? TOL_PADRAO);
-  const q = useQuery({ queryKey: ["inv-tarefas", inv.id, fase], queryFn: async () => { const r = await sb.rpc("inv_minhas_tarefas", { p_inv: inv.id, p_fase: fase }); if (r.error) throw r.error; return (r.data ?? []) as Linha[]; } });
-  const linhas = q.data ?? []; const skus = useMemo(() => [...new Set(linhas.map((l) => l.codigo_produto))], [linhas]);
+  const cacheKey = `inv-tarefas-cache:${inv.id}:${fase}`;
+  const q = useQuery({ queryKey: ["inv-tarefas", inv.id, fase], retry: (n) => navigator.onLine && n < 2, queryFn: async () => { const r = await sb.rpc("inv_minhas_tarefas", { p_inv: inv.id, p_fase: fase }); if (r.error) throw r.error; const d = (r.data ?? []) as Linha[]; try { localStorage.setItem(cacheKey, JSON.stringify(d)); } catch { /* cheio */ } return d; } });
+  const [fila, setFila] = useState<OpOffline[]>([]); const [online, setOnline] = useState(true); const [cache, setCache] = useState<Linha[] | null>(null);
+  useEffect(() => {
+    try { const c = localStorage.getItem(cacheKey); if (c) setCache(JSON.parse(c)); } catch { /* sem cache */ }
+    const atualizar = () => setFila(lerFila().filter((o) => o.inv === inv.id));
+    const enviar = async () => { if (!navigator.onLine || !lerFila().length) return; const n = await enviarFila(sb, (m) => toast.error(`Lançamento offline recusado: ${m}`)); if (n) { toast.success(`${n} lançamento(s) feitos sem sinal foram enviados.`); qc.invalidateQueries({ queryKey: ["inv-tarefas", inv.id] }); } };
+    const on = () => { setOnline(true); enviar(); }, off = () => setOnline(false);
+    setOnline(navigator.onLine); atualizar(); enviar();
+    window.addEventListener("inv-offline-fila", atualizar); window.addEventListener("online", on); window.addEventListener("offline", off);
+    const t = setInterval(enviar, 20_000);
+    return () => { window.removeEventListener("inv-offline-fila", atualizar); window.removeEventListener("online", on); window.removeEventListener("offline", off); clearInterval(t); };
+  }, [cacheKey, inv.id, qc]);
+  const guardar = (op: OpOffline) => { gravarFila(enfileirar(lerFila(), op)); feedback("salvo"); toast.info("Sem sinal: lançamento guardado no aparelho e enviado ao reconectar."); };
+  const linhas = useMemo(() => aplicarPendentes(q.data ?? cache ?? [], fila, fase), [q.data, cache, fila, fase]); const skus = useMemo(() => [...new Set(linhas.map((l) => l.codigo_produto))], [linhas]);
   const extras = useQuery({ queryKey: ["inv-extras", inv.id, skus.join(",")], enabled: skus.length > 0, staleTime: 60_000, queryFn: async () => {
     const fam = new Map<string, string>(), baixas = new Map<string, number>();
     for (let k = 0; k < skus.length; k += 200) {
@@ -108,22 +122,34 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
     const v = val[l.id]; if (v == null) return; const qtd = Number(String(v).replace(",", "."));
     if (v === "" || !(qtd >= 0)) { feedback("erro"); return toast.error("Quantidade inválida."); }
     if (fase === "recontagem" && identSku == null) { feedback("erro"); return toast.error("Marque se o produto foi identificado na 2ª contagem (Sim/Não)."); }
-    const r = await sb.rpc("inv_registrar", { p_item: l.id, p_fase: fase, p_qtd: qtd, p_identificado: fase === "recontagem" ? identSku : null, p_obs: null });
+    const args = { p_item: l.id, p_fase: fase, p_qtd: qtd, p_identificado: fase === "recontagem" ? identSku : null, p_obs: null };
+    const offline = () => { guardar({ tipo: "registrar", chave: chaveRegistrar(l.id, fase, "qtd"), inv: inv.id, item: l.id, fase, qtd, identificado: args.p_identificado, obs: null, em: new Date().toISOString() }); setVal((s) => { const n = { ...s }; delete n[l.id]; return n; }); };
+    if (!navigator.onLine) return offline();
+    let r: any; try { r = await sb.rpc("inv_registrar", args); } catch (e) { r = { error: e }; }
+    if (r.error && ehFalhaDeRede(r.error)) return offline();
     if (r.error) { feedback("erro"); return toast.error(r.error.message); }
     if (r.data === "OK") { feedback("ok"); toast.success("Dentro da tolerância"); }
     else if (r.data === "DIVERGENTE") { feedback("divergente"); toast.warning(fase === "recontagem" ? "Ainda divergente — confira antes de seguir" : "Divergência — reconfira a contagem deste SKU"); }
     else feedback("salvo");
     setVal((s) => { const n = { ...s }; delete n[l.id]; return n; }); recarregar();
   }
-  async function salvarObs(x: typeof porSku[number]) { const o = obs[x.sku]; if (o == null) return; const r = await sb.rpc("inv_registrar", { p_item: x.ls[0].id, p_fase: fase, p_qtd: null, p_identificado: null, p_obs: o }); if (r.error) return toast.error(r.error.message); recarregar(); }
+  async function salvarObs(x: typeof porSku[number]) { const o = obs[x.sku]; if (o == null) return; const item = x.ls[0].id;
+    const offline = () => guardar({ tipo: "registrar", chave: chaveRegistrar(item, fase, "obs"), inv: inv.id, item, fase, qtd: null, identificado: null, obs: o, em: new Date().toISOString() });
+    if (!navigator.onLine) return offline();
+    let r: any; try { r = await sb.rpc("inv_registrar", { p_item: item, p_fase: fase, p_qtd: null, p_identificado: null, p_obs: o }); } catch (e) { r = { error: e }; }
+    if (r.error && ehFalhaDeRede(r.error)) return offline(); if (r.error) return toast.error(r.error.message); recarregar(); }
   async function salvarNovoLote(x: typeof porSku[number]) {
     const n = novoLote[x.sku]; if (!n) return; const qtd = Number(n.qtd.replace(",", ".")); if (!n.lote.trim() || n.qtd === "" || !(qtd >= 0)) { feedback("erro"); return toast.error("Informe lote e quantidade."); }
     const idt = ident[x.sku] ?? x.ident; if (fase === "recontagem" && idt == null) return toast.error("Marque se o produto foi identificado na 2ª contagem.");
-    const r = await sb.rpc("inv_adicionar_manual", { p_inv: inv.id, p_codigo: x.sku, p_lote: n.lote.trim(), p_qtd: qtd, p_fase: fase, p_identificado: fase === "recontagem" ? idt : null });
+    const pIdt = fase === "recontagem" ? idt ?? null : null;
+    const offline = () => { guardar({ tipo: "manual", chave: chaveManual(inv.id, x.sku, n.lote, fase), inv: inv.id, codigo: x.sku, lote: n.lote.trim(), qtd, fase, identificado: pIdt, em: new Date().toISOString() }); setNovoLote({ ...novoLote, [x.sku]: undefined }); };
+    if (!navigator.onLine) return offline();
+    let r: any; try { r = await sb.rpc("inv_adicionar_manual", { p_inv: inv.id, p_codigo: x.sku, p_lote: n.lote.trim(), p_qtd: qtd, p_fase: fase, p_identificado: pIdt }); } catch (e) { r = { error: e }; }
+    if (r.error && ehFalhaDeRede(r.error)) return offline();
     if (r.error) { feedback("erro"); return toast.error(r.error.message); } feedback("salvo"); setNovoLote({ ...novoLote, [x.sku]: undefined }); recarregar();
   }
   async function remover(l: Linha) { if (!confirm(`Remover o lote ${l.lote || "(sem lote)"} incluído manualmente?`)) return; const r = await sb.rpc("inv_remover_manual", { p_item: l.id }); if (r.error) return toast.error(r.error.message); recarregar(); }
-  async function concluir() { if (k.pend > 0 && !confirm(`Faltam ${k.pend} SKU(s). Concluir mesmo assim?`)) return; const r = await sb.rpc("inv_concluir", { p_inv: inv.id, p_fase: fase }); if (r.error) return toast.error(r.error.message); toast.success("Etapa da sua dupla concluída."); }
+  async function concluir() { if (fila.length) return toast.error("Aguarde o envio dos lançamentos feitos sem sinal antes de concluir."); if (k.pend > 0 && !confirm(`Faltam ${k.pend} SKU(s). Concluir mesmo assim?`)) return; const r = await sb.rpc("inv_concluir", { p_inv: inv.id, p_fase: fase }); if (r.error) return toast.error(r.error.message); toast.success("Etapa da sua dupla concluída."); }
   function exportar() {
     const cab = ["SKU", "Produto", "Grupo", "Família", "Lote", ...(verSistema ? ["Sistema"] : []), "Contado", ...(fase === "recontagem" ? ["Identificado na 2ª"] : []), "Observação"];
     const rows = linhas.map((l) => [l.codigo_produto, l.descricao, l.grupo ?? "", extras.data?.fam.get(l.codigo_produto) ?? "", l.lote, ...(verSistema ? [l.sistema ?? ""] : []), l.qtd ?? "", ...(fase === "recontagem" ? [l.identificado == null ? "" : l.identificado ? "Sim" : "Não"] : []), l.observacao ?? ""]);
@@ -141,6 +167,7 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
         {aberta && k.total > 0 && <Button size="sm" onClick={concluir}><Check className="mr-1 size-4" />Concluir {fase === "recontagem" ? "recontagem" : "contagem"} da dupla</Button>}
         <span className="ml-auto rounded-full bg-muted px-3 py-1 text-xs">Contagem restrita ao almoxarifado <b>{inv.almoxarifado}</b>{verSistema ? " · você vê o saldo (administrador)" : " · contagem cega"}</span>
       </div>
+      {(!online || fila.length > 0) && <p className={`rounded-md p-2 text-xs font-semibold ${online ? "bg-amber-100 text-amber-900" : "bg-red-100 text-red-800"}`}>{online ? "Enviando lançamentos feitos sem sinal…" : "Sem sinal — continue contando: tudo fica guardado neste aparelho."}{fila.length > 0 && ` ${fila.length} lançamento(s) aguardando envio${fila.some((o) => o.tipo === "manual") ? " (lotes manuais aparecem na lista após o envio)" : ""}.`}</p>}
       {!aberta && <p className="rounded-md bg-muted p-2 text-xs">{fase === "recontagem" ? "A recontagem abre quando a gestão encerra a 1ª contagem." : inv.status === "planejado" ? `A lista será gerada em ${dataHora(inv.data_geracao)}.` : "A contagem está encerrada para lançamentos."}</p>}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
         <Kpi t="Total SKU" v={String(k.total)} /><Kpi t="Pendentes" v={String(k.pend)} /><Kpi t={fase === "recontagem" ? "Recontados" : "Conferidos"} v={String(k.conf)} />
