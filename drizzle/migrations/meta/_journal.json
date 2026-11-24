@@ -603,6 +603,13 @@
       "when": 1795524516101,
       "tag": "0085_abast_pedidos_quem_cancelou",
       "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1795170000000,
+      "tag": "0085_inventario_geral_fechamento",
+      "breakpoints": true
     }
   ]
 }
