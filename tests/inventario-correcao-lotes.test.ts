@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { lotesParaCorrecao, linhasModelo } from "./inventario-correcao-lotes";
+import { describe, expect, it } from "bun:test";
+import { lotesParaCorrecao, linhasModelo } from "../src/lib/inventario-correcao-lotes";
 const it_ = (sku: string, lote: string, sis: number, c: number, rec: number | null = null) => ({ codigo_produto: sku, lote, qtd_sistema: sis, qtd_contagem: c, qtd_recontagem: rec, qtd_final: null });
 describe("lotes para correção", () => {
   it("ignora SKU com todos os lotes batendo", () => { expect(lotesParaCorrecao([it_("A", "1", 10, 10)])).toEqual([]); });
