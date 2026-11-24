@@ -47,6 +47,7 @@ function EmailsPage() {
   const [addFinSel, setAddFinSel] = useState<string[]>([]);
   const [addFinNova, setAddFinNova] = useState("");
   const [filtroFinalidade, setFiltroFinalidade] = useState<string>("TODAS");
+  const [filtroUsuario, setFiltroUsuario] = useState<string>("TODOS");
 
   const { data } = useQuery({
     queryKey: ["cadastro_emails"],
@@ -63,9 +64,24 @@ function EmailsPage() {
     [data],
   );
 
+  const usuariosExistentes = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const i of data ?? []) {
+      if (!m.has(i.email)) m.set(i.email, i.nome_contato?.trim() || i.email);
+    }
+    return Array.from(m.entries())
+      .map(([email, nome]) => ({ email, nome }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [data]);
+
   const dadosFiltrados = useMemo(
-    () => (data ?? []).filter((i) => filtroFinalidade === "TODAS" || i.finalidade === filtroFinalidade),
-    [data, filtroFinalidade],
+    () =>
+      (data ?? []).filter(
+        (i) =>
+          (filtroFinalidade === "TODAS" || i.finalidade === filtroFinalidade) &&
+          (filtroUsuario === "TODOS" || i.email === filtroUsuario),
+      ),
+    [data, filtroFinalidade, filtroUsuario],
   );
 
   const finalidadesPorEmail = useMemo(() => {
@@ -201,6 +217,18 @@ function EmailsPage() {
                 {finalidadesExistentes.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Label className="text-xs text-muted-foreground">Filtrar por usuário:</Label>
+            <Select value={filtroUsuario} onValueChange={setFiltroUsuario}>
+              <SelectTrigger className="h-8 w-64 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value="TODOS">Todos os usuários</SelectItem>
+                {usuariosExistentes.map((u) => (
+                  <SelectItem key={u.email} value={u.email}>
+                    {u.nome}{u.nome !== u.email ? ` (${u.email})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <span className="text-xs text-muted-foreground tabular-nums">
               {dadosFiltrados.length} de {(data ?? []).length} destinatário(s)
             </span>
@@ -220,7 +248,7 @@ function EmailsPage() {
             <TableBody>
               {dadosFiltrados.length === 0 && (
                 <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
-                  {(data ?? []).length === 0 ? "Nenhum e-mail cadastrado" : "Nenhum destinatário nesta finalidade"}
+                  {(data ?? []).length === 0 ? "Nenhum e-mail cadastrado" : "Nenhum destinatário com esses filtros"}
                 </TableCell></TableRow>
               )}
               {dadosFiltrados.map((i) => (
