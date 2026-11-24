@@ -4800,6 +4800,265 @@ export type Database = {
         }
         Relationships: []
       }
+      inv_dupla_grupos: {
+        Row: {
+          dupla_id: string
+          grupo: string
+          id: number
+          inventario_id: string
+        }
+        Insert: {
+          dupla_id: string
+          grupo: string
+          id?: number
+          inventario_id: string
+        }
+        Update: {
+          dupla_id?: string
+          grupo?: string
+          id?: number
+          inventario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_dupla_grupos_dupla_id_fkey"
+            columns: ["dupla_id"]
+            isOneToOne: false
+            referencedRelation: "inv_duplas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_dupla_grupos_inventario_id_fkey"
+            columns: ["inventario_id"]
+            isOneToOne: false
+            referencedRelation: "inv_inventarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inv_duplas: {
+        Row: {
+          conta: boolean
+          contagem_concluida_em: string | null
+          created_at: string
+          id: string
+          inventario_id: string
+          membro1: string
+          membro2: string | null
+          nome: string
+          reconta: boolean
+          recontada_por: string | null
+          recontagem_concluida_em: string | null
+        }
+        Insert: {
+          conta?: boolean
+          contagem_concluida_em?: string | null
+          created_at?: string
+          id?: string
+          inventario_id: string
+          membro1: string
+          membro2?: string | null
+          nome: string
+          reconta?: boolean
+          recontada_por?: string | null
+          recontagem_concluida_em?: string | null
+        }
+        Update: {
+          conta?: boolean
+          contagem_concluida_em?: string | null
+          created_at?: string
+          id?: string
+          inventario_id?: string
+          membro1?: string
+          membro2?: string | null
+          nome?: string
+          reconta?: boolean
+          recontada_por?: string | null
+          recontagem_concluida_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_duplas_inventario_id_fkey"
+            columns: ["inventario_id"]
+            isOneToOne: false
+            referencedRelation: "inv_inventarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_duplas_recontada_por_fkey"
+            columns: ["recontada_por"]
+            isOneToOne: false
+            referencedRelation: "inv_duplas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inv_inventarios: {
+        Row: {
+          almoxarifado: string
+          apurado_em: string | null
+          created_at: string
+          criado_por: string | null
+          criterio_abc: string | null
+          data_geracao: string
+          dupla_padrao_id: string | null
+          exibir_sistema: boolean
+          finalizado_em: string | null
+          finalizado_por: string | null
+          gerada_em: string | null
+          gerada_por: string | null
+          id: string
+          numero: number
+          observacao: string | null
+          status: string
+          titulo: string
+          tolerancia_pct: number
+        }
+        Insert: {
+          almoxarifado: string
+          apurado_em?: string | null
+          created_at?: string
+          criado_por?: string | null
+          criterio_abc?: string | null
+          data_geracao: string
+          dupla_padrao_id?: string | null
+          exibir_sistema?: boolean
+          finalizado_em?: string | null
+          finalizado_por?: string | null
+          gerada_em?: string | null
+          gerada_por?: string | null
+          id?: string
+          numero?: number
+          observacao?: string | null
+          status?: string
+          titulo: string
+          tolerancia_pct?: number
+        }
+        Update: {
+          almoxarifado?: string
+          apurado_em?: string | null
+          created_at?: string
+          criado_por?: string | null
+          criterio_abc?: string | null
+          data_geracao?: string
+          dupla_padrao_id?: string | null
+          exibir_sistema?: boolean
+          finalizado_em?: string | null
+          finalizado_por?: string | null
+          gerada_em?: string | null
+          gerada_por?: string | null
+          id?: string
+          numero?: number
+          observacao?: string | null
+          status?: string
+          titulo?: string
+          tolerancia_pct?: number
+        }
+        Relationships: []
+      }
+      inv_itens: {
+        Row: {
+          codigo_produto: string
+          contado_em: string | null
+          contado_por: string | null
+          created_at: string
+          created_by: string | null
+          custo_unitario: number | null
+          descricao: string | null
+          divergente: boolean | null
+          dupla_id: string | null
+          dupla_recontagem_id: string | null
+          grupo: string | null
+          id: string
+          identificado_recontagem: boolean | null
+          inventario_id: string
+          lote: string
+          observacao: string | null
+          origem_item: string
+          qtd_contagem: number | null
+          qtd_final: number | null
+          qtd_recontagem: number | null
+          qtd_sistema: number
+          recontado_em: string | null
+          recontado_por: string | null
+          unidade: string | null
+        }
+        Insert: {
+          codigo_produto: string
+          contado_em?: string | null
+          contado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          custo_unitario?: number | null
+          descricao?: string | null
+          divergente?: boolean | null
+          dupla_id?: string | null
+          dupla_recontagem_id?: string | null
+          grupo?: string | null
+          id?: string
+          identificado_recontagem?: boolean | null
+          inventario_id: string
+          lote?: string
+          observacao?: string | null
+          origem_item?: string
+          qtd_contagem?: number | null
+          qtd_final?: number | null
+          qtd_recontagem?: number | null
+          qtd_sistema?: number
+          recontado_em?: string | null
+          recontado_por?: string | null
+          unidade?: string | null
+        }
+        Update: {
+          codigo_produto?: string
+          contado_em?: string | null
+          contado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          custo_unitario?: number | null
+          descricao?: string | null
+          divergente?: boolean | null
+          dupla_id?: string | null
+          dupla_recontagem_id?: string | null
+          grupo?: string | null
+          id?: string
+          identificado_recontagem?: boolean | null
+          inventario_id?: string
+          lote?: string
+          observacao?: string | null
+          origem_item?: string
+          qtd_contagem?: number | null
+          qtd_final?: number | null
+          qtd_recontagem?: number | null
+          qtd_sistema?: number
+          recontado_em?: string | null
+          recontado_por?: string | null
+          unidade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inv_itens_dupla_id_fkey"
+            columns: ["dupla_id"]
+            isOneToOne: false
+            referencedRelation: "inv_duplas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_itens_dupla_recontagem_id_fkey"
+            columns: ["dupla_recontagem_id"]
+            isOneToOne: false
+            referencedRelation: "inv_duplas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_itens_inventario_id_fkey"
+            columns: ["inventario_id"]
+            isOneToOne: false
+            referencedRelation: "inv_inventarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventario: {
         Row: {
           acuracidade: number | null
@@ -9018,6 +9277,64 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      inv_adicionar_manual: {
+        Args: {
+          p_codigo: string
+          p_fase?: string
+          p_identificado?: boolean
+          p_inv: string
+          p_lote: string
+          p_qtd: number
+        }
+        Returns: string
+      }
+      inv_apurar: { Args: { p_inv: string }; Returns: number }
+      inv_concluir: {
+        Args: { p_fase: string; p_inv: string }
+        Returns: undefined
+      }
+      inv_finalizar: {
+        Args: { p_forcar?: boolean; p_inv: string }
+        Returns: undefined
+      }
+      inv_gerar_lista: { Args: { p_inv: string }; Returns: number }
+      inv_minhas_duplas: { Args: { p_inv: string }; Returns: string[] }
+      inv_minhas_tarefas: {
+        Args: { p_fase: string; p_inv: string }
+        Returns: {
+          codigo_produto: string
+          criado_por_mim: boolean
+          descricao: string
+          dupla: string
+          grupo: string
+          id: string
+          identificado: boolean
+          lote: string
+          observacao: string
+          origem_item: string
+          qtd: number
+          registrado_em: string
+          sistema: number
+          unidade: string
+        }[]
+      }
+      inv_redistribuir: { Args: { p_inv: string }; Returns: number }
+      inv_registrar: {
+        Args: {
+          p_fase: string
+          p_identificado?: boolean
+          p_item: string
+          p_obs?: string
+          p_qtd: number
+        }
+        Returns: string
+      }
+      inv_remover_manual: { Args: { p_item: string }; Returns: undefined }
+      inv_sou_gestor: { Args: never; Returns: boolean }
+      inv_status_sku: {
+        Args: { p_codigo: string; p_fase: string; p_inv: string }
+        Returns: string
       }
       is_gestor: { Args: { _user_id: string }; Returns: boolean }
       limpar_movimentacoes_erp: { Args: { p_pares: Json }; Returns: number }
