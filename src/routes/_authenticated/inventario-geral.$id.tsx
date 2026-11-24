@@ -17,6 +17,7 @@ import { fetchAll } from "@/lib/fetch-all";
 import { acuracidadePorItem } from "@/lib/inventario-acuracidade";
 import { useRole } from "@/hooks/useRole";
 import { aplicarPendentes, chaveManual, chaveRegistrar, ehFalhaDeRede, enfileirar, enviarFila, gravarFila, lerFila, type OpOffline } from "@/lib/inventario-offline";
+import { CorrecaoLotesDialog } from "@/components/inventario-geral/CorrecaoLotesDialog";
 import { dataHora, nomeUsuario, num, sb, StatusInv, type Usuario } from "@/components/inventario-geral/comum";
 
 export const Route = createFileRoute("/_authenticated/inventario-geral/$id")({ component: Pagina, head: () => ({ meta: [{ title: "Contagem de Inventário · Inventário" }, { name: "description", content: "Contagem, recontagem e acuracidade por item do inventário." }, { property: "og:title", content: "Contagem de Inventário · Inventário" }, { property: "og:description", content: "Acompanhe os itens conferidos, acurados e divergentes do inventário." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }) });
@@ -115,7 +116,7 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
   } });
   const [busca, setBusca] = useState(""); const [fGrupo, setFGrupo] = useState(""); const [fFam, setFFam] = useState(""); const [fStatus, setFStatus] = useState("");
   const [val, setVal] = useState<Record<string, string>>({}); const [obs, setObs] = useState<Record<string, string>>({});
-  const [novoLote, setNovoLote] = useState<Record<string, { lote: string; qtd: string } | undefined>>({}); const [add, setAdd] = useState(false);
+  const [novoLote, setNovoLote] = useState<Record<string, { lote: string; qtd: string } | undefined>>({}); const [add, setAdd] = useState(false); const [correcao, setCorrecao] = useState(false);
   const recarregar = () => qc.invalidateQueries({ queryKey: ["inv-tarefas", inv.id, fase] });
   const verSistema = linhas.some((l) => l.sistema != null);
 
@@ -159,7 +160,7 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
     if (r.error) { feedback("erro"); return toast.error(r.error.message); } feedback("salvo"); setNovoLote({ ...novoLote, [x.sku]: undefined }); recarregar();
   }
   async function remover(l: Linha) { if (!confirm(`Remover o lote ${l.lote || "(sem lote)"} incluído manualmente?`)) return; const r = await sb.rpc("inv_remover_manual", { p_item: l.id }); if (r.error) return toast.error(r.error.message); recarregar(); }
-  async function concluir() { if (fila.length) return toast.error("Aguarde o envio dos lançamentos feitos sem sinal antes de concluir."); if (k.pend > 0 && !confirm(`Faltam ${k.pend} SKU(s). Concluir mesmo assim?`)) return; const r = await sb.rpc("inv_concluir", { p_inv: inv.id, p_fase: fase }); if (r.error) return toast.error(r.error.message); toast.success("Etapa da sua dupla concluída."); }
+  async function concluir() { if (fila.length) return toast.error("Aguarde o envio dos lançamentos feitos sem sinal antes de concluir."); if (k.pend > 0 && !confirm(`Faltam ${k.pend} SKU(s). Concluir mesmo assim?`)) return; const r = await sb.rpc("inv_concluir", { p_inv: inv.id, p_fase: fase }); if (r.error) return toast.error(r.error.message); toast.success("Etapa da sua dupla concluída."); if (fase === "recontagem") setCorrecao(true); }
   function exportar() {
     const cab = ["SKU", "Produto", "Grupo", "Família", "Lote", ...(verSistema ? ["Sistema"] : []), "Contado", ...(fase === "recontagem" ? ["Identificado na 2ª"] : []), "Observação"];
     const rows = linhas.map((l) => [l.codigo_produto, l.descricao, l.grupo ?? "", extras.data?.fam.get(l.codigo_produto) ?? "", l.lote, ...(verSistema ? [l.sistema ?? ""] : []), l.qtd ?? "", ...(fase === "recontagem" ? [l.identificado == null ? "" : l.identificado ? "Sim" : "Não"] : []), l.observacao ?? ""]);
@@ -173,6 +174,8 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="outline" onClick={exportar}><Download className="mr-1 size-4" />Baixar Excel</Button>
+        {fase === "recontagem" && verSistema && <Button size="sm" variant="outline" onClick={() => setCorrecao(true)}><Download className="mr-1 size-4" />Lotes a corrigir</Button>}
+        <CorrecaoLotesDialog inv={inv} open={correcao} onOpenChange={setCorrecao} />
         {aberta && <Button size="sm" variant="outline" onClick={() => setAdd(true)}><PackagePlus className="mr-1 size-4" />Produto fora da lista</Button>}
         {aberta && k.total > 0 && <Button size="sm" onClick={concluir}><Check className="mr-1 size-4" />Concluir {fase === "recontagem" ? "recontagem" : "contagem"} da dupla</Button>}
         <span className="ml-auto rounded-full bg-muted px-3 py-1 text-xs">Contagem restrita ao almoxarifado <b>{inv.almoxarifado}</b>{verSistema ? " · você vê o saldo (administrador)" : " · contagem cega"}</span>
