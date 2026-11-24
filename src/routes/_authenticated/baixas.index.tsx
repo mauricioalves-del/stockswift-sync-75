@@ -20,7 +20,8 @@ import { toast } from "sonner";
 import { formatBRL, formatNum } from "@/lib/inventory";
 import { CheckCircle2, XCircle, MessageSquareWarning, PackageMinus, Loader2, ScanBarcode, Check, ChevronsUpDown, List, Plus, Trash2, Mail, Download, Pencil, ArrowDown, ArrowUp, ArrowUpDown, Undo2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { BarcodeScanner } from "@/components/app/BarcodeScanner";
+import { lazy, Suspense } from "react";
+const BarcodeScanner = lazy(() => import("@/components/app/BarcodeScanner").then((m) => ({ default: m.BarcodeScanner })));
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
@@ -636,11 +637,11 @@ function NovaBaixaForm() {
         </CardContent>
       </Card>
 
-      <BarcodeScanner
+      {scannerOpen && <Suspense fallback={null}><BarcodeScanner
         open={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onDetected={(code) => { setScannerOpen(false); buscarPorCodigo(code); }}
-      />
+      /></Suspense>}
       {/* silence unused role warning while role-based UI is not yet needed here */}
       <span className="hidden">{role}</span>
     </>
