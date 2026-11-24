@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, Pencil, Download, PackagePlus, Plus, Search, Trash2 } from "lucide-react";
 import { sounds } from "@/lib/audio";
+import { gerarFechamentoOficial } from "@/lib/inventario-geral-fechamento";
 import { somarTransitoMissao, type NotaTransitoMissao, type TransitoMissao } from "@/lib/missao-transito";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,14 @@ function Pagina() {
   const { inv, duplas, gestor, uid } = q.data;
   const minhas = duplas.filter((d) => [d.membro1, d.membro2].includes(uid));
   const r = () => qc.invalidateQueries({ queryKey: ["inv", id] });
-  async function acao(fn: string, args: any, ok: string) { const res = await sb.rpc(fn, args); if (res.error) return toast.error(res.error.message); toast.success(ok); r(); qc.invalidateQueries({ queryKey: ["inv-tarefas", id] }); qc.invalidateQueries({ queryKey: ["inv-painel", id] }); }
+  const [gerando, setGerando] = useState(false);
+  async function gerarFechamento() {
+    setGerando(true); const t = toast.loading("Gerando o fechamento oficial…");
+    try { const res = await gerarFechamentoOficial(id, (m) => toast.loading(`Fechamento oficial: ${m}`, { id: t }));
+      toast.success(`Fechamento oficial #${res.fechamentoId} gerado: ${res.total} SKU(s), ${res.divergentes} divergência(s). Segue para as assinaturas no Atlas.`, { id: t, duration: 8000 }); r();
+    } catch (e: any) { toast.error(e?.message ?? String(e), { id: t }); } finally { setGerando(false); }
+  }
+  async function acao(fn: string, args: any, ok: string) { const res = await sb.rpc(fn, args); if (res.error) { toast.error(res.error.message); return null; } toast.success(ok); r(); qc.invalidateQueries({ queryKey: ["inv-tarefas", id] }); qc.invalidateQueries({ queryKey: ["inv-painel", id] }); return res; }
   const abaPadrao = inv.status === "em_recontagem" && minhas.some((d) => d.reconta) ? "recontagem" : minhas.length ? "contagem" : "painel";
   return (
     <div className="space-y-4">
@@ -43,9 +51,11 @@ function Pagina() {
       <div className="flex flex-wrap items-end justify-between gap-2 rounded-xl bg-slate-900 px-5 py-4 text-white">
         <div><h1 className="text-xl font-bold">#{inv.numero} · {inv.titulo}</h1><p className="text-xs text-slate-300">{inv.almoxarifado} · lista {inv.gerada_em ? `gerada em ${dataHora(inv.gerada_em)}` : `programada para ${dataHora(inv.data_geracao)}`}{inv.criterio_abc ? ` · classe ${inv.criterio_abc}` : ""}{minhas.length ? ` · você: ${minhas.map((d) => d.nome).join(", ")}` : ""}</p></div>
         <div className="flex flex-wrap items-center gap-2"><StatusInv s={inv.status} />
+          {inv.fechamento_id ? <Link to="/atlas/assinatura-fechamento/$id" params={{ id: String(inv.fechamento_id) }}><Button size="sm" variant="secondary">Fechamento oficial #{inv.fechamento_id}</Button></Link>
+            : gestor && inv.status === "finalizado" && <Button size="sm" variant="secondary" disabled={gerando} onClick={gerarFechamento}>{gerando ? "Gerando…" : "Gerar fechamento oficial"}</Button>}
           {gestor && inv.status === "planejado" && <Button size="sm" variant="secondary" onClick={() => acao("inv_gerar_lista", { p_inv: id }, "Lista gerada.")}>Gerar lista agora</Button>}
-          {gestor && ["lista_gerada", "em_contagem"].includes(inv.status) && <Button size="sm" variant="secondary" onClick={() => confirm("Encerrar a 1ª contagem e apurar as divergências? Itens não contados contam como divergência.") && acao("inv_apurar", { p_inv: id }, "Contagem encerrada; divergências enviadas para recontagem.")}>Encerrar contagem e apurar</Button>}
-          {gestor && inv.status === "em_recontagem" && <Button size="sm" variant="secondary" onClick={() => { const forcar = confirm("Finalizar o inventário? Se houver recontagem pendente, OK finaliza usando a 1ª contagem nesses itens."); if (forcar) acao("inv_finalizar", { p_inv: id, p_forcar: true }, "Inventário finalizado."); }}>Finalizar inventário</Button>}
+          {gestor && ["lista_gerada", "em_contagem"].includes(inv.status) && <Button size="sm" variant="secondary" onClick={() => confirm("Encerrar a 1ª contagem e apurar as divergências? Itens não contados contam como divergência.") && acao("inv_apurar", { p_inv: id }, "Contagem encerrada; divergências enviadas para recontagem.").then((res: any) => { if (res && res.data === 0) gerarFechamento(); })}>Encerrar contagem e apurar</Button>}
+          {gestor && inv.status === "em_recontagem" && <Button size="sm" variant="secondary" onClick={() => { const forcar = confirm("Finalizar o inventário? Se houver recontagem pendente, OK finaliza usando a 1ª contagem nesses itens."); if (forcar) acao("inv_finalizar", { p_inv: id, p_forcar: true }, "Inventário finalizado.").then((res) => { if (res) gerarFechamento(); }); }}>Finalizar inventário</Button>}
         </div>
       </div>
       <Tabs defaultValue={abaPadrao}>
