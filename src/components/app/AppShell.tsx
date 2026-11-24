@@ -204,7 +204,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const { data } = await (supabase as any).from("profiles").select("aprovado, email, nome").eq("id", uid).maybeSingle();
       return { aprovado: data?.aprovado !== false, email: data?.email ?? "", nome: data?.nome ?? "" };
     },
-    refetchInterval: 15000,
+    refetchInterval: 5 * 60_000,
   });
 
   const online = useOnlineStatus();
