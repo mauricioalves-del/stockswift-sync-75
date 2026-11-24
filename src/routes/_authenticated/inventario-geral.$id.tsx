@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, Pencil, Download, PackagePlus, Plus, Search, Trash2 } from "lucide-react";
 import { sounds } from "@/lib/audio";
 import { gerarFechamentoOficial } from "@/lib/inventario-geral-fechamento";
+import { AcoesPosInventario } from "@/components/inventario-geral/AcoesPosInventario";
 import { somarTransitoMissao, type NotaTransitoMissao, type TransitoMissao } from "@/lib/missao-transito";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ function Pagina() {
     const [inv, du, g, me] = await Promise.all([sb.from("inv_inventarios").select("*").eq("id", id).single(), sb.from("inv_duplas").select("*").eq("inventario_id", id).order("nome"), sb.rpc("inv_sou_gestor"), sb.auth.getUser()]);
     return { inv: inv.data as any, duplas: (du.data ?? []) as any[], gestor: g.data === true, uid: me.data.user?.id as string };
   } });
+  const { isAdmin } = useRole();
   const [tentou, setTentou] = useState(false); const [gerando, setGerando] = useState(false);
   useEffect(() => { // gera a lista sozinho quando chega a data/hora planejada
     const v = q.data?.inv; if (!v || tentou || v.status !== "planejado" || Date.parse(v.data_geracao) > Date.now()) return;
@@ -59,10 +61,11 @@ function Pagina() {
         </div>
       </div>
       <Tabs defaultValue={abaPadrao}>
-        <TabsList>{minhas.some((d) => d.conta) && <TabsTrigger value="contagem">Contagem</TabsTrigger>}{minhas.some((d) => d.reconta) && <TabsTrigger value="recontagem">Recontagem</TabsTrigger>}{gestor && <TabsTrigger value="painel">Painel da gestão</TabsTrigger>}</TabsList>
+        <TabsList>{minhas.some((d) => d.conta) && <TabsTrigger value="contagem">Contagem</TabsTrigger>}{minhas.some((d) => d.reconta) && <TabsTrigger value="recontagem">Recontagem</TabsTrigger>}{gestor && <TabsTrigger value="painel">Painel da gestão</TabsTrigger>}{isAdmin && inv.status === "finalizado" && <TabsTrigger value="acoes">Ações pós-inventário</TabsTrigger>}</TabsList>
         {minhas.some((d) => d.conta) && <TabsContent value="contagem"><Conferencia inv={inv} fase="contagem" aberta={["lista_gerada", "em_contagem"].includes(inv.status)} /></TabsContent>}
         {minhas.some((d) => d.reconta) && <TabsContent value="recontagem"><Conferencia inv={inv} fase="recontagem" aberta={inv.status === "em_recontagem"} /></TabsContent>}
         {gestor && <TabsContent value="painel"><Painel inv={inv} duplas={duplas} /></TabsContent>}
+        {isAdmin && inv.status === "finalizado" && <TabsContent value="acoes"><AcoesPosInventario inv={inv} /></TabsContent>}
       </Tabs>
       {!minhas.length && !gestor && <p className="text-sm text-muted-foreground">Você não está escalado neste inventário.</p>}
     </div>
