@@ -610,6 +610,13 @@
       "when": 1795170000000,
       "tag": "0085_inventario_geral_fechamento",
       "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1795552189683,
+      "tag": "0086_inv_itens_local",
+      "breakpoints": true
     }
   ]
 }

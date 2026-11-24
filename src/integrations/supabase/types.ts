@@ -4981,6 +4981,7 @@ export type Database = {
           id: string
           identificado_recontagem: boolean | null
           inventario_id: string
+          local_fisico: string | null
           lote: string
           observacao: string | null
           origem_item: string
@@ -5007,6 +5008,7 @@ export type Database = {
           id?: string
           identificado_recontagem?: boolean | null
           inventario_id: string
+          local_fisico?: string | null
           lote?: string
           observacao?: string | null
           origem_item?: string
@@ -5033,6 +5035,7 @@ export type Database = {
           id?: string
           identificado_recontagem?: boolean | null
           inventario_id?: string
+          local_fisico?: string | null
           lote?: string
           observacao?: string | null
           origem_item?: string
@@ -9303,11 +9306,22 @@ export type Database = {
         Args: { p_fase: string; p_inv: string }
         Returns: undefined
       }
+      inv_definir_local: {
+        Args: { p_item: string; p_local: string }
+        Returns: undefined
+      }
       inv_finalizar: {
         Args: { p_forcar?: boolean; p_inv: string }
         Returns: undefined
       }
       inv_gerar_lista: { Args: { p_inv: string }; Returns: number }
+      inv_locais: {
+        Args: { p_inv: string }
+        Returns: {
+          id: string
+          local_fisico: string
+        }[]
+      }
       inv_minhas_duplas: { Args: { p_inv: string }; Returns: string[] }
       inv_minhas_tarefas: {
         Args: { p_fase: string; p_inv: string }

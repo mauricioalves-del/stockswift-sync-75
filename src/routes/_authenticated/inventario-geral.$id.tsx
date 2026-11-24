@@ -118,6 +118,9 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
   const [val, setVal] = useState<Record<string, string>>({}); const [obs, setObs] = useState<Record<string, string>>({});
   const [novoLote, setNovoLote] = useState<Record<string, { lote: string; qtd: string } | undefined>>({}); const [add, setAdd] = useState(false); const [correcao, setCorrecao] = useState(false);
   const recarregar = () => qc.invalidateQueries({ queryKey: ["inv-tarefas", inv.id, fase] });
+  const locaisQ = useQuery({ queryKey: ["inv-locais", inv.id], queryFn: async () => { const r = await sb.rpc("inv_locais", { p_inv: inv.id }); if (r.error) throw r.error; return new Map<string, string>((r.data ?? []).map((x: any) => [x.id, x.local_fisico])); } });
+  const [loc, setLoc] = useState<Record<string, string>>({});
+  async function salvarLocal(l: Linha) { const v = loc[l.id]; if (v == null || v === (locaisQ.data?.get(l.id) ?? "")) return; const r = await sb.rpc("inv_definir_local", { p_item: l.id, p_local: v }); if (r.error) return toast.error(r.error.message); feedback("salvo"); await qc.invalidateQueries({ queryKey: ["inv-locais", inv.id] }); setLoc((s) => { const n = { ...s }; delete n[l.id]; return n; }); }
   const verSistema = linhas.some((l) => l.sistema != null);
 
   const porSku = useMemo(() => { const m = new Map<string, Linha[]>(); for (const l of linhas) m.set(l.codigo_produto, [...(m.get(l.codigo_produto) ?? []), l]); return [...m].map(([sku, ls]) => {
@@ -208,7 +211,8 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
                                 {x.ls.map((l) => { const c = l.qtd != null && l.sistema != null ? classe(Number(l.qtd), Number(l.sistema), tol) : null; return (
                   <div key={l.id} className="rounded-lg border p-2">
                     <div className="flex items-center gap-2"><span className="flex-1 truncate rounded-md bg-muted px-2 py-1 font-mono text-[11px]">{l.lote || "sem lote"}</span>{l.origem_item === "manual" && aberta && l.criado_por_mim && <button onClick={() => remover(l)} title="Remover lote manual"><Trash2 className="size-4 text-muted-foreground" /></button>}</div>
-                    <Input disabled={!aberta} inputMode="decimal" className="mt-1 h-9 w-32" placeholder="Qtd" value={val[l.id] ?? (l.qtd != null ? String(l.qtd) : "")} onChange={(e) => setVal({ ...val, [l.id]: e.target.value })} onBlur={() => salvarLinha(l, idt)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+                    <div className="mt-1 flex gap-2"><Input disabled={!aberta} inputMode="decimal" className="h-9 w-32" placeholder="Qtd" value={val[l.id] ?? (l.qtd != null ? String(l.qtd) : "")} onChange={(e) => setVal({ ...val, [l.id]: e.target.value })} onBlur={() => salvarLinha(l, idt)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+                      <Input className="h-9 flex-1" placeholder="Local (ex.: Rua A, prateleira 2)" title="Onde o produto está — ajuda quem for recontar" value={loc[l.id] ?? locaisQ.data?.get(l.id) ?? ""} onChange={(e) => setLoc({ ...loc, [l.id]: e.target.value })} onBlur={() => salvarLocal(l)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} /></div>
                     {l.sistema != null && <div className="mt-1 text-[11px] text-muted-foreground">Saldo Sistema: <b>{num(l.sistema)}</b></div>}
                     {c && <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold ${ROT_CLASSE[c][1]}`}>{ROT_CLASSE[c][0]}</span>}
                     {l.origem_item === "manual" && <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800">lote manual</span>}
