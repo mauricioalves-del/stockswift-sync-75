@@ -28,7 +28,7 @@ function Pagina() {
     const [inv, du, g, me] = await Promise.all([sb.from("inv_inventarios").select("*").eq("id", id).single(), sb.from("inv_duplas").select("*").eq("inventario_id", id).order("nome"), sb.rpc("inv_sou_gestor"), sb.auth.getUser()]);
     return { inv: inv.data as any, duplas: (du.data ?? []) as any[], gestor: g.data === true, uid: me.data.user?.id as string };
   } });
-  const [tentou, setTentou] = useState(false);
+  const [tentou, setTentou] = useState(false); const [gerando, setGerando] = useState(false);
   useEffect(() => { // gera a lista sozinho quando chega a data/hora planejada
     const v = q.data?.inv; if (!v || tentou || v.status !== "planejado" || Date.parse(v.data_geracao) > Date.now()) return;
     setTentou(true); sb.rpc("inv_gerar_lista", { p_inv: id }).then((r: any) => { if (!r.error) { toast.success(`Lista gerada: ${r.data} item(ns).`); qc.invalidateQueries({ queryKey: ["inv", id] }); } });
@@ -37,7 +37,6 @@ function Pagina() {
   const { inv, duplas, gestor, uid } = q.data;
   const minhas = duplas.filter((d) => [d.membro1, d.membro2].includes(uid));
   const r = () => qc.invalidateQueries({ queryKey: ["inv", id] });
-  const [gerando, setGerando] = useState(false);
   async function gerarFechamento() {
     setGerando(true); const t = toast.loading("Gerando o fechamento oficial…");
     try { const res = await gerarFechamentoOficial(id, (m) => toast.loading(`Fechamento oficial: ${m}`, { id: t }));
