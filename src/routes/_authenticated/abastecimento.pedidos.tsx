@@ -35,6 +35,7 @@ type Pedido = {
   aprov_comercial_nome?: string | null; aprov_comercial_em?: string | null; aprov_comercial_obs?: string | null; aprov_comercial_resultado?: string | null;
   aprov_diretor_nome?: string | null; aprov_diretor_em?: string | null; aprov_diretor_obs?: string | null; aprov_diretor_decisao?: string | null;
   edicoes?: Edicao[] | null; almox_origem?: string | null;
+  cancelado_nome?: string | null; cancelado_em?: string | null;
 };
 
 const ETAPAS = [{ k: "AGUARD_COMERCIAL", r: "Comercial" }, { k: "ABERTO", r: "Aberto" }, { k: "EM_SEPARACAO", r: "Em separação" }, { k: "SEPARADO", r: "Separado" }, { k: "ENVIADO", r: "Enviado" }, { k: "RECEBIDO", r: "Recebido" }];
@@ -203,7 +204,7 @@ function PedidosPage() {
             return (<Fragment key={p.id}>
               <TableRow className="cursor-pointer" onClick={() => setAberto(aberto === p.id ? null : p.id)}>
                 <TableCell className="font-semibold">{p.numero}</TableCell><TableCell>{p.loja}{p.tipo === "TRANSFERENCIA" && <div className="text-[10px] text-primary">Transferência de {p.loja_origem}</div>}{p.base_demanda === "MATERIAL_CONSUMO" && <div className="text-[10px] font-semibold text-violet-700">Uso e consumo</div>}</TableCell><TableCell className="text-xs">{p.almox_origem ? <><span className="font-mono">{p.almox_origem}</span><div className="text-[10px] text-muted-foreground">{p.tipo === "TRANSFERENCIA" ? "transferência entre lojas" : "CD"}</div></> : <span className="text-muted-foreground">—</span>}</TableCell>
-                <TableCell><span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${COR[p.status] ?? ""}`}>{(ROTULO[p.status] ?? p.status).toUpperCase()}</span></TableCell>
+                <TableCell><span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${COR[p.status] ?? ""}`}>{(ROTULO[p.status] ?? p.status).toUpperCase()}</span>{p.status === "CANCELADO" && p.cancelado_nome && <div className="mt-0.5 text-[10px] text-muted-foreground">por {p.cancelado_nome}</div>}</TableCell>
                 <TableCell><Etapas status={p.status} /></TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>{p.requisicao_id ? <Link to="/suprimentos/requisicoes/$id" params={{ id: p.requisicao_id }} className="text-xs font-mono text-primary hover:underline">{p.requisicao_numero}</Link> : <span className="text-xs text-muted-foreground">{aguardando ? "após aprovação" : "—"}</span>}</TableCell>
                 <TableCell className="text-right">{validos.length}</TableCell><TableCell className="text-right">{un(total)}</TableCell>
@@ -247,7 +248,7 @@ function PedidosPage() {
 }
 
 function Historico({ p }: { p: Pedido }) {
-  return <div className="space-y-2"><HistoricoAprovacoes p={p} /><Edicoes lista={p.edicoes ?? []} /></div>;
+  return <div className="space-y-2"><HistoricoAprovacoes p={p} />{p.status === "CANCELADO" && (p.cancelado_nome || p.cancelado_em) && <div className="rounded-md border bg-card p-2 text-xs"><div className="font-semibold">Cancelamento</div><p className="mt-1 text-muted-foreground"><span className="font-medium text-foreground">{p.cancelado_nome ?? "—"}</span>{p.cancelado_em ? ` · ${dt(p.cancelado_em)}` : ""}</p></div>}<Edicoes lista={p.edicoes ?? []} /></div>;
 }
 
 function Edicoes({ lista }: { lista: Edicao[] }) {

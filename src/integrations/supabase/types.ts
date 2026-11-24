@@ -504,6 +504,9 @@ export type Database = {
           atualizado_em: string
           atualizado_por: string | null
           base_demanda: string | null
+          cancelado_em: string | null
+          cancelado_nome: string | null
+          cancelado_por: string | null
           criado_em: string
           criado_por: string | null
           edicoes: Json
@@ -532,6 +535,9 @@ export type Database = {
           atualizado_em?: string
           atualizado_por?: string | null
           base_demanda?: string | null
+          cancelado_em?: string | null
+          cancelado_nome?: string | null
+          cancelado_por?: string | null
           criado_em?: string
           criado_por?: string | null
           edicoes?: Json
@@ -560,6 +566,9 @@ export type Database = {
           atualizado_em?: string
           atualizado_por?: string | null
           base_demanda?: string | null
+          cancelado_em?: string | null
+          cancelado_nome?: string | null
+          cancelado_por?: string | null
           criado_em?: string
           criado_por?: string | null
           edicoes?: Json
