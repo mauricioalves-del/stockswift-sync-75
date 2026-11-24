@@ -589,6 +589,13 @@
       "when": 1795150000000,
       "tag": "0083_inventario_geral_cego_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1795160000000,
+      "tag": "0084_rls_desempenho",
+      "breakpoints": true
     }
   ]
 }
