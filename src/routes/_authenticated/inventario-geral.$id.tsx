@@ -3,7 +3,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, Download, PackagePlus, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Pencil, Download, PackagePlus, Plus, Search, Trash2 } from "lucide-react";
 import { sounds } from "@/lib/audio";
 import { somarTransitoMissao, type NotaTransitoMissao, type TransitoMissao } from "@/lib/missao-transito";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchAll } from "@/lib/fetch-all";
+import { useRole } from "@/hooks/useRole";
 import { dataHora, nomeUsuario, num, sb, StatusInv, type Usuario } from "@/components/inventario-geral/comum";
 
 export const Route = createFileRoute("/_authenticated/inventario-geral/$id")({ component: Pagina, head: () => ({ meta: [{ title: "Contagem de Inventário" }] }) });
@@ -220,6 +221,22 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
     return { itens: it as any[], usuarios: new Map(((us.data ?? []) as Usuario[]).map((u) => [u.id, u])) };
   } });
   const [filtro, setFiltro] = useState("todos");
+  const { isAdmin } = useRole();
+  const qc = useQueryClient();
+  const [edit, setEdit] = useState<any | null>(null);
+  const [eQtd, setEQtd] = useState(""); const [eObs, setEObs] = useState(""); const [salvando, setSalvando] = useState(false);
+  function abrirEdicao(i: any) { setEdit(i); setEQtd(i.qtd_final != null ? String(i.qtd_final) : ""); setEObs(i.observacao ?? ""); }
+  async function salvarEdicao() {
+    const n = Number(eQtd.replace(",", "."));
+    if (!edit || eQtd.trim() === "" || !Number.isFinite(n) || n < 0) return toast.error("Informe uma quantidade válida.");
+    setSalvando(true);
+    const novo = { qtd_final: n, observacao: eObs.trim() || null, divergente: n !== Number(edit.qtd_sistema) };
+    const { error } = await sb.from("inv_itens").update(novo).eq("id", edit.id);
+    if (!error) { const u = await sb.auth.getUser(); await sb.from("auditoria").insert({ entidade: "inv_itens", entidade_id: edit.id, acao: "EDICAO_ADMIN", usuario: u.data.user?.id, dados_antes: { qtd_final: edit.qtd_final, observacao: edit.observacao }, observacao: `Inventário #${inv.numero}: ${edit.codigo_produto} lote ${edit.lote || "—"} final ${edit.qtd_final ?? "—"} → ${n}` }); }
+    setSalvando(false);
+    if (error) return toast.error(error.message);
+    toast.success("Item atualizado."); setEdit(null); qc.invalidateQueries({ queryKey: ["inv-painel", inv.id] });
+  }
   if (!q.data) return <p className="py-10 text-center text-sm text-muted-foreground">Carregando…</p>;
   const it = q.data.itens, nomeD = new Map(duplas.map((d) => [d.id, d.nome]));
   const contados = it.filter((i) => i.qtd_contagem != null).length, div = it.filter((i) => i.divergente).length, rec = it.filter((i) => i.divergente && i.qtd_recontagem != null).length;
@@ -252,13 +269,23 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
       <Card><CardContent className="p-3">
         <div className="mb-2 flex flex-wrap items-center gap-1">{[["todos", "Todos"], ["divergentes", "Divergentes"], ["pendentes", "Pendentes"], ["manuais", "Incluídos manualmente"]].map(([v, l]) => <button key={v} onClick={() => setFiltro(v)} className={`h-7 rounded-md border px-2 text-xs font-semibold ${filtro === v ? "bg-slate-900 text-white" : ""}`}>{l}</button>)}
           <Button size="sm" variant="outline" className="ml-auto" onClick={exportar}><Download className="mr-1 size-4" />Exportar CSV</Button></div>
-        <div className="max-h-[520px] overflow-auto"><table className="w-full text-xs"><thead className="sticky top-0 bg-muted"><tr>{["Produto", "Lote", "Dupla", "Sistema", "1ª", "Div.", "Recontagem", "2ª", "Ident.", "Final", "Dif."].map((h) => <th key={h} className="px-2 py-1 text-left">{h}</th>)}</tr></thead>
+        <div className="max-h-[520px] overflow-auto"><table className="w-full text-xs"><thead className="sticky top-0 bg-muted"><tr>{["Produto", "Lote", "Dupla", "Sistema", "1ª", "Div.", "Recontagem", "2ª", "Ident.", "Final", "Dif.", ...(isAdmin ? [""] : [])].map((h) => <th key={h} className="px-2 py-1 text-left">{h}</th>)}</tr></thead>
           <tbody>{lista.map((i) => { const dif = i.qtd_final == null ? null : Number(i.qtd_final) - Number(i.qtd_sistema); return (
             <tr key={i.id} className="border-t"><td className="px-2 py-1">{i.codigo_produto} · {i.descricao}{i.origem_item === "manual" && <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800">manual</span>}</td><td className="px-2 py-1">{i.lote || "—"}</td><td className="px-2 py-1">{nomeD.get(i.dupla_id) ?? "—"}</td>
               <td className="px-2 py-1 tabular-nums">{num(i.qtd_sistema)}</td><td className="px-2 py-1 tabular-nums">{num(i.qtd_contagem)}</td><td className="px-2 py-1">{i.divergente == null ? "" : i.divergente ? "⚠" : "✓"}</td><td className="px-2 py-1">{nomeD.get(i.dupla_recontagem_id) ?? ""}</td>
               <td className="px-2 py-1 tabular-nums">{num(i.qtd_recontagem)}</td><td className="px-2 py-1">{i.identificado_recontagem == null ? "" : i.identificado_recontagem ? "Sim" : "Não"}</td><td className="px-2 py-1 font-semibold tabular-nums">{num(i.qtd_final)}</td>
-              <td className={`px-2 py-1 tabular-nums ${dif != null && dif < 0 ? "text-red-600" : dif ? "text-sky-700" : ""}`}>{dif == null ? "" : `${dif > 0 ? "+" : ""}${num(dif)}`}</td></tr>); })}</tbody></table></div>
+              <td className={`px-2 py-1 tabular-nums ${dif != null && dif < 0 ? "text-red-600" : dif ? "text-sky-700" : ""}`}>{dif == null ? "" : `${dif > 0 ? "+" : ""}${num(dif)}`}</td>{isAdmin && <td className="px-1 py-1"><button aria-label="Editar item" title="Editar (administrador)" onClick={() => abrirEdicao(i)} className="rounded p-1 hover:bg-muted"><Pencil className="size-3.5" /></button></td>}</tr>); })}</tbody></table></div>
       </CardContent></Card>
+      <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
+        <DialogContent><DialogHeader><DialogTitle>Editar item do inventário</DialogTitle></DialogHeader>
+          {edit && <div className="space-y-3 text-sm">
+            <p><b>{edit.codigo_produto}</b> · {edit.descricao}<br /><span className="text-xs text-muted-foreground">Lote {edit.lote || "—"} · Sistema {num(edit.qtd_sistema)}</span></p>
+            <label className="block text-xs font-semibold">Quantidade final oficial<Input inputMode="decimal" className="mt-1" value={eQtd} onChange={(e) => setEQtd(e.target.value)} /></label>
+            <label className="block text-xs font-semibold">Observação<Input className="mt-1" value={eObs} onChange={(e) => setEObs(e.target.value)} /></label>
+            <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setEdit(null)}>Cancelar</Button><Button onClick={salvarEdicao} disabled={salvando}>{salvando ? "Salvando…" : "Salvar"}</Button></div>
+          </div>}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
