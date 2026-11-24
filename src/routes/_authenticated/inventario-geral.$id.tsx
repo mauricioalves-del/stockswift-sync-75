@@ -13,10 +13,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchAll } from "@/lib/fetch-all";
+import { acuracidadePorItem } from "@/lib/inventario-acuracidade";
 import { useRole } from "@/hooks/useRole";
 import { dataHora, nomeUsuario, num, sb, StatusInv, type Usuario } from "@/components/inventario-geral/comum";
 
-export const Route = createFileRoute("/_authenticated/inventario-geral/$id")({ component: Pagina, head: () => ({ meta: [{ title: "Contagem de Inventário" }] }) });
+export const Route = createFileRoute("/_authenticated/inventario-geral/$id")({ component: Pagina, head: () => ({ meta: [{ title: "Contagem de Inventário · Inventário" }, { name: "description", content: "Contagem, recontagem e acuracidade por item do inventário." }, { property: "og:title", content: "Contagem de Inventário · Inventário" }, { property: "og:description", content: "Acompanhe os itens conferidos, acurados e divergentes do inventário." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }) });
 
 function Pagina() {
   const { id } = Route.useParams(); const qc = useQueryClient();
@@ -99,8 +100,7 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
     const pend = contadas.length < ls.length, st = pend ? "PENDENTE" : !verSistema ? "CONTADO" : classe(total, sis, tol) === "OK" ? "ACURADO" : "DIVERGENTE";
     return { sku, ls, desc: ls[0].descricao, grupo: ls[0].grupo, total, sis, st, ident: ls.find((l) => l.identificado != null)?.identificado ?? null, obs: ls.find((l) => l.observacao)?.observacao ?? "" }; }); }, [linhas, verSistema, tol]);
   const k = useMemo(() => { const conf = porSku.filter((x) => x.st !== "PENDENTE"), acur = porSku.filter((x) => x.st === "ACURADO"), div = porSku.filter((x) => x.st === "DIVERGENTE");
-    const num = conf.reduce((a, x) => a + Math.min(x.total, x.sis), 0), den = conf.reduce((a, x) => a + Math.max(x.total, x.sis), 0);
-    return { total: porSku.length, pend: porSku.length - conf.length, conf: conf.length, acur: acur.length, div: div.length, pct: porSku.length ? Math.round((conf.length / porSku.length) * 100) : 0, ac: verSistema && den ? Math.round((num / den) * 1000) / 10 : null }; }, [porSku, verSistema]);
+    return { total: porSku.length, pend: porSku.length - conf.length, conf: conf.length, acur: acur.length, div: div.length, pct: porSku.length ? Math.round((conf.length / porSku.length) * 100) : 0, ac: verSistema ? acuracidadePorItem(porSku) : null }; }, [porSku, verSistema]);
   const grupos = [...new Set(porSku.map((x) => x.grupo || "Sem grupo"))].sort(), familias = [...new Set(porSku.map((x) => extras.data?.fam.get(x.sku)).filter(Boolean) as string[])].sort();
   const lista = porSku.filter((x) => (!busca || `${x.sku} ${x.desc} ${x.ls.map((l) => l.lote).join(" ")}`.toLowerCase().includes(busca.toLowerCase())) && (!fGrupo || (x.grupo || "Sem grupo") === fGrupo) && (!fFam || extras.data?.fam.get(x.sku) === fFam) && (!fStatus || x.st === fStatus));
 
