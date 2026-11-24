@@ -3,8 +3,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { CheckCircle2, FileDown, Loader2, PenLine, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -30,7 +28,8 @@ export async function quemSou() {
 }
 
 /** PDF da ciência (mesmo conteúdo do Atlas: fechamento, assinante, resumo de acurácia e itens divergentes no momento da assinatura). */
-function pdfCiencia(c: any, f: any) {
+async function pdfCiencia(c: any, f: any) {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
   const doc = new jsPDF({ orientation: "landscape" });
   doc.setFontSize(14); doc.text("Ciência de conciliação do fechamento de inventário", 14, 16);
   doc.setFontSize(10);
