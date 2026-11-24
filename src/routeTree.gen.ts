@@ -79,6 +79,8 @@ import { Route as AuthenticatedGestaoModelosChecklistRouteImport } from './route
 import { Route as AuthenticatedGestaoPlanejamentoRouteImport } from './routes/_authenticated/gestao.planejamento'
 import { Route as AuthenticatedGestaoPlanoIntegracaoRouteImport } from './routes/_authenticated/gestao.plano-integracao'
 import { Route as AuthenticatedGestaoPreInventarioRouteImport } from './routes/_authenticated/gestao.pre-inventario'
+import { Route as AuthenticatedInventarioGeralIndexRouteImport } from './routes/_authenticated/inventario-geral.index'
+import { Route as AuthenticatedInventarioGeralIdRouteImport } from './routes/_authenticated/inventario-geral.$id'
 import { Route as AuthenticatedLogisticaIndexRouteImport } from './routes/_authenticated/logistica.index'
 import { Route as AuthenticatedLogisticaCadastrosRouteImport } from './routes/_authenticated/logistica.cadastros'
 import { Route as AuthenticatedLogisticaCotacoesRouteImport } from './routes/_authenticated/logistica.cotacoes'
@@ -528,6 +530,18 @@ const AuthenticatedGestaoPreInventarioRoute =
     path: '/gestao/pre-inventario',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedInventarioGeralIndexRoute =
+  AuthenticatedInventarioGeralIndexRouteImport.update({
+    id: '/inventario-geral/',
+    path: '/inventario-geral/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedInventarioGeralIdRoute =
+  AuthenticatedInventarioGeralIdRouteImport.update({
+    id: '/inventario-geral/$id',
+    path: '/inventario-geral/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedLogisticaIndexRoute =
   AuthenticatedLogisticaIndexRouteImport.update({
     id: '/logistica/',
@@ -884,6 +898,7 @@ export interface FileRoutesByFullPath {
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/gestao/plano-integracao': typeof AuthenticatedGestaoPlanoIntegracaoRoute
   '/gestao/pre-inventario': typeof AuthenticatedGestaoPreInventarioRoute
+  '/inventario-geral/$id': typeof AuthenticatedInventarioGeralIdRoute
   '/logistica/cadastros': typeof AuthenticatedLogisticaCadastrosRoute
   '/logistica/cotacoes': typeof AuthenticatedLogisticaCotacoesRoute
   '/logistica/ordens': typeof AuthenticatedLogisticaOrdensRoute
@@ -922,6 +937,7 @@ export interface FileRoutesByFullPath {
   '/api/public/import-recebimento-transferencia': typeof ApiPublicImportRecebimentoTransferenciaRoute
   '/baixas/': typeof AuthenticatedBaixasIndexRoute
   '/config/': typeof AuthenticatedConfigIndexRoute
+  '/inventario-geral/': typeof AuthenticatedInventarioGeralIndexRoute
   '/logistica/': typeof AuthenticatedLogisticaIndexRoute
   '/missoes/': typeof AuthenticatedMissoesIndexRoute
   '/atlas/assinatura-fechamento/$id': typeof AuthenticatedAtlasAssinaturaFechamentoIdRoute
@@ -1003,6 +1019,7 @@ export interface FileRoutesByTo {
   '/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/gestao/plano-integracao': typeof AuthenticatedGestaoPlanoIntegracaoRoute
   '/gestao/pre-inventario': typeof AuthenticatedGestaoPreInventarioRoute
+  '/inventario-geral/$id': typeof AuthenticatedInventarioGeralIdRoute
   '/logistica/cadastros': typeof AuthenticatedLogisticaCadastrosRoute
   '/logistica/cotacoes': typeof AuthenticatedLogisticaCotacoesRoute
   '/logistica/ordens': typeof AuthenticatedLogisticaOrdensRoute
@@ -1041,6 +1058,7 @@ export interface FileRoutesByTo {
   '/api/public/import-recebimento-transferencia': typeof ApiPublicImportRecebimentoTransferenciaRoute
   '/baixas': typeof AuthenticatedBaixasIndexRoute
   '/config': typeof AuthenticatedConfigIndexRoute
+  '/inventario-geral': typeof AuthenticatedInventarioGeralIndexRoute
   '/logistica': typeof AuthenticatedLogisticaIndexRoute
   '/missoes': typeof AuthenticatedMissoesIndexRoute
   '/atlas/assinatura-fechamento/$id': typeof AuthenticatedAtlasAssinaturaFechamentoIdRoute
@@ -1124,6 +1142,7 @@ export interface FileRoutesById {
   '/_authenticated/gestao/planejamento': typeof AuthenticatedGestaoPlanejamentoRoute
   '/_authenticated/gestao/plano-integracao': typeof AuthenticatedGestaoPlanoIntegracaoRoute
   '/_authenticated/gestao/pre-inventario': typeof AuthenticatedGestaoPreInventarioRoute
+  '/_authenticated/inventario-geral/$id': typeof AuthenticatedInventarioGeralIdRoute
   '/_authenticated/logistica/cadastros': typeof AuthenticatedLogisticaCadastrosRoute
   '/_authenticated/logistica/cotacoes': typeof AuthenticatedLogisticaCotacoesRoute
   '/_authenticated/logistica/ordens': typeof AuthenticatedLogisticaOrdensRoute
@@ -1162,6 +1181,7 @@ export interface FileRoutesById {
   '/api/public/import-recebimento-transferencia': typeof ApiPublicImportRecebimentoTransferenciaRoute
   '/_authenticated/baixas/': typeof AuthenticatedBaixasIndexRoute
   '/_authenticated/config/': typeof AuthenticatedConfigIndexRoute
+  '/_authenticated/inventario-geral/': typeof AuthenticatedInventarioGeralIndexRoute
   '/_authenticated/logistica/': typeof AuthenticatedLogisticaIndexRoute
   '/_authenticated/missoes/': typeof AuthenticatedMissoesIndexRoute
   '/_authenticated/atlas/assinatura-fechamento/$id': typeof AuthenticatedAtlasAssinaturaFechamentoIdRoute
@@ -1245,6 +1265,7 @@ export interface FileRouteTypes {
     | '/gestao/planejamento'
     | '/gestao/plano-integracao'
     | '/gestao/pre-inventario'
+    | '/inventario-geral/$id'
     | '/logistica/cadastros'
     | '/logistica/cotacoes'
     | '/logistica/ordens'
@@ -1283,6 +1304,7 @@ export interface FileRouteTypes {
     | '/api/public/import-recebimento-transferencia'
     | '/baixas/'
     | '/config/'
+    | '/inventario-geral/'
     | '/logistica/'
     | '/missoes/'
     | '/atlas/assinatura-fechamento/$id'
@@ -1364,6 +1386,7 @@ export interface FileRouteTypes {
     | '/gestao/planejamento'
     | '/gestao/plano-integracao'
     | '/gestao/pre-inventario'
+    | '/inventario-geral/$id'
     | '/logistica/cadastros'
     | '/logistica/cotacoes'
     | '/logistica/ordens'
@@ -1402,6 +1425,7 @@ export interface FileRouteTypes {
     | '/api/public/import-recebimento-transferencia'
     | '/baixas'
     | '/config'
+    | '/inventario-geral'
     | '/logistica'
     | '/missoes'
     | '/atlas/assinatura-fechamento/$id'
@@ -1484,6 +1508,7 @@ export interface FileRouteTypes {
     | '/_authenticated/gestao/planejamento'
     | '/_authenticated/gestao/plano-integracao'
     | '/_authenticated/gestao/pre-inventario'
+    | '/_authenticated/inventario-geral/$id'
     | '/_authenticated/logistica/cadastros'
     | '/_authenticated/logistica/cotacoes'
     | '/_authenticated/logistica/ordens'
@@ -1522,6 +1547,7 @@ export interface FileRouteTypes {
     | '/api/public/import-recebimento-transferencia'
     | '/_authenticated/baixas/'
     | '/_authenticated/config/'
+    | '/_authenticated/inventario-geral/'
     | '/_authenticated/logistica/'
     | '/_authenticated/missoes/'
     | '/_authenticated/atlas/assinatura-fechamento/$id'
@@ -2045,6 +2071,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGestaoPreInventarioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/inventario-geral/': {
+      id: '/_authenticated/inventario-geral/'
+      path: '/inventario-geral'
+      fullPath: '/inventario-geral/'
+      preLoaderRoute: typeof AuthenticatedInventarioGeralIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/inventario-geral/$id': {
+      id: '/_authenticated/inventario-geral/$id'
+      path: '/inventario-geral/$id'
+      fullPath: '/inventario-geral/$id'
+      preLoaderRoute: typeof AuthenticatedInventarioGeralIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/logistica/': {
       id: '/_authenticated/logistica/'
       path: '/logistica'
@@ -2464,6 +2504,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGestaoPlanejamentoRoute: typeof AuthenticatedGestaoPlanejamentoRoute
   AuthenticatedGestaoPlanoIntegracaoRoute: typeof AuthenticatedGestaoPlanoIntegracaoRoute
   AuthenticatedGestaoPreInventarioRoute: typeof AuthenticatedGestaoPreInventarioRoute
+  AuthenticatedInventarioGeralIdRoute: typeof AuthenticatedInventarioGeralIdRoute
   AuthenticatedLogisticaCadastrosRoute: typeof AuthenticatedLogisticaCadastrosRoute
   AuthenticatedLogisticaCotacoesRoute: typeof AuthenticatedLogisticaCotacoesRoute
   AuthenticatedLogisticaOrdensRoute: typeof AuthenticatedLogisticaOrdensRoute
@@ -2493,6 +2534,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSuprimentosRiscoObsoletosRoute: typeof AuthenticatedSuprimentosRiscoObsoletosRoute
   AuthenticatedBaixasIndexRoute: typeof AuthenticatedBaixasIndexRoute
   AuthenticatedConfigIndexRoute: typeof AuthenticatedConfigIndexRoute
+  AuthenticatedInventarioGeralIndexRoute: typeof AuthenticatedInventarioGeralIndexRoute
   AuthenticatedLogisticaIndexRoute: typeof AuthenticatedLogisticaIndexRoute
   AuthenticatedMissoesIndexRoute: typeof AuthenticatedMissoesIndexRoute
   AuthenticatedAtlasAssinaturaFechamentoIdRoute: typeof AuthenticatedAtlasAssinaturaFechamentoIdRoute
@@ -2595,6 +2637,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedGestaoPlanoIntegracaoRoute:
     AuthenticatedGestaoPlanoIntegracaoRoute,
   AuthenticatedGestaoPreInventarioRoute: AuthenticatedGestaoPreInventarioRoute,
+  AuthenticatedInventarioGeralIdRoute: AuthenticatedInventarioGeralIdRoute,
   AuthenticatedLogisticaCadastrosRoute: AuthenticatedLogisticaCadastrosRoute,
   AuthenticatedLogisticaCotacoesRoute: AuthenticatedLogisticaCotacoesRoute,
   AuthenticatedLogisticaOrdensRoute: AuthenticatedLogisticaOrdensRoute,
@@ -2631,6 +2674,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedSuprimentosRiscoObsoletosRoute,
   AuthenticatedBaixasIndexRoute: AuthenticatedBaixasIndexRoute,
   AuthenticatedConfigIndexRoute: AuthenticatedConfigIndexRoute,
+  AuthenticatedInventarioGeralIndexRoute:
+    AuthenticatedInventarioGeralIndexRoute,
   AuthenticatedLogisticaIndexRoute: AuthenticatedLogisticaIndexRoute,
   AuthenticatedMissoesIndexRoute: AuthenticatedMissoesIndexRoute,
   AuthenticatedAtlasAssinaturaFechamentoIdRoute:

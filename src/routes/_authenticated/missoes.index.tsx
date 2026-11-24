@@ -27,7 +27,7 @@ import { useMeusAlmoxarifados } from "@/hooks/useMeusAlmoxarifados";
 import { PlanejamentoCiclico } from "@/components/missoes/PlanejamentoCiclico";
 import { IndicadorInventarioPage } from "./gestao.indicador-inventario";
 
-type QuickFilter = "pendentes" | "concluidas" | "todas";
+type QuickFilter = "pendentes" | "concluidas" | "todas" | "oficial";
 // Memória de sessão (não persiste entre sessões)
 let quickFilterMemory: QuickFilter = "pendentes";
 let statusFilterMemory: string = "__all__";
@@ -102,6 +102,8 @@ function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
       let q = (supabase as any).from("missoes").select("*").order("data_execucao", { ascending: true });
       if (almoxes) q = q.or(`origem.is.null,origem.in.(${(almoxes.length ? almoxes : ["__nenhum__"]).map((a) => `"${a}"`).join(",")})`);
       // filtro granular tem prioridade; senão, aplica o segmented
+      if (quick === "oficial") q = q.ilike("titulo", "Inventário Oficial%");
+      else q = q.not("titulo", "ilike", "Inventário Oficial%");
       if (filtroStatus !== "__all__") {
         q = q.eq("status", filtroStatus);
       } else if (quick === "pendentes") {
@@ -171,6 +173,7 @@ function ListaMissoes({ podeGerir }: { podeGerir: boolean }) {
           <ToggleGroupItem value="pendentes" className="text-xs px-3">Pendentes</ToggleGroupItem>
           <ToggleGroupItem value="concluidas" className="text-xs px-3">Concluídas</ToggleGroupItem>
           <ToggleGroupItem value="todas" className="text-xs px-3">Todas</ToggleGroupItem>
+          <ToggleGroupItem value="oficial" className="text-xs px-3">Inventário oficial</ToggleGroupItem>
         </ToggleGroup>
         <div className="flex items-center gap-2">
           <Label className="text-xs">Status</Label>

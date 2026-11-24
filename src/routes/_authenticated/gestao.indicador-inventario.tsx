@@ -70,7 +70,7 @@ export function IndicadorInventarioPage() {
         ini = `${mes}-01`; fim = `${mes}-${String(new Date(a, m, 0).getDate()).padStart(2, "0")}`;
       } else if (/^\d{4}$/.test(mes)) { ini = `${mes}-01-01`; fim = `${mes}-12-31`; }
       const buscar = (cols: string) => {
-        let qm = sb.from("missoes").select(cols).gte("data_execucao", ini).lte("data_execucao", fim);
+        let qm = sb.from("missoes").select(cols).gte("data_execucao", ini).lte("data_execucao", fim).not("titulo", "ilike", "Inventário Oficial%");
         if (almoxes) qm = qm.in("origem", almoxes.length ? almoxes : ["__nenhum__"]);
         return qm;
       };
