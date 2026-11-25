@@ -280,6 +280,7 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
     const [it, us] = await Promise.all([fetchAll<any>((f, t) => sb.from("inv_itens").select("*").eq("inventario_id", inv.id).order("grupo").order("descricao").range(f, t)), sb.from("profiles").select("id, nome, email")]);
     return { itens: it as any[], usuarios: new Map(((us.data ?? []) as Usuario[]).map((u) => [u.id, u])) };
   } });
+  const fechOficial = useQuery({ queryKey: ["inv-painel-fech", inv.id, inv.fechamento_id], queryFn: async () => { const base = sb.from("atlas_fechamentos_inventario").select("id, valor_total_divergente"); const { data } = await (inv.fechamento_id ? base.eq("id", inv.fechamento_id) : base.like("arquivo_origem", `Contagem de Inventário #${inv.numero} ·%`)).order("id", { ascending: false }).limit(1); const f = data?.[0]; return { id: f?.id ?? null, valor: f?.valor_total_divergente ?? null }; } });
   const [filtro, setFiltro] = useState("todos"); const [correcaoPainel, setCorrecaoPainel] = useState(false);
   const { isAdmin } = useRole();
   const qc = useQueryClient();
@@ -302,8 +303,13 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
   const it = q.data.itens, nomeD = new Map(duplas.map((d) => [d.id, d.nome]));
   const contados = it.filter((i) => i.qtd_contagem != null).length, div = it.filter((i) => i.divergente).length, rec = it.filter((i) => i.divergente && i.qtd_recontagem != null).length;
   const sim = it.filter((i) => i.identificado_recontagem === true).length, nao = it.filter((i) => i.identificado_recontagem === false).length;
-  const finais = it.filter((i) => i.qtd_final != null), certos = finais.filter((i) => Number(i.qtd_final) === Number(i.qtd_sistema)).length;
-  const valorDif = finais.reduce((s, i) => s + (Number(i.qtd_final) - Number(i.qtd_sistema)) * (Number(i.custo_unitario) || 0), 0);
+  // Mesma regra do Resultado de Inventário: por SKU (soma dos lotes), Final vs sistema; valor = soma |diferença| × custo.
+  const porSku = new Map<string, { sis: number; fin: number; custo: number; ok: boolean }>();
+  for (const i of it) { const a = porSku.get(i.codigo_produto) ?? { sis: 0, fin: 0, custo: 0, ok: true }; a.sis += Number(i.qtd_sistema) || 0; a.fin += Number(i.qtd_final ?? i.qtd_contagem ?? 0); if (!a.custo) a.custo = Number(i.custo_unitario) || 0; if (i.qtd_final == null && i.qtd_contagem == null) a.ok = false; porSku.set(i.codigo_produto, a); }
+  const skus = [...porSku.values()].filter((a) => a.ok), certos = skus.filter((a) => Math.abs(a.fin - a.sis) < 0.0001).length;
+  const finais = skus;
+  const valorCalc = skus.reduce((s, a) => s + Math.abs(a.fin - a.sis) * a.custo, 0);
+  const valorDif = fechOficial.data?.valor != null ? Number(fechOficial.data.valor) : valorCalc;
   const lista = it.filter((i) => filtro === "todos" || (filtro === "divergentes" ? (i.qtd_final != null ? Number(i.qtd_final) !== Number(i.qtd_sistema) : !!i.divergente) : filtro === "pendentes" ? (i.qtd_contagem == null || (i.divergente && i.qtd_recontagem == null)) : i.origem_item === "manual"));
   function exportar() {
     const cab = ["Grupo", "Código", "Produto", "Lote", "Origem", "Dupla contagem", "Sistema", "1ª contagem", "Divergente", "Dupla recontagem", "2ª contagem", "Identificado na 2ª", "Final oficial", "Diferença", "Custo unit.", "Diferença R$"];
@@ -325,8 +331,8 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
         <Kpi t="1ª contagem" v={`${it.length ? Math.round((contados / it.length) * 100) : 0}%`} s={`${contados} de ${it.length}`} />
         <Kpi t="Divergências" v={num(div, 0)} s={inv.apurado_em ? `apuradas em ${dataHora(inv.apurado_em)}` : "apuradas ao encerrar a contagem"} />
         <Kpi t="Recontagem" v={`${rec}/${div}`} s={`identificado: ${sim} sim · ${nao} não`} />
-        <Kpi t="Acurácia final" v={finais.length ? `${Math.round((certos / finais.length) * 1000) / 10}%` : "—"} s="itens em que a contagem final = sistema" />
-        <Kpi t="Diferença final (R$)" v={valorDif.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} s="final − sistema, pelo custo" />
+        <Kpi t="Acurácia final" v={finais.length ? `${Math.round((certos / finais.length) * 1000) / 10}%` : "—"} s={`${certos} de ${finais.length} SKUs sem divergência (soma dos lotes)`} />
+        <Kpi t="Valor divergente (R$)" v={valorDif.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} s={fechOficial.data?.valor != null ? `fechamento oficial #${fechOficial.data.id} · custo contábil` : "soma das diferenças por SKU, pelo custo"} />
       </div>
       <Card><CardContent className="p-3"><div className="mb-2 text-xs font-bold">Duplas</div>
         <table className="w-full text-sm"><thead className="bg-muted text-xs"><tr>{["Dupla", "Integrantes", "Papel", "Contagem", "Recontagem"].map((h) => <th key={h} className="px-2 py-1 text-left">{h}</th>)}</tr></thead>
