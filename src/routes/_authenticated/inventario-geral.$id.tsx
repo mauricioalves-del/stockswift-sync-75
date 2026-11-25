@@ -303,8 +303,14 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
   const lista = it.filter((i) => filtro === "todos" || (filtro === "divergentes" ? (i.qtd_final != null ? Number(i.qtd_final) !== Number(i.qtd_sistema) : !!i.divergente) : filtro === "pendentes" ? (i.qtd_contagem == null || (i.divergente && i.qtd_recontagem == null)) : i.origem_item === "manual"));
   function exportar() {
     const cab = ["Grupo", "Código", "Produto", "Lote", "Origem", "Dupla contagem", "Sistema", "1ª contagem", "Divergente", "Dupla recontagem", "2ª contagem", "Identificado na 2ª", "Final oficial", "Diferença", "Custo unit.", "Diferença R$"];
-    const linhas = it.map((i) => [i.grupo, i.codigo_produto, i.descricao, i.lote, i.origem_item, nomeD.get(i.dupla_id) ?? "", i.qtd_sistema, i.qtd_contagem ?? "", i.divergente == null ? "" : i.divergente ? "Sim" : "Não", nomeD.get(i.dupla_recontagem_id) ?? "", i.qtd_recontagem ?? "", i.identificado_recontagem == null ? "" : i.identificado_recontagem ? "Sim" : "Não", i.qtd_final ?? "", i.qtd_final == null ? "" : Number(i.qtd_final) - Number(i.qtd_sistema), i.custo_unitario ?? "", i.qtd_final == null || i.custo_unitario == null ? "" : ((Number(i.qtd_final) - Number(i.qtd_sistema)) * Number(i.custo_unitario)).toFixed(2)]);
-    const csv = [cab, ...linhas].map((l) => l.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(";")).join("\n");
+    // Números no padrão brasileiro (vírgula decimal) e arredondados, para o Excel não ler "4.9257" como milhar
+    const num = (v: unknown, casas: number) => v == null || v === "" ? "" : (Math.round(Number(v) * 10 ** casas) / 10 ** casas).toLocaleString("pt-BR", { maximumFractionDigits: casas, useGrouping: false });
+    const txt = (v: unknown) => v == null || v === "" ? "" : `="${String(v)}"`; // lote/código como texto (sem notação científica)
+    const linhas = it.map((i) => {
+      const dif = i.qtd_final == null ? null : Math.round((Number(i.qtd_final) - Number(i.qtd_sistema)) * 10000) / 10000;
+      return [i.grupo, txt(i.codigo_produto), i.descricao, txt(i.lote), i.origem_item, nomeD.get(i.dupla_id) ?? "", num(i.qtd_sistema, 4), num(i.qtd_contagem, 4), i.divergente == null ? "" : i.divergente ? "Sim" : "Não", nomeD.get(i.dupla_recontagem_id) ?? "", num(i.qtd_recontagem, 4), i.identificado_recontagem == null ? "" : i.identificado_recontagem ? "Sim" : "Não", num(i.qtd_final, 4), num(dif, 4), num(i.custo_unitario, 4), dif == null || i.custo_unitario == null ? "" : num(dif * Number(i.custo_unitario), 2)];
+    });
+    const csv = [cab, ...linhas].map((l) => l.map((c) => { const t = String(c ?? ""); return t.startsWith('="') ? t : `"${t.replace(/"/g, '""')}"`; }).join(";")).join("\r\n");
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" })); a.download = `inventario-${inv.numero}.csv`; a.click();
   }
   const Kpi = ({ t, v, s }: { t: string; v: string; s?: string }) => <div className="rounded-xl border border-l-4 border-l-slate-800 bg-card p-3 shadow-sm"><div className="text-[10px] font-semibold uppercase text-muted-foreground">{t}</div><div className="text-xl font-bold tabular-nums">{v}</div>{s && <div className="text-[11px] text-muted-foreground">{s}</div>}</div>;
