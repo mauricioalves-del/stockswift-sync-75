@@ -280,15 +280,16 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
   const { isAdmin } = useRole();
   const qc = useQueryClient();
   const [edit, setEdit] = useState<any | null>(null);
-  const [eQtd, setEQtd] = useState(""); const [eObs, setEObs] = useState(""); const [salvando, setSalvando] = useState(false);
-  function abrirEdicao(i: any) { setEdit(i); setEQtd(i.qtd_final != null ? String(i.qtd_final) : ""); setEObs(i.observacao ?? ""); }
+  const [eQtd, setEQtd] = useState(""); const [eObs, setEObs] = useState(""); const [eLote, setELote] = useState(""); const [salvando, setSalvando] = useState(false);
+  function abrirEdicao(i: any) { setEdit(i); setEQtd(i.qtd_final != null ? String(i.qtd_final) : ""); setEObs(i.observacao ?? ""); setELote(i.lote ?? ""); }
   async function salvarEdicao() {
     const n = Number(eQtd.replace(",", "."));
     if (!edit || eQtd.trim() === "" || !Number.isFinite(n) || n < 0) return toast.error("Informe uma quantidade válida.");
     setSalvando(true);
-    const novo = { qtd_final: n, observacao: eObs.trim() || null, divergente: n !== Number(edit.qtd_sistema) };
+    const loteNovo = eLote.trim() || null;
+    const novo = { qtd_final: n, observacao: eObs.trim() || null, lote: loteNovo, divergente: n !== Number(edit.qtd_sistema) };
     const { error } = await sb.from("inv_itens").update(novo).eq("id", edit.id);
-    if (!error) { const u = await sb.auth.getUser(); await sb.from("auditoria").insert({ entidade: "inv_itens", entidade_id: edit.id, acao: "EDICAO_ADMIN", usuario: u.data.user?.id, dados_antes: { qtd_final: edit.qtd_final, observacao: edit.observacao }, observacao: `Inventário #${inv.numero}: ${edit.codigo_produto} lote ${edit.lote || "—"} final ${edit.qtd_final ?? "—"} → ${n}` }); }
+    if (!error) { const u = await sb.auth.getUser(); const mudouLote = (edit.lote ?? null) !== loteNovo; await sb.from("auditoria").insert({ entidade: "inv_itens", entidade_id: edit.id, acao: "EDICAO_ADMIN", usuario: u.data.user?.id, dados_antes: { qtd_final: edit.qtd_final, observacao: edit.observacao, lote: edit.lote }, observacao: `Inventário #${inv.numero}: ${edit.codigo_produto} lote ${edit.lote || "—"}${mudouLote ? ` → ${loteNovo || "—"}` : ""} final ${edit.qtd_final ?? "—"} → ${n}` }); }
     setSalvando(false);
     if (error) return toast.error(error.message);
     toast.success("Item atualizado."); setEdit(null); qc.invalidateQueries({ queryKey: ["inv-painel", inv.id] });
@@ -337,6 +338,7 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
         <DialogContent><DialogHeader><DialogTitle>Editar item do inventário</DialogTitle></DialogHeader>
           {edit && <div className="space-y-3 text-sm">
             <p><b>{edit.codigo_produto}</b> · {edit.descricao}<br /><span className="text-xs text-muted-foreground">Lote {edit.lote || "—"} · Sistema {num(edit.qtd_sistema)}</span></p>
+            <label className="block text-xs font-semibold">Lote<Input className="mt-1" value={eLote} onChange={(e) => setELote(e.target.value)} placeholder="Deixe vazio para sem lote" /></label>
             <label className="block text-xs font-semibold">Quantidade final oficial<Input inputMode="decimal" className="mt-1" value={eQtd} onChange={(e) => setEQtd(e.target.value)} /></label>
             <label className="block text-xs font-semibold">Observação<Input className="mt-1" value={eObs} onChange={(e) => setEObs(e.target.value)} /></label>
             <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setEdit(null)}>Cancelar</Button><Button onClick={salvarEdicao} disabled={salvando}>{salvando ? "Salvando…" : "Salvar"}</Button></div>
