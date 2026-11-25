@@ -19,6 +19,7 @@ import { acuracidadePorItem } from "@/lib/inventario-acuracidade";
 import { acessoConferencia } from "@/lib/inventario-acesso-conferencia";
 import { useRole } from "@/hooks/useRole";
 import { aplicarPendentes, chaveManual, chaveRegistrar, ehFalhaDeRede, enfileirar, enviarFila, gravarFila, lerFila, type OpOffline } from "@/lib/inventario-offline";
+import { ConciliacaoFaturamento } from "@/components/inventario-geral/ConciliacaoFaturamento";
 import { CorrecaoLotesDialog } from "@/components/inventario-geral/CorrecaoLotesDialog";
 import { dataHora, nomeUsuario, num, sb, StatusInv, type Usuario } from "@/components/inventario-geral/comum";
 
@@ -64,10 +65,11 @@ function Pagina() {
         </div>
       </div>
       <Tabs defaultValue={abaPadrao}>
-        <TabsList>{acessoContagem.visivel && <TabsTrigger value="contagem">Contagem</TabsTrigger>}{acessoRecontagem.visivel && <TabsTrigger value="recontagem">Recontagem</TabsTrigger>}{gestor && <TabsTrigger value="painel">Painel da gestão</TabsTrigger>}{isAdmin && inv.status === "finalizado" && <TabsTrigger value="acoes">Ações pós-inventário</TabsTrigger>}</TabsList>
+        <TabsList>{acessoContagem.visivel && <TabsTrigger value="contagem">Contagem</TabsTrigger>}{acessoRecontagem.visivel && <TabsTrigger value="recontagem">Recontagem</TabsTrigger>}{gestor && <TabsTrigger value="painel">Painel da gestão</TabsTrigger>}{gestor && <TabsTrigger value="faturamento">Conciliação de faturamento</TabsTrigger>}{isAdmin && inv.status === "finalizado" && <TabsTrigger value="acoes">Ações pós-inventário</TabsTrigger>}</TabsList>
         {acessoContagem.visivel && <TabsContent value="contagem"><Conferencia inv={inv} fase="contagem" aberta={acessoContagem.podeLancar && ["lista_gerada", "em_contagem"].includes(inv.status)} visaoAdministrativa={acessoContagem.visaoAdministrativa} /></TabsContent>}
         {acessoRecontagem.visivel && <TabsContent value="recontagem"><Conferencia inv={inv} fase="recontagem" aberta={acessoRecontagem.podeLancar && inv.status === "em_recontagem"} visaoAdministrativa={acessoRecontagem.visaoAdministrativa} /></TabsContent>}
         {gestor && <TabsContent value="painel"><Painel inv={inv} duplas={duplas} /></TabsContent>}
+        {gestor && <TabsContent value="faturamento"><ConciliacaoFaturamento inv={inv} /></TabsContent>}
         {isAdmin && inv.status === "finalizado" && <TabsContent value="acoes"><AcoesPosInventario inv={inv} /></TabsContent>}
       </Tabs>
       {!minhas.length && !gestor && <p className="text-sm text-muted-foreground">Você não está escalado neste inventário.</p>}
