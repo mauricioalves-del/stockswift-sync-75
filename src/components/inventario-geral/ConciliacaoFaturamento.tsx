@@ -12,11 +12,12 @@ import { parseNumeroBR } from "@/lib/precos-venda";
 import { usePrecosVenda } from "@/hooks/usePrecosVenda";
 import { chaveSkuInv, conciliarValorAberto, divergentesAcabados, distribuirPorLote, ehAcabado, TOLERANCIA_PADRAO } from "@/lib/inventario-faturamento-pendente";
 import { num, sb } from "./comum";
+import { FaturadosLotesDialog } from "./FaturadosLotesDialog";
 
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export function ConciliacaoFaturamento({ inv }: { inv: any }) {
-  const [valorTxt, setValorTxt] = useState(""); const [manual, setManual] = useState<Record<string, number> | null>(null);
+  const [valorTxt, setValorTxt] = useState(""); const [lotesOpen, setLotesOpen] = useState(false); const [manual, setManual] = useState<Record<string, number> | null>(null);
   const itensQ = useQuery({ queryKey: ["inv-conc-fat", inv.id], queryFn: () => fetchAll<any>((a, z) => sb.from("inv_itens").select("id,codigo_produto,descricao,grupo,qtd_sistema,qtd_final,qtd_faturada").eq("inventario_id", inv.id).order("id").range(a, z)) });
   const precosQ = usePrecosVenda();
   const precoMap = useMemo(() => { const m = new Map<string, number>(); for (const p of precosQ.data ?? []) if (p.ativo !== false && Number(p.pr_venda) > 0) m.set(chaveSkuInv(p.sku), Number(p.pr_venda)); return m; }, [precosQ.data]);
@@ -57,6 +58,7 @@ export function ConciliacaoFaturamento({ inv }: { inv: any }) {
   }
   return (
     <div className="space-y-3">
+      <FaturadosLotesDialog inv={inv} open={lotesOpen} onOpenChange={setLotesOpen} />
       <Card><CardContent className="flex flex-wrap items-end gap-4 p-4">
         {aplicado ? <div className="text-sm"><p className="text-xs text-muted-foreground">Situação</p><p className="font-semibold text-emerald-700">Conciliação aplicada ao resultado</p></div>
           : <label className="space-y-1 text-sm"><span className="font-medium">Valor em aberto (R$)</span><Input inputMode="decimal" placeholder="Ex.: 350,00" value={valorTxt} onChange={(e) => { setValorTxt(e.target.value); setManual(null); }} className="w-44" /></label>}
@@ -64,7 +66,7 @@ export function ConciliacaoFaturamento({ inv }: { inv: any }) {
         <div className="text-sm"><p className="text-xs text-muted-foreground">{r.restante < 0 ? "Acima do valor" : "Sem cobertura"}</p><p className={`text-lg font-bold ${r.restante > 0 || r.restante < -TOLERANCIA_PADRAO ? "text-destructive" : ""}`}>{brl(Math.abs(r.restante))}</p></div>
         <div className="text-sm"><p className="text-xs text-muted-foreground">Produtos / unidades</p><p className="text-lg font-bold">{r.linhas.filter((l) => l.qtd > 0).length} / {r.linhas.reduce((s, l) => s + l.qtd, 0)}</p></div>
         <div className="text-sm"><p className="text-xs text-muted-foreground">Faltas disponíveis (preço de venda)</p><p className="text-lg font-bold">{brl(faltaTotal)}</p></div>
-        <div className="ml-auto flex gap-2">{manual && !aplicado && <Button size="sm" variant="ghost" onClick={() => setManual(null)}>Voltar à sugestão</Button>}{aplicado ? <Button size="sm" variant="outline" disabled={salvando || bloqueado} onClick={() => gravar(true)}>Desfazer conciliação</Button> : <Button size="sm" disabled={salvando || bloqueado || r.total <= 0} onClick={() => gravar(false)}>{salvando ? "Aplicando…" : "Aplicar no resultado"}</Button>}<Button size="sm" variant="outline" disabled={r.total <= 0} onClick={exportar}><Download className="mr-1 size-4" />Exportar CSV</Button></div>
+        <div className="ml-auto flex gap-2">{manual && !aplicado && <Button size="sm" variant="ghost" onClick={() => setManual(null)}>Voltar à sugestão</Button>}{aplicado ? <Button size="sm" variant="outline" disabled={salvando || bloqueado} onClick={() => gravar(true)}>Desfazer conciliação</Button> : <Button size="sm" disabled={salvando || bloqueado || r.total <= 0} onClick={() => gravar(false)}>{salvando ? "Aplicando…" : "Aplicar no resultado"}</Button>}{aplicado && <Button size="sm" variant="outline" onClick={() => setLotesOpen(true)}>Correção de lotes (faturados)</Button>}<Button size="sm" variant="outline" disabled={r.total <= 0} onClick={exportar}><Download className="mr-1 size-4" />Exportar CSV</Button></div>
       </CardContent></Card>
       <p className="text-xs text-muted-foreground">Somente produtos acabados com diferença no total dos lotes (coluna Final). A sugestão cobre o valor em aberto podendo passar até R$ {TOLERANCIA_PADRAO} e usa o maior número de produtos diferentes. Marque ou ajuste a quantidade de cada produto para montar sua própria seleção. Ao aplicar, as unidades faturadas entram na coluna Final e deixam de ser divergência real em todo o inventário (painel, lotes a corrigir e fechamento).{bloqueado ? " O fechamento oficial já foi gerado; a conciliação não pode mais ser alterada." : ""}</p>
       <div className="max-h-[60vh] overflow-auto rounded-lg border"><table className="w-full text-sm">
