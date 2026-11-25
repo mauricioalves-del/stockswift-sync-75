@@ -180,8 +180,10 @@ function Conferencia({ inv, fase, aberta, visaoAdministrativa }: { inv: any; fas
   async function concluir() { if (fila.length) return toast.error("Aguarde o envio dos lançamentos feitos sem sinal antes de concluir."); if (k.pend > 0 && !confirm(`Faltam ${k.pend} SKU(s). Concluir mesmo assim?`)) return; const r = await sb.rpc("inv_concluir", { p_inv: inv.id, p_fase: fase }); if (r.error) return toast.error(r.error.message); toast.success("Etapa da sua dupla concluída."); if (fase === "recontagem") setCorrecao(true); }
   function exportar() {
     const cab = ["SKU", "Produto", "Grupo", "Família", "Lote", ...(verSistema ? ["Sistema"] : []), "Contado", ...(fase === "recontagem" ? ["Identificado na 2ª"] : []), "Observação"];
-    const rows = linhas.map((l) => [l.codigo_produto, l.descricao, l.grupo ?? "", extras.data?.fam.get(l.codigo_produto) ?? "", l.lote, ...(verSistema ? [l.sistema ?? ""] : []), l.qtd ?? "", ...(fase === "recontagem" ? [l.identificado == null ? "" : l.identificado ? "Sim" : "Não"] : []), l.observacao ?? ""]);
-    const csv = [cab, ...rows].map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(";")).join("\n");
+    const num = (v: unknown) => v == null || v === "" ? "" : (Math.round(Number(v) * 10000) / 10000).toLocaleString("pt-BR", { maximumFractionDigits: 4, useGrouping: false });
+    const txt = (v: unknown) => v == null || v === "" ? "" : `="${String(v)}"`;
+    const rows = linhas.map((l) => [txt(l.codigo_produto), l.descricao, l.grupo ?? "", extras.data?.fam.get(l.codigo_produto) ?? "", txt(l.lote), ...(verSistema ? [num(l.sistema)] : []), num(l.qtd), ...(fase === "recontagem" ? [l.identificado == null ? "" : l.identificado ? "Sim" : "Não"] : []), l.observacao ?? ""]);
+    const csv = [cab, ...rows].map((r) => r.map((c) => { const t = String(c ?? ""); return t.startsWith('="') ? t : `"${t.replace(/"/g, '""')}"`; }).join(";")).join("\r\n");
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" })); a.download = `inventario-${inv.numero}-${fase}.csv`; a.click();
   }
   const Kpi = ({ t, v, tom = "" }: { t: string; v: string; tom?: string }) => <div className="rounded-2xl border bg-card px-4 py-3 shadow-sm"><div className="text-[10px] font-semibold uppercase text-muted-foreground">{t}</div><div className={`text-2xl font-bold tabular-nums ${tom}`}>{v}</div></div>;
