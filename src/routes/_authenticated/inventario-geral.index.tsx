@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchAll } from "@/lib/fetch-all";
+import { dividirInventarios } from "@/lib/inventario-status";
 import { destinoRecontagem, participaRecontagem, recontagemValida } from "@/lib/inventario-recontagem";
 import { dataHora, nomeUsuario, sb, StatusInv, type Usuario } from "@/components/inventario-geral/comum";
 
@@ -21,35 +22,43 @@ const novaDupla = (n: number, p: Partial<DuplaForm> = {}): DuplaForm => ({ key: 
 
 function Pagina() {
   const gestor = useQuery({ queryKey: ["inv-gestor"], queryFn: async () => (await sb.rpc("inv_sou_gestor")).data === true });
-  const [aba, setAba] = useState("lista"); const [editando, setEditando] = useState<string | null>(null);
+  const q = useQuery({ queryKey: ["inv-lista"], queryFn: async () => {
+    const [inv, du, me] = await Promise.all([sb.from("inv_inventarios").select("*").order("data_geracao", { ascending: false }).limit(200), sb.from("inv_duplas").select("id, inventario_id, nome, membro1, membro2"), sb.auth.getUser()]);
+    return { inv: (inv.data ?? []) as any[], duplas: (du.data ?? []) as any[], uid: me.data.user?.id as string };
+  } });
+  const [aba, setAba] = useState("aberto"); const [editando, setEditando] = useState<string | null>(null);
+  const visiveis = useMemo(() => {
+    if (!q.data) return [] as any[];
+    const { inv, duplas, uid } = q.data;
+    return gestor.data ? inv : inv.filter((i) => duplas.some((d) => d.inventario_id === i.id && [d.membro1, d.membro2].includes(uid)));
+  }, [q.data, gestor.data]);
+  const { abertos, finalizados } = useMemo(() => dividirInventarios(visiveis), [visiveis]);
+  const rotulo = (t: string, n: number) => `${t}${q.data ? ` (${n})` : ""}`;
+  const props = { duplas: q.data?.duplas ?? [], uid: q.data?.uid ?? "", gestor: !!gestor.data, carregando: q.isLoading, onEditar: (id: string) => { setEditando(id); setAba("plano"); } };
   return (
     <div className="space-y-4">
       <div><h1 className="text-3xl font-bold">Contagem de Inventário</h1></div>
       <Tabs value={aba} onValueChange={setAba}>
-        <TabsList><TabsTrigger value="lista">Inventários</TabsTrigger>{gestor.data && <TabsTrigger value="plano" onClick={() => setEditando(null)}>{editando ? "Editar planejamento" : "Planejamento"}</TabsTrigger>}</TabsList>
-        <TabsContent value="lista"><Lista gestor={!!gestor.data} onEditar={(id) => { setEditando(id); setAba("plano"); }} /></TabsContent>
-        {gestor.data && <TabsContent value="plano"><Planejamento key={editando ?? "novo"} invId={editando} onCriado={() => { setEditando(null); setAba("lista"); }} /></TabsContent>}
+        <TabsList className="max-w-full overflow-x-auto"><TabsTrigger value="aberto">{rotulo("Em aberto", abertos.length)}</TabsTrigger><TabsTrigger value="finalizado">{rotulo("Finalizados", finalizados.length)}</TabsTrigger>{gestor.data && <TabsTrigger value="plano" onClick={() => setEditando(null)}>{editando ? "Editar planejamento" : "Planejamento"}</TabsTrigger>}</TabsList>
+        <TabsContent value="aberto"><Lista {...props} inv={abertos} vazio={gestor.data ? "Nenhum inventário em aberto. Crie o primeiro em Planejamento." : "Você não está escalado em nenhum inventário em aberto."} /></TabsContent>
+        <TabsContent value="finalizado"><Lista {...props} inv={finalizados} vazio="Nenhum inventário finalizado ainda." /></TabsContent>
+        {gestor.data && <TabsContent value="plano"><Planejamento key={editando ?? "novo"} invId={editando} onCriado={() => { setEditando(null); setAba("aberto"); }} /></TabsContent>}
       </Tabs>
     </div>
   );
 }
 
-function Lista({ gestor, onEditar }: { gestor: boolean; onEditar: (id: string) => void }) {
+function Lista({ inv, duplas, uid, gestor, onEditar, carregando, vazio }: { inv: any[]; duplas: any[]; uid: string; gestor: boolean; onEditar: (id: string) => void; carregando: boolean; vazio: string }) {
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["inv-lista"], queryFn: async () => {
-    const [inv, du, me] = await Promise.all([sb.from("inv_inventarios").select("*").order("data_geracao", { ascending: false }).limit(200), sb.from("inv_duplas").select("id, inventario_id, nome, membro1, membro2"), sb.auth.getUser()]);
-    return { inv: (inv.data ?? []) as any[], duplas: (du.data ?? []) as any[], uid: me.data.user?.id as string };
-  } });
   async function excluir(id: string) { if (!confirm("Excluir este inventário e todas as contagens?")) return; const r = await sb.from("inv_inventarios").delete().eq("id", id); if (r.error) return toast.error(r.error.message); qc.invalidateQueries({ queryKey: ["inv-lista"] }); }
-  const lista = (q.data?.inv ?? []).filter((i) => gestor || q.data!.duplas.some((d) => d.inventario_id === i.id && [d.membro1, d.membro2].includes(q.data!.uid)));
   return (
     <Card><CardContent className="p-0">
       <table className="w-full text-sm"><thead className="bg-muted text-xs"><tr>{["#", "Inventário", "Almoxarifado", "Geração da lista", "Duplas", "Status", ""].map((h) => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
-        <tbody>{lista.map((i) => { const ds = q.data!.duplas.filter((d) => d.inventario_id === i.id); const minha = ds.find((d) => [d.membro1, d.membro2].includes(q.data!.uid)); return (
+        <tbody>{inv.map((i) => { const ds = duplas.filter((d) => d.inventario_id === i.id); const minha = ds.find((d) => [d.membro1, d.membro2].includes(uid)); return (
           <tr key={i.id} className="border-t hover:bg-muted/40"><td className="px-3 py-2">{i.numero}</td><td className="px-3 py-2 font-semibold"><Link to="/inventario-geral/$id" params={{ id: i.id }} className="hover:underline">{i.titulo}</Link>{minha && <div className="text-[11px] font-normal text-muted-foreground">você está na {minha.nome}</div>}</td>
             <td className="px-3 py-2">{i.almoxarifado}</td><td className="px-3 py-2">{dataHora(i.data_geracao)}</td><td className="px-3 py-2">{ds.length}</td><td className="px-3 py-2"><StatusInv s={i.status} /></td>
             <td className="px-3 py-2 text-right"><Link to="/inventario-geral/$id" params={{ id: i.id }}><Button size="sm" variant="outline">Abrir</Button></Link>{gestor && !["finalizado", "cancelado"].includes(i.status) && <Button size="sm" variant="ghost" onClick={() => onEditar(i.id)}>Editar</Button>}{gestor && i.status === "planejado" && <Button size="sm" variant="ghost" onClick={() => excluir(i.id)}><Trash2 className="size-4" /></Button>}</td></tr>); })}</tbody></table>
-      {!lista.length && <p className="py-10 text-center text-sm text-muted-foreground">{q.isLoading ? "Carregando…" : gestor ? "Nenhum inventário. Crie o primeiro em Planejamento." : "Você não está escalado em nenhum inventário."}</p>}
+      {!inv.length && <p className="py-10 text-center text-sm text-muted-foreground">{carregando ? "Carregando…" : vazio}</p>}
     </CardContent></Card>
   );
 }
