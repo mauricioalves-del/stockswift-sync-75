@@ -1,3 +1,4 @@
+import { sincronizarFechamentoOficial } from "@/lib/inventario-geral-fechamento";
 // Aba "Conciliação de faturamento": cobre vendas pagas na maquininha e não faturadas com as faltas de produto acabado.
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -40,10 +41,11 @@ export function ConciliacaoFaturamento({ inv }: { inv: any }) {
         for (const d of distribuirPorLote(lotes, l.qtd)) { const i = lotes.find((x: any) => x.id === d.id)!; ups.push({ id: i.id, qtd_final: Number(i.qtd_final) + d.add, qtd_faturada: (Number(i.qtd_faturada) || 0) + d.add, sistema: Number(i.qtd_sistema) }); }
       }
       for (const u of ups) { const { error } = await sb.from("inv_itens").update({ qtd_final: u.qtd_final, qtd_faturada: u.qtd_faturada, divergente: u.qtd_final !== u.sistema }).eq("id", u.id); if (error) throw error; }
+      await sincronizarFechamentoOficial(inv.id, inv.numero);
       const me = await sb.auth.getUser();
       await sb.from("auditoria").insert({ entidade: "inv_inventarios", entidade_id: inv.id, acao: desfazer ? "CONCILIACAO_FATURAMENTO_DESFEITA" : "CONCILIACAO_FATURAMENTO", usuario: me.data.user?.id, observacao: `Inventário #${inv.numero}: ${desfazer ? "desfeita" : `valor em aberto ${brl(valor)}, faturado ${brl(r.total)}: ${r.linhas.filter((x) => x.qtd > 0).map((x) => `${x.sku}×${x.qtd}`).join(", ")}`}` });
       toast.success(desfazer ? "Conciliação desfeita." : "Conciliação aplicada ao resultado do inventário.");
-      await Promise.all([itensQ.refetch(), qc.invalidateQueries({ queryKey: ["inv-painel", inv.id] })]);
+      await Promise.all([itensQ.refetch(), qc.invalidateQueries({ queryKey: ["inv-painel", inv.id] }), qc.invalidateQueries({ queryKey: ["atlas-inventario"] })]);
     } catch (e: any) { toast.error(e?.message ?? String(e)); } finally { setSalvando(false); }
   }
   if (itensQ.isLoading || precosQ.isLoading) return <p className="py-6 text-center text-sm text-muted-foreground">Carregando…</p>;

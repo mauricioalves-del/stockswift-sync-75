@@ -53,3 +53,33 @@ export async function gerarFechamentoOficial(invId: string, progresso?: (t: stri
   await sb.from("inv_inventarios").update({ fechamento_id: res.fechamentoId, fechamento_gerado_em: new Date().toISOString() }).eq("id", invId);
   return res;
 }
+
+/** Reflete no fechamento oficial já gerado a contagem final atual (ex.: conciliação de faturamento aplicada depois). */
+export async function sincronizarFechamentoOficial(invId: string, numero: number): Promise<number> {
+  const { data: fs } = await sb.from("atlas_fechamentos_inventario").select("id").like("arquivo_origem", `Contagem de Inventário #${numero} ·%`).order("id", { ascending: false }).limit(1);
+  const fid = fs?.[0]?.id; if (!fid) return 0;
+  const itens: any[] = [];
+  for (let de = 0; ; de += 1000) {
+    const r = await sb.from("inv_itens").select("codigo_produto, qtd_contagem, qtd_final").eq("inventario_id", invId).order("id").range(de, de + 999);
+    if (r.error) throw r.error; itens.push(...(r.data ?? [])); if (!r.data || r.data.length < 1000) break;
+  }
+  const cont = new Map<string, number>();
+  for (const i of itens) cont.set(i.codigo_produto, (cont.get(i.codigo_produto) ?? 0) + Number(i.qtd_final ?? i.qtd_contagem ?? 0));
+  const { data: linhas, error } = await sb.from("atlas_itens_fechamento").select("id, sku, qtd_sistema, qtd_contagem, custo_unitario_usado, divergencia_id").eq("fechamento_id", fid);
+  if (error) throw error;
+  let mudou = 0;
+  for (const l of linhas ?? []) {
+    const c = cont.get(l.sku); if (c == null) continue;
+    const novo = Math.round(c * 10000) / 10000; if (Math.abs(novo - Number(l.qtd_contagem)) < 0.0001) continue;
+    const sis = Number(l.qtd_sistema) || 0; const div = Math.round((novo - sis) * 10000) / 10000; const divergente = Math.abs(div) >= 0.0001;
+    const valor = divergente ? Math.round(Math.abs(div) * (Number(l.custo_unitario_usado) || 0) * 100) / 100 : 0;
+    await sb.from("atlas_itens_fechamento").update({ qtd_contagem: novo, divergencia_qtd: div, valor_estimado: valor, divergente, percentual_acuracia: sis ? Math.min(novo, sis) / sis : divergente ? null : 1 }).eq("id", l.id);
+    if (l.divergencia_id) await sb.from("atlas_divergencias").update({ saldo_fisico: novo, divergencia_qtd: div, valor_estimado: valor, status: divergente ? "Aberta" : "Resolvida" }).eq("id", l.divergencia_id);
+    mudou++;
+  }
+  if (mudou) {
+    const { data: t } = await sb.from("atlas_itens_fechamento").select("valor_estimado").eq("fechamento_id", fid).eq("divergente", true);
+    await sb.from("atlas_fechamentos_inventario").update({ total_divergentes: (t ?? []).length, valor_total_divergente: Math.round((t ?? []).reduce((s: number, x: any) => s + Math.abs(Number(x.valor_estimado) || 0), 0) * 100) / 100 }).eq("id", fid);
+  }
+  return mudou;
+}
