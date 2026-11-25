@@ -23,10 +23,14 @@ export function divergentesAcabados(itens: ItemInv[], precoPorSku: Map<string, n
 
 /**
  * Melhor combinação de faltas para o valor em aberto (unidades inteiras, nunca acima do valor nem da falta).
- * Prioridade: 1) maior valor faturado (mais perto do valor em aberto); 2) mais produtos diferentes; 3) mais unidades.
+ * Pode passar do valor em aberto até a tolerância. Prioridade: cobrir o valor (até valor + tolerância) com o maior
+ * número de produtos diferentes, depois mais unidades, depois o total mais próximo do valor. Sem cobertura possível,
+ * fica com o maior total abaixo do valor.
  */
-export function conciliarValorAberto(linhas: LinhaConc[], valorAberto: number): { linhas: LinhaConc[]; total: number; restante: number } {
-  const cap = Math.max(0, Math.round(valorAberto * 100));
+export const TOLERANCIA_PADRAO = 10;
+
+export function conciliarValorAberto(linhas: LinhaConc[], valorAberto: number, tolerancia = 0): { linhas: LinhaConc[]; total: number; restante: number } {
+  const alvo = Math.max(0, Math.round(valorAberto * 100)); const cap = alvo > 0 ? alvo + Math.max(0, Math.round(tolerancia * 100)) : 0;
   const us = linhas.map((l, idx) => ({ idx, c: l.preco && l.preco > 0 ? Math.round(l.preco * 100) : 0, n: l.falta })).filter((u) => u.c > 0 && u.n > 0 && u.c <= cap);
   const qtd: number[] = new Array(linhas.length).fill(0);
   if (cap > 0 && us.length && cap * us.length <= 60_000_000) {
@@ -41,10 +45,11 @@ export function conciliarValorAberto(linhas: LinhaConc[], valorAberto: number): 
       }
       best = nb; escolhas.push(ch);
     }
-    let v = cap; while (best[v] === NEG) v--;
+    let v = -1, sv = -1; for (let x = alvo; x <= cap; x++) if (best[x]! > sv) { sv = best[x]!; v = x; }
+    if (v < 0) { v = alvo; while (best[v] === NEG) v--; }
     for (let j = us.length - 1; j >= 0; j--) { const k = escolhas[j]![v]!; qtd[us[j]!.idx] = k; v -= k * us[j]!.c; }
   } else {
-    let r = cap; for (const u of [...us].sort((a, b) => a.c - b.c)) { const t = Math.min(u.n, Math.floor(r / u.c)); qtd[u.idx] = t; r -= t * u.c; }
+    let r = alvo; for (const u of [...us].sort((a, b) => a.c - b.c)) { const t = Math.min(u.n, Math.floor(r / u.c)); qtd[u.idx] = t; r -= t * u.c; }
   }
   const out = linhas.map((l, i) => ({ ...l, qtd: qtd[i]!, valor: Math.round(qtd[i]! * (l.preco ?? 0) * 100) / 100 }));
   const total = Math.round(out.reduce((s, l) => s + l.valor, 0) * 100) / 100;

@@ -43,3 +43,19 @@ describe("prioridades da conciliação", () => {
     expect(d[0]?.qtd).toBe(2);
   });
 });
+
+describe("tolerância acima do valor em aberto", () => {
+  const linhas = [
+    { sku: "A", descricao: "", sistema: 1, final: 0, dif: -1, falta: 1, preco: 8.5, qtd: 0, valor: 0 },
+    { sku: "B", descricao: "", sistema: 1, final: 0, dif: -1, falta: 1, preco: 9.9, qtd: 0, valor: 0 },
+  ];
+  it("pode passar até R$ 10 para cobrir o valor com mais produtos", () => {
+    const r = conciliarValorAberto(linhas, 12, 10);
+    expect(r.total).toBe(18.4);
+  });
+  it("nunca passa mais de R$ 10 do valor em aberto", () => {
+    const r = conciliarValorAberto(linhas, 5, 10);
+    expect(r.total).toBeLessThanOrEqual(15);
+    expect(r.total).toBe(8.5); // mesmo nº de produtos: o mais próximo do valor
+  });
+});
