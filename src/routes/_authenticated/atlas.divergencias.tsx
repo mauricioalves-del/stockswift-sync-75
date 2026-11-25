@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Clock, ListChecks, Loader2, RefreshCw, Search, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, FileSpreadsheet, ListChecks, Loader2, RefreshCw, Search, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { AnaliseDivergencia } from "@/components/atlas/AnaliseDivergencia";
+import { AjusteFefoMovimentadosDialog } from "@/components/atlas/AjusteFefoMovimentadosDialog";
 import { COLS_DIV, avisoBaixaPendente, carregarBase, investigarEGravar, investigarLote, logAtlas, normDiv, resolverDivergencia, type Base, type Div } from "@/lib/atlas-investigacao";
 
 export const Route = createFileRoute("/_authenticated/atlas/divergencias")({
@@ -51,6 +52,7 @@ export function DivergenciasPage({ embutido = false, abrirId }: { embutido?: boo
   const [aberta, setAberta] = useState<number | null>(abrirId ?? null);
   useEffect(() => { if (abrirId) setAberta(abrirId); }, [abrirId]);
   const [lote, setLote] = useState(false);
+  const [ajuste, setAjuste] = useState(false);
   const [rodando, setRodando] = useState<string | null>(null);
   useEffect(() => { setPag(0); setSel(new Set()); }, [f, ordem]);
 
@@ -162,7 +164,8 @@ export function DivergenciasPage({ embutido = false, abrirId }: { embutido?: boo
         <Select value={f.hip} onValueChange={(v) => setF({ ...f, hip: v })}><SelectTrigger className="h-8 w-56"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todas">Todas as hipóteses</SelectItem><SelectItem value="sem">Sem diagnóstico</SelectItem>{(auxQ.data?.hip ?? []).map((h) => <SelectItem key={h.codigo} value={h.codigo}>{h.nome || h.codigo}</SelectItem>)}</SelectContent></Select>
         <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" checked={f.recorrentes} onChange={(e) => setF({ ...f, recorrentes: e.target.checked })} /> Só SKUs recorrentes</label>
         <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" checked={f.fechamento} onChange={(e) => setF({ ...f, fechamento: e.target.checked })} /> Incluir as de fechamento de inventário</label>
-        {pode && sel.size > 0 && <Button size="sm" className="ml-auto gap-1" onClick={() => setLote(true)}><CheckCircle2 className="size-4" /> Resolver {sel.size} selecionada(s)</Button>}
+        {pode && sel.size > 0 && <Button size="sm" variant="outline" className="ml-auto gap-1" onClick={() => setAjuste(true)}><FileSpreadsheet className="size-4" /> Planilha de ajuste ({sel.size})</Button>}
+        {pode && sel.size > 0 && <Button size="sm" className="gap-1" onClick={() => setLote(true)}><CheckCircle2 className="size-4" /> Resolver {sel.size} selecionada(s)</Button>}
       </CardContent></Card>
 
       <div className="overflow-x-auto rounded-md border bg-card">
@@ -200,6 +203,7 @@ export function DivergenciasPage({ embutido = false, abrirId }: { embutido?: boo
       </div>
 
       {aberta != null && <Detalhe id={aberta} pode={pode} hipoteses={auxQ.data?.hip ?? []} nomeHip={nomeHip} desc={auxQ.data?.desc} onClose={() => setAberta(null)} onMudou={recarregar} />}
+      <AjusteFefoMovimentadosDialog ids={[...sel]} open={ajuste} onOpenChange={setAjuste} descricao={auxQ.data?.desc} />
       {lote && <ResolverLote ids={[...sel]} hipoteses={auxQ.data?.hip ?? []} onClose={() => setLote(false)} onOk={() => { setLote(false); setSel(new Set()); recarregar(); }} />}
     </div>
   );
