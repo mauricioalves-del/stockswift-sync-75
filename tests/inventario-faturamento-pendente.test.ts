@@ -25,3 +25,21 @@ describe("conciliação de valor em aberto", () => {
     expect(r.linhas.find((l) => l.sku === "05004148")?.qtd).toBe(2);
   });
 });
+
+describe("prioridades da conciliação", () => {
+  const linhas = [
+    { sku: "A", descricao: "", sistema: 10, final: 0, dif: -10, falta: 10, preco: 10, qtd: 0, valor: 0 },
+    { sku: "B", descricao: "", sistema: 1, final: 0, dif: -1, falta: 1, preco: 5, qtd: 0, valor: 0 },
+    { sku: "C", descricao: "", sistema: 1, final: 0, dif: -1, falta: 1, preco: 5, qtd: 0, valor: 0 },
+  ];
+  it("com o mesmo valor, prefere mais produtos diferentes", () => {
+    const r = conciliarValorAberto(linhas, 20); // 10+5+5 em vez de 10+10
+    expect(r.total).toBe(20);
+    expect(r.linhas.filter((l) => l.qtd > 0).length).toBe(3);
+  });
+  it("itens já faturados deixam de contar como falta disponível", () => {
+    const d = divergentesAcabados([{ codigo_produto: "1", descricao: "", grupo: "Produto Acabado", qtd_sistema: 5, qtd_final: 5, qtd_faturada: 2 }], new Map([["1", 10]]));
+    expect(d[0]?.dif).toBe(-2);
+    expect(d[0]?.qtd).toBe(2);
+  });
+});

@@ -1,0 +1,1 @@
+ALTER TABLE public.inv_itens ADD COLUMN IF NOT EXISTS qtd_faturada numeric NOT NULL DEFAULT 0;

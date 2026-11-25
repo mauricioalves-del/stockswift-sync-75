@@ -4986,6 +4986,7 @@ export type Database = {
           observacao: string | null
           origem_item: string
           qtd_contagem: number | null
+          qtd_faturada: number
           qtd_final: number | null
           qtd_recontagem: number | null
           qtd_sistema: number
@@ -5013,6 +5014,7 @@ export type Database = {
           observacao?: string | null
           origem_item?: string
           qtd_contagem?: number | null
+          qtd_faturada?: number
           qtd_final?: number | null
           qtd_recontagem?: number | null
           qtd_sistema?: number
@@ -5040,6 +5042,7 @@ export type Database = {
           observacao?: string | null
           origem_item?: string
           qtd_contagem?: number | null
+          qtd_faturada?: number
           qtd_final?: number | null
           qtd_recontagem?: number | null
           qtd_sistema?: number
