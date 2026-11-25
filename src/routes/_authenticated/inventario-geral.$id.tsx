@@ -280,7 +280,7 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
     const [it, us] = await Promise.all([fetchAll<any>((f, t) => sb.from("inv_itens").select("*").eq("inventario_id", inv.id).order("grupo").order("descricao").range(f, t)), sb.from("profiles").select("id, nome, email")]);
     return { itens: it as any[], usuarios: new Map(((us.data ?? []) as Usuario[]).map((u) => [u.id, u])) };
   } });
-  const [filtro, setFiltro] = useState("todos");
+  const [filtro, setFiltro] = useState("todos"); const [correcaoPainel, setCorrecaoPainel] = useState(false);
   const { isAdmin } = useRole();
   const qc = useQueryClient();
   const [edit, setEdit] = useState<any | null>(null);
@@ -335,7 +335,8 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
               <td className="px-2 py-1 text-xs tabular-nums">{d.conta ? `${c.filter((i) => i.qtd_contagem != null).length}/${c.length}${d.contagem_concluida_em ? " · concluída" : ""}` : "—"}</td><td className="px-2 py-1 text-xs tabular-nums">{d.reconta ? `${r.filter((i) => i.qtd_recontagem != null).length}/${r.length}${d.recontagem_concluida_em ? " · concluída" : ""}` : "—"}</td></tr>); })}</tbody></table></CardContent></Card>
       <Card><CardContent className="p-3">
         <div className="mb-2 flex flex-wrap items-center gap-1">{[["todos", "Todos"], ["divergentes", "Divergentes"], ["pendentes", "Pendentes"], ["manuais", "Incluídos manualmente"]].map(([v, l]) => <button key={v} onClick={() => setFiltro(v)} className={`h-7 rounded-md border px-2 text-xs font-semibold ${filtro === v ? "bg-slate-900 text-white" : ""}`}>{l}</button>)}
-          <Button size="sm" variant="outline" className="ml-auto" onClick={exportar}><Download className="mr-1 size-4" />Exportar CSV</Button></div>
+          <Button size="sm" variant="outline" className="ml-auto" onClick={() => setCorrecaoPainel(true)}><Download className="mr-1 size-4" />Planilha de ajuste</Button><Button size="sm" variant="outline" onClick={exportar}><Download className="mr-1 size-4" />Exportar CSV</Button></div>
+        <CorrecaoLotesDialog inv={inv} open={correcaoPainel} onOpenChange={setCorrecaoPainel} />
         <div className="max-h-[520px] overflow-auto"><table className="w-full text-xs"><thead className="sticky top-0 bg-muted"><tr>{["Produto", "Lote", "Dupla", "Sistema", "1ª", "Div.", "Recontagem", "2ª", "Ident.", "Final", "Dif.", "Custo dif. (R$)", ...(isAdmin ? [""] : [])].map((h) => <th key={h} className="px-2 py-1 text-left">{h}</th>)}</tr></thead>
           <tbody>{lista.map((i) => { const dif = i.qtd_final == null ? null : Number(i.qtd_final) - Number(i.qtd_sistema); return (
             <tr key={i.id} className="border-t"><td className="px-2 py-1">{i.codigo_produto} · {i.descricao}{i.origem_item === "manual" && <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800">manual</span>}</td><td className="px-2 py-1">{i.lote || "—"}</td><td className="px-2 py-1">{nomeD.get(i.dupla_id) ?? "—"}</td>
