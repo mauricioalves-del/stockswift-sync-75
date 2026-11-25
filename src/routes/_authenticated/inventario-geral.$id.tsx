@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchAll } from "@/lib/fetch-all";
 import { acuracidadePorItem } from "@/lib/inventario-acuracidade";
+import { acessoConferencia } from "@/lib/inventario-acesso-conferencia";
 import { useRole } from "@/hooks/useRole";
 import { aplicarPendentes, chaveManual, chaveRegistrar, ehFalhaDeRede, enfileirar, enviarFila, gravarFila, lerFila, type OpOffline } from "@/lib/inventario-offline";
 import { CorrecaoLotesDialog } from "@/components/inventario-geral/CorrecaoLotesDialog";
@@ -38,6 +39,8 @@ function Pagina() {
   if (!q.data?.inv) return <p className="py-10 text-center text-muted-foreground">{q.isLoading ? "Carregando…" : "Inventário não encontrado."}</p>;
   const { inv, duplas, gestor, uid } = q.data;
   const minhas = duplas.filter((d) => [d.membro1, d.membro2].includes(uid));
+  const acessoContagem = acessoConferencia(isAdmin, minhas.some((d) => d.conta));
+  const acessoRecontagem = acessoConferencia(isAdmin, minhas.some((d) => d.reconta));
   const r = () => qc.invalidateQueries({ queryKey: ["inv", id] });
   async function gerarFechamento() {
     setGerando(true); const t = toast.loading("Gerando o fechamento oficial…");
@@ -61,9 +64,9 @@ function Pagina() {
         </div>
       </div>
       <Tabs defaultValue={abaPadrao}>
-        <TabsList>{minhas.some((d) => d.conta) && <TabsTrigger value="contagem">Contagem</TabsTrigger>}{minhas.some((d) => d.reconta) && <TabsTrigger value="recontagem">Recontagem</TabsTrigger>}{gestor && <TabsTrigger value="painel">Painel da gestão</TabsTrigger>}{isAdmin && inv.status === "finalizado" && <TabsTrigger value="acoes">Ações pós-inventário</TabsTrigger>}</TabsList>
-        {minhas.some((d) => d.conta) && <TabsContent value="contagem"><Conferencia inv={inv} fase="contagem" aberta={["lista_gerada", "em_contagem"].includes(inv.status)} /></TabsContent>}
-        {minhas.some((d) => d.reconta) && <TabsContent value="recontagem"><Conferencia inv={inv} fase="recontagem" aberta={inv.status === "em_recontagem"} /></TabsContent>}
+        <TabsList>{acessoContagem.visivel && <TabsTrigger value="contagem">Contagem</TabsTrigger>}{acessoRecontagem.visivel && <TabsTrigger value="recontagem">Recontagem</TabsTrigger>}{gestor && <TabsTrigger value="painel">Painel da gestão</TabsTrigger>}{isAdmin && inv.status === "finalizado" && <TabsTrigger value="acoes">Ações pós-inventário</TabsTrigger>}</TabsList>
+        {acessoContagem.visivel && <TabsContent value="contagem"><Conferencia inv={inv} fase="contagem" aberta={acessoContagem.podeLancar && ["lista_gerada", "em_contagem"].includes(inv.status)} visaoAdministrativa={acessoContagem.visaoAdministrativa} /></TabsContent>}
+        {acessoRecontagem.visivel && <TabsContent value="recontagem"><Conferencia inv={inv} fase="recontagem" aberta={acessoRecontagem.podeLancar && inv.status === "em_recontagem"} visaoAdministrativa={acessoRecontagem.visaoAdministrativa} /></TabsContent>}
         {gestor && <TabsContent value="painel"><Painel inv={inv} duplas={duplas} /></TabsContent>}
         {isAdmin && inv.status === "finalizado" && <TabsContent value="acoes"><AcoesPosInventario inv={inv} /></TabsContent>}
       </Tabs>
@@ -84,10 +87,19 @@ function feedback(tipo: "ok" | "divergente" | "erro" | "salvo") {
 }
 
 /** Lista de contagem no modelo da Contagem Cíclica: um SKU por linha, contagem por lote, trânsito, baixas em aprovação e status. */
-function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "recontagem"; aberta: boolean }) {
+function Conferencia({ inv, fase, aberta, visaoAdministrativa }: { inv: any; fase: "contagem" | "recontagem"; aberta: boolean; visaoAdministrativa: boolean }) {
   const qc = useQueryClient(); const tol = Number(inv.tolerancia_pct ?? TOL_PADRAO);
-  const cacheKey = `inv-tarefas-cache:${inv.id}:${fase}`;
-  const q = useQuery({ queryKey: ["inv-tarefas", inv.id, fase], retry: (n) => navigator.onLine && n < 2, queryFn: async () => { const r = await sb.rpc("inv_minhas_tarefas", { p_inv: inv.id, p_fase: fase }); if (r.error) throw r.error; const d = (r.data ?? []) as Linha[]; try { localStorage.setItem(cacheKey, JSON.stringify(d)); } catch { /* cheio */ } return d; } });
+  const cacheKey = `inv-tarefas-cache:${inv.id}:${fase}${visaoAdministrativa ? ":admin" : ""}`;
+  const q = useQuery({ queryKey: ["inv-tarefas", inv.id, fase, visaoAdministrativa], retry: (n) => navigator.onLine && n < 2, queryFn: async () => {
+    if (visaoAdministrativa) {
+      const itens = await fetchAll<any>((a, z) => {
+        const consulta = sb.from("inv_itens").select("*").eq("inventario_id", inv.id);
+        return (fase === "recontagem" ? consulta.eq("divergente", true) : consulta).order("grupo").order("codigo_produto").order("lote").order("id").range(a, z);
+      });
+      return itens.map((i): Linha => ({ id: i.id, codigo_produto: i.codigo_produto, descricao: i.descricao, lote: i.lote, grupo: i.grupo, unidade: i.unidade, origem_item: i.origem_item, qtd: fase === "recontagem" ? i.qtd_recontagem : i.qtd_contagem, identificado: fase === "recontagem" ? i.identificado_recontagem : null, registrado_em: fase === "recontagem" ? i.recontado_em : i.contado_em, sistema: i.qtd_sistema, observacao: i.observacao, criado_por_mim: false }));
+    }
+    const r = await sb.rpc("inv_minhas_tarefas", { p_inv: inv.id, p_fase: fase }); if (r.error) throw r.error; const d = (r.data ?? []) as Linha[]; try { localStorage.setItem(cacheKey, JSON.stringify(d)); } catch { /* cheio */ } return d;
+  } });
   const [fila, setFila] = useState<OpOffline[]>([]); const [online, setOnline] = useState(true); const [cache, setCache] = useState<Linha[] | null>(null);
   useEffect(() => {
     try { const c = localStorage.getItem(cacheKey); if (c) setCache(JSON.parse(c)); } catch { /* sem cache */ }
@@ -186,7 +198,7 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
         <span className="ml-auto rounded-full bg-muted px-3 py-1 text-xs">Contagem restrita ao almoxarifado <b>{inv.almoxarifado}</b>{verSistema ? " · você vê o saldo (administrador)" : " · contagem cega"}</span>
       </div>
       {(!online || fila.length > 0) && <p className={`rounded-md p-2 text-xs font-semibold ${online ? "bg-amber-100 text-amber-900" : "bg-red-100 text-red-800"}`}>{online ? "Enviando lançamentos feitos sem sinal…" : "Sem sinal — continue contando: tudo fica guardado neste aparelho."}{fila.length > 0 && ` ${fila.length} lançamento(s) aguardando envio${fila.some((o) => o.tipo === "manual") ? " (lotes manuais aparecem na lista após o envio)" : ""}.`}</p>}
-      {!aberta && <p className="rounded-md bg-muted p-2 text-xs">{fase === "recontagem" ? "A recontagem abre quando a gestão encerra a 1ª contagem." : inv.status === "planejado" ? `A lista será gerada em ${dataHora(inv.data_geracao)}.` : "A contagem está encerrada para lançamentos."}</p>}
+      {visaoAdministrativa ? <p className="rounded-md bg-muted p-2 text-xs">Visualização administrativa · todas as duplas · somente leitura</p> : !aberta && <p className="rounded-md bg-muted p-2 text-xs">{fase === "recontagem" ? "A recontagem abre quando a gestão encerra a 1ª contagem." : inv.status === "planejado" ? `A lista será gerada em ${dataHora(inv.data_geracao)}.` : "A contagem está encerrada para lançamentos."}</p>}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
         <Kpi t="Total SKU" v={String(k.total)} /><Kpi t="Pendentes" v={String(k.pend)} /><Kpi t={fase === "recontagem" ? "Recontados" : "Conferidos"} v={String(k.conf)} />
         <Kpi t="Divergentes" v={verSistema ? String(k.div) : "—"} tom="text-red-600" /><Kpi t="Acurados" v={verSistema ? String(k.acur) : "—"} tom="text-emerald-700" />
@@ -214,7 +226,7 @@ function Conferencia({ inv, fase, aberta }: { inv: any; fase: "contagem" | "reco
                   <div key={l.id} className="rounded-lg border p-2">
                     <div className="flex items-center gap-2"><span className="flex-1 truncate rounded-md bg-muted px-2 py-1 font-mono text-[11px]">{l.lote || "sem lote"}</span>{l.origem_item === "manual" && aberta && l.criado_por_mim && <button onClick={() => remover(l)} title="Remover lote manual"><Trash2 className="size-4 text-muted-foreground" /></button>}</div>
                     <div className="mt-1 flex gap-2"><Input disabled={!aberta} inputMode="decimal" className="h-9 w-32" placeholder="Qtd" value={val[l.id] ?? (l.qtd != null ? String(l.qtd) : "")} onChange={(e) => setVal({ ...val, [l.id]: e.target.value })} onBlur={() => salvarLinha(l, idt)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
-                      <Input className="h-9 flex-1" placeholder="Local (ex.: Rua A, prateleira 2)" title="Onde o produto está — ajuda quem for recontar" value={loc[l.id] ?? locaisQ.data?.get(l.id) ?? ""} onChange={(e) => setLoc({ ...loc, [l.id]: e.target.value })} onBlur={() => salvarLocal(l)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} /></div>
+                      <Input disabled={visaoAdministrativa} className="h-9 flex-1" placeholder="Local (ex.: Rua A, prateleira 2)" title="Onde o produto está — ajuda quem for recontar" value={loc[l.id] ?? locaisQ.data?.get(l.id) ?? ""} onChange={(e) => setLoc({ ...loc, [l.id]: e.target.value })} onBlur={() => salvarLocal(l)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} /></div>
                     {l.sistema != null && <div className="mt-1 text-[11px] text-muted-foreground">Saldo Sistema: <b>{num(l.sistema)}</b></div>}
                     {c && <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold ${ROT_CLASSE[c][1]}`}>{ROT_CLASSE[c][0]}</span>}
                     {l.origem_item === "manual" && <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800">lote manual</span>}
