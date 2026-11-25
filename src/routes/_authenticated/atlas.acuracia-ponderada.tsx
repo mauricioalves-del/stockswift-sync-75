@@ -5,6 +5,7 @@ import { AtlasGrafico, atlasCores } from "@/components/atlas/AtlasGrafico";
 import { BarChart3, CalendarCheck, ChevronDown, ClipboardList, ChevronUp, FileText, ListChecks, Loader2, MousePointerClick, Scale } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { ExcelAuditoriaButton } from "@/components/atlas/ExcelAuditoriaButton";
 import { PainelInventario } from "@/routes/_authenticated/atlas.painel-inventario";
 import { FechamentoInventario } from "@/routes/_authenticated/atlas.fechamento-inventario";
 import { PreInventarioPage } from "@/routes/_authenticated/gestao.pre-inventario";
@@ -139,9 +140,12 @@ function AcuraciaPonderada() {
         </Tabs>
         <div className="flex w-full items-center justify-between gap-3">
           <div className="min-w-0 text-xs text-slate-300">Competência: {mes ? `${mes.slice(5)}/${mes.slice(0, 4)}` : "todas"} · Leitura: {q.dataUpdatedAt ? new Date(q.dataUpdatedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—"}</div>
+          <div className="flex shrink-0 items-center gap-2">
+          <ExcelAuditoriaButton dados={q.data} filtro={{ almox, mes }} />
           <Button type="button" variant="outline" size="sm" title="Procedimento de Inventário (POP-INV-001) — PDF" aria-label="Abrir o Procedimento de Inventário em PDF"
             onClick={() => import("@/lib/procedimento-inventario").then((m) => m.gerarProcedimentoPdf())}
             className="h-7 shrink-0 gap-1 border-current/20 bg-background/10 px-2 text-[11px] font-semibold text-inherit hover:bg-background/20 hover:text-inherit"><FileText className="size-4 text-destructive" />PDF</Button>
+          </div>
         </div>
       </div>
       {visao === "painel-inventario" ? <PainelInventario embutido /> : visao === "fechamento" ? <FechamentoInventario embutido fechamentoUrl={busca.fechamento} /> : visao === "pre-inventario" ? <PreInventarioPage embutido /> : visao === "pos-inventario" ? <PosInventario embutido /> : !r ? <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Carregando os fechamentos…</div> : (

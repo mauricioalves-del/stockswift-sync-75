@@ -1,5 +1,9 @@
 # Correção de grupos das Baixas Operacionais
 
+## Resultado de Inventário: Excel de auditoria
+- [x] Adicionar ícone Excel junto ao PDF e exportar resultados filtrados, contagens por lote, ajustes, faturamento e registros de auditoria disponíveis.
+- [x] Testar regras e validar o download real sem modificar inventários: nove testes passaram; Excel com 12 abas, 5.738 produtos e 226 lotes baixado; 678 fórmulas recalculadas sem erros e fechamento #139 conferido em R$ 173,14.
+
 ## Inventário: recontagem pela mesma pessoa ou dupla
 - [x] Permitir a mesma pessoa/dupla como responsável pela recontagem, mantendo outra dupla opcional; sete testes passaram e a escolha da Dupla 1 do Pará foi salva e relida pela tela. A contagem real não foi encerrada nem alterada para testar lançamentos da segunda etapa.
 
