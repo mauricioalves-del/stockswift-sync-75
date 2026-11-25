@@ -128,7 +128,7 @@ function Conferencia({ inv, fase, aberta, visaoAdministrativa }: { inv: any; fas
     } catch { /* trânsito é informativo */ }
     return { fam, baixas, transito };
   } });
-  const [busca, setBusca] = useState(""); const [fGrupo, setFGrupo] = useState(""); const [fFam, setFFam] = useState(""); const [fStatus, setFStatus] = useState("");
+  const [busca, setBusca] = useState(""); const [fGrupo, setFGrupo] = useState(""); const [fFam, setFFam] = useState(""); const [fStatus, setFStatus] = useState(""); const [fManual, setFManual] = useState(false);
   const [val, setVal] = useState<Record<string, string>>({}); const [obs, setObs] = useState<Record<string, string>>({});
   const [novoLote, setNovoLote] = useState<Record<string, { lote: string; qtd: string } | undefined>>({}); const [add, setAdd] = useState(false); const [correcao, setCorrecao] = useState(false);
   const recarregar = () => qc.invalidateQueries({ queryKey: ["inv-tarefas", inv.id, fase] });
@@ -144,7 +144,7 @@ function Conferencia({ inv, fase, aberta, visaoAdministrativa }: { inv: any; fas
   const k = useMemo(() => { const conf = porSku.filter((x) => x.st !== "PENDENTE"), acur = porSku.filter((x) => x.st === "ACURADO"), div = porSku.filter((x) => x.st === "DIVERGENTE");
     return { total: porSku.length, pend: porSku.length - conf.length, conf: conf.length, acur: acur.length, div: div.length, pct: porSku.length ? Math.round((conf.length / porSku.length) * 100) : 0, ac: verSistema ? acuracidadePorItem(porSku) : null }; }, [porSku, verSistema]);
   const grupos = [...new Set(porSku.map((x) => x.grupo || "Sem grupo"))].sort(), familias = [...new Set(porSku.map((x) => extras.data?.fam.get(x.sku)).filter(Boolean) as string[])].sort();
-  const lista = porSku.filter((x) => (!busca || `${x.sku} ${x.desc} ${x.ls.map((l) => l.lote).join(" ")}`.toLowerCase().includes(busca.toLowerCase())) && (!fGrupo || (x.grupo || "Sem grupo") === fGrupo) && (!fFam || extras.data?.fam.get(x.sku) === fFam) && (!fStatus || x.st === fStatus));
+  const lista = porSku.filter((x) => (!busca || `${x.sku} ${x.desc} ${x.ls.map((l) => l.lote).join(" ")}`.toLowerCase().includes(busca.toLowerCase())) && (!fGrupo || (x.grupo || "Sem grupo") === fGrupo) && (!fFam || extras.data?.fam.get(x.sku) === fFam) && (!fStatus || x.st === fStatus) && (!fManual || x.ls.some((l) => l.origem_item === "manual")));
 
   async function salvarLinha(l: Linha, identSku: boolean | null) {
     const v = val[l.id]; if (v == null) return; const qtd = Number(String(v).replace(",", "."));
@@ -210,7 +210,7 @@ function Conferencia({ inv, fase, aberta, visaoAdministrativa }: { inv: any; fas
           <div className="relative min-w-[200px] flex-1"><Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" /><Input className="pl-8" placeholder="Buscar SKU, produto ou lote" value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
           <select className="h-9 rounded-md border bg-background px-2 text-sm" value={fGrupo} onChange={(e) => setFGrupo(e.target.value)}><option value="">Todos os grupos</option>{grupos.map((g) => <option key={g}>{g}</option>)}</select>
           <select className="h-9 rounded-md border bg-background px-2 text-sm" value={fFam} onChange={(e) => setFFam(e.target.value)}><option value="">Todas as famílias</option>{familias.map((g) => <option key={g}>{g}</option>)}</select>
-          <span className="text-xs text-muted-foreground">Status:</span>{(verSistema ? ["PENDENTE", "ACURADO", "DIVERGENTE"] : ["PENDENTE", "CONTADO"]).map((s) => <button key={s} onClick={() => setFStatus(fStatus === s ? "" : s)} className={`h-8 rounded-full border px-3 text-xs font-semibold ${fStatus === s ? "bg-slate-900 text-white" : "bg-muted"}`}>{s[0] + s.slice(1).toLowerCase()}</button>)}
+          <span className="text-xs text-muted-foreground">Status:</span>{(verSistema ? ["PENDENTE", "ACURADO", "DIVERGENTE"] : ["PENDENTE", "CONTADO"]).map((s) => <button key={s} onClick={() => setFStatus(fStatus === s ? "" : s)} className={`h-8 rounded-full border px-3 text-xs font-semibold ${fStatus === s ? "bg-slate-900 text-white" : "bg-muted"}`}>{s[0] + s.slice(1).toLowerCase()}</button>)}<button onClick={() => setFManual(!fManual)} className={`h-8 rounded-full border px-3 text-xs font-semibold ${fManual ? "bg-slate-900 text-white" : "bg-muted"}`}>Quebra de FEFO</button>
         </div>
         <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-sm"><thead className="border-b text-xs text-muted-foreground"><tr>
           <th className="px-2 py-2 text-left">SKU</th><th className="px-2 py-2 text-left">Produto</th><th className="px-2 py-2 text-right">Estoque em trânsito</th><th className="px-2 py-2 text-right">Baixa em aprovação</th>{verSistema && <th className="px-2 py-2 text-right">Sistema</th>}<th className="px-2 py-2 text-left">Contagem por lote</th><th className="px-2 py-2 text-left">Status</th></tr></thead>
