@@ -4,7 +4,7 @@ export type ItemInv = { codigo_produto: string; descricao?: string | null; lote:
 export type LoteCorrecao = { sku: string; descricao: string; lote: string; sistema: number; contado: number; diferenca: number; tipo: "DIVERGENTE" | "CORRECAO_LOTE" };
 
 const r = (n: number) => Math.round(n * 1000) / 1000;
-export const qtdFinal = (i: ItemInv) => i.qtd_recontagem ?? i.qtd_final ?? i.qtd_contagem;
+export const qtdFinal = (i: ItemInv) => i.qtd_final ?? i.qtd_recontagem ?? i.qtd_contagem;
 
 export function lotesParaCorrecao(itens: ItemInv[]): LoteCorrecao[] {
   const porSku = new Map<string, ItemInv[]>();
