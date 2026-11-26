@@ -68,8 +68,8 @@ function Pagina() {
       </div>
       <Tabs defaultValue={abaPadrao}>
         <TabsList className="h-auto w-full justify-start overflow-x-auto">{acessoContagem.visivel && <TabsTrigger className="shrink-0" value="contagem">Contagem</TabsTrigger>}{acessoRecontagem.visivel && <TabsTrigger className="shrink-0" value="recontagem">Recontagem</TabsTrigger>}{gestor && <TabsTrigger className="shrink-0" value="painel">Painel da gestão</TabsTrigger>}{gestor && <TabsTrigger className="shrink-0" value="faturamento">Conciliação de faturamento</TabsTrigger>}{isAdmin && inv.status === "finalizado" && <TabsTrigger className="shrink-0" value="acoes">Ações pós-inventário</TabsTrigger>}</TabsList>
-        {acessoContagem.visivel && <TabsContent value="contagem"><Conferencia inv={inv} fase="contagem" aberta={acessoContagem.podeLancar && ["lista_gerada", "em_contagem"].includes(inv.status)} visaoAdministrativa={acessoContagem.visaoAdministrativa} /></TabsContent>}
-        {acessoRecontagem.visivel && <TabsContent value="recontagem"><Conferencia inv={inv} fase="recontagem" aberta={acessoRecontagem.podeLancar && inv.status === "em_recontagem"} visaoAdministrativa={acessoRecontagem.visaoAdministrativa} /></TabsContent>}
+        {acessoContagem.visivel && <TabsContent value="contagem"><Conferencia inv={inv} fase="contagem" aberta={acessoContagem.podeLancar && ["lista_gerada", "em_contagem"].includes(inv.status)} visaoAdministrativa={acessoContagem.visaoAdministrativa} uid={uid} /></TabsContent>}
+        {acessoRecontagem.visivel && <TabsContent value="recontagem"><Conferencia inv={inv} fase="recontagem" aberta={acessoRecontagem.podeLancar && inv.status === "em_recontagem"} visaoAdministrativa={acessoRecontagem.visaoAdministrativa} uid={uid} /></TabsContent>}
         {gestor && <TabsContent value="painel"><Painel inv={inv} duplas={duplas} /></TabsContent>}
         {gestor && <TabsContent value="faturamento"><ConciliacaoFaturamento inv={inv} /></TabsContent>}
         {isAdmin && inv.status === "finalizado" && <TabsContent value="acoes"><AcoesPosInventario inv={inv} /></TabsContent>}
@@ -95,10 +95,10 @@ function feedback(tipo: "ok" | "divergente" | "erro" | "salvo") {
 }
 
 /** Lista de contagem no modelo da Contagem Cíclica: um SKU por linha, contagem por lote, trânsito, baixas em aprovação e status. */
-function Conferencia({ inv, fase, aberta, visaoAdministrativa }: { inv: any; fase: "contagem" | "recontagem"; aberta: boolean; visaoAdministrativa: boolean }) {
+function Conferencia({ inv, fase, aberta, visaoAdministrativa, uid }: { inv: any; uid: string; fase: "contagem" | "recontagem"; aberta: boolean; visaoAdministrativa: boolean }) {
   const qc = useQueryClient(); const tol = Number(inv.tolerancia_pct ?? TOL_PADRAO);
-  const cacheKey = `inv-tarefas-cache:${inv.id}:${fase}${visaoAdministrativa ? ":admin" : ""}`;
-  const q = useQuery({ queryKey: ["inv-tarefas", inv.id, fase, visaoAdministrativa], retry: (n) => navigator.onLine && n < 2, queryFn: async () => {
+  const cacheKey = `inv-tarefas-cache:${uid}:${inv.id}:${fase}${visaoAdministrativa ? ":admin" : ""}`; // por usuário: aparelho compartilhado não mostra a lista de outra dupla
+  const q = useQuery({ queryKey: ["inv-tarefas", inv.id, fase, visaoAdministrativa, uid], retry: (n) => navigator.onLine && n < 2, queryFn: async () => {
     if (visaoAdministrativa) {
       const itens = await fetchAll<any>((a, z) => {
         const consulta = sb.from("inv_itens").select("*").eq("inventario_id", inv.id);
@@ -110,6 +110,7 @@ function Conferencia({ inv, fase, aberta, visaoAdministrativa }: { inv: any; fas
   } });
   const [fila, setFila] = useState<OpOffline[]>([]); const [online, setOnline] = useState(true); const [cache, setCache] = useState<Linha[] | null>(null);
   useEffect(() => {
+    try { for (const k of Object.keys(localStorage)) if (/^inv-tarefas-cache:[^:]+:(contagem|recontagem)/.test(k)) localStorage.removeItem(k); } catch { /* sem acesso */ }
     try { const c = localStorage.getItem(cacheKey); if (c) setCache(JSON.parse(c)); } catch { /* sem cache */ }
     const atualizar = () => setFila(lerFila().filter((o) => o.inv === inv.id));
     const enviar = async () => { if (!navigator.onLine || !lerFila().length) return; const n = await enviarFila(sb, (m) => toast.error(`Lançamento offline recusado: ${m}`)); if (n) { toast.success(`${n} lançamento(s) feitos sem sinal foram enviados.`); qc.invalidateQueries({ queryKey: ["inv-tarefas", inv.id] }); } };
