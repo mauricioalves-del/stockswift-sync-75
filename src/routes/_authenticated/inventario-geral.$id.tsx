@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchAll } from "@/lib/fetch-all";
 import { acuracidadePorItem } from "@/lib/inventario-acuracidade";
 import { sinalLote, validarSinalLote } from "@/lib/inventario-sinalizacao-lotes";
+import { tomUnidade, unidadeDosLotes } from "@/lib/inventario-unidade";
 import { acessoConferencia } from "@/lib/inventario-acesso-conferencia";
 import { useRole } from "@/hooks/useRole";
 import { aplicarPendentes, chaveManual, chaveRegistrar, ehFalhaDeRede, enfileirar, enviarFila, gravarFila, lerFila, type OpOffline } from "@/lib/inventario-offline";
@@ -156,7 +157,7 @@ function Conferencia({ inv, fase, aberta, visaoAdministrativa }: { inv: any; fas
   const porSku = useMemo(() => { const m = new Map<string, Linha[]>(); for (const l of linhas) m.set(l.codigo_produto, [...(m.get(l.codigo_produto) ?? []), l]); return [...m].map(([sku, ls]) => {
     const contadas = ls.filter((l) => l.qtd != null), total = contadas.reduce((a, l) => a + Number(l.qtd), 0), sis = ls.reduce((a, l) => a + Number(l.sistema ?? 0), 0);
     const pend = contadas.length < ls.length, st = pend ? "PENDENTE" : !verSistema ? "CONTADO" : classe(total, sis, tol) === "OK" ? "ACURADO" : "DIVERGENTE";
-    return { sku, ls, desc: ls[0].descricao, grupo: ls[0].grupo, total, sis, st, ident: ls.find((l) => l.identificado != null)?.identificado ?? null, obs: ls.find((l) => l.observacao)?.observacao ?? "" }; }); }, [linhas, verSistema, tol]);
+    return { sku, ls, desc: ls[0].descricao, grupo: ls[0].grupo, un: unidadeDosLotes(ls), total, sis, st, ident: ls.find((l) => l.identificado != null)?.identificado ?? null, obs: ls.find((l) => l.observacao)?.observacao ?? "" }; }); }, [linhas, verSistema, tol]);
   const k = useMemo(() => { const conf = porSku.filter((x) => x.st !== "PENDENTE"), acur = porSku.filter((x) => x.st === "ACURADO"), div = porSku.filter((x) => x.st === "DIVERGENTE");
     return { total: porSku.length, pend: porSku.length - conf.length, conf: conf.length, acur: acur.length, div: div.length, pct: porSku.length ? Math.round((conf.length / porSku.length) * 100) : 0, ac: verSistema ? acuracidadePorItem(porSku) : null }; }, [porSku, verSistema]);
   const grupos = [...new Set(porSku.map((x) => x.grupo || "Sem grupo"))].sort(), familias = [...new Set(porSku.map((x) => extras.data?.fam.get(x.sku)).filter(Boolean) as string[])].sort();
@@ -204,6 +205,8 @@ function Conferencia({ inv, fase, aberta, visaoAdministrativa }: { inv: any; fas
   }
   const Kpi = ({ t, v, tom = "" }: { t: string; v: string; tom?: string }) => <div className="min-w-0 rounded-xl border bg-card px-3 py-2.5 shadow-sm sm:rounded-2xl sm:px-4 sm:py-3"><div className="truncate text-[10px] font-semibold uppercase text-muted-foreground">{t}</div><div className={`text-xl font-bold tabular-nums sm:text-2xl ${tom}`}>{v}</div></div>;
   const ST: Record<string, string> = { PENDENTE: "bg-slate-200 text-slate-700", CONTADO: "bg-sky-100 text-sky-800", ACURADO: "bg-emerald-100 text-emerald-800", DIVERGENTE: "bg-red-100 text-red-700" };
+  /** Unidade de medida: KG e LT em amarelo para o time não contar peso/volume como unidade. */
+  const UnidadeBadge = ({ un }: { un: string }) => <span className={`inline-block shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${tomUnidade(un) === "alerta" ? "bg-warning text-warning-foreground" : "bg-muted text-muted-foreground"}`} title={tomUnidade(un) === "alerta" ? "Unidade de peso ou volume — confira antes de contar" : undefined}>{un || "—"}</span>;
   const renderContagem = (x: typeof porSku[number]) => <div className="space-y-2">
     {x.ls.map((l) => { const concluido = x.st !== "PENDENTE" && !x.ls.some((item) => val[item.id] != null || fila.some((op) => op.tipo === "registrar" && op.item === item.id && op.fase === fase && op.qtd != null)); const c = concluido ? sinalLote(true, l.qtd, l.sistema) ?? validarSinalLote(sinaisQ.data?.[l.id]) : null; return (
       <div key={l.id} data-lote={l.lote} data-sinal={c ?? "PENDENTE"} className={`rounded-lg border border-l-4 p-2.5 ${c ? ROT_CLASSE[c][2] : "bg-background"}`}>
@@ -248,16 +251,17 @@ function Conferencia({ inv, fase, aberta, visaoAdministrativa }: { inv: any; fas
         </div>
         <div className="space-y-3 md:hidden">{lista.map((x) => { const tr = extras.data?.transito.get(x.sku), bx = extras.data?.baixas.get(x.sku); return (
           <article key={x.sku} className="overflow-hidden rounded-xl border bg-card shadow-sm">
-            <div className="flex items-start justify-between gap-3 border-b bg-muted/40 p-3"><div className="min-w-0"><div className="break-all font-mono text-xs font-semibold">{x.sku}</div><h3 className="mt-1 break-words text-sm font-semibold leading-5">{x.desc}</h3><div className="mt-1 flex flex-wrap gap-1 text-[10px] text-muted-foreground">{x.grupo && <span className="rounded bg-muted px-1.5 py-0.5">{x.grupo}</span>}{extras.data?.fam.get(x.sku) && <span>{extras.data.fam.get(x.sku)}</span>}</div></div><span className={`shrink-0 rounded px-2 py-1 text-[10px] font-bold ${ST[x.st]}`}>{x.st}</span></div>
+            <div className="flex items-start justify-between gap-3 border-b bg-muted/40 p-3"><div className="min-w-0"><div className="break-all font-mono text-xs font-semibold">{x.sku}</div><h3 className="mt-1 break-words text-sm font-semibold leading-5">{x.desc}</h3><div className="mt-1 flex flex-wrap gap-1 text-[10px] text-muted-foreground"><UnidadeBadge un={x.un} />{x.grupo && <span className="rounded bg-muted px-1.5 py-0.5">{x.grupo}</span>}{extras.data?.fam.get(x.sku) && <span>{extras.data.fam.get(x.sku)}</span>}</div></div><span className={`shrink-0 rounded px-2 py-1 text-[10px] font-bold ${ST[x.st]}`}>{x.st}</span></div>
             <div className="grid grid-cols-2 gap-2 border-b p-3 text-center sm:grid-cols-3"><div className="rounded-md bg-muted/50 p-2"><div className="text-[10px] uppercase text-muted-foreground">Em trânsito</div><div className="mt-1 font-semibold tabular-nums" title={tr?.detalhes.join("\n")}>{tr ? num(tr.qtd) : "0"}</div></div><div className="rounded-md bg-muted/50 p-2"><div className="text-[10px] uppercase text-muted-foreground">Baixa em aprovação</div><div className="mt-1 font-semibold tabular-nums">{bx ? num(bx) : "—"}</div></div>{verSistema && <div className="col-span-2 rounded-md bg-muted/50 p-2 sm:col-span-1"><div className="text-[10px] uppercase text-muted-foreground">Sistema</div><div className="mt-1 font-semibold tabular-nums">{num(x.sis)}</div></div>}</div>
             <div className="p-3"><div className="mb-2 text-xs font-semibold">Contagem por lote</div>{renderContagem(x)}</div>
           </article>); })}</div>
         <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[900px] text-sm"><thead className="border-b text-xs text-muted-foreground"><tr>
-          <th className="px-2 py-2 text-left">SKU</th><th className="px-2 py-2 text-left">Produto</th><th className="px-2 py-2 text-right">Estoque em trânsito</th><th className="px-2 py-2 text-right">Baixa em aprovação</th>{verSistema && <th className="px-2 py-2 text-right">Sistema</th>}<th className="px-2 py-2 text-left">Contagem por lote</th><th className="px-2 py-2 text-left">Status</th></tr></thead>
+          <th className="px-2 py-2 text-left">SKU</th><th className="px-2 py-2 text-left">Produto</th><th className="px-2 py-2 text-left">UM</th><th className="px-2 py-2 text-right">Estoque em trânsito</th><th className="px-2 py-2 text-right">Baixa em aprovação</th>{verSistema && <th className="px-2 py-2 text-right">Sistema</th>}<th className="px-2 py-2 text-left">Contagem por lote</th><th className="px-2 py-2 text-left">Status</th></tr></thead>
           <tbody>{lista.map((x) => { const tr = extras.data?.transito.get(x.sku), bx = extras.data?.baixas.get(x.sku); return (
             <tr key={x.sku} className="border-b align-top">
               <td className="px-2 py-3 font-mono text-xs">{x.sku}{x.grupo && <div className="mt-1 inline-block rounded bg-muted px-1 font-sans text-[10px]">{x.grupo}</div>}</td>
               <td className="px-2 py-3">{x.desc}{extras.data?.fam.get(x.sku) && <div className="text-[11px] text-muted-foreground">{extras.data.fam.get(x.sku)}</div>}</td>
+              <td className="px-2 py-3"><UnidadeBadge un={x.un} /></td>
               <td className="px-2 py-3 text-right tabular-nums" title={tr?.detalhes.join("\n")}>{tr ? num(tr.qtd) : "0"}</td>
               <td className="px-2 py-3 text-right tabular-nums">{bx ? num(bx) : "—"}</td>
               {verSistema && <td className="px-2 py-3 text-right font-semibold tabular-nums">{num(x.sis)}</td>}
