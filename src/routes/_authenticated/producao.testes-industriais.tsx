@@ -378,40 +378,9 @@ function TestesIndustriaisPage() {
         </div>
       </div>
 
-      {/* Filtros */}
-      <Painel letra="A" titulo="Filtros">
-        <div className="grid items-end gap-3 sm:grid-cols-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
-          <div>
-            <label className="text-xs text-muted-foreground">{nomeGran}</label>
-            <Select value={periodo} onValueChange={setPeriodo}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os períodos</SelectItem>
-                {periodos.map((p) => <SelectItem key={p} value={p}>{labelPeriodo(p, gran)}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground">Matéria-prima</label>
-            <Input value={material} onChange={(e) => setMaterial(e.target.value)} placeholder="Buscar por código ou descrição…" />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground">OP</label>
-            <Select value={op} onValueChange={setOp}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas as OPs</SelectItem>
-                {ops.map((o) => <SelectItem key={o} value={o}>OP {o}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button variant="outline" size="sm" className="h-9" onClick={() => { setPeriodo("todos"); setMaterial(""); setOp("todas"); setSoSemCusto(false); }}><RotateCcw className="size-4" />Limpar filtros</Button>
-        </div>
-      </Painel>
-
       {/* KPIs */}
       <div>
-        <div className="mb-3 flex items-center gap-2"><span className="flex size-5 items-center justify-center rounded-full bg-dashboard-marker text-[11px] font-bold text-dashboard-marker-foreground">B</span><h2 className="text-sm font-bold">Indicadores do período</h2></div>
+        <div className="mb-3 flex items-center gap-2"><span className="flex size-5 items-center justify-center rounded-full bg-dashboard-marker text-[11px] font-bold text-dashboard-marker-foreground">A</span><h2 className="text-sm font-bold">Indicadores do período</h2></div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi titulo="Gasto Total" valor={brl(gastoTotal)} hint={`${filtradas.length} linha(s) no filtro`} />
         <Kpi
@@ -456,7 +425,35 @@ function TestesIndustriaisPage() {
 
       {/* Linha 1: série por período + pizza por grupo */}
       <div className="grid gap-4 xl:grid-cols-3">
-        <Painel letra="C" titulo={`Gasto por ${nomeGran.toLowerCase()}`} className="xl:col-span-2">
+        <Painel letra="B" titulo={`Gasto por ${nomeGran.toLowerCase()}`} className="xl:col-span-2" acao={
+          <div className="grid w-full grid-cols-2 items-end gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+            <div className="min-w-0">
+              <label className="mb-1 block text-[10px] text-muted-foreground">{nomeGran}</label>
+              <Select value={periodo} onValueChange={setPeriodo}>
+                <SelectTrigger className="h-8 w-full text-xs sm:w-[160px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os períodos</SelectItem>
+                  {periodos.map((p) => <SelectItem key={p} value={p}>{labelPeriodo(p, gran)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-0">
+              <label className="mb-1 block text-[10px] text-muted-foreground">Matéria-prima</label>
+              <Input className="h-8 w-full text-xs sm:w-[185px]" value={material} onChange={(e) => setMaterial(e.target.value)} placeholder="Buscar por código ou descrição…" />
+            </div>
+            <div className="min-w-0">
+              <label className="mb-1 block text-[10px] text-muted-foreground">OP</label>
+              <Select value={op} onValueChange={setOp}>
+                <SelectTrigger className="h-8 w-full text-xs sm:w-[145px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas as OPs</SelectItem>
+                  {ops.map((o) => <SelectItem key={o} value={o}>OP {o}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="outline" size="sm" className="h-8 w-full text-xs sm:w-auto" onClick={() => { setPeriodo("todos"); setMaterial(""); setOp("todas"); setSoSemCusto(false); }}><RotateCcw className="size-3.5" />Limpar filtros</Button>
+          </div>
+        }>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={porPeriodo} margin={{ top: 18, right: 8, left: 8, bottom: 4 }}>
@@ -476,7 +473,7 @@ function TestesIndustriaisPage() {
           </div>
         </Painel>
 
-        <Painel letra="D" titulo={<span className="flex items-center gap-2"><Layers className="size-4 text-primary" />Custo por grupo — {rotuloPeriodoAtual}</span>}>
+        <Painel letra="C" titulo={<span className="flex items-center gap-2"><Layers className="size-4 text-primary" />Custo por grupo — {rotuloPeriodoAtual}</span>}>
           <div className="h-72">
             {pizza.length ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -499,7 +496,7 @@ function TestesIndustriaisPage() {
       </div>
 
       {/* MoM estático */}
-      <Painel letra="E" titulo="Análise MoM — evolução mês a mês" acao={<Badge variant="secondary" className="text-[10px] font-normal">Histórico completo</Badge>}>
+      <Painel letra="D" titulo="Análise MoM — evolução mês a mês" acao={<Badge variant="secondary" className="text-[10px] font-normal">Histórico completo</Badge>}>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={momEstatico} margin={{ top: 18, right: 16, left: 8, bottom: 4 }}>
@@ -524,7 +521,7 @@ function TestesIndustriaisPage() {
       </Painel>
 
       {/* Tops do período atual */}
-      <Painel letra="F" titulo="Rankings do período">
+      <Painel letra="E" titulo="Rankings do período">
       <div className="grid gap-4 xl:grid-cols-3">
         <TabelaTop
           titulo="Top 10 matérias-primas"
@@ -552,7 +549,7 @@ function TestesIndustriaisPage() {
       </Painel>
 
       {/* Tabela detalhada */}
-      <Painel letra="G" titulo={`Detalhamento — ${detalhe.length} linha(s)`}>
+      <Painel letra="F" titulo={`Detalhamento — ${detalhe.length} linha(s)`}>
         <div className="max-h-[520px] overflow-auto [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-muted">
           <Table>
             <TableHeader>

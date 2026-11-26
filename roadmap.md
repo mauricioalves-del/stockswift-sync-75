@@ -143,3 +143,7 @@
 
 ## Testes Industriais: padrão Disponibilidade
  [x] Replicar cabeçalho escuro, blocos identificados, indicadores compactos e tabelas do padrão Disponibilidade; dados reais, filtros, troca de período e exportação HTML verificados, sem erros e sem excesso de largura no celular.
+
+## Testes Industriais: filtros dentro do gráfico
+- [x] Mover os filtros do painel "Filtros" para o topo do card "Gasto por dia" (ponto B do print) e recolocar as letras dos painéis em sequência.
+- [x] Conferido na tela autenticada no computador e no celular: seletor de período, matéria-prima, OP e "Limpar filtros" dentro do card; escolher 06/26 reduziu para 16 linhas e limpar restaurou 101.
