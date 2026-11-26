@@ -631,6 +631,13 @@
       "when": 1795628925464,
       "tag": "0088_pre_inventario_ignora_baixas_historicas",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1795690832716,
+      "tag": "0089_inventario_sinalizacao_lotes",
+      "breakpoints": true
     }
   ]
 }

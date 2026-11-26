@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchAll } from "@/lib/fetch-all";
 import { acuracidadePorItem } from "@/lib/inventario-acuracidade";
+import { sinalLote, validarSinalLote } from "@/lib/inventario-sinalizacao-lotes";
 import { acessoConferencia } from "@/lib/inventario-acesso-conferencia";
 import { useRole } from "@/hooks/useRole";
 import { aplicarPendentes, chaveManual, chaveRegistrar, ehFalhaDeRede, enfileirar, enviarFila, gravarFila, lerFila, type OpOffline } from "@/lib/inventario-offline";
@@ -80,7 +81,11 @@ function Pagina() {
 type Linha = { id: string; codigo_produto: string; descricao: string; lote: string; grupo: string | null; unidade: string | null; origem_item: string; qtd: number | null; identificado: boolean | null; registrado_em: string | null; sistema: number | null; observacao: string | null; criado_por_mim: boolean };
 const TOL_PADRAO = 5;
 function classe(cont: number, sis: number, tol: number) { if (!sis) return cont === 0 ? "OK" : "POS"; const d = ((cont - sis) / sis) * 100; return Math.abs(d) <= tol ? "OK" : d > 0 ? "POS" : "NEG"; }
-const ROT_CLASSE: Record<string, [string, string]> = { OK: ["DENTRO DA TOLERÂNCIA", "bg-emerald-100 text-emerald-800"], POS: ["DIVERGÊNCIA (+)", "bg-amber-100 text-amber-800"], NEG: ["DIVERGÊNCIA (−)", "bg-red-100 text-red-700"] };
+const ROT_CLASSE = {
+  OK: ["QUANTIDADE CORRETA", "bg-success text-success-foreground", "border-success bg-success/10"],
+  POS: ["DIVERGÊNCIA (+)", "bg-count-surplus text-count-surplus-foreground", "border-count-surplus bg-count-surplus/10"],
+  NEG: ["DIVERGÊNCIA (−)", "bg-destructive text-destructive-foreground", "border-destructive bg-destructive/10"],
+} as const;
 
 /** Sinal sonoro + vibração (celular) como na Contagem Cíclica. */
 function feedback(tipo: "ok" | "divergente" | "erro" | "salvo") {
@@ -134,6 +139,15 @@ function Conferencia({ inv, fase, aberta, visaoAdministrativa }: { inv: any; fas
   const [val, setVal] = useState<Record<string, string>>({}); const [obs, setObs] = useState<Record<string, string>>({});
   const [novoLote, setNovoLote] = useState<Record<string, { lote: string; qtd: string } | undefined>>({}); const [add, setAdd] = useState(false); const [correcao, setCorrecao] = useState(false);
   const recarregar = () => qc.invalidateQueries({ queryKey: ["inv-tarefas", inv.id, fase] });
+  const sinaisQ = useQuery({
+    queryKey: ["inv-sinalizacao-lotes", inv.id, fase, q.dataUpdatedAt],
+    enabled: !!q.data && online,
+    queryFn: async () => {
+      const r = await sb.rpc("inv_sinalizacao_lotes", { p_inv: inv.id, p_fase: fase });
+      if (r.error) throw r.error;
+      return (r.data ?? {}) as Record<string, unknown>;
+    },
+  });
   const locaisQ = useQuery({ queryKey: ["inv-locais", inv.id], queryFn: async () => { const r = await sb.rpc("inv_locais", { p_inv: inv.id }); if (r.error) throw r.error; return new Map<string, string>((r.data ?? []).map((x: any) => [x.id, x.local_fisico])); } });
   const [loc, setLoc] = useState<Record<string, string>>({});
   async function salvarLocal(l: Linha) { const v = loc[l.id]; if (v == null || v === (locaisQ.data?.get(l.id) ?? "")) return; const r = await sb.rpc("inv_definir_local", { p_item: l.id, p_local: v }); if (r.error) return toast.error(r.error.message); feedback("salvo"); await qc.invalidateQueries({ queryKey: ["inv-locais", inv.id] }); setLoc((s) => { const n = { ...s }; delete n[l.id]; return n; }); }
@@ -191,9 +205,9 @@ function Conferencia({ inv, fase, aberta, visaoAdministrativa }: { inv: any; fas
   const Kpi = ({ t, v, tom = "" }: { t: string; v: string; tom?: string }) => <div className="min-w-0 rounded-xl border bg-card px-3 py-2.5 shadow-sm sm:rounded-2xl sm:px-4 sm:py-3"><div className="truncate text-[10px] font-semibold uppercase text-muted-foreground">{t}</div><div className={`text-xl font-bold tabular-nums sm:text-2xl ${tom}`}>{v}</div></div>;
   const ST: Record<string, string> = { PENDENTE: "bg-slate-200 text-slate-700", CONTADO: "bg-sky-100 text-sky-800", ACURADO: "bg-emerald-100 text-emerald-800", DIVERGENTE: "bg-red-100 text-red-700" };
   const renderContagem = (x: typeof porSku[number]) => <div className="space-y-2">
-    {x.ls.map((l) => { const c = l.qtd != null && l.sistema != null ? classe(Number(l.qtd), Number(l.sistema), tol) : null; return (
-      <div key={l.id} className="rounded-lg border bg-background p-2.5">
-        <div className="flex items-center gap-2"><span className="min-w-0 flex-1 truncate rounded-md bg-muted px-2 py-1 font-mono text-[11px]">{l.lote || "sem lote"}</span>{l.origem_item === "manual" && aberta && l.criado_por_mim && <button className="grid size-8 shrink-0 place-items-center" onClick={() => remover(l)} title="Remover lote manual" aria-label={`Remover lote ${l.lote || "sem lote"}`}><Trash2 className="size-4 text-muted-foreground" /></button>}</div>
+    {x.ls.map((l) => { const concluido = x.st !== "PENDENTE" && !x.ls.some((item) => val[item.id] != null || fila.some((op) => op.tipo === "registrar" && op.item === item.id && op.fase === fase && op.qtd != null)); const c = concluido ? sinalLote(true, l.qtd, l.sistema) ?? validarSinalLote(sinaisQ.data?.[l.id]) : null; return (
+      <div key={l.id} data-lote={l.lote} data-sinal={c ?? "PENDENTE"} className={`rounded-lg border border-l-4 p-2.5 ${c ? ROT_CLASSE[c][2] : "bg-background"}`}>
+        <div className="flex items-center gap-2"><span className={`min-w-0 flex-1 truncate rounded-md px-2 py-1 font-mono text-[11px] ${c ? ROT_CLASSE[c][1] : "bg-muted"}`}>{l.lote || "sem lote"}</span>{l.origem_item === "manual" && aberta && l.criado_por_mim && <button className="grid size-8 shrink-0 place-items-center" onClick={() => remover(l)} title="Remover lote manual" aria-label={`Remover lote ${l.lote || "sem lote"}`}><Trash2 className="size-4 text-muted-foreground" /></button>}</div>
         <div className="mt-2 grid gap-2 min-[420px]:grid-cols-[120px_minmax(0,1fr)] sm:flex">
           <label className="min-w-0 text-[10px] font-semibold uppercase text-muted-foreground">Quantidade<Input disabled={!aberta} inputMode="decimal" className="mt-1 h-11 w-full text-base sm:h-9 sm:w-32 sm:text-sm" placeholder="Qtd" value={val[l.id] ?? (l.qtd != null ? String(l.qtd) : "")} onChange={(e) => setVal({ ...val, [l.id]: e.target.value })} onBlur={() => salvarLinha(l, true)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} /></label>
           <label className="min-w-0 flex-1 text-[10px] font-semibold uppercase text-muted-foreground">Local no estoque<Input disabled={visaoAdministrativa} className="mt-1 h-11 w-full text-base sm:h-9 sm:text-sm" placeholder="Ex.: Rua A, prateleira 2" title="Onde o produto está — ajuda quem for recontar" value={loc[l.id] ?? locaisQ.data?.get(l.id) ?? ""} onChange={(e) => setLoc({ ...loc, [l.id]: e.target.value })} onBlur={() => salvarLocal(l)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} /></label>

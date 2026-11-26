@@ -36,6 +36,8 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-count-surplus: var(--count-surplus);
+  --color-count-surplus-foreground: var(--count-surplus-foreground);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
   --color-mar: var(--mar);
@@ -59,6 +61,8 @@
 }
 
 :root {
+  --count-surplus: #c65308;
+  --count-surplus-foreground: #ffffff;
   /* Atlas export palette — chart-only roles shared across Atlas panels. */
   --atlas-accent: #4e7f84;
   --atlas-blue: #34436c;
@@ -132,6 +136,8 @@
 }
 
 .dark {
+  --count-surplus: #fb923c;
+  --count-surplus-foreground: #241308;
   --atlas-accent: #6fa3a8;
   --atlas-blue: #5b75ac;
   --atlas-support: #7c93c2;

@@ -9357,6 +9357,10 @@ export type Database = {
         Returns: string
       }
       inv_remover_manual: { Args: { p_item: string }; Returns: undefined }
+      inv_sinalizacao_lotes: {
+        Args: { p_fase: string; p_inv: string }
+        Returns: Json
+      }
       inv_sou_gestor: { Args: never; Returns: boolean }
       inv_status_sku: {
         Args: { p_codigo: string; p_fase: string; p_inv: string }

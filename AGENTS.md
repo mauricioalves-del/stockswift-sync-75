@@ -41,3 +41,4 @@
 - Inventory recount planning stores an explicit recount destination and enables its recount role, defaulting to the original team; existing assignment-scoped RPCs support both same-team and independent recounts without widening access.
 - Inventory conference tabs use a shared access helper; unassigned administrators read all phase items through existing RLS-protected paginated reads without widening assignment-scoped writes.
 - Inventory audit Excel is built client-side from paginated session-scoped reads; official results and lot-level adjustments stay separate, with invoiced SKUs excluded from general corrections.
+- Lot signals use a scoped RPC after SKU completion to keep blind counts private.
