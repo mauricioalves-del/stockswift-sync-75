@@ -309,6 +309,7 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
   } });
   const fechOficial = useQuery({ queryKey: ["inv-painel-fech", inv.id, inv.fechamento_id], queryFn: async () => { const base = sb.from("atlas_fechamentos_inventario").select("id, valor_total_divergente"); const { data } = await (inv.fechamento_id ? base.eq("id", inv.fechamento_id) : base.like("arquivo_origem", `Contagem de Inventário #${inv.numero} ·%`)).order("id", { ascending: false }).limit(1); const f = data?.[0]; return { id: f?.id ?? null, valor: f?.valor_total_divergente ?? null }; } });
   const [filtro, setFiltro] = useState("todos"); const [correcaoPainel, setCorrecaoPainel] = useState(false);
+  const [ordem, setOrdem] = useState<{ col: string; dir: 1 | -1 } | null>(null);
   const { isAdmin } = useRole();
   const qc = useQueryClient();
   const [edit, setEdit] = useState<any | null>(null);
@@ -337,7 +338,25 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
   const finais = skus;
   const valorCalc = skus.reduce((s, a) => s + Math.abs(a.fin - a.sis) * a.custo, 0);
   const valorDif = fechOficial.data?.valor != null ? Number(fechOficial.data.valor) : valorCalc;
-  const lista = it.filter((i) => filtro === "todos" || (filtro === "divergentes" ? (i.qtd_final != null ? Number(i.qtd_final) !== Number(i.qtd_sistema) : !!i.divergente) : filtro === "pendentes" ? (i.qtd_contagem == null || (i.divergente && i.qtd_recontagem == null)) : i.origem_item === "manual"));
+  const filtrados = it.filter((i) => filtro === "todos" || (filtro === "divergentes" ? (i.qtd_final != null ? Number(i.qtd_final) !== Number(i.qtd_sistema) : !!i.divergente) : filtro === "pendentes" ? (i.qtd_contagem == null || (i.divergente && i.qtd_recontagem == null)) : i.origem_item === "manual"));
+  // Ordenação por coluna (clique no cabeçalho: crescente → decrescente → original); vazios sempre no fim
+  const valorCol = (i: any, col: string): number | string | null => {
+    const n = (v: any) => (v == null ? null : Number(v)); const dif = i.qtd_final == null ? null : Number(i.qtd_final) - Number(i.qtd_sistema);
+    switch (col) {
+      case "Produto": return `${i.descricao ?? ""} ${i.codigo_produto}`.toLowerCase(); case "Lote": return i.lote ? String(i.lote).toLowerCase() : null;
+      case "Dupla": return nomeD.get(i.dupla_id) ?? null; case "Recontagem": return nomeD.get(i.dupla_recontagem_id) ?? null;
+      case "Sistema": return n(i.qtd_sistema); case "1ª": return n(i.qtd_contagem); case "2ª": return n(i.qtd_recontagem); case "Final": return n(i.qtd_final);
+      case "Div.": return i.divergente == null ? null : i.divergente ? 1 : 0; case "Ident.": return i.identificado_recontagem == null ? null : i.identificado_recontagem ? 1 : 0;
+      case "Dif.": return dif; case "Custo dif. (R$)": return dif == null || i.custo_unitario == null ? null : dif * Number(i.custo_unitario);
+      default: return null;
+    }
+  };
+  const lista = !ordem ? filtrados : [...filtrados].sort((a, b) => {
+    const va = valorCol(a, ordem.col), vb = valorCol(b, ordem.col);
+    if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1;
+    return (typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb), "pt-BR", { numeric: true })) * ordem.dir;
+  });
+  const ordenar = (col: string) => setOrdem((o) => (!o || o.col !== col ? { col, dir: 1 } : o.dir === 1 ? { col, dir: -1 } : null));
   function exportar() {
     const cab = ["Grupo", "Código", "Produto", "Lote", "Origem", "Dupla contagem", "Sistema", "1ª contagem", "Divergente", "Dupla recontagem", "2ª contagem", "Identificado na 2ª", "Final oficial", "Diferença", "Custo unit.", "Diferença R$"];
     // Números no padrão brasileiro (vírgula decimal) e arredondados, para o Excel não ler "4.9257" como milhar
@@ -372,12 +391,15 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
         <div className="mb-3 grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center"><div className="col-span-2 flex flex-wrap gap-1">{[["todos", "Todos"], ["divergentes", "Divergentes"], ["pendentes", "Pendentes"], ["manuais", "Incluídos manualmente"]].map(([v, l]) => <button key={v} onClick={() => setFiltro(v)} className={`min-h-9 rounded-md border px-2 text-xs font-semibold ${filtro === v ? "bg-slate-900 text-white" : ""}`}>{l}</button>)}</div>
           <Button size="sm" variant="outline" className="h-10 md:ml-auto" onClick={() => setCorrecaoPainel(true)}><Download className="mr-1 size-4" />Planilha de ajuste</Button><Button size="sm" variant="outline" className="h-10" onClick={exportar}><Download className="mr-1 size-4" />Exportar CSV</Button></div>
         <CorrecaoLotesDialog inv={inv} open={correcaoPainel} onOpenChange={setCorrecaoPainel} />
+        <div className="mb-2 flex items-center gap-2 md:hidden"><span className="text-xs text-muted-foreground">Ordenar:</span>
+          <select className="h-8 flex-1 rounded-md border bg-background px-2 text-xs" value={ordem?.col ?? ""} onChange={(e) => setOrdem(e.target.value ? { col: e.target.value, dir: ordem?.dir ?? 1 } : null)}><option value="">Original</option>{["Produto", "Lote", "Dupla", "Sistema", "1ª", "Final", "Dif.", "Custo dif. (R$)"].map((c) => <option key={c} value={c}>{c}</option>)}</select>
+          {ordem && <button type="button" className="h-8 rounded-md border px-2 text-xs font-semibold" onClick={() => setOrdem({ ...ordem, dir: ordem.dir === 1 ? -1 : 1 })}>{ordem.dir === 1 ? "▲ menor → maior" : "▼ maior → menor"}</button>}</div>
         <div className="space-y-3 md:hidden">{lista.map((i) => { const dif = i.qtd_final == null ? null : Number(i.qtd_final) - Number(i.qtd_sistema); const custoDif = dif == null || i.custo_unitario == null ? null : dif * Number(i.custo_unitario); return (
           <article key={i.id} className="rounded-xl border p-3 shadow-sm"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="break-all font-mono text-xs font-semibold">{i.codigo_produto}</div><h3 className="mt-1 break-words text-sm font-semibold leading-5">{i.descricao}</h3><p className="mt-1 text-xs text-muted-foreground">Lote: {i.lote || "—"} · {nomeD.get(i.dupla_id) ?? "Sem dupla"}{i.origem_item === "manual" && " · manual"}</p></div>{isAdmin && <Button size="icon" variant="ghost" className="shrink-0" aria-label="Editar item" onClick={() => abrirEdicao(i)}><Pencil className="size-4" /></Button>}</div>
             <dl className="mt-3 grid grid-cols-3 gap-2 text-center text-xs"><div className="rounded bg-muted p-2"><dt className="text-muted-foreground">Sistema</dt><dd className="mt-1 font-semibold tabular-nums">{num(i.qtd_sistema)}</dd></div><div className="rounded bg-muted p-2"><dt className="text-muted-foreground">1ª contagem</dt><dd className="mt-1 font-semibold tabular-nums">{num(i.qtd_contagem)}</dd></div><div className="rounded bg-muted p-2"><dt className="text-muted-foreground">2ª contagem</dt><dd className="mt-1 font-semibold tabular-nums">{num(i.qtd_recontagem)}</dd></div><div className="rounded bg-muted p-2"><dt className="text-muted-foreground">Final</dt><dd className="mt-1 font-semibold tabular-nums">{num(i.qtd_final)}</dd></div><div className="rounded bg-muted p-2"><dt className="text-muted-foreground">Diferença</dt><dd className={`mt-1 font-semibold tabular-nums ${dif != null && dif < 0 ? "text-red-600" : dif ? "text-sky-700" : ""}`}>{dif == null ? "—" : `${dif > 0 ? "+" : ""}${num(dif)}`}</dd></div><div className="rounded bg-muted p-2"><dt className="text-muted-foreground">Custo dif.</dt><dd className={`mt-1 break-words font-semibold tabular-nums ${custoDif != null && custoDif < 0 ? "text-red-600" : custoDif ? "text-sky-700" : ""}`}>{custoDif == null ? (dif ? "sem custo" : "—") : custoDif.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</dd></div></dl>
             {(i.dupla_recontagem_id || i.identificado_recontagem != null) && <p className="mt-2 text-xs text-muted-foreground">Recontagem: {nomeD.get(i.dupla_recontagem_id) ?? "—"}{i.identificado_recontagem != null && ` · identificado: ${i.identificado_recontagem ? "Sim" : "Não"}`}</p>}
           </article>); })}</div>
-        <div className="hidden max-h-[520px] overflow-auto md:block"><table className="w-full text-xs"><thead className="sticky top-0 bg-muted"><tr>{["Produto", "Lote", "Dupla", "Sistema", "1ª", "Div.", "Recontagem", "2ª", "Ident.", "Final", "Dif.", "Custo dif. (R$)", ...(isAdmin ? [""] : [])].map((h) => <th key={h} className="px-2 py-1 text-left">{h}</th>)}</tr></thead>
+        <div className="hidden max-h-[520px] overflow-auto md:block"><table className="w-full text-xs"><thead className="sticky top-0 bg-muted"><tr>{["Produto", "Lote", "Dupla", "Sistema", "1ª", "Div.", "Recontagem", "2ª", "Ident.", "Final", "Dif.", "Custo dif. (R$)", ...(isAdmin ? [""] : [])].map((h) => <th key={h} className="px-2 py-1 text-left">{h ? <button type="button" onClick={() => ordenar(h)} title="Ordenar: menor → maior / maior → menor" className="inline-flex items-center gap-1 whitespace-nowrap hover:text-foreground">{h}<span className={`text-[10px] ${ordem?.col === h ? "text-foreground" : "text-muted-foreground/50"}`}>{ordem?.col === h ? (ordem.dir === 1 ? "▲" : "▼") : "↕"}</span></button> : null}</th>)}</tr></thead>
           <tbody>{lista.map((i) => { const dif = i.qtd_final == null ? null : Number(i.qtd_final) - Number(i.qtd_sistema); return (
             <tr key={i.id} className="border-t"><td className="px-2 py-1">{i.codigo_produto} · {i.descricao}{i.origem_item === "manual" && <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800">manual</span>}</td><td className="px-2 py-1">{i.lote || "—"}</td><td className="px-2 py-1">{nomeD.get(i.dupla_id) ?? "—"}</td>
               <td className="px-2 py-1 tabular-nums">{num(i.qtd_sistema)}</td><td className="px-2 py-1 tabular-nums">{num(i.qtd_contagem)}</td><td className="px-2 py-1">{i.divergente == null ? "" : i.divergente ? "⚠" : "✓"}</td><td className="px-2 py-1">{nomeD.get(i.dupla_recontagem_id) ?? ""}</td>
