@@ -37,9 +37,9 @@ function Pagina() {
   const props = { duplas: q.data?.duplas ?? [], uid: q.data?.uid ?? "", gestor: !!gestor.data, carregando: q.isLoading, onEditar: (id: string) => { setEditando(id); setAba("plano"); } };
   return (
     <div className="space-y-4">
-      <div><h1 className="text-3xl font-bold">Contagem de Inventário</h1></div>
+      <div><h1 className="text-2xl font-bold sm:text-3xl">Contagem de Inventário</h1></div>
       <Tabs value={aba} onValueChange={setAba}>
-        <TabsList className="max-w-full overflow-x-auto"><TabsTrigger value="aberto">{rotulo("Em aberto", abertos.length)}</TabsTrigger><TabsTrigger value="finalizado">{rotulo("Finalizados", finalizados.length)}</TabsTrigger>{gestor.data && <TabsTrigger value="plano" onClick={() => setEditando(null)}>{editando ? "Editar planejamento" : "Planejamento"}</TabsTrigger>}</TabsList>
+        <TabsList className="h-auto w-full justify-start overflow-x-auto"><TabsTrigger className="shrink-0" value="aberto">{rotulo("Em aberto", abertos.length)}</TabsTrigger><TabsTrigger className="shrink-0" value="finalizado">{rotulo("Finalizados", finalizados.length)}</TabsTrigger>{gestor.data && <TabsTrigger className="shrink-0" value="plano" onClick={() => setEditando(null)}>{editando ? "Editar planejamento" : "Planejamento"}</TabsTrigger>}</TabsList>
         <TabsContent value="aberto"><Lista {...props} inv={abertos} vazio={gestor.data ? "Nenhum inventário em aberto. Crie o primeiro em Planejamento." : "Você não está escalado em nenhum inventário em aberto."} /></TabsContent>
         <TabsContent value="finalizado"><Lista {...props} inv={finalizados} vazio="Nenhum inventário finalizado ainda." /></TabsContent>
         {gestor.data && <TabsContent value="plano"><Planejamento key={editando ?? "novo"} invId={editando} onCriado={() => { setEditando(null); setAba("aberto"); }} /></TabsContent>}
@@ -52,8 +52,15 @@ function Lista({ inv, duplas, uid, gestor, onEditar, carregando, vazio }: { inv:
   const qc = useQueryClient();
   async function excluir(id: string) { if (!confirm("Excluir este inventário e todas as contagens?")) return; const r = await sb.from("inv_inventarios").delete().eq("id", id); if (r.error) return toast.error(r.error.message); qc.invalidateQueries({ queryKey: ["inv-lista"] }); }
   return (
-    <Card><CardContent className="p-0">
-      <table className="w-full text-sm"><thead className="bg-muted text-xs"><tr>{["#", "Inventário", "Almoxarifado", "Geração da lista", "Duplas", "Status", ""].map((h) => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
+    <Card><CardContent className="p-3 md:p-0">
+      <div className="space-y-3 md:hidden">{inv.map((i) => { const ds = duplas.filter((d) => d.inventario_id === i.id); const minha = ds.find((d) => [d.membro1, d.membro2].includes(uid)); return (
+        <article key={i.id} className="space-y-3 rounded-xl border bg-card p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="text-xs font-semibold text-muted-foreground">Inventário #{i.numero}</div><Link to="/inventario-geral/$id" params={{ id: i.id }} className="mt-1 block break-words font-semibold leading-5 hover:underline">{i.titulo}</Link></div><StatusInv s={i.status} /></div>
+          {minha && <p className="rounded-md bg-muted px-3 py-2 text-xs">Você está na <b>{minha.nome}</b></p>}
+          <dl className="grid grid-cols-2 gap-3 text-xs"><div className="min-w-0"><dt className="text-muted-foreground">Almoxarifado</dt><dd className="mt-1 break-words font-medium">{i.almoxarifado}</dd></div><div><dt className="text-muted-foreground">Duplas</dt><dd className="mt-1 font-medium">{ds.length}</dd></div><div className="col-span-2"><dt className="text-muted-foreground">Geração da lista</dt><dd className="mt-1 font-medium">{dataHora(i.data_geracao)}</dd></div></dl>
+          <div className="grid grid-cols-2 gap-2"><Link to="/inventario-geral/$id" params={{ id: i.id }} className={gestor && !["finalizado", "cancelado"].includes(i.status) ? "" : "col-span-2"}><Button className="w-full" variant="outline">Abrir inventário</Button></Link>{gestor && !["finalizado", "cancelado"].includes(i.status) && <Button variant="secondary" onClick={() => onEditar(i.id)}>Editar</Button>}{gestor && i.status === "planejado" && <Button className="col-span-2" variant="ghost" onClick={() => excluir(i.id)}><Trash2 className="mr-2 size-4" />Excluir planejamento</Button>}</div>
+        </article>); })}</div>
+      <table className="hidden w-full text-sm md:table"><thead className="bg-muted text-xs"><tr>{["#", "Inventário", "Almoxarifado", "Geração da lista", "Duplas", "Status", ""].map((h) => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
         <tbody>{inv.map((i) => { const ds = duplas.filter((d) => d.inventario_id === i.id); const minha = ds.find((d) => [d.membro1, d.membro2].includes(uid)); return (
           <tr key={i.id} className="border-t hover:bg-muted/40"><td className="px-3 py-2">{i.numero}</td><td className="px-3 py-2 font-semibold"><Link to="/inventario-geral/$id" params={{ id: i.id }} className="hover:underline">{i.titulo}</Link>{minha && <div className="text-[11px] font-normal text-muted-foreground">você está na {minha.nome}</div>}</td>
             <td className="px-3 py-2">{i.almoxarifado}</td><td className="px-3 py-2">{dataHora(i.data_geracao)}</td><td className="px-3 py-2">{ds.length}</td><td className="px-3 py-2"><StatusInv s={i.status} /></td>
