@@ -126,6 +126,15 @@ function Planejamento({ onCriado, invId }: { onCriado: () => void; invId?: strin
       const gr = duplas.filter((d) => d.conta).flatMap((d) => d.grupos.map((g) => ({ inventario_id: id, dupla_id: idPorKey.get(d.key), grupo: g })));
       if (gr.length) { const r = await sb.from("inv_dupla_grupos").insert(gr); if (r.error) throw r.error; }
       await sb.from("inv_inventarios").update({ dupla_padrao_id: idPorKey.get(padraoKey) ?? null }).eq("id", id);
+      if (listaGerada) {
+        // Troca de dupla de recontagem: reatribui itens da recontagem ainda não recontados.
+        for (const d of duplas) {
+          const dest = d.conta ? idPorKey.get(destinoRecontagem(d)) : undefined;
+          if (!dest) continue;
+          const rr = await sb.from("inv_itens").update({ dupla_recontagem_id: dest }).eq("inventario_id", id).eq("dupla_id", idPorKey.get(d.key)!).not("dupla_recontagem_id", "is", null).is("qtd_recontagem", null);
+          if (rr.error) throw rr.error;
+        }
+      }
       if (listaGerada) { const r = await sb.rpc("inv_redistribuir", { p_inv: id }); if (r.error) throw r.error; toast.success(`Planejamento atualizado; ${r.data} item(ns) ainda não contados redistribuídos.`); }
       else toast.success(invId ? "Planejamento atualizado." : "Inventário planejado. A lista será gerada na data e hora definidas (ou pelo botão 'Gerar lista agora').");
       qc.invalidateQueries({ queryKey: ["inv-lista"] }); qc.invalidateQueries({ queryKey: ["inv", id] }); onCriado();
