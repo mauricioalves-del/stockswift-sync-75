@@ -3,7 +3,6 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, LabelList,
   PieChart, Pie, Cell, Legend, ComposedChart, Line,
 } from "recharts";
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, Download, FlaskConical, Layers, Minus } from "lucide-react";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Download, FlaskConical, Layers, Minus, RotateCcw } from "lucide-react";
 import { exportarBIInterativo } from "@/lib/export-bi-interativo";
 import { toast } from "sonner";
 
@@ -69,21 +68,28 @@ function Kpi({
   titulo, valor, hint, tom, children,
 }: { titulo: string; valor: string; hint?: React.ReactNode; tom?: "danger" | "warning"; children?: React.ReactNode }) {
   return (
-    <Card className={`relative overflow-hidden ${tom === "danger" ? "border-destructive/60" : tom === "warning" ? "border-warning/60" : ""}`}>
-      <span
-        className="absolute inset-y-0 left-0 w-1"
-        style={{ background: tom === "danger" ? "var(--destructive)" : tom === "warning" ? "var(--warning)" : "var(--primary)" }}
-      />
-      <CardHeader className="pb-1 pl-5">
-        <CardTitle className="text-[11px] uppercase tracking-wide text-muted-foreground">{titulo}</CardTitle>
-      </CardHeader>
-      <CardContent className="pl-5">
-        <div className="text-2xl font-bold tabular-nums">{valor}</div>
-        {hint && <div className="text-xs text-muted-foreground mt-0.5">{hint}</div>}
-        {children}
-      </CardContent>
-    </Card>
+    <div className={`min-w-0 rounded-xl border border-l-4 bg-card p-3 shadow-sm ${tom === "danger" ? "border-l-destructive" : tom === "warning" ? "border-l-warning" : "border-l-primary"}`}>
+      <div className="text-[11px] font-semibold uppercase text-muted-foreground">{titulo}</div>
+      <div className={`mt-1 text-2xl font-bold tabular-nums ${tom === "danger" ? "text-destructive" : tom === "warning" ? "text-warning" : ""}`}>{valor}</div>
+      {hint && <div className="mt-1 text-[11px] text-muted-foreground">{hint}</div>}
+      {children}
+    </div>
   );
+}
+
+function Painel({ letra, titulo, children, acao, className = "" }: {
+  letra: string; titulo: React.ReactNode; children: React.ReactNode; acao?: React.ReactNode; className?: string;
+}) {
+  return <section className={`min-w-0 rounded-xl border bg-card p-4 shadow-sm ${className}`}>
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-dashboard-marker text-[11px] font-bold text-dashboard-marker-foreground">{letra}</span>
+        <h2 className="text-sm font-bold">{titulo}</h2>
+      </div>
+      {acao}
+    </div>
+    {children}
+  </section>;
 }
 
 function TabelaTop({
@@ -93,14 +99,12 @@ function TabelaTop({
   linhas: { chave: string; nome: string; custo: number; extra?: string }[]; total: number;
 }) {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center justify-between gap-2">
-          <span>{titulo}</span>
-          {subtitulo && <span className="text-[11px] font-normal text-muted-foreground">{subtitulo}</span>}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
+    <div className="min-w-0">
+      <div className="mb-2 flex items-center justify-between gap-2 text-sm font-semibold">
+        <span>{titulo}</span>
+        {subtitulo && <span className="text-[11px] font-normal text-muted-foreground">{subtitulo}</span>}
+      </div>
+      <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -137,8 +141,8 @@ function TabelaTop({
             )}
           </TableBody>
         </Table>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -223,7 +227,7 @@ function TestesIndustriaisPage() {
     for (const r of base) m.set(r.ano_mes, (m.get(r.ano_mes) ?? 0) + r.custo);
     const arr = [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
     return arr.map(([ano_mes, custo], i) => {
-      const ant = i > 0 ? arr[i - 1]![1] : null;
+      const ant = i > 0 ? arr[i - 1]?.[1] ?? null : null;
       return {
         ano_mes,
         custo,
@@ -247,7 +251,7 @@ function TestesIndustriaisPage() {
   const gastoPeriodoAtual = useMemo(() => linhasPeriodoAtual.reduce((s, r) => s + r.custo, 0), [linhasPeriodoAtual]);
 
   const idxAtual = porPeriodo.findIndex((x) => x.p === periodoAtualChave);
-  const anteriorVal = idxAtual > 0 ? porPeriodo[idxAtual - 1]!.custo : null;
+  const anteriorVal = idxAtual > 0 ? porPeriodo[idxAtual - 1]?.custo ?? null : null;
   const variacao = anteriorVal && anteriorVal > 0 ? ((gastoPeriodoAtual - anteriorVal) / anteriorVal) * 100 : null;
 
   const agregar = (linhas: typeof base, chave: (r: (typeof base)[number]) => string, nome: (r: (typeof base)[number]) => string) => {
@@ -353,35 +357,30 @@ function TestesIndustriaisPage() {
   const nomeGran = gran === "ano" ? "Ano" : gran === "mes" ? "Mês" : "Dia";
 
   return (
-    <div className="space-y-4">
+    <div className="industrial-dashboard w-full min-w-0 space-y-4">
       {/* Faixa de título estilo BI */}
-      <div className="rounded-xl border bg-card p-4 flex flex-wrap items-center gap-3">
-        <div className="rounded-lg p-2" style={{ background: "color-mix(in oklab, var(--primary) 12%, transparent)" }}>
-          <FlaskConical className="size-5 text-primary" />
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl bg-dashboard-header px-5 py-4 text-dashboard-header-foreground">
+        <div className="min-w-0 flex-1 basis-80">
+          <h1 className="flex items-start gap-2 text-xl font-bold"><FlaskConical className="mt-0.5 size-5 shrink-0" />Testes Industriais <span className="text-sm font-normal text-dashboard-header-muted">Custo de Inovação</span></h1>
+          <p className="mt-1 text-xs text-dashboard-header-muted">SKU {SKU_TESTE_INDUSTRIAL}</p>
         </div>
-        <div className="mr-auto">
-          <h1 className="text-lg font-bold leading-tight">Testes Industriais — Custo de Inovação</h1>
-          <p className="text-xs text-muted-foreground">
-            Gasto de inovação por ano, mês ou dia. Sem Ficha Técnica estável: nenhuma métrica de furo/desvio é aplicada.
-          </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" className="text-foreground" onClick={exportarHtmlAtivo} disabled={!base.length}>
+            <Download className="size-4" /> HTML interativo
+          </Button>
+          <Tabs value={gran} onValueChange={(v) => { setGran(v as Gran); setPeriodo("todos"); }}>
+            <TabsList className="bg-dashboard-header-muted/15 text-dashboard-header-muted">
+              <TabsTrigger className="data-[state=active]:bg-card data-[state=active]:text-card-foreground" value="ano">Ano</TabsTrigger>
+              <TabsTrigger className="data-[state=active]:bg-card data-[state=active]:text-card-foreground" value="mes">Mês</TabsTrigger>
+              <TabsTrigger className="data-[state=active]:bg-card data-[state=active]:text-card-foreground" value="dia">Diária</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
-        <Badge variant="outline">SKU {SKU_TESTE_INDUSTRIAL}</Badge>
-        <Button variant="outline" size="sm" onClick={exportarHtmlAtivo} disabled={!base.length}>
-          <Download className="size-4" /> HTML interativo
-        </Button>
-
-        <Tabs value={gran} onValueChange={(v) => { setGran(v as Gran); setPeriodo("todos"); }}>
-          <TabsList>
-            <TabsTrigger value="ano">Ano</TabsTrigger>
-            <TabsTrigger value="mes">Mês</TabsTrigger>
-            <TabsTrigger value="dia">Diária</TabsTrigger>
-          </TabsList>
-        </Tabs>
       </div>
 
       {/* Filtros */}
-      <Card>
-        <CardContent className="pt-4 grid gap-3 sm:grid-cols-3">
+      <Painel letra="A" titulo="Filtros">
+        <div className="grid items-end gap-3 sm:grid-cols-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
           <div>
             <label className="text-xs text-muted-foreground">{nomeGran}</label>
             <Select value={periodo} onValueChange={setPeriodo}>
@@ -406,11 +405,14 @@ function TestesIndustriaisPage() {
               </SelectContent>
             </Select>
           </div>
-        </CardContent>
-      </Card>
+          <Button variant="outline" size="sm" className="h-9" onClick={() => { setPeriodo("todos"); setMaterial(""); setOp("todas"); setSoSemCusto(false); }}><RotateCcw className="size-4" />Limpar filtros</Button>
+        </div>
+      </Painel>
 
       {/* KPIs */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div>
+        <div className="mb-3 flex items-center gap-2"><span className="flex size-5 items-center justify-center rounded-full bg-dashboard-marker text-[11px] font-bold text-dashboard-marker-foreground">B</span><h2 className="text-sm font-bold">Indicadores do período</h2></div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi titulo="Gasto Total" valor={brl(gastoTotal)} hint={`${filtradas.length} linha(s) no filtro`} />
         <Kpi
           titulo={`Gasto no ${nomeGran} (${rotuloPeriodoAtual})`}
@@ -450,13 +452,12 @@ function TestesIndustriaisPage() {
         </Kpi>
       </div>
 
+      </div>
+
       {/* Linha 1: série por período + pizza por grupo */}
       <div className="grid gap-4 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Gasto por {nomeGran.toLowerCase()}</CardTitle>
-          </CardHeader>
-          <CardContent className="h-72">
+        <Painel letra="C" titulo={`Gasto por ${nomeGran.toLowerCase()}`} className="xl:col-span-2">
+          <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={porPeriodo} margin={{ top: 18, right: 8, left: 8, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" vertical={false} />
@@ -472,16 +473,11 @@ function TestesIndustriaisPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          </div>
+        </Painel>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Layers className="size-4 text-primary" /> Custo por grupo — {rotuloPeriodoAtual}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="h-72">
+        <Painel letra="D" titulo={<span className="flex items-center gap-2"><Layers className="size-4 text-primary" />Custo por grupo — {rotuloPeriodoAtual}</span>}>
+          <div className="h-72">
             {pizza.length ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -498,19 +494,13 @@ function TestesIndustriaisPage() {
             ) : (
               <div className="h-full grid place-items-center text-sm text-muted-foreground">Sem dados no período.</div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </Painel>
       </div>
 
       {/* MoM estático */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center justify-between gap-2">
-            <span>Análise MoM — evolução mês a mês</span>
-            <Badge variant="secondary" className="text-[10px] font-normal">visão fixa · não afetada pelos filtros</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="h-72">
+      <Painel letra="E" titulo="Análise MoM — evolução mês a mês" acao={<Badge variant="secondary" className="text-[10px] font-normal">Histórico completo</Badge>}>
+        <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={momEstatico} margin={{ top: 18, right: 16, left: 8, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" vertical={false} />
@@ -530,10 +520,11 @@ function TestesIndustriaisPage() {
               <Line yAxisId="r" type="monotone" dataKey="var_pct" stroke="var(--chart-3)" strokeWidth={2} dot={{ r: 3 }} connectNulls />
             </ComposedChart>
           </ResponsiveContainer>
-        </CardContent>
-      </Card>
+        </div>
+      </Painel>
 
       {/* Tops do período atual */}
+      <Painel letra="F" titulo="Rankings do período">
       <div className="grid gap-4 xl:grid-cols-3">
         <TabelaTop
           titulo="Top 10 matérias-primas"
@@ -558,12 +549,11 @@ function TestesIndustriaisPage() {
         />
       </div>
 
+      </Painel>
+
       {/* Tabela detalhada */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Detalhamento — {detalhe.length} linha(s)</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
+      <Painel letra="G" titulo={`Detalhamento — ${detalhe.length} linha(s)`}>
+        <div className="max-h-[520px] overflow-auto [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-muted">
           <Table>
             <TableHeader>
               <TableRow>
@@ -584,7 +574,7 @@ function TestesIndustriaisPage() {
               {detalhe.map((r) => {
                 const h = historico.get(r.material);
                 const mostraHist = !!h && h.ocorr > 1 && h.qtd > 0;
-                const unitHist = mostraHist ? h!.custo / h!.qtd : null;
+                const unitHist = mostraHist && h ? h.custo / h.qtd : null;
                 return (
                   <TableRow key={r.id}>
                     <TableCell className="whitespace-nowrap">{labelPeriodo(r.dia, "dia")}</TableCell>
@@ -614,8 +604,8 @@ function TestesIndustriaisPage() {
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+        </div>
+      </Painel>
 
       <p className="text-xs text-muted-foreground">
         Fonte: view <code>v_teste_industrial_consumo</code> (dedicada, filtrada por <code>sku_produto_final = '{SKU_TESTE_INDUSTRIAL}'</code>);

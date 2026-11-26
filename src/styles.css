@@ -16,6 +16,11 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
+  --color-dashboard-header: var(--dashboard-header);
+  --color-dashboard-header-foreground: var(--dashboard-header-foreground);
+  --color-dashboard-header-muted: var(--dashboard-header-muted);
+  --color-dashboard-marker: var(--dashboard-marker);
+  --color-dashboard-marker-foreground: var(--dashboard-marker-foreground);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -61,6 +66,11 @@
 }
 
 :root {
+  --dashboard-header: oklch(0.208 0.042 265.755);
+  --dashboard-header-foreground: oklch(1 0 0);
+  --dashboard-header-muted: oklch(0.869 0.022 252.894);
+  --dashboard-marker: oklch(0.666 0.179 58.318);
+  --dashboard-marker-foreground: oklch(1 0 0);
   --count-surplus: #c65308;
   --count-surplus-foreground: #ffffff;
   /* Atlas export palette — chart-only roles shared across Atlas panels. */
@@ -348,3 +358,10 @@
 [data-theme^="magio-"] [data-slot="button"] { border-radius: 14px; }
 [data-theme^="magio-"] [data-slot="button"],
 [data-theme^="magio-"] [data-slot="card"] { transition: background-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+
+/* Compact dashboard typography, matching the stock availability panel. */
+[data-theme^="magio-"] .industrial-dashboard h1 { font-size: 1.25rem; line-height: 1.4; letter-spacing: 0; }
+[data-theme^="magio-"] .industrial-dashboard h2 { font-size: 0.875rem; line-height: 1.4; letter-spacing: 0; }
+@media (max-width: 639px) {
+  .industrial-dashboard h1 { flex-wrap: wrap; }
+}
