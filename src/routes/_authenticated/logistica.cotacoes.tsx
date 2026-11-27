@@ -2,7 +2,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, LayoutDashboard, Loader2, Pencil, Plus, Sparkles, Trash2, Trophy, ExternalLink } from "lucide-react";
+import { Bot, LayoutDashboard, Loader2, Pencil, Plus, Sparkles, Trash2, Trophy, ExternalLink, Mail } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Secao } from "@/components/abast-dash/comum";
@@ -15,6 +15,7 @@ import { chaveCliente, cotarPorTabelas, erroExclusaoSolicitacao, podeEditarSolic
 import { buscarCep, formatarCep, soDigitosCep } from "@/lib/cep";
 import { estimarMercadoIA } from "@/lib/cotacao-ia.functions";
 import { siteCotacao } from "@/lib/sites-transportadoras";
+import { EmailCotacao } from "@/components/logistica/EmailCotacao";
 import { PainelExecutivoCotacao } from "@/components/logistica/PainelExecutivoCotacao";
 import { prestadorDaPlataforma, type OpcaoIA, type PremissasIA } from "@/lib/cotacao-ia";
 
@@ -45,7 +46,7 @@ function Cotacoes() {
     for (const r of [s, c, p, t, e]) if (r.error) throw r.error;
     return { sol: s.data as any[], cot: c.data as any[], pres: p.data as any[], tab: (t.data as any[]).map((x) => ({ ...x, valor_fixo: +x.valor_fixo, valor_km: +x.valor_km, valor_kg: +x.valor_kg, minimo: +x.minimo, prazo_dias: x.prazo_dias == null ? null : +x.prazo_dias })), emb: (e.data as any[]).map((x) => ({ ...x, custo: +x.custo, capacidade_kg: x.capacidade_kg == null ? null : +x.capacidade_kg })), cc: ((cc.data ?? []) as any[]).map((x) => x.centro_custo as string), ia: (ia.data ?? []) as any[], cli: (cli.data ?? []) as any[] };
   } });
-  const [painel, setPainel] = useState(false);
+  const [painel, setPainel] = useState(false); const [emailPara, setEmailPara] = useState<any | null>(null); const [escolherEmail, setEscolherEmail] = useState(false);
   const [nova, setNova] = useState(false); const [f, setF] = useState(vazio); const [sel, setSel] = useState<string | null>(null);
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [editando, setEditando] = useState<any | null>(null); const [salvando, setSalvando] = useState(false);
@@ -211,13 +212,15 @@ function Cotacoes() {
             <div className="flex items-start gap-2 rounded-lg bg-muted/50 p-2 text-xs"><div className="flex-1">{atual.cliente ? <b>{atual.cliente} · </b> : null}{atual.origem} → {[atual.destino_endereco, atual.destino_cidade, atual.destino_uf, atual.destino_cep].filter(Boolean).join(" · ") || "—"}<br />{nf(atual.peso_kg, 1)} kg · {atual.volumes ?? "—"} vol · {atual.km_estimado ? `${nf(atual.km_estimado)} km` : "km não informado"} · {atual.termico ? "precisa de proteção térmica" : "sem térmica"} · pedido {atual.pedido || "—"} {atual.valor_pedido ? `(${brl(atual.valor_pedido)})` : ""}</div>{podeEditarSolicitacao(role, atual.status) && <Button size="sm" variant="outline" onClick={() => abrirEdicao(atual)}><Pencil className="mr-1 size-3.5" />Editar</Button>}</div>
             <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-sm"><thead className="bg-muted text-xs"><tr><th className="px-2 py-1 text-left">Prestador</th><th className="px-2 py-1 text-left">Modal</th><th className="px-2 py-1 text-right">Frete</th><th className="px-2 py-1 text-right">Térmica</th><th className="px-2 py-1 text-right">Total</th><th className="px-2 py-1 text-right">Prazo</th><th className="px-2 py-1" /></tr></thead>
               <tbody>{cots.map((c, i) => <tr key={c.id} className={`border-t ${c.escolhida ? "bg-emerald-50" : ""}`}>
-                <td className="px-2 py-1">{i === 0 && <Trophy className="mr-1 inline size-3.5 text-amber-500" />}{nomeP(c.prestador_id)}{siteP(c.prestador_id) && <LinkSite url={siteP(c.prestador_id)!} />}<div className="text-[10px] text-muted-foreground">{c.origem === "tabela" ? (c.detalhe?.calculo ?? []).join(" · ") : c.detalhe?.editada_de === "tabela" ? "editada manualmente (era da tabela)" : "cotação manual"}{c.detalhe?.fora_da_tabela && <span className="ml-1 font-semibold text-amber-700">· sem tabela para o destino atual — revise</span>}</div></td>
+                <td className="px-2 py-1">{i === 0 && <Trophy className="mr-1 inline size-3.5 text-amber-500" />}{nomeP(c.prestador_id)}{siteP(c.prestador_id) && <LinkSite url={siteP(c.prestador_id)!} />}<button type="button" onClick={() => setEmailPara(q.data?.pres.find((p) => p.id === c.prestador_id) ?? null)} title={q.data?.pres.find((p) => p.id === c.prestador_id)?.email ? "Pedir cotação por e-mail" : "Pedir cotação por e-mail (prestador sem e-mail no cadastro)"} aria-label="Pedir cotação por e-mail" className="ml-1 inline-flex align-middle text-emerald-700 hover:text-emerald-900"><Mail className="size-3.5" /></button><div className="text-[10px] text-muted-foreground">{c.origem === "tabela" ? (c.detalhe?.calculo ?? []).join(" · ") : c.detalhe?.editada_de === "tabela" ? "editada manualmente (era da tabela)" : "cotação manual"}{c.detalhe?.fora_da_tabela && <span className="ml-1 font-semibold text-amber-700">· sem tabela para o destino atual — revise</span>}</div></td>
                 <td className="px-2 py-1 text-xs">{c.modal}</td><td className="px-2 py-1 text-right tabular-nums">{brl(c.frete)}</td><td className="px-2 py-1 text-right tabular-nums">{+c.embalagem ? brl(c.embalagem) : ""}</td>
                 <td className="px-2 py-1 text-right font-semibold tabular-nums">{brl(c.total)}{atual.valor_pedido ? <div className="text-[10px] font-normal text-muted-foreground">{nf((c.total / atual.valor_pedido) * 100, 1)}% do pedido</div> : null}</td>
                 <td className="px-2 py-1 text-right text-xs">{c.prazo_dias == null ? "—" : `${c.prazo_dias} d`}</td>
                 <td className="px-2 py-1 text-right"><div className="flex items-center justify-end gap-1">{podeEditarSolicitacao(role, atual.status) && !c.escolhida && <Button size="sm" variant="ghost" aria-label={`Editar cotação de ${nomeP(c.prestador_id)}`} title="Editar cotação" onClick={() => editarCotacao(c)}><Pencil className="size-3.5" /></Button>}{atual.status === "cotacao" ? <Button size="sm" variant={i === 0 ? "default" : "outline"} onClick={() => escolher(c.id)}>Escolher</Button> : c.escolhida ? <Status s="aprovada" /> : null}</div></td></tr>)}</tbody></table></div>
             {cots.length > 1 && <p className="text-xs text-muted-foreground">Diferença entre a mais barata e a mais cara: <b>{brl(+cots[cots.length - 1].total - +cots[0].total)}</b>. {new Set(cots.map((c) => c.prestador_id)).size < 3 && <span className="text-amber-700">Faltam cotações para chegar a 3 prestadores.</span>}</p>}
-            {cots.length > 0 && <div className="flex justify-end"><Button size="sm" onClick={() => setPainel(true)}><LayoutDashboard className="mr-1 size-4" />Visão executiva e calculadora de custo</Button></div>}
+            <div className="flex flex-wrap justify-end gap-2"><Button size="sm" variant="outline" onClick={() => setEscolherEmail(true)}><Mail className="mr-1 size-4" />Cotar por e-mail</Button>{cots.length > 0 && <Button size="sm" onClick={() => setPainel(true)}><LayoutDashboard className="mr-1 size-4" />Visão executiva e calculadora de custo</Button>}</div>
+            {escolherEmail && <div className="rounded-lg border p-3"><div className="mb-2 flex items-center justify-between text-xs font-semibold"><span>Escolha a transportadora (e-mail do cadastro)</span><button type="button" className="text-muted-foreground" onClick={() => setEscolherEmail(false)}>fechar</button></div>
+              <div className="flex flex-wrap gap-1">{(q.data?.pres ?? []).filter((p: any) => p.ativo !== false).map((p: any) => <button key={p.id} type="button" onClick={() => { setEmailPara(p); setEscolherEmail(false); }} className={`rounded-full border px-3 py-1 text-xs ${p.email ? "hover:bg-muted" : "opacity-60"}`} title={p.email || "sem e-mail no cadastro"}><Mail className="mr-1 inline size-3" />{p.nome}{!p.email && " (sem e-mail)"}</button>)}</div></div>}
             <EstimativaIA est={estimativa} podeGerar={atual.status === "cotacao"} gerando={estimando} onGerar={() => gerarEstimativa(atual.id)} onUsar={usarEstimativa} />
             {atual.status === "cotacao" && <div className="space-y-2 rounded-lg border p-2">
               <div className="flex items-center justify-between"><b className="text-xs">{editCot ? `Editar cotação de ${nomeP(cots.find((c) => c.id === editCot)?.prestador_id ?? "")}` : "Adicionar cotação"}</b><Button size="sm" variant="outline" onClick={() => cotarAuto(atual.id)}><Sparkles className="mr-1 size-3.5" />Recalcular pelas tabelas</Button></div>
@@ -231,6 +234,7 @@ function Cotacoes() {
           </div>}
         </Secao>
       </div>
+      {atual && <EmailCotacao sol={atual} prestador={emailPara} aberto={!!emailPara} onFechar={() => setEmailPara(null)} />}
       <Dialog open={painel && !!atual} onOpenChange={setPainel}>
         <DialogContent className="max-h-[94vh] max-w-6xl overflow-y-auto">{atual && <PainelExecutivoCotacao sol={atual} cots={cots} nomeP={nomeP} embalagens={q.data?.emb ?? []} />}</DialogContent>
       </Dialog>
