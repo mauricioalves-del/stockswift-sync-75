@@ -2,7 +2,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, LayoutDashboard, Loader2, Pencil, Plus, Sparkles, Trash2, Trophy } from "lucide-react";
+import { Bot, LayoutDashboard, Loader2, Pencil, Plus, Sparkles, Trash2, Trophy, ExternalLink } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Secao } from "@/components/abast-dash/comum";
@@ -14,6 +14,7 @@ import { brl, Campo, dataBR, Hero, inputCls, nf, sb, Status } from "@/components
 import { chaveCliente, cotarPorTabelas, erroExclusaoSolicitacao, podeEditarSolicitacao, podeExcluirSolicitacao, ZONA_ROTULO, zonaPorCep, type Zona } from "@/lib/tms";
 import { buscarCep, formatarCep, soDigitosCep } from "@/lib/cep";
 import { estimarMercadoIA } from "@/lib/cotacao-ia.functions";
+import { siteCotacao } from "@/lib/sites-transportadoras";
 import { PainelExecutivoCotacao } from "@/components/logistica/PainelExecutivoCotacao";
 import { prestadorDaPlataforma, type OpcaoIA, type PremissasIA } from "@/lib/cotacao-ia";
 
@@ -97,6 +98,7 @@ function Cotacoes() {
     toast.message(pid ? `Valores de ${o.plataforma} copiados. Confirme com a plataforma e clique em Adicionar.` : `Valores de ${o.plataforma} copiados. Escolha o prestador (cadastre ${o.plataforma} em Cadastros se precisar) e clique em Adicionar.`);
   }
   const nomeP = (id: string) => q.data?.pres.find((p) => p.id === id)?.nome ?? "—";
+  const siteP = (id: string) => { const p = q.data?.pres.find((x) => x.id === id); return siteCotacao(p?.nome, p?.site_cotacao); };
   const recarregar = () => qc.invalidateQueries({ queryKey: ["tms-cotacoes"] });
 
   async function salvar() {
@@ -209,7 +211,7 @@ function Cotacoes() {
             <div className="flex items-start gap-2 rounded-lg bg-muted/50 p-2 text-xs"><div className="flex-1">{atual.cliente ? <b>{atual.cliente} · </b> : null}{atual.origem} → {[atual.destino_endereco, atual.destino_cidade, atual.destino_uf, atual.destino_cep].filter(Boolean).join(" · ") || "—"}<br />{nf(atual.peso_kg, 1)} kg · {atual.volumes ?? "—"} vol · {atual.km_estimado ? `${nf(atual.km_estimado)} km` : "km não informado"} · {atual.termico ? "precisa de proteção térmica" : "sem térmica"} · pedido {atual.pedido || "—"} {atual.valor_pedido ? `(${brl(atual.valor_pedido)})` : ""}</div>{podeEditarSolicitacao(role, atual.status) && <Button size="sm" variant="outline" onClick={() => abrirEdicao(atual)}><Pencil className="mr-1 size-3.5" />Editar</Button>}</div>
             <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-sm"><thead className="bg-muted text-xs"><tr><th className="px-2 py-1 text-left">Prestador</th><th className="px-2 py-1 text-left">Modal</th><th className="px-2 py-1 text-right">Frete</th><th className="px-2 py-1 text-right">Térmica</th><th className="px-2 py-1 text-right">Total</th><th className="px-2 py-1 text-right">Prazo</th><th className="px-2 py-1" /></tr></thead>
               <tbody>{cots.map((c, i) => <tr key={c.id} className={`border-t ${c.escolhida ? "bg-emerald-50" : ""}`}>
-                <td className="px-2 py-1">{i === 0 && <Trophy className="mr-1 inline size-3.5 text-amber-500" />}{nomeP(c.prestador_id)}<div className="text-[10px] text-muted-foreground">{c.origem === "tabela" ? (c.detalhe?.calculo ?? []).join(" · ") : c.detalhe?.editada_de === "tabela" ? "editada manualmente (era da tabela)" : "cotação manual"}{c.detalhe?.fora_da_tabela && <span className="ml-1 font-semibold text-amber-700">· sem tabela para o destino atual — revise</span>}</div></td>
+                <td className="px-2 py-1">{i === 0 && <Trophy className="mr-1 inline size-3.5 text-amber-500" />}{nomeP(c.prestador_id)}{siteP(c.prestador_id) && <LinkSite url={siteP(c.prestador_id)!} />}<div className="text-[10px] text-muted-foreground">{c.origem === "tabela" ? (c.detalhe?.calculo ?? []).join(" · ") : c.detalhe?.editada_de === "tabela" ? "editada manualmente (era da tabela)" : "cotação manual"}{c.detalhe?.fora_da_tabela && <span className="ml-1 font-semibold text-amber-700">· sem tabela para o destino atual — revise</span>}</div></td>
                 <td className="px-2 py-1 text-xs">{c.modal}</td><td className="px-2 py-1 text-right tabular-nums">{brl(c.frete)}</td><td className="px-2 py-1 text-right tabular-nums">{+c.embalagem ? brl(c.embalagem) : ""}</td>
                 <td className="px-2 py-1 text-right font-semibold tabular-nums">{brl(c.total)}{atual.valor_pedido ? <div className="text-[10px] font-normal text-muted-foreground">{nf((c.total / atual.valor_pedido) * 100, 1)}% do pedido</div> : null}</td>
                 <td className="px-2 py-1 text-right text-xs">{c.prazo_dias == null ? "—" : `${c.prazo_dias} d`}</td>
@@ -278,6 +280,11 @@ function Cotacoes() {
 }
 
 /** Bloco "Estimativa de mercado (IA)": 3 opções externas, só referência de preço. */
+/** Ícone com o link do site oficial para cotação real com a transportadora (abre em nova aba). */
+function LinkSite({ url }: { url: string }) {
+  return <a href={url} target="_blank" rel="noopener noreferrer" title={`Cotar no site oficial: ${url.replace(/^https?:\/\//, "").replace(/\/$/, "")}`} aria-label="Abrir o site oficial para cotação" className="ml-1 inline-flex align-middle text-sky-700 hover:text-sky-900" onClick={(e) => e.stopPropagation()}><ExternalLink className="size-3.5" /></a>;
+}
+
 function EstimativaIA({ est, podeGerar, gerando, onGerar, onUsar }: { est: any | null; podeGerar: boolean; gerando: boolean; onGerar: () => void; onUsar: (o: OpcaoIA, p: PremissasIA) => void }) {
   const opcoes = (Array.isArray(est?.opcoes) ? est.opcoes : []) as OpcaoIA[];
   const pr = (est?.premissas ?? {}) as PremissasIA;
@@ -291,7 +298,7 @@ function EstimativaIA({ est, podeGerar, gerando, onGerar, onUsar }: { est: any |
       {!est ? <p className="text-xs text-muted-foreground">{podeGerar ? "A IA avalia o mercado com os dados da solicitação e sugere 3 plataformas ou transportadoras diferentes, com faixa de preço e prazo." : "Nenhuma estimativa gerada para esta solicitação."}</p> : <>
         <div className="grid gap-2 md:grid-cols-3">{opcoes.map((o) => { const total = o.valor_estimado + (pr.termica_custo || 0); return (
           <div key={o.plataforma} className="flex flex-col gap-1 rounded-md border bg-muted/30 p-2 text-xs">
-            <div className="flex items-start justify-between gap-2"><b className="text-sm">{o.plataforma}</b><span className="rounded bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">{o.modal}</span></div>
+            <div className="flex items-start justify-between gap-2"><b className="text-sm">{o.plataforma}{siteCotacao(o.plataforma) && <LinkSite url={siteCotacao(o.plataforma)!} />}</b><span className="rounded bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">{o.modal}</span></div>
             <div className="text-base font-semibold tabular-nums">{brl(o.valor_estimado)}</div>
             <div className="text-muted-foreground">faixa {brl(o.valor_min)} – {brl(o.valor_max)} · {o.prazo_dias == null ? "prazo n/d" : o.prazo_dias === 0 ? "mesmo dia" : `${o.prazo_dias} d`}</div>
             {pr.termica_custo ? <div className="text-muted-foreground">+ térmica {brl(pr.termica_custo)} = <b className="text-foreground">{brl(total)}</b></div> : null}
