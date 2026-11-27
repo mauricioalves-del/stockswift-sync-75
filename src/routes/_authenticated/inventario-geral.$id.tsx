@@ -311,7 +311,7 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
   } });
   const fechOficial = useQuery({ queryKey: ["inv-painel-fech", inv.id, inv.fechamento_id], queryFn: async () => { const base = sb.from("atlas_fechamentos_inventario").select("id, valor_total_divergente"); const { data } = await (inv.fechamento_id ? base.eq("id", inv.fechamento_id) : base.like("arquivo_origem", `Contagem de Inventário #${inv.numero} ·%`)).order("id", { ascending: false }).limit(1); const f = data?.[0]; return { id: f?.id ?? null, valor: f?.valor_total_divergente ?? null }; } });
   const [filtro, setFiltro] = useState("todos"); const [correcaoPainel, setCorrecaoPainel] = useState(false);
-  const [ordem, setOrdem] = useState<{ col: string; dir: 1 | -1 } | null>(null);
+  const [ordem, setOrdem] = useState<{ col: string; dir: 1 | -1 } | null>(null); const [buscaPainel, setBuscaPainel] = useState("");
   const { isAdmin } = useRole();
   const qc = useQueryClient();
   const [edit, setEdit] = useState<any | null>(null);
@@ -340,7 +340,17 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
   const finais = skus;
   const valorCalc = skus.reduce((s, a) => s + Math.abs(a.fin - a.sis) * a.custo, 0);
   const valorDif = fechOficial.data?.valor != null ? Number(fechOficial.data.valor) : valorCalc;
-  const filtrados = it.filter((i) => filtro === "todos" || (filtro === "divergentes" ? (i.qtd_final != null ? Number(i.qtd_final) !== Number(i.qtd_sistema) : !!i.divergente) : filtro === "pendentes" ? (i.qtd_contagem == null || (i.divergente && i.qtd_recontagem == null)) : i.origem_item === "manual"));
+  // Saldo do SKU (soma dos lotes): se o total contado bate com o sistema, a diferença por lote é só correção de lote
+  const qtdItem = (i: any) => Number(i.qtd_final ?? i.qtd_contagem ?? 0);
+  const totSku = new Map<string, { sis: number; fin: number }>();
+  for (const i of it) { const t = totSku.get(i.codigo_produto) ?? { sis: 0, fin: 0 }; t.sis += Number(i.qtd_sistema || 0); t.fin += qtdItem(i); totSku.set(i.codigo_produto, t); }
+  const difLote = (i: any) => Math.abs(qtdItem(i) - Number(i.qtd_sistema || 0)) > 0.0001;
+  const skuBate = (i: any) => { const t = totSku.get(i.codigo_produto)!; return Math.abs(t.fin - t.sis) < 0.0001; };
+  const correcaoLote = (i: any) => i.qtd_contagem != null && difLote(i) && skuBate(i);
+  const termoPainel = buscaPainel.trim().toLowerCase();
+  const filtrados = it.filter((i) => (filtro === "todos" || (filtro === "divergentes" ? (i.qtd_final != null ? Number(i.qtd_final) !== Number(i.qtd_sistema) : !!i.divergente) : filtro === "pendentes" ? (i.qtd_contagem == null || (i.divergente && i.qtd_recontagem == null)) : filtro === "lote" ? correcaoLote(i) : filtro === "real" ? difLote(i) && !skuBate(i) : i.origem_item === "manual"))
+    && (!termoPainel || `${i.codigo_produto} ${i.descricao ?? ""} ${i.lote ?? ""}`.toLowerCase().includes(termoPainel)));
+  const nLote = new Set(it.filter(correcaoLote).map((i) => i.codigo_produto)).size;
   // Ordenação por coluna (clique no cabeçalho: crescente → decrescente → original); vazios sempre no fim
   const valorCol = (i: any, col: string): number | string | null => {
     const n = (v: any) => (v == null ? null : Number(v)); const dif = i.qtd_final == null ? null : Number(i.qtd_final) - Number(i.qtd_sistema);
@@ -390,7 +400,8 @@ function Painel({ inv, duplas }: { inv: any; duplas: any[] }) {
             <tr key={d.id} className="border-t"><td className="px-2 py-1 font-semibold">{d.nome}</td><td className="px-2 py-1 text-xs">{[d.membro1, d.membro2].filter(Boolean).map((u: string) => nomeUsuario(q.data!.usuarios.get(u))).join(" e ")}</td><td className="px-2 py-1 text-xs">{[d.conta && "conta", d.reconta && "reconta"].filter(Boolean).join(" · ")}</td>
               <td className="px-2 py-1 text-xs tabular-nums">{d.conta ? `${c.filter((i) => i.qtd_contagem != null).length}/${c.length}${d.contagem_concluida_em ? " · concluída" : ""}` : "—"}</td><td className="px-2 py-1 text-xs tabular-nums">{d.reconta ? `${r.filter((i) => i.qtd_recontagem != null).length}/${r.length}${d.recontagem_concluida_em ? " · concluída" : ""}` : "—"}</td></tr>); })}</tbody></table></CardContent></Card>
       <Card><CardContent className="p-3">
-        <div className="mb-3 grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center"><div className="col-span-2 flex flex-wrap gap-1">{[["todos", "Todos"], ["divergentes", "Divergentes"], ["pendentes", "Pendentes"], ["manuais", "Incluídos manualmente"]].map(([v, l]) => <button key={v} onClick={() => setFiltro(v)} className={`min-h-9 rounded-md border px-2 text-xs font-semibold ${filtro === v ? "bg-slate-900 text-white" : ""}`}>{l}</button>)}</div>
+        <div className="mb-3 grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center"><div className="col-span-2 flex flex-wrap gap-1">{[["todos", "Todos"], ["divergentes", "Divergentes"], ["real", "Divergência real"], ["lote", `Só correção de lote (${nLote} SKU)`], ["pendentes", "Pendentes"], ["manuais", "Incluídos manualmente"]].map(([v, l]) => <button key={v} onClick={() => setFiltro(v)} title={v === "lote" ? "Lotes com diferença, mas o total do SKU (soma dos lotes) bate com o sistema: ajuste de lote, não falta nem sobra" : v === "real" ? "Diferença em que o total do SKU não bate com o sistema" : undefined} className={`min-h-9 rounded-md border px-2 text-xs font-semibold ${filtro === v ? "bg-slate-900 text-white" : ""}`}>{l}</button>)}
+          <div className="relative min-w-[220px] flex-1"><input className="h-9 w-full rounded-md border bg-background pl-8 pr-2 text-sm" placeholder="Buscar SKU, produto ou lote" value={buscaPainel} onChange={(e) => setBuscaPainel(e.target.value)} /><Search className="pointer-events-none absolute left-2 top-2.5 size-4 text-muted-foreground" /></div></div>
           <Button size="sm" variant="outline" className="h-10 md:ml-auto" onClick={() => setCorrecaoPainel(true)}><Download className="mr-1 size-4" />Planilha de ajuste</Button><Button size="sm" variant="outline" className="h-10" onClick={exportar}><Download className="mr-1 size-4" />Exportar CSV</Button></div>
         <CorrecaoLotesDialog inv={inv} open={correcaoPainel} onOpenChange={setCorrecaoPainel} />
         <div className="mb-2 flex items-center gap-2 md:hidden"><span className="text-xs text-muted-foreground">Ordenar:</span>
