@@ -46,7 +46,7 @@ export function AcoesPosInventario({ inv }: { inv: any }) {
   const comAcao = useMemo(() => new Set((q.data?.acoes ?? []).map((a) => a.sku)), [q.data]);
   if (!q.data) return <p className="py-10 text-center text-sm text-muted-foreground">Carregando…</p>;
   const dif = (i: Item) => (i.final ?? 0) - i.sis;
-  const lista = q.data.itens.filter((i) => (!busca || `${i.sku} ${i.desc}`.toLowerCase().includes(busca.toLowerCase())) && (filtro === "todos" || (filtro === "divergentes" ? Math.abs(dif(i)) > 0.0001 : filtro === "corretos" ? Math.abs(dif(i)) <= 0.0001 : filtro === "recontados" ? i.c2 != null : i.manual)));
+  const lista = q.data.itens.filter((i) => (!busca || `${i.sku} ${i.desc}`.toLowerCase().includes(busca.toLowerCase())) && (filtro === "todos" || (filtro === "divergentes" ? Math.abs(dif(i)) > 0.0001 : filtro === "corretos" ? Math.abs(dif(i)) <= 0.0001 : filtro === "recontados" ? i.c2 != null : filtro === "obs" ? !!i.obs.trim() : i.manual)));
   const alternar = (sku: string) => setSel((s) => { const n = new Set(s); n.has(sku) ? n.delete(sku) : n.add(sku); return n; });
 
   async function criar() {
@@ -84,7 +84,7 @@ export function AcoesPosInventario({ inv }: { inv: any }) {
         {MOTIVOS[f.motivo].passos.length > 0 && <p className="text-[11px] text-muted-foreground">Checklist da ação: {MOTIVOS[f.motivo].passos.join(" → ")}</p>}
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[200px] flex-1"><Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" /><Input className="pl-8" placeholder="Buscar SKU ou produto" value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
-          {[["todos", "Todos"], ["divergentes", "Com diferença"], ["corretos", "Saldo correto"], ["recontados", "Recontados"], ["manuais", "Incluídos manualmente"]].map(([v, l]) => <button key={v} onClick={() => setFiltro(v)} className={`h-8 rounded-full border px-3 text-xs font-semibold ${filtro === v ? "bg-slate-900 text-white" : "bg-muted"}`}>{l}</button>)}
+          {[["todos", "Todos"], ["divergentes", "Com diferença"], ["corretos", "Saldo correto"], ["recontados", "Recontados"], ["obs", `Com observação (${q.data.itens.filter((i) => i.obs.trim()).length})`], ["manuais", "Incluídos manualmente"]].map(([v, l]) => <button key={v} onClick={() => setFiltro(v)} className={`h-8 rounded-full border px-3 text-xs font-semibold ${filtro === v ? "bg-slate-900 text-white" : "bg-muted"}`}>{l}</button>)}
           <Button size="sm" variant="outline" onClick={() => setSel(new Set(lista.map((i) => i.sku)))}>Selecionar filtrados</Button>{sel.size > 0 && <Button size="sm" variant="ghost" onClick={() => setSel(new Set())}>Limpar</Button>}
         </div>
         <div className="max-h-[520px] overflow-auto"><table className="w-full min-w-[900px] text-xs"><thead className="sticky top-0 bg-muted"><tr>{["", "SKU", "Produto", "Lotes", "Sistema", "1ª", "2ª", "Ident.", "Final", "Dif.", "Observação", "Ação"].map((h) => <th key={h} className="px-2 py-1 text-left">{h}</th>)}</tr></thead>
