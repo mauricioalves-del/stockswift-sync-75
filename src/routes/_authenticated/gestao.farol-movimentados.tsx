@@ -446,12 +446,12 @@ function ImportarErpDialog({ onClose }: { onClose: () => void }) {
   </Dialog>;
 }
 
-/** Gera as listas de contagem (Geral, Processo, Qualidade, Pará) no formato das planilhas de Movimentação. Envio automático: 18h, dias úteis. */
+/** Gera as listas de contagem (Geral, Processo, Qualidade, Pará) no formato das planilhas de Movimentação. Envio automático: 22h, dias úteis. */
 function ListaMovimentadosDialog({ hoje, onClose }: { hoje: string; onClose: () => void }) {
   const [dia, setDia] = useState(hoje);
   const [ocupado, setOcupado] = useState<null | "baixar" | "enviar">(null);
   const [resultado, setResultado] = useState<{ almox: string; linhas: number }[] | null>(null);
-  // Baixar: gera no próprio navegador (mesma lógica da função das 18h). Enviar: usa a função do servidor.
+  // Baixar: gera no próprio navegador (mesma lógica da função das 22h). Enviar: usa a função do servidor.
   async function baixar() {
     const [movs, saldos, grupos] = await Promise.all([
       fetchAll<MovErp>((f, t) => sb.from("movimentacoes_erp").select("data, desc_almox, id_produto, descricao, doc, desc_movimento, qtd").eq("data", dia).range(f, t)),
@@ -498,7 +498,7 @@ function ListaMovimentadosDialog({ hoje, onClose }: { hoje: string; onClose: () 
     <DialogContent className="max-w-lg">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2"><ListChecks className="size-5" />Lista de movimentados para contagem</DialogTitle>
-        <DialogDescription>Mesmo formato das planilhas "Movimentação - Geral / Processo / Qualidade / Pará": itens movimentados no dia (planilha do ERP importada aqui) com o saldo atual do sistema. O envio por e-mail é automático às 18h dos dias úteis: cada lista vai para os cadastrados em Cadastros › E-mails com a finalidade do seu almoxarifado ("Lista de Movimentados - Fabrica", "- Processo", "- Qualidade" ou "- Pará").</DialogDescription>
+        <DialogDescription>Mesmo formato das planilhas "Movimentação - Geral / Processo / Qualidade / Pará": itens movimentados no dia (planilha do ERP importada aqui) com o saldo atual do sistema. O envio por e-mail é automático às 22h dos dias úteis: cada lista vai para os cadastrados em Cadastros › E-mails com a finalidade do seu almoxarifado ("Lista de Movimentados - Fabrica", "- Processo", "- Qualidade" ou "- Pará").</DialogDescription>
       </DialogHeader>
       <label className="text-xs font-semibold text-muted-foreground">Dia da movimentação
         <Input type="date" value={dia} max={hoje} onChange={(e) => e.target.value && setDia(e.target.value)} className="mt-1 w-44" />
