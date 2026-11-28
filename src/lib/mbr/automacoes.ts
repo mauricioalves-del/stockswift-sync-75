@@ -25,7 +25,7 @@ export const AUTOMACOES: Automacao[] = [
   { nome: "Farol de Testes Industriais", canal: "Slack", frequencia: "Dias 1 e 16", desde: "2026-10-01", entrega: "Consumo dos testes industriais da quinzena" },
   { nome: "Notificação de NF-e de baixa", canal: "Slack", frequencia: "A cada baixa fiscal", desde: "2026-10-02", acao: "BAIXA_NFE_NOTIFICADA", entrega: "Nota fiscal emitida para a baixa aprovada" },
   { nome: "Aprovação de baixa por e-mail", canal: "E-mail", frequencia: "A cada solicitação", desde: "2026-08-13", acao: "BAIXA_APROVACAO_EMAIL_ENVIADO", entrega: "Pedido de aprovação ao Diretor e ao Financeiro" },
-  { nome: "Lista de Movimentados por almoxarifado", canal: "E-mail", frequencia: "Dias úteis, 18h", desde: "2026-11-06", acao: "LISTA_MOVIMENTADOS_ENVIADA", entrega: "Itens movimentados no dia para contagem D+1" },
+  { nome: "Lista de Movimentados por almoxarifado", canal: "E-mail", frequencia: "Dias úteis, 22h", desde: "2026-11-06", acao: "LISTA_MOVIMENTADOS_ENVIADA", entrega: "Itens movimentados no dia para contagem D+1" },
   { nome: "Resumo de tarefas", canal: "E-mail", frequencia: "Segunda e quinta, 12h", desde: "2026-08-24", acao: "RESUMO_TAREFAS_ENVIADO", entrega: "Pendências por responsável" },
   { nome: "Tarefas atribuídas", canal: "E-mail", frequencia: "A cada tarefa", desde: "2026-08-21", acao: "TAREFA_EMAIL_ENVIADO", entrega: "Aviso ao responsável da tarefa" },
   { nome: "Sincronização de estoque com o ERP", canal: "Sistema", frequencia: "Contínua (API)", desde: "2026-08-28", acao: "SINCRONIZAR_ESTOQUE_API", entrega: "Saldo do ERP no Stock Savvy sem upload manual" },
