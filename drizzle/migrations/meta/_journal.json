@@ -652,6 +652,13 @@
       "when": 1795190000000,
       "tag": "0092_log_prestadores_site_cotacao",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1795200000000,
+      "tag": "0093_lista_movimentados_22h",
+      "breakpoints": true
     }
   ]
 }
