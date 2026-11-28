@@ -158,5 +158,5 @@ export function slideFarolMov(p: Pptx, mesLabel: string, pag: number, f: DadosFa
   painelLeitura(s, MARGEM + 8.45, 2.55, LC - 8.45, 4.35, "Leitura do mês", [
     [na.length ? `Na meta: ${na.map((x) => x.nome).join(", ")}` : "Nenhum setor na meta", `Meta de ${fmtPct(meta * 100, 0)} dos dias com movimento conciliados até D+1.`],
     pior ? [`Ponto de atenção: ${pior.nome}`, `${fmtPct((pior.nivel ?? 0) * 100, 0)} de nível de serviço · ${pior.falhas} dia(s) sem conferência · ${pior.atrasados} atrasado(s).`] : ["—", "—"],
-  ], pior && (pior.nivel ?? 1) < meta ? `${pior.nome}: conferência D+1 diária com a Lista de Movimentados das 18h e cobrança no Farol até voltar a ${fmtPct(meta * 100, 0)}.` : "Manter a cobrança diária pelo Farol de Movimentados.");
+  ], pior && (pior.nivel ?? 1) < meta ? `${pior.nome}: conferência D+1 diária com a Lista de Movimentados das 22h e cobrança no Farol até voltar a ${fmtPct(meta * 100, 0)}.` : "Manter a cobrança diária pelo Farol de Movimentados.");
 }
